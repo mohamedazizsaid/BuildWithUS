@@ -21,7 +21,7 @@ export function createTypeOrmConfig(dbConfig: DatabaseConfig): DataSourceOptions
     database: dbConfig.database,
     entities: ['dist/src/**/*.orm-entity.{ts,js}'],
     migrations: ['dist/src/**/infrastructure/persistence/migrations/*-*.{ts,js}'],
-    synchronize: false,
+    synchronize: process.env.NODE_ENV === 'development',
     logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : false,
   };
 }

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package templates.commands;
+
+enum TemplateType {
+  TEMPLATE_TYPE_UNSPECIFIED = 0;
+  EMAIL = 1;
+  FACTURE = 2;
+  CONTRAT = 3;
+}
+
+message ChannelContent {
+  string channel = 1;
+  string subject = 2;
+  string body = 3;
+  string media_url = 4;
+  string format = 5;
+}
+
+message CreateTemplateRequest {
+  string user_id = 1;
+  string name = 2;
+  string tenant_id = 9;
+  optional string description = 3;
+  TemplateType type = 4;
+  optional string subject = 5;
+  string content = 6;
+  repeated ChannelContent channel_contents = 7;
+  repeated TemplateType channels = 8;
+}
+
+message UpdateTemplateRequest {
+  string id = 1;
+  string user_id = 2;
+  string tenant_id = 9;
+  optional string name = 3;
+  optional string description = 4;
+  optional string subject = 5;
+  optional string content = 6;
+  repeated ChannelContent channel_contents = 7;
+  repeated TemplateType channels = 8;
+}
+
+message DeleteTemplateRequest {
+  string id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+}
+
+message CreateTemplateResponse {
+  bool success = 1;
+  string message = 2;
+  TemplateDTO template = 3;
+}
+
+message UpdateTemplateResponse {
+  bool success = 1;
+  string message = 2;
+  TemplateDTO template = 3;
+}
+
+message DeleteTemplateResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message TemplateDTO {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  TemplateType type = 4;
+  string subject = 5;
+  string content = 6;
+  repeated string variables = 7;
+  int64 created_at = 8;
+  int64 updated_at = 9;
+  int64 deleted_at = 10;
+  int32 version = 11;
+  int32 usage_count = 12;
+  repeated TemplateType channels = 13;
+  repeated ChannelContent channel_contents = 14;
+  map<string, string> variants = 15;
+}
+
+// Template Command Service - Write operations (CQRS)
+service TemplateCommandService {
+  rpc CreateTemplate (CreateTemplateRequest) returns (CreateTemplateResponse);
+  rpc UpdateTemplate (UpdateTemplateRequest) returns (UpdateTemplateResponse);
+  rpc DeleteTemplate (DeleteTemplateRequest) returns (DeleteTemplateResponse);
+}

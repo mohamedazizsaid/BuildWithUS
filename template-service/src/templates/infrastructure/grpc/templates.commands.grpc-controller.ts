@@ -35,9 +35,15 @@ export class TemplatesCommandsGrpcController implements TemplateCommandServiceCo
    * Create a new template
    */
   async createTemplate(request: CreateTemplateRequest): Promise<CreateTemplateResponse> {
+    // TODO: tenant_id will come from JWT via API Gateway. For now, accept from request.
+    const req = request as any;
+    const tenantId = req.tenantId || req.tenant_id || req.tenantid || '';
+    if (!tenantId) {
+      throw new Error('tenant_id is required');
+    }
     const command = new CreateTemplateCommand(
       request.userId,
-      request.tenantId || '',
+      tenantId,
       request.name,
       request.description,
       request.type,
@@ -63,7 +69,7 @@ export class TemplatesCommandsGrpcController implements TemplateCommandServiceCo
     const command = new UpdateTemplateCommand(
       request.id,
       request.userId,
-      request.tenantId || '',
+      (request as any).tenantId || (request as any).tenant_id || '',
       request.name,
       request.description,
       request.subject,
@@ -85,7 +91,7 @@ export class TemplatesCommandsGrpcController implements TemplateCommandServiceCo
    * Delete a template (soft delete)
    */
   async deleteTemplate(request: DeleteTemplateRequest): Promise<DeleteTemplateResponse> {
-    const command = new DeleteTemplateCommand(request.id, request.userId, request.tenantId || '');
+    const command = new DeleteTemplateCommand(request.id, request.userId, (request as any).tenantId || (request as any).tenant_id || '');
 
     await this.commandBus.execute<DeleteTemplateCommand, void>(command);
 

@@ -6,6 +6,8 @@ service AuthService{
     rpc Register (RegisterRequest) returns (AuthResponse);
     rpc Login (LoginRequest) returns (AuthResponse);
     rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+    rpc InviteUser (InviteUserRequest) returns (InviteUserResponse);
+    rpc AcceptInvite (AcceptInviteRequest) returns (AuthResponse);
 }
 
 message RegisterRequest {
@@ -25,6 +27,20 @@ message ValidateTokenRequest {
     string token = 1;
 }
 
+message InviteUserRequest {
+    string tenant_id = 1;
+    string email = 2;
+    string role = 3;
+    string invited_by = 4;
+}
+
+message AcceptInviteRequest {
+    string token = 1;
+    string password = 2;
+    string first_name = 3;
+    string last_name = 4;
+}
+
 message AuthResponse {
     string token= 1;
     UserInfo user = 2;
@@ -34,6 +50,18 @@ message ValidateTokenResponse{
     bool valid = 1;
     UserInfo user =2;
 }
+
+message InviteUserResponse {
+    InviteInfo invite = 1;
+}
+
+message InviteInfo {
+    string id = 1;
+    string email = 2;
+    string role = 3;
+    string token = 4;
+}
+
 message UserInfo {
     string id = 1;
     string tenant_id= 2;
@@ -42,4 +70,3 @@ message UserInfo {
     string last_name = 5;
     string role = 6;
 }
-

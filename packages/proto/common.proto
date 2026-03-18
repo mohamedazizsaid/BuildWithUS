@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package common;
+
+// Empty message removed — conflicts with grpc-health-check proto
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string service_name = 2;
+  string version = 3;
+}
+
+message PaginationRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message PaginationResponse {
+  int32 total = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  int32 total_pages = 4;
+  bool has_next = 5;
+  bool has_previous = 6;
+}
+
+message SortRequest {
+  string sort_by = 1;
+  bool ascending = 2;
+}
+
+message ErrorDetail {
+  string code = 1;
+  string message = 2;
+  string field = 3;
+  map<string, string> metadata = 4;
+}
+
+message ErrorResponse {
+  string code = 1;
+  string message = 2;
+  repeated ErrorDetail details = 3;
+  int64 timestamp = 4;
+}
+
+message SuccessResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message IdResponse {
+  string id = 1;
+}
+
+message Metadata {
+  map<string, string> data = 1;
+  int64 created_at = 2;
+  int64 updated_at = 3;
+  string created_by = 4;
+  string updated_by = 5;
+}
+
+message UnsubscribeTokenPayload {
+  string contact_id = 1;
+  string email = 2;
+  string campaign_id = 3;
+  string user_id = 4;
+  string redirect = 5;
+  int64 exp = 6;
+}

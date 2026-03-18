@@ -1,3 +1,6 @@
+import { config } from 'dotenv';
+config({ path: '.env' });
+
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
@@ -15,7 +18,8 @@ async function bootstrap() {
   const grpcPort = process.env.GRPC_PORT || 50056;
   // In Docker: PROTO_ROOT=/app/proto (mounted from packages/proto)
   // In dev: use relative path to packages/proto
-  const protoBasePath = process.env.PROTO_ROOT || join(process.cwd(), '../../packages/proto');
+  const protoRootEnv = process.env.PROTO_ROOT || '../packages/proto';
+  const protoBasePath = join(process.cwd(), protoRootEnv);
 
   // Create gRPC microservice with health checks
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
