@@ -64,6 +64,19 @@ message DeleteTemplateResponse {
   string message = 2;
 }
 
+message DuplicateTemplateRequest {
+  string id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  optional string name = 4;
+}
+
+message DuplicateTemplateResponse {
+  bool success = 1;
+  string message = 2;
+  TemplateDTO template = 3;
+}
+
 message TemplateDTO {
   string id = 1;
   string name = 2;
@@ -87,4 +100,5 @@ service TemplateCommandService {
   rpc CreateTemplate (CreateTemplateRequest) returns (CreateTemplateResponse);
   rpc UpdateTemplate (UpdateTemplateRequest) returns (UpdateTemplateResponse);
   rpc DeleteTemplate (DeleteTemplateRequest) returns (DeleteTemplateResponse);
+  rpc DuplicateTemplate (DuplicateTemplateRequest) returns (DuplicateTemplateResponse);
 }

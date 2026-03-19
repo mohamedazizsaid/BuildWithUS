@@ -45,10 +45,10 @@ export class LoginHandler implements ICommandHandler<LoginCommand> {
       token,
       user: {
         id: user.getId(),
-        tenantId: user.getTenantId(),
+        tenant_id: user.getTenantId(),
         email: user.getEmail(),
-        firstName: user.getFirstName(),
-        lastName: user.getLastName(),
+        first_name: user.getFirstName(),
+        last_name: user.getLastName(),
         role: user.getRole(),
       },
     };

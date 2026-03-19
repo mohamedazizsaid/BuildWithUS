@@ -77,10 +77,10 @@ export class AcceptInviteHandler implements ICommandHandler<AcceptInviteCommand>
       token,
       user: {
         id: user.getId(),
-        tenantId: invitePayload.tenantId,
+        tenant_id: invitePayload.tenantId,
         email: user.getEmail(),
-        firstName: user.getFirstName(),
-        lastName: user.getLastName(),
+        first_name: user.getFirstName(),
+        last_name: user.getLastName(),
         role: user.getRole(),
       },
     };

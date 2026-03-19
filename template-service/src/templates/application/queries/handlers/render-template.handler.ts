@@ -45,9 +45,9 @@ export class RenderTemplateHandler implements IQueryHandler<RenderTemplateQuery,
     this.logger.log(`Template rendered: ${query.id}, variables used: ${rendered.variablesUsed.length}`);
 
     return {
-      renderedSubject: renderedSubject,
-      renderedContent: renderedContent,
-      variablesUsed: rendered.variablesUsed,
-    };
+      rendered_subject: renderedSubject,
+      rendered_content: renderedContent,
+      variables_used: rendered.variablesUsed,
+    } as any;
   }
 }

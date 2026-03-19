@@ -17,6 +17,13 @@ async function bootstrap() {
         url: `0.0.0.0:${grpcPort}`,
         package: 'auth',
         protoPath: join(__dirname, '../proto/auth.proto'),
+        loader: {
+          keepCase: true,
+          longs: String,
+          enums: String,
+          defaults: true,
+          oneofs: true,
+        },
       },
     },
   );

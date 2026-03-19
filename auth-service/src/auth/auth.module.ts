@@ -16,6 +16,10 @@ import { TenantRepositoryImpl } from './infrastructure/persistence/repositories/
 import { UserRepositoryImpl } from './infrastructure/persistence/repositories/user.repository.impl';
 import { InviteRepositoryImpl } from './infrastructure/persistence/repositories/invite.repository.impl';
 
+// Domain - repository interfaces
+import { UserRepository } from './domain/repositories/user.repository';
+import { TenantRepository } from './domain/repositories/tenant.repository';
+
 // Application - services
 import { PasswordService } from './application/services/password.service';
 import { JwtService } from './application/services/jwt.service';
@@ -50,6 +54,14 @@ const CommandHandlers = [RegisterHandler, LoginHandler, InviteUserHandler, Accep
     {
       provide: 'INVITE_REPOSITORY',
       useClass: InviteRepositoryImpl,
+    },
+    {
+      provide: UserRepository,
+      useClass: UserRepositoryImpl,
+    },
+    {
+      provide: TenantRepository,
+      useClass: TenantRepositoryImpl,
     },
   ],
 })

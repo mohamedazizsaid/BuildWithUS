@@ -64,10 +64,10 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
       token,
       user: {
         id: user.getId(),
-        tenantId: tenant.getId(),
+        tenant_id: tenant.getId(),
         email: user.getEmail(),
-        firstName: user.getFirstName(),
-        lastName: user.getLastName(),
+        first_name: user.getFirstName(),
+        last_name: user.getLastName(),
         role: user.getRole(),
       },
     };

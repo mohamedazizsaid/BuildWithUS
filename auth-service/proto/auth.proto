@@ -8,6 +8,9 @@ service AuthService{
     rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
     rpc InviteUser (InviteUserRequest) returns (InviteUserResponse);
     rpc AcceptInvite (AcceptInviteRequest) returns (AuthResponse);
+    rpc GetMe (GetMeRequest) returns (GetMeResponse);
+    rpc ListMembers (ListMembersRequest) returns (ListMembersResponse);
+    rpc UpdateProfile (UpdateProfileRequest) returns (UpdateProfileResponse);
 }
 
 message RegisterRequest {
@@ -60,6 +63,33 @@ message InviteInfo {
     string email = 2;
     string role = 3;
     string token = 4;
+}
+
+message GetMeRequest {
+    string token = 1;
+}
+
+message GetMeResponse {
+    UserInfo user = 1;
+    string tenant_name = 2;
+}
+
+message ListMembersRequest {
+    string token = 1;
+}
+
+message ListMembersResponse {
+    repeated UserInfo members = 1;
+}
+
+message UpdateProfileRequest {
+    string token = 1;
+    string first_name = 2;
+    string last_name = 3;
+}
+
+message UpdateProfileResponse {
+    UserInfo user = 1;
 }
 
 message UserInfo {

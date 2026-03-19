@@ -1,5 +1,6 @@
 import { Controller, UseFilters } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
+import { GrpcMethod } from '@nestjs/microservices';
 import { GrpcExceptionFilter } from '@winaity/shared-kernel';
 import {
   TemplateCommandServiceController,
@@ -15,6 +16,7 @@ import {
   CreateTemplateCommand,
   UpdateTemplateCommand,
   DeleteTemplateCommand,
+  DuplicateTemplateCommand,
 } from '../../application/commands/index.js';
 import { Template } from '../../domain/entities/template.aggregate.js';
 import { TemplateGrpcMapper } from './template.grpc-mapper.js';
@@ -98,6 +100,28 @@ export class TemplatesCommandsGrpcController implements TemplateCommandServiceCo
     return {
       success: true,
       message: 'Template deleted successfully',
+    };
+  }
+
+  /**
+   * Duplicate a template
+   */
+  @GrpcMethod('TemplateCommandService', 'DuplicateTemplate')
+  async duplicateTemplate(request: any): Promise<any> {
+    const tenantId = request.tenantId || request.tenant_id || '';
+    const command = new DuplicateTemplateCommand(
+      request.id,
+      request.userId || request.user_id,
+      tenantId,
+      request.name,
+    );
+
+    const template = await this.commandBus.execute<DuplicateTemplateCommand, Template>(command);
+
+    return {
+      success: true,
+      message: 'Template duplicated successfully',
+      template: TemplateGrpcMapper.toDto(template),
     };
   }
 }
