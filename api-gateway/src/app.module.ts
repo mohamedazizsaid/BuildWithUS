@@ -12,9 +12,9 @@ import { AuthGuard } from '../src/guards/auth.guard';
         name: 'AUTH_SERVICE',
         transport: Transport.GRPC,
         options: {
-          url: 'localhost:50055',
+          url: process.env.AUTH_SERVICE_URL || 'localhost:50055',
           package: 'auth',
-          protoPath: join(__dirname, '../../auth-service/proto/auth.proto'),
+          protoPath: process.env.AUTH_PROTO_PATH || join(__dirname, '../../auth-service/proto/auth.proto'),
           loader: {
             keepCase: true,
             longs: String,
@@ -28,9 +28,9 @@ import { AuthGuard } from '../src/guards/auth.guard';
         name: 'TEMPLATE_COMMAND_SERVICE',
         transport: Transport.GRPC,
         options: {
-          url: 'localhost:50054',
+          url: process.env.TEMPLATE_SERVICE_URL || 'localhost:50054',
           package: 'templates.commands',
-          protoPath: join(__dirname, '../../packages/proto/template_commands.proto'),
+          protoPath: process.env.TEMPLATE_CMD_PROTO_PATH || join(__dirname, '../../packages/proto/template_commands.proto'),
           loader: {
             keepCase: true,
             longs: String,
@@ -44,9 +44,9 @@ import { AuthGuard } from '../src/guards/auth.guard';
         name: 'TEMPLATE_QUERY_SERVICE',
         transport: Transport.GRPC,
         options: {
-          url: 'localhost:50054',
+          url: process.env.TEMPLATE_SERVICE_URL || 'localhost:50054',
           package: 'templates.queries',
-          protoPath: join(__dirname, '../../packages/proto/template_queries.proto'),
+          protoPath: process.env.TEMPLATE_QUERY_PROTO_PATH || join(__dirname, '../../packages/proto/template_queries.proto'),
           loader: {
             keepCase: true,
             longs: String,

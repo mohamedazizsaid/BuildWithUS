@@ -2,7 +2,7 @@ import { Controller, Logger } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { GrpcMethod } from '@nestjs/microservices';
 import { RegisterCommand } from '../../application/commands/register.command';
-import { LoginCommand } from 'src/auth/application/commands/login.comand';
+import { LoginCommand } from '../../application/commands/login.comand';
 import { InviteUserCommand } from '../../application/commands/invite-user.command';
 import { AcceptInviteCommand } from '../../application/commands/accept-invite.command';
 import { JwtService } from '../../application/services/jwt.service';

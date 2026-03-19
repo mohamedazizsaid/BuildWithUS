@@ -1,29 +1,35 @@
-FROM oven/bun:1-alpine AS deps
+FROM node:20-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache protobuf protobuf-dev
+# Copy shared-kernel package
+COPY packages/shared-kernel /packages/shared-kernel
+RUN cd /packages/shared-kernel && npm install
 
-COPY tsconfig.base.json /tsconfig.base.json
+# Copy template service package.json and install deps
+COPY template-service/package.json template-service/package-lock.json ./
+RUN npm ci
 
-COPY packages /packages
-RUN cd /packages/shared-kernel && bun install --frozen-lockfile
+# Link shared-kernel into node_modules
+RUN mkdir -p node_modules/@winaity && \
+    rm -rf node_modules/@winaity/shared-kernel && \
+    ln -s /packages/shared-kernel node_modules/@winaity/shared-kernel
 
-COPY services/template-service/package.json services/template-service/bun.lock* ./
-RUN bun install --frozen-lockfile
+# Copy template service source
+COPY template-service/src ./src
+COPY template-service/tsconfig.json template-service/nest-cli.json* ./
 
-FROM deps AS development
+# Copy generated proto TypeScript files (for imports)
+COPY template-service/proto ./proto
 
-ENV NODE_ENV=development
-ENV PROTO_ROOT=./proto
+# Copy raw proto files (for gRPC server runtime)
+COPY packages/proto ./packages-proto
 
-COPY services/template-service/src ./src
-COPY services/template-service/tsconfig.json ./
-COPY services/template-service/ormconfig.ts ./
+# Remove .env so it doesn't override docker-compose env vars
+RUN rm -f .env .env.development .env.*
 
-RUN mkdir -p proto/generated proto/google/api && \
-    cp /packages/proto/*.proto ./proto/ && \
-    cp -r /packages/proto/google/api/* ./proto/google/api/ && \
-    cp -r /packages/proto/gen/ts/* ./proto/generated/
+ENV PROTO_ROOT=./packages-proto
 
-CMD ["bun", "run", "start:dev"]
+EXPOSE 50054
+
+CMD ["npx", "nest", "start"]
