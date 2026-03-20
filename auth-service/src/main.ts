@@ -30,6 +30,32 @@ async function bootstrap() {
 
   await app.listen();
   console.log(`Auth service running on gRPC port ${grpcPort}`);
+
+  // Register with Consul if available
+  const consulHost = process.env.CONSUL_HOST || 'consul';
+  const consulPort = process.env.CONSUL_PORT || '8500';
+  const serviceHost = process.env.SERVICE_HOST || 'auth-service';
+  try {
+    const res = await fetch(`http://${consulHost}:${consulPort}/v1/agent/service/register`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ID: 'auth-service-1',
+        Name: 'auth-service',
+        Address: serviceHost,
+        Port: parseInt(grpcPort),
+        Tags: ['grpc', 'auth'],
+        Check: {
+          TCP: `${serviceHost}:${grpcPort}`,
+          Interval: '10s',
+          Timeout: '5s',
+        },
+      }),
+    });
+    if (res.ok) console.log('Registered with Consul');
+  } catch {
+    console.log('Consul not available, skipping registration');
+  }
 }
 
 bootstrap();

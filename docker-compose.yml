@@ -4,6 +4,7 @@ services:
   # ─── Databases ───
   postgres:
     image: postgres:16-alpine
+    restart: always
     environment:
       POSTGRES_USER: winaity
       POSTGRES_PASSWORD: winaity123
@@ -21,6 +22,7 @@ services:
   # ─── Message Broker ───
   nats:
     image: nats:2-alpine
+    restart: always
     ports:
       - "4222:4222"
       - "8222:8222"
@@ -28,6 +30,7 @@ services:
   # ─── Service Discovery ───
   consul:
     image: hashicorp/consul:latest
+    restart: always
     ports:
       - "8500:8500"
     command: agent -dev -ui -client=0.0.0.0
@@ -35,6 +38,7 @@ services:
   # ─── File Storage ───
   minio:
     image: minio/minio:latest
+    restart: always
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -48,6 +52,7 @@ services:
   # ─── Auth Service ───
   auth-service:
     build: ./auth-service
+    restart: always
     ports:
       - "50055:50055"
     environment:
@@ -67,6 +72,7 @@ services:
     build:
       context: .
       dockerfile: template-service/Dockerfile
+    restart: always
     ports:
       - "50054:50054"
     environment:
@@ -84,6 +90,7 @@ services:
   # ─── API Gateway ───
   api-gateway:
     build: ./api-gateway
+    restart: always
     ports:
       - "3000:3000"
     environment:
