@@ -78,7 +78,6 @@ export default function AuthImage() {
           Create stunning email templates, invoices, and contracts with drag & drop simplicity.
         </motion.p>
       </div>
-
     </div>
   );
 }

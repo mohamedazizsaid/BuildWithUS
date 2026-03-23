@@ -2,12 +2,23 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
 
+/**
+ * Bootstrap — starts the API Gateway REST server.
+ * This is the SINGLE entry point for the entire backend.
+ * Frontend (Next.js) → Gateway (REST) → Microservices (gRPC)
+ */
 async function bootstrap() {
+  // Create a standard HTTP/REST server (not gRPC — that's for the microservices)
   const app = await NestFactory.create(AppModule);
 
+  // Enable cookie parsing — so we can read JWT tokens from browser cookies
+  // When a user logs in, the token is stored as an httpOnly cookie
   app.use(cookieParser());
+
+  // Enable CORS — allows the frontend (different port) to make requests to the gateway
+  // credentials: true → allows cookies to be sent cross-origin
   app.enableCors({
-    origin: 'http://localhost:5173', // React dev server
+    origin: ['http://localhost:3001', 'http://localhost:5173'], // Next.js + Vite dev servers
     credentials: true,               // allow cookies
   });
 
@@ -15,7 +26,8 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`API Gateway running on http://localhost:${port}`);
 
-  // Register with Consul if available
+  // Register this service with Consul (service discovery dashboard)
+  // If Consul is not running, we just skip — the gateway works fine without it
   const consulHost = process.env.CONSUL_HOST || 'consul';
   const consulPort = process.env.CONSUL_PORT || '8500';
   const serviceHost = process.env.SERVICE_HOST || 'api-gateway';

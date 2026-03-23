@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useAuth } from '@/context/auth';
+import toast from 'react-hot-toast';
 
 interface RegisterForm {
   tenantName: string;
@@ -16,6 +18,8 @@ interface RegisterForm {
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { register: registerUser } = useAuth();
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>();
   const password = watch('password', '');
 
@@ -28,7 +32,15 @@ export default function RegisterPage() {
   ];
 
   const onSubmit = async (data: RegisterForm) => {
-    console.log('Register:', data);
+    setIsLoading(true);
+    try {
+      await registerUser(data);
+      toast.success('Account created successfully');
+    } catch (error: any) {
+      toast.error(error.message) || toast.error('Registration failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -114,8 +126,12 @@ export default function RegisterPage() {
           ))}
         </div>
 
-        <button type="submit" className="w-full py-2.5 bg-slate-900 text-white rounded-full font-medium hover:bg-slate-800 transition-colors mt-2">
-          Create an account
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full py-2.5 bg-slate-900 text-white rounded-full font-medium hover:bg-slate-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Creating account...' : 'Create an account'}
         </button>
 
         <p className="text-center text-sm text-slate-500">

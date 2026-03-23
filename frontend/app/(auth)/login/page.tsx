@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import { Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useAuth } from '@/context/auth';
+import toast from 'react-hot-toast';
 
 interface LoginForm {
   email: string;
@@ -13,10 +15,20 @@ interface LoginForm {
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   const onSubmit = async (data: LoginForm) => {
-    console.log('Login:', data);
+    setIsLoading(true);
+    try {
+      await login(data.email, data.password);
+      toast.success('Welcome back!');
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,8 +84,12 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <button type="submit" className="w-full py-2.5 bg-slate-900 text-white rounded-full font-medium hover:bg-slate-800 transition-colors">
-          Log in
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full py-2.5 bg-slate-900 text-white rounded-full font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Logging in...' : 'Log in'}
         </button>
 
         <p className="text-center text-sm text-slate-500">
