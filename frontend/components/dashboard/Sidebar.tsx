@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/auth';
@@ -12,13 +11,35 @@ import {
   UserPlus,
   Settings,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
   Plus,
+  ChevronsUpDown,
 } from 'lucide-react';
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+} from '@/components/ui/sidebar';
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
+export default function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
@@ -37,92 +58,120 @@ export default function Sidebar() {
     { href: '/dashboard/invite', label: 'Invite Member', icon: UserPlus },
   ];
 
-  const bottomLinks = [
-    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-  ];
-
-  const NavLink = ({ href, label, icon: Icon }: { href: string; label: string; icon: any }) => {
-    const isActive = pathname === href;
-    return (
-      <Link
-        href={href}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
-          ${isActive
-            ? 'bg-slate-900 text-white'
-            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-          }
-          ${collapsed ? 'justify-center' : ''}
-        `}
-      >
-        <Icon size={20} className="flex-shrink-0" />
-        {!collapsed && <span>{label}</span>}
-      </Link>
-    );
-  };
-
   return (
-    <aside
-      className={`h-screen bg-white border-r border-slate-200 flex flex-col transition-all duration-300
-        ${collapsed ? 'w-[72px]' : 'w-64'}
-      `}
-    >
-      {/* Logo */}
-      <div className={`flex items-center h-16 px-4 border-b border-slate-200 ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-bold text-sm">W</span>
-        </div>
-        {!collapsed && <span className="font-semibold text-slate-900 text-lg">Winaity</span>}
-      </div>
+    <Sidebar collapsible="icon">
+      {/* Header — Logo + Tenant */}
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/dashboard">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-slate-900 text-white">
+                  <span className="font-bold text-sm">W</span>
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">Winaity</span>
+                  <span className="truncate text-xs text-muted-foreground">{user?.tenant_name}</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <div className="space-y-1">
-          {mainLinks.map((link) => (
-            <NavLink key={link.href} {...link} />
-          ))}
-        </div>
+      <SidebarContent>
+        {/* Main Navigation */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {mainLinks.map((link) => (
+                <SidebarMenuItem key={link.href}>
+                  <SidebarMenuButton asChild isActive={pathname === link.href} tooltip={link.label}>
+                    <Link href={link.href}>
+                      <link.icon />
+                      <span>{link.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Admin Section */}
         {isAdmin && (
-          <div className="pt-4 mt-4 border-t border-slate-200 space-y-1">
-            {!collapsed && (
-              <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Admin
-              </p>
-            )}
-            {adminLinks.map((link) => (
-              <NavLink key={link.href} {...link} />
-            ))}
-          </div>
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Admin</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {adminLinks.map((link) => (
+                    <SidebarMenuItem key={link.href}>
+                      <SidebarMenuButton asChild isActive={pathname === link.href} tooltip={link.label}>
+                        <Link href={link.href}>
+                          <link.icon />
+                          <span>{link.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
         )}
-      </nav>
+      </SidebarContent>
 
-      {/* Bottom */}
-      <div className="px-3 py-4 border-t border-slate-200 space-y-1">
-        {bottomLinks.map((link) => (
-          <NavLink key={link.href} {...link} />
-        ))}
-        <button
-          onClick={logout}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-all duration-200 w-full
-            ${collapsed ? 'justify-center' : ''}
-          `}
-        >
-          <LogOut size={20} className="flex-shrink-0" />
-          {!collapsed && <span>Logout</span>}
-        </button>
-
-        {/* Collapse Toggle */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all duration-200 w-full
-            ${collapsed ? 'justify-center' : ''}
-          `}
-        >
-          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          {!collapsed && <span>Collapse</span>}
-        </button>
-      </div>
-    </aside>
+      {/* Footer — User Menu */}
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent">
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg bg-slate-900 text-white text-xs">
+                      {user?.first_name?.charAt(0)}{user?.last_name?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">{user?.first_name} {user?.last_name}</span>
+                    <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
+                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg bg-slate-900 text-white text-xs">
+                      {user?.first_name?.charAt(0)}{user?.last_name?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">{user?.first_name} {user?.last_name}</span>
+                    <span className="truncate text-xs text-muted-foreground capitalize">{user?.role}</span>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-500 focus:text-red-500">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }
