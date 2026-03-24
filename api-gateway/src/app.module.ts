@@ -4,6 +4,8 @@ import { join } from 'path';
 import { AuthController } from '../src/controllers/auth.controller';
 import { TemplateController } from '../src/controllers/template.controller';
 import { AuthGuard } from '../src/guards/auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { Reflector } from '@nestjs/core';
 
 /**
  * AppModule — the main module of the API Gateway.
@@ -80,6 +82,6 @@ import { AuthGuard } from '../src/guards/auth.guard';
     ]),
   ],
   controllers: [AuthController, TemplateController], // REST controllers that handle HTTP requests
-  providers: [AuthGuard], // The JWT guard, injectable into any controller
+  providers: [AuthGuard, RolesGuard , Reflector], // The JWT guard, injectable into any controller
 })
 export class AppModule {}

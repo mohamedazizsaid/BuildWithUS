@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Inject, On
 import { ClientGrpc } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { AuthGuard } from '../guards/auth.guard';
+import { Roles, RolesGuard } from '../guards/roles.guard';
 
 /**
  * TemplateController — handles all /templates/* REST routes.
@@ -15,7 +16,7 @@ import { AuthGuard } from '../guards/auth.guard';
  * - TEMPLATE_QUERY_SERVICE   → read operations (list, get, render)
  */
 @Controller('templates')
-@UseGuards(AuthGuard) // Every route in this controller requires a valid JWT
+@UseGuards(AuthGuard, RolesGuard) // Every route in this controller requires a valid JWT
 export class TemplateController implements OnModuleInit {
   private commandService: any; // gRPC client for write operations
   private queryService: any;   // gRPC client for read operations
@@ -37,6 +38,7 @@ export class TemplateController implements OnModuleInit {
    * Gateway adds: user_id and tenant_id from JWT (req.user)
    */
   @Post()
+  @Roles('admin', 'editor')
   async create(@Req() req: any, @Body() body: any) {
     const result = await firstValueFrom(this.commandService.CreateTemplate({
       user_id: req.user.id,           // from JWT — who is creating
@@ -92,6 +94,7 @@ export class TemplateController implements OnModuleInit {
    * Frontend sends the fields to update (name, content, subject, etc.)
    */
   @Put(':id')
+  @Roles('admin', 'editor')
   async update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     const result = await firstValueFrom(this.commandService.UpdateTemplate({
       id,
@@ -112,6 +115,7 @@ export class TemplateController implements OnModuleInit {
    * Sets deleted_at timestamp — template is hidden but not destroyed.
    */
   @Delete(':id')
+  @Roles('admin', 'editor')
   async delete(@Req() req: any, @Param('id') id: string) {
     const result = await firstValueFrom(this.commandService.DeleteTemplate({
       id,
@@ -126,6 +130,7 @@ export class TemplateController implements OnModuleInit {
    * Creates a copy with a new name (e.g. "Invoice Template (copy)").
    */
   @Post(':id/duplicate')
+  @Roles('admin', 'editor')
   async duplicate(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     const result = await firstValueFrom(this.commandService.DuplicateTemplate({
       id,                              // ID of template to clone

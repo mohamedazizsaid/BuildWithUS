@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 interface User {
   id: string;
   tenant_id: string;
+  tenant_name: string;
   email: string;
   first_name: string;
   last_name: string;
@@ -32,20 +33,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // On app load, check if user is already logged in (cookie exists)
   useEffect(() => {
     auth.getMe()
-      .then((data) => setUser(data.user))
+      .then((data) => setUser({ ...data.user, tenant_name: data.tenant_name }))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {
-    const data = await auth.login({ email, password });
-    setUser(data.user);
+    await auth.login({ email, password });
+    const me = await auth.getMe();
+    setUser({ ...me.user, tenant_name: me.tenant_name });
     router.push('/dashboard');
   };
 
   const register = async (body: { tenantName: string; email: string; password: string; firstName: string; lastName: string }) => {
-    const data = await auth.register(body);
-    setUser(data.user);
+    await auth.register(body);
+    const me = await auth.getMe();
+    setUser({ ...me.user, tenant_name: me.tenant_name });
     router.push('/dashboard');
   };
 

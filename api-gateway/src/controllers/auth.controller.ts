@@ -1,8 +1,21 @@
-import { Controller, Post, Get, Put, Body, Req, Res, Inject, OnModuleInit, UseGuards } from '@nestjs/common';
-import { ClientGrpc } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
-import { Response } from 'express';
-import { AuthGuard } from '../guards/auth.guard';
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Body,
+  Req,
+  Res,
+  Inject,
+  OnModuleInit,
+  UseGuards,
+} from "@nestjs/common";
+import { ClientGrpc } from "@nestjs/microservices";
+import { firstValueFrom } from "rxjs";
+import { Response } from "express";
+import { AuthGuard } from "../guards/auth.guard";
+import { Roles, RolesGuard } from "../guards/roles.guard";
+import { Resend } from "resend";
 
 /**
  * AuthController — handles all /auth/* REST routes.
@@ -11,16 +24,17 @@ import { AuthGuard } from '../guards/auth.guard';
  * Public routes: register, login, accept-invite, logout (no token needed)
  * Protected routes: me, profile, invite, members (token required via AuthGuard)
  */
-@Controller('auth')
+@Controller("auth")
 export class AuthController implements OnModuleInit {
   private authService: any;
+  private resend = new Resend(process.env.RESEND_API_KEY);
 
   // Inject the AUTH_SERVICE gRPC client
-  constructor(@Inject('AUTH_SERVICE') private readonly client: ClientGrpc) {}
+  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
 
   // Get a reference to the AuthService gRPC methods when the module starts
   onModuleInit() {
-    this.authService = this.client.getService('AuthService');
+    this.authService = this.client.getService("AuthService");
   }
 
   /**
@@ -28,24 +42,26 @@ export class AuthController implements OnModuleInit {
    * Creates a new organization (tenant) + first user (admin).
    * Sets JWT token as httpOnly cookie so the user is logged in immediately.
    */
-  @Post('register')
+  @Post("register")
   async register(@Body() body: any, @Res() res: Response) {
     // Translate REST body (camelCase) → gRPC request (snake_case)
-    const result: any = await firstValueFrom(this.authService.Register({
-      tenant_name: body.tenantName,
-      email: body.email,
-      password: body.password,
-      first_name: body.firstName,
-      last_name: body.lastName,
-    }));
+    const result: any = await firstValueFrom(
+      this.authService.Register({
+        tenant_name: body.tenantName,
+        email: body.email,
+        password: body.password,
+        first_name: body.firstName,
+        last_name: body.lastName,
+      }),
+    );
 
     // Set JWT as httpOnly cookie — browser sends it automatically on every request
     // httpOnly: true → JavaScript can't read it (protects against XSS attacks)
     // sameSite: 'lax' → cookie not sent to other websites (protects against CSRF)
-    res.cookie('token', result.token, {
+    res.cookie("token", result.token, {
       httpOnly: true,
-      secure: false,       // true in production (HTTPS)
-      sameSite: 'lax',
+      secure: false, // true in production (HTTPS)
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 24h
     });
 
@@ -56,17 +72,19 @@ export class AuthController implements OnModuleInit {
    * POST /auth/login — PUBLIC
    * Verifies email + password, returns user info and sets JWT cookie.
    */
-  @Post('login')
+  @Post("login")
   async login(@Body() body: any, @Res() res: Response) {
-    const result: any = await firstValueFrom(this.authService.Login({
-      email: body.email,
-      password: body.password,
-    }));
+    const result: any = await firstValueFrom(
+      this.authService.Login({
+        email: body.email,
+        password: body.password,
+      }),
+    );
 
-    res.cookie('token', result.token, {
+    res.cookie("token", result.token, {
       httpOnly: true,
       secure: false,
-      sameSite: 'lax',
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000,
     });
 
@@ -77,10 +95,10 @@ export class AuthController implements OnModuleInit {
    * POST /auth/logout — PUBLIC
    * Clears the JWT cookie — user is no longer authenticated.
    */
-  @Post('logout')
+  @Post("logout")
   async logout(@Res() res: Response) {
-    res.clearCookie('token');
-    return res.json({ message: 'Logged out' });
+    res.clearCookie("token");
+    return res.json({ message: "Logged out" });
   }
 
   /**
@@ -88,11 +106,13 @@ export class AuthController implements OnModuleInit {
    * Returns the full user profile + tenant name.
    * Used by frontend on page load to check if user is logged in.
    */
-  @Get('me')
+  @Get("me")
   @UseGuards(AuthGuard)
   async getMe(@Req() req: any) {
     // req.token was attached by AuthGuard after validating the JWT
-    const result = await firstValueFrom(this.authService.GetMe({ token: req.token }));
+    const result = await firstValueFrom(
+      this.authService.GetMe({ token: req.token }),
+    );
     return result;
   }
 
@@ -100,14 +120,16 @@ export class AuthController implements OnModuleInit {
    * PUT /auth/profile — PROTECTED
    * Updates the user's first name and last name.
    */
-  @Put('profile')
+  @Put("profile")
   @UseGuards(AuthGuard)
   async updateProfile(@Req() req: any, @Body() body: any) {
-    const result = await firstValueFrom(this.authService.UpdateProfile({
-      token: req.token,
-      first_name: body.firstName,
-      last_name: body.lastName,
-    }));
+    const result = await firstValueFrom(
+      this.authService.UpdateProfile({
+        token: req.token,
+        first_name: body.firstName,
+        last_name: body.lastName,
+      }),
+    );
     return result;
   }
 
@@ -116,15 +138,48 @@ export class AuthController implements OnModuleInit {
    * Sends an invite to a new user. Returns a token-based invite link (expires in 15min).
    * tenant_id and invited_by are extracted from the JWT — frontend doesn't send them.
    */
-  @Post('invite')
-  @UseGuards(AuthGuard)
+  @Post("invite")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("admin")
   async inviteUser(@Req() req: any, @Body() body: any) {
-    const result = await firstValueFrom(this.authService.InviteUser({
-      tenant_id: req.user.tenant_id, // from JWT — can't be faked
-      email: body.email,
-      role: body.role || 'editor',
-      invited_by: req.user.id,       // from JWT — can't be faked
-    }));
+    const result: any = await firstValueFrom(
+      this.authService.InviteUser({
+        tenant_id: req.user.tenant_id,
+        email: body.email,
+        role: body.role || "editor",
+        invited_by: req.user.id,
+      }),
+    );
+
+    // Send invite email
+    const inviteLink = `http://localhost:3001/invite?token=${result.invite.token}`;
+    try {
+      await this.resend.emails.send({
+        from: "Winaity <onboarding@resend.dev>",
+        to: body.email,
+        subject: "You've been invited to join an organization on Winaity",
+        html: `
+          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background: #0f172a; border-radius: 8px; padding: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+              <span style="color: white; font-weight: bold; font-size: 18px;">W</span>
+            </div>
+            <h1 style="color: #0f172a; font-size: 24px; margin-bottom: 8px;">You're invited!</h1>
+            <p style="color: #64748b; font-size: 14px; line-height: 1.6;">
+              You've been invited to join an organization on Winaity as <strong>${body.role || "editor"}</strong>.
+            </p>
+            <a href="${inviteLink}" style="display: inline-block; margin-top: 24px; padding: 12px 32px; background: #0f172a; color: white; text-decoration: none; border-radius: 50px; font-weight: 500; font-size: 14px;">
+              Join Organization
+            </a>
+            <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
+              This link expires in 15 minutes. If you didn't expect this invite, you can safely ignore it.
+            </p>
+          </div>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Failed to send invite email:", emailError);
+    }
+
     return result;
   }
 
@@ -134,19 +189,21 @@ export class AuthController implements OnModuleInit {
    * The token contains: tenantId, email, role (set by the admin who invited them).
    * Sets JWT cookie so the user is logged in immediately after joining.
    */
-  @Post('accept-invite')
+  @Post("accept-invite")
   async acceptInvite(@Body() body: any, @Res() res: Response) {
-    const result: any = await firstValueFrom(this.authService.AcceptInvite({
-      token: body.token,          // invite token from the link
-      password: body.password,
-      first_name: body.firstName,
-      last_name: body.lastName,
-    }));
+    const result: any = await firstValueFrom(
+      this.authService.AcceptInvite({
+        token: body.token, // invite token from the link
+        password: body.password,
+        first_name: body.firstName,
+        last_name: body.lastName,
+      }),
+    );
 
-    res.cookie('token', result.token, {
+    res.cookie("token", result.token, {
       httpOnly: true,
       secure: false,
-      sameSite: 'lax',
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000,
     });
 
@@ -158,10 +215,13 @@ export class AuthController implements OnModuleInit {
    * Lists all users in the same organization (tenant).
    * Used by admin to see who's in their team.
    */
-  @Get('members')
-  @UseGuards(AuthGuard)
+  @Get("members")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("admin")
   async listMembers(@Req() req: any) {
-    const result = await firstValueFrom(this.authService.ListMembers({ token: req.token }));
+    const result = await firstValueFrom(
+      this.authService.ListMembers({ token: req.token }),
+    );
     return result;
   }
 }

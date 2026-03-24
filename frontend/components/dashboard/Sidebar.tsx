@@ -23,11 +23,12 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
 
   const isAdmin = user?.role === 'admin';
+  const canEdit = user?.role === 'admin' || user?.role === 'editor';
 
   const mainLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/templates', label: 'Templates', icon: FileText },
-    { href: '/dashboard/templates/new', label: 'Create Template', icon: Plus },
+    ...(canEdit ? [{ href: '/dashboard/templates/new', label: 'Create Template', icon: Plus }] : []),
     { href: '/dashboard/favourites', label: 'Favourites', icon: Star },
   ];
 

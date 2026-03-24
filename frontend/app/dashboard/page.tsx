@@ -7,10 +7,12 @@ import { motion } from 'framer-motion';
 export default function DashboardPage() {
   const { user } = useAuth();
 
+  const isAdmin = user?.role === 'admin';
+
   const stats = [
     { label: 'Templates', value: '0', icon: FileText, color: 'bg-indigo-50 text-indigo-600' },
     { label: 'Favourites', value: '0', icon: Star, color: 'bg-amber-50 text-amber-600' },
-    { label: 'Team Members', value: '1', icon: Users, color: 'bg-emerald-50 text-emerald-600' },
+    ...(isAdmin ? [{ label: 'Team Members', value: '1', icon: Users, color: 'bg-emerald-50 text-emerald-600' }] : []),
     { label: 'Usage This Month', value: '0', icon: TrendingUp, color: 'bg-rose-50 text-rose-600' },
   ];
 

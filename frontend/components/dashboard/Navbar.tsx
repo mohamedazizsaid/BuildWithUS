@@ -21,15 +21,20 @@ export default function Navbar() {
       </div>
 
       {/* User Info */}
-      <div className="flex items-center gap-3 ml-6">
-        <div className="text-right">
-          <p className="text-sm font-medium text-slate-900">{user?.first_name} {user?.last_name}</p>
-          <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
+      <div className="flex items-center gap-4 ml-6">
+        <div className="px-3 py-1 bg-slate-100 rounded-full">
+          <span className="text-xs font-medium text-slate-600">{user?.tenant_name}</span>
         </div>
-        <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center">
-          <span className="text-white text-sm font-medium">
-            {user?.first_name?.charAt(0)}{user?.last_name?.charAt(0)}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-sm font-medium text-slate-900">{user?.first_name} {user?.last_name}</p>
+            <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
+          </div>
+          <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center">
+            <span className="text-white text-sm font-medium">
+              {user?.first_name?.charAt(0)}{user?.last_name?.charAt(0)}
+            </span>
+          </div>
         </div>
       </div>
     </header>
