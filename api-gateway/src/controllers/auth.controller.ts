@@ -15,7 +15,7 @@ import { firstValueFrom } from "rxjs";
 import { Response } from "express";
 import { AuthGuard } from "../guards/auth.guard";
 import { Roles, RolesGuard } from "../guards/roles.guard";
-import { Resend } from "resend";
+import * as nodemailer from "nodemailer";
 
 /**
  * AuthController — handles all /auth/* REST routes.
@@ -27,7 +27,13 @@ import { Resend } from "resend";
 @Controller("auth")
 export class AuthController implements OnModuleInit {
   private authService: any;
-  private resend = new Resend(process.env.RESEND_API_KEY);
+  private transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
 
   // Inject the AUTH_SERVICE gRPC client
   constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
@@ -151,11 +157,12 @@ export class AuthController implements OnModuleInit {
       }),
     );
 
-    // Send invite email
+    // Send invite email via Gmail
     const inviteLink = `http://localhost:3001/invite?token=${result.invite.token}`;
+    console.log("Sending invite email to:", body.email);
     try {
-      await this.resend.emails.send({
-        from: "Winaity <onboarding@resend.dev>",
+      const emailResult = await this.transporter.sendMail({
+        from: `Winaity <${process.env.GMAIL_USER}>`,
         to: body.email,
         subject: "You've been invited to join an organization on Winaity",
         html: `
@@ -176,6 +183,7 @@ export class AuthController implements OnModuleInit {
           </div>
         `,
       });
+      console.log("Email sent:", emailResult.messageId);
     } catch (emailError) {
       console.error("Failed to send invite email:", emailError);
     }
