@@ -167,6 +167,25 @@ export function useEditor() {
     updateTemplate(newTemplate);
   }, [template, updateTemplate]);
 
+  const reorderBlocks = useCallback((columnId: string, fromIndex: number, toIndex: number) => {
+    const newTemplate = {
+      ...template,
+      rows: template.rows.map((row) => ({
+        ...row,
+        columns: row.columns.map((col) => {
+          if (col.id === columnId) {
+            const newBlocks = [...col.blocks];
+            const [moved] = newBlocks.splice(fromIndex, 1);
+            newBlocks.splice(toIndex, 0, moved);
+            return { ...col, blocks: newBlocks };
+          }
+          return col;
+        }),
+      })),
+    };
+    updateTemplate(newTemplate);
+  }, [template, updateTemplate]);
+
   const getSelectedBlock = useCallback((): BlockData | null => {
     for (const row of template.rows) {
       for (const col of row.columns) {
@@ -192,6 +211,7 @@ export function useEditor() {
     updateGlobalStyles,
     updateRowStyles,
     reorderRows,
+    reorderBlocks,
     getSelectedBlock,
     undo,
     redo,

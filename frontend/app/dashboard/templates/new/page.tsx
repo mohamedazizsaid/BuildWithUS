@@ -81,7 +81,7 @@ export default function NewTemplatePage() {
   const deviceWidth = previewDevice === 'desktop' ? '100%' : previewDevice === 'tablet' ? '768px' : '375px';
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] -m-6">
+    <div className="flex flex-col h-[calc(100vh-4rem)] -m-6 overflow-hidden">
       {/* Toolbar */}
       <EditorToolbar
         templateName={templateName}
@@ -100,7 +100,7 @@ export default function NewTemplatePage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Center: Canvas / Code / Preview */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0">
           {previewMode ? (
             // Preview Mode
             <div
@@ -129,6 +129,7 @@ export default function NewTemplatePage() {
               onUpdateBlock={editor.updateBlock}
               onAddRow={editor.addRow}
               onReorderRows={editor.reorderRows}
+              onReorderBlocks={editor.reorderBlocks}
               activeColumnId={activeColumnId}
             />
           ) : (
