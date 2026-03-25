@@ -130,6 +130,7 @@ export default function NewTemplatePage() {
               onAddRow={editor.addRow}
               onReorderRows={editor.reorderRows}
               onReorderBlocks={editor.reorderBlocks}
+              onDropBlock={(columnId, blockType) => editor.addBlock(columnId, blockType as import('@/lib/editor-types').BlockType)}
               activeColumnId={activeColumnId}
             />
           ) : (

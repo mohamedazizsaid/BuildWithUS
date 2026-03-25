@@ -149,28 +149,27 @@ function ContenuPanel({
   onAddBlock: (columnId: string, type: BlockType) => void;
   activeColumnId: string | null;
 }) {
-  if (!activeColumnId) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-sm text-slate-500">Select a column on the canvas to add content</p>
-        <p className="text-xs text-slate-400 mt-1">Click on an empty area inside a row</p>
-      </div>
-    );
-  }
-
   return (
     <div>
       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Content</h3>
+      {!activeColumnId && (
+        <p className="text-xs text-slate-400 mb-3">Drag into a column, or select a column first</p>
+      )}
       <div className="grid grid-cols-2 gap-2">
         {BLOCK_ITEMS.map((item) => (
-          <button
+          <div
             key={item.type}
-            onClick={() => onAddBlock(activeColumnId, item.type)}
-            className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-slate-200 hover:border-slate-400 hover:bg-slate-50 transition-all text-center"
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('blockType', item.type);
+              e.dataTransfer.effectAllowed = 'copy';
+            }}
+            onClick={() => activeColumnId && onAddBlock(activeColumnId, item.type)}
+            className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-slate-200 hover:border-slate-400 hover:bg-slate-50 transition-all text-center cursor-grab active:cursor-grabbing"
           >
             <span className="text-lg">{item.icon}</span>
             <span className="text-xs font-medium text-slate-600">{item.label}</span>
-          </button>
+          </div>
         ))}
       </div>
     </div>

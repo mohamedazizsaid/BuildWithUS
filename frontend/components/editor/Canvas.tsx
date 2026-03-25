@@ -17,6 +17,7 @@ interface CanvasProps {
   onAddRow: (layout: RowLayout) => void;
   onReorderRows: (fromIndex: number, toIndex: number) => void;
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
+  onDropBlock: (columnId: string, blockType: string) => void;
   activeColumnId: string | null;
 }
 
@@ -35,6 +36,7 @@ export default function Canvas({
   onAddRow,
   onReorderRows,
   onReorderBlocks,
+  onDropBlock,
   activeColumnId,
 }: CanvasProps) {
   const [showAddRow, setShowAddRow] = useState(false);
@@ -115,6 +117,7 @@ export default function Canvas({
                   onRemoveBlock={onRemoveBlock}
                   onUpdateBlock={onUpdateBlock}
                   onReorderBlocks={onReorderBlocks}
+                  onDropBlock={onDropBlock}
                   globalStyles={template.globalStyles}
                 />
               </div>
@@ -198,8 +201,8 @@ function FloatingToolbar({
   };
 
   return (
-    <div className="relative" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center gap-0.5 bg-slate-900 rounded-lg px-1.5 py-1 shadow-lg mt-1">
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-0.5 bg-slate-900 rounded-lg px-1.5 py-1 shadow-lg">
         <button
           onClick={() => toggleStyle('fontWeight', 'bold', 'normal')}
           className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${isBold ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
@@ -296,7 +299,7 @@ function FloatingToolbar({
 function CanvasRow({
   row, isSelected, selectedBlockId, activeColumnId,
   onSelectRow, onSelectBlock, onSelectColumn, onRemoveRow,
-  onRemoveBlock, onUpdateBlock, onReorderBlocks, globalStyles,
+  onRemoveBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
 }: {
   row: Row;
   isSelected: boolean;
@@ -309,6 +312,7 @@ function CanvasRow({
   onRemoveBlock: (id: string) => void;
   onUpdateBlock: (id: string, updates: Partial<BlockData>) => void;
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
+  onDropBlock: (columnId: string, blockType: string) => void;
   globalStyles: TemplateData['globalStyles'];
 }) {
   return (
@@ -345,6 +349,7 @@ function CanvasRow({
             onRemoveBlock={onRemoveBlock}
             onUpdateBlock={onUpdateBlock}
             onReorderBlocks={onReorderBlocks}
+            onDropBlock={onDropBlock}
             globalStyles={globalStyles}
           />
         ))}
@@ -356,7 +361,7 @@ function CanvasRow({
 // ─── Canvas Column ───
 function CanvasColumn({
   column, isActive, selectedBlockId,
-  onSelectColumn, onSelectBlock, onRemoveBlock, onUpdateBlock, onReorderBlocks, globalStyles,
+  onSelectColumn, onSelectBlock, onRemoveBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
 }: {
   column: Column;
   isActive: boolean;
@@ -366,15 +371,19 @@ function CanvasColumn({
   onRemoveBlock: (id: string) => void;
   onUpdateBlock: (id: string, updates: Partial<BlockData>) => void;
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
+  onDropBlock: (columnId: string, blockType: string) => void;
   globalStyles: TemplateData['globalStyles'];
 }) {
   const [dragBlockIndex, setDragBlockIndex] = useState<number | null>(null);
   const [dragOverBlockIndex, setDragOverBlockIndex] = useState<number | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   return (
     <div
       className={`min-h-[60px] transition-all ${
-        isActive
+        isDragOver
+          ? 'bg-blue-100/50 ring-2 ring-dashed ring-blue-400'
+          : isActive
           ? 'bg-blue-50/50 ring-1 ring-dashed ring-blue-300'
           : column.blocks.length === 0
           ? 'bg-slate-50/50 ring-1 ring-dashed ring-slate-200'
@@ -382,6 +391,28 @@ function CanvasColumn({
       }`}
       style={{ width: column.width }}
       onClick={onSelectColumn}
+      onDragOver={(e) => {
+        const hasBlockType = e.dataTransfer.types.includes('blocktype');
+        if (hasBlockType) {
+          e.preventDefault();
+          setIsDragOver(true);
+        }
+      }}
+      onDragEnter={(e) => {
+        if (e.dataTransfer.types.includes('blocktype')) {
+          setIsDragOver(true);
+        }
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        const blockType = e.dataTransfer.getData('blockType');
+        if (blockType) {
+          e.preventDefault();
+          e.stopPropagation();
+          onDropBlock(column.id, blockType);
+        }
+        setIsDragOver(false);
+      }}
     >
       {column.blocks.length === 0 ? (
         <div className="flex items-center justify-center h-full min-h-[60px]">
