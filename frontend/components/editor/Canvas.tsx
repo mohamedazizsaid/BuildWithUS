@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, GripVertical, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Smile, Copy } from 'lucide-react';
-import { TemplateData, BlockData, Row, Column, RowLayout, LAYOUT_OPTIONS } from '@/lib/editor-types';
+import { TemplateData, BlockData, Row, Column, RowLayout, LAYOUT_OPTIONS, GlobalStyles } from '@/lib/editor-types';
 
 interface CanvasProps {
   template: TemplateData;
@@ -86,7 +86,7 @@ export default function Canvas({
         `,
         backgroundSize: '20px 20px',
         backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-        backgroundColor: '#e2e8f0',
+        backgroundColor: template.globalStyles.backgroundColor,
       }}
       onClick={() => {
         onSelectBlock(null);
@@ -101,11 +101,20 @@ export default function Canvas({
         }`}
         style={{
           width: template.globalStyles.width,
-          backgroundColor: template.globalStyles.backgroundColor,
+          backgroundColor: template.globalStyles.bodyColor,
           fontFamily: template.globalStyles.fontFamily,
           color: template.globalStyles.textColor,
           fontWeight: template.globalStyles.fontWeight,
           fontSize: template.globalStyles.fontSize,
+          lineHeight: template.globalStyles.lineHeight,
+          direction: template.globalStyles.textDirection as 'ltr' | 'rtl',
+          padding: template.globalStyles.paddingGroup
+            ? template.globalStyles.paddingTop
+            : `${template.globalStyles.paddingTop} ${template.globalStyles.paddingRight} ${template.globalStyles.paddingBottom} ${template.globalStyles.paddingLeft}`,
+          backgroundImage: template.globalStyles.backgroundImage ? `url(${template.globalStyles.backgroundImage})` : 'none',
+          backgroundSize: template.globalStyles.backgroundSize === 'repeat' ? 'auto' : template.globalStyles.backgroundSize,
+          backgroundRepeat: template.globalStyles.backgroundSize === 'repeat' ? 'repeat' : 'no-repeat',
+          backgroundPosition: 'center',
         }}
         onDragOver={(e) => {
           if (e.dataTransfer.types.includes('blocktype')) {
@@ -368,7 +377,7 @@ function CanvasRow({
   onUpdateBlock: (id: string, updates: Partial<BlockData>) => void;
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
   onDropBlock: (columnId: string, blockType: string) => void;
-  globalStyles: TemplateData['globalStyles'];
+  globalStyles: GlobalStyles;
 }) {
   return (
     <div
@@ -429,7 +438,7 @@ function CanvasColumn({
   onUpdateBlock: (id: string, updates: Partial<BlockData>) => void;
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
   onDropBlock: (columnId: string, blockType: string) => void;
-  globalStyles: TemplateData['globalStyles'];
+  globalStyles: GlobalStyles;
 }) {
   const [dragBlockIndex, setDragBlockIndex] = useState<number | null>(null);
   const [dragOverBlockIndex, setDragOverBlockIndex] = useState<number | null>(null);
@@ -525,7 +534,7 @@ function CanvasBlock({
   onRemove: () => void;
   onDuplicate: () => void;
   onUpdate: (updates: Partial<BlockData>) => void;
-  globalStyles: TemplateData['globalStyles'];
+  globalStyles: GlobalStyles;
 }) {
   const isTextBlock = block.type === 'heading' || block.type === 'text' || block.type === 'button';
   const editRef = useRef<HTMLDivElement>(null);
@@ -583,13 +592,14 @@ function CanvasBlock({
               <span
                 style={{
                   display: 'inline-block',
-                  backgroundColor: block.styles.backgroundColor,
-                  color: block.styles.color || '#ffffff',
-                  fontSize: block.styles.fontSize || 'inherit',
-                  fontWeight: block.styles.fontWeight || 'inherit',
-                  fontFamily: block.styles.fontFamily || 'inherit',
+                  backgroundColor: block.styles.backgroundColor || globalStyles.btnBackgroundColor,
+                  color: block.styles.color || globalStyles.btnFontColor,
+                  fontSize: block.styles.fontSize || globalStyles.btnFontSize,
+                  fontWeight: block.styles.fontWeight || globalStyles.btnFontWeight,
+                  fontFamily: block.styles.fontFamily || globalStyles.btnFontFamily,
                   padding: block.styles.padding,
-                  borderRadius: block.styles.borderRadius,
+                  borderRadius: block.styles.borderRadius || globalStyles.btnBorderRadius,
+                  border: `${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor}`,
                   lineHeight: block.styles.lineHeight || 'inherit',
                   letterSpacing: block.styles.letterSpacing || 'inherit',
                 }}
@@ -640,7 +650,7 @@ function CanvasBlock({
 }
 
 // ─── Block Renderers ───
-function renderBlock(block: BlockData, globalStyles: TemplateData['globalStyles']) {
+function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
   // Use inherit to let global styles cascade, unless block has a specific override
   const resolveColor = (blockColor: string) => blockColor || 'inherit';
   const resolveFontSize = (blockSize: string) => blockSize || 'inherit';
@@ -693,9 +703,16 @@ function renderBlock(block: BlockData, globalStyles: TemplateData['globalStyles'
       return (
         <div style={{ textAlign: block.styles.textAlign as React.CSSProperties['textAlign'] }}>
           <span style={{
-            display: 'inline-block', backgroundColor: block.styles.backgroundColor,
-            color: block.styles.color, fontSize: block.styles.fontSize,
-            padding: block.styles.padding, borderRadius: block.styles.borderRadius, cursor: 'pointer',
+            display: 'inline-block',
+            backgroundColor: block.styles.backgroundColor || globalStyles.btnBackgroundColor,
+            color: block.styles.color || globalStyles.btnFontColor,
+            fontSize: block.styles.fontSize || globalStyles.btnFontSize,
+            fontFamily: block.styles.fontFamily || globalStyles.btnFontFamily,
+            fontWeight: block.styles.fontWeight || globalStyles.btnFontWeight,
+            padding: block.styles.padding,
+            borderRadius: block.styles.borderRadius || globalStyles.btnBorderRadius,
+            border: `${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor}`,
+            cursor: 'pointer',
           }}>
             {block.content.text as string || 'Button'}
           </span>

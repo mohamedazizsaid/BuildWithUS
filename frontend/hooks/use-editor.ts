@@ -9,6 +9,7 @@ import {
   LAYOUT_OPTIONS,
   DEFAULT_BLOCK_CONTENT,
   DEFAULT_GLOBAL_STYLES,
+  GlobalStyles,
 } from '@/lib/editor-types';
 
 export function useEditor() {
@@ -183,7 +184,7 @@ export function useEditor() {
     setSelectedBlockId(null);
   }, [template, updateTemplate]);
 
-  const updateGlobalStyles = useCallback((styles: Partial<TemplateData['globalStyles']>) => {
+  const updateGlobalStyles = useCallback((styles: Partial<GlobalStyles>) => {
     const newTemplate = {
       ...template,
       globalStyles: { ...template.globalStyles, ...styles },
