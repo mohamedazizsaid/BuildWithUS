@@ -75,18 +75,17 @@ export default function Canvas({
 
   return (
     <div
-      className="overflow-y-auto p-8"
+      className="overflow-y-auto p-8 bg-background"
       style={{
         height: 'calc(100vh - 7rem)',
         backgroundImage: `
-          linear-gradient(45deg, #f1f5f9 25%, transparent 25%),
-          linear-gradient(-45deg, #f1f5f9 25%, transparent 25%),
-          linear-gradient(45deg, transparent 75%, #f1f5f9 75%),
-          linear-gradient(-45deg, transparent 75%, #f1f5f9 75%)
+          linear-gradient(45deg, var(--border) 25%, transparent 25%),
+          linear-gradient(-45deg, var(--border) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, var(--border) 75%),
+          linear-gradient(-45deg, transparent 75%, var(--border) 75%)
         `,
         backgroundSize: '20px 20px',
         backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-        backgroundColor: template.globalStyles.backgroundColor,
       }}
       onClick={() => {
         onSelectBlock(null);
@@ -137,11 +136,11 @@ export default function Canvas({
       >
         {template.rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-              <Plus size={20} className="text-slate-400" />
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+              <Plus size={20} className="text-muted-foreground" />
             </div>
-            <p className="text-sm text-slate-500 mb-1">Drag content here to start</p>
-            <p className="text-xs text-slate-400">Or add a custom layout below</p>
+            <p className="text-sm text-muted-foreground mb-1">Drag content here to start</p>
+            <p className="text-xs text-muted-foreground">Or add a custom layout below</p>
           </div>
         ) : (
           template.rows.map((row, index) => (
@@ -188,29 +187,29 @@ export default function Canvas({
           className="flex items-center justify-center py-3 cursor-pointer group"
           onClick={(e) => { e.stopPropagation(); setShowAddRow(!showAddRow); }}
         >
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-slate-300/60 group-hover:border-slate-400 transition-all opacity-40 group-hover:opacity-100">
-            <Plus size={12} className="text-slate-400" />
-            <span className="text-[11px] text-slate-400 group-hover:text-slate-600">Layout</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-border/60 group-hover:border-border transition-all opacity-40 group-hover:opacity-100">
+            <Plus size={12} className="text-muted-foreground" />
+            <span className="text-[11px] text-muted-foreground group-hover:text-muted-foreground">Layout</span>
           </div>
         </div>
 
         {showAddRow && (
           <div className="absolute left-1/2 -translate-x-1/2 bottom-12 z-50" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-3 w-56">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Column layout</p>
+            <div className="bg-background rounded-xl shadow-xl border border-border p-3 w-56">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Column layout</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {LAYOUT_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => { onAddRow(option.value); setShowAddRow(false); }}
-                    className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/50 border border-transparent hover:border-border transition-all"
                   >
                     <div className="flex gap-0.5 w-full">
                       {option.widths.map((width, i) => (
-                        <div key={i} className="h-5 bg-slate-200 rounded-sm" style={{ width }} />
+                        <div key={i} className="h-5 bg-muted rounded-sm" style={{ width }} />
                       ))}
                     </div>
-                    <span className="text-[10px] text-slate-400">{option.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{option.label}</span>
                   </button>
                 ))}
               </div>
@@ -315,16 +314,16 @@ function FloatingToolbar({
 
       {/* Emoji Picker */}
       {showEmoji && (
-        <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 p-3 z-50 w-80 max-h-72 overflow-y-auto">
+        <div className="absolute top-full left-0 mt-1 bg-background rounded-xl shadow-xl border border-border p-3 z-50 w-80 max-h-72 overflow-y-auto">
           {EMOJI_CATEGORIES.map((category) => (
             <div key={category.name} className="mb-3">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{category.name}</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{category.name}</p>
               <div className="grid grid-cols-10 gap-0.5">
                 {category.emojis.map((emoji) => (
                   <button
                     key={emoji}
                     onClick={() => insertEmoji(emoji)}
-                    className="w-7 h-7 rounded hover:bg-slate-100 flex items-center justify-center text-base transition-colors"
+                    className="w-7 h-7 rounded hover:bg-muted flex items-center justify-center text-base transition-colors"
                   >
                     {emoji}
                   </button>
@@ -337,18 +336,18 @@ function FloatingToolbar({
 
       {/* Link Input */}
       {showLink && (
-        <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-slate-200 p-2 z-50 flex gap-1">
+        <div className="absolute top-full left-0 mt-1 bg-background rounded-lg shadow-xl border border-border p-2 z-50 flex gap-1">
           <input
             type="text"
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             placeholder="https://..."
-            className="text-xs border border-slate-200 rounded px-2 py-1 w-48 focus:outline-none focus:ring-1 focus:ring-slate-400"
+            className="text-xs border border-border rounded px-2 py-1 w-48 focus:outline-none focus:ring-1 focus:ring-ring"
             onKeyDown={(e) => { if (e.key === 'Enter') applyLink(); }}
           />
           <button
             onClick={applyLink}
-            className="text-xs bg-slate-900 text-white px-2 py-1 rounded hover:bg-slate-800"
+            className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90"
           >
             Apply
           </button>
@@ -382,7 +381,7 @@ function CanvasRow({
   return (
     <div
       className={`group relative transition-all ${
-        isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : 'hover:ring-1 hover:ring-slate-300'
+        isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : 'hover:ring-1 hover:ring-border'
       }`}
       style={{ backgroundColor: row.styles.backgroundColor === 'transparent' ? 'transparent' : row.styles.backgroundColor, padding: row.styles.padding }}
       onClick={onSelectRow}
@@ -390,12 +389,12 @@ function CanvasRow({
       <div className={`absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1 transition-opacity ${
         isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
       }`}>
-        <div className="w-7 h-7 rounded bg-white shadow border border-slate-200 flex items-center justify-center hover:bg-slate-50 cursor-grab active:cursor-grabbing">
-          <GripVertical size={12} className="text-slate-400" />
+        <div className="w-7 h-7 rounded bg-background shadow border border-border flex items-center justify-center hover:bg-muted/50 cursor-grab active:cursor-grabbing">
+          <GripVertical size={12} className="text-muted-foreground" />
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onRemoveRow(); }}
-          className="w-7 h-7 rounded bg-white shadow border border-slate-200 flex items-center justify-center hover:bg-red-50 hover:text-red-500"
+          className="w-7 h-7 rounded bg-background shadow border border-border flex items-center justify-center hover:bg-red-50 hover:text-red-500"
         >
           <Trash2 size={12} />
         </button>
@@ -452,7 +451,7 @@ function CanvasColumn({
           : isActive
           ? 'ring-1 ring-dashed ring-blue-300'
           : column.blocks.length === 0
-          ? 'ring-1 ring-dashed ring-slate-200'
+          ? 'ring-1 ring-dashed ring-border/60'
           : ''
       }`}
       style={{ width: column.width, backgroundColor: 'transparent' }}
@@ -482,7 +481,7 @@ function CanvasColumn({
     >
       {column.blocks.length === 0 ? (
         <div className="flex items-center justify-center h-full min-h-[60px]">
-          <p className="text-xs text-slate-400">Drop content here</p>
+          <p className="text-xs text-muted-foreground">Drop content here</p>
         </div>
       ) : (
         column.blocks.map((block, index) => (
@@ -693,8 +692,8 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           {block.content.src ? (
             <img src={block.content.src as string} alt={block.content.alt as string} style={{ width: block.styles.width, maxWidth: '100%' }} />
           ) : (
-            <div className="bg-slate-100 rounded-md flex items-center justify-center py-8">
-              <p className="text-xs text-slate-400">No image — set URL in properties</p>
+            <div className="bg-muted rounded-md flex items-center justify-center py-8">
+              <p className="text-xs text-muted-foreground">No image — set URL in properties</p>
             </div>
           )}
         </div>
@@ -728,7 +727,7 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           <thead>
             <tr>
               {headers.map((h, i) => (
-                <th key={i} className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-xs font-semibold">{h}</th>
+                <th key={i} className="border border-border bg-muted px-3 py-2 text-left text-xs font-semibold">{h}</th>
               ))}
             </tr>
           </thead>
@@ -736,7 +735,7 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
             {rows.map((row, ri) => (
               <tr key={ri}>
                 {row.map((cell, ci) => (
-                  <td key={ci} className="border border-slate-300 px-3 py-2 text-xs">{cell}</td>
+                  <td key={ci} className="border border-border px-3 py-2 text-xs">{cell}</td>
                 ))}
               </tr>
             ))}
@@ -747,12 +746,16 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
     case 'signature':
       return (
         <div style={{ fontSize: block.styles.fontSize || 'inherit', color: block.styles.color || 'inherit' }}>
-          <div className="border-t border-slate-900 w-48 mb-2" />
+          <div className="border-t border-border w-48 mb-2" />
           <p className="font-medium">{block.content.name as string || 'Name'}</p>
-          <p className="text-slate-500 text-xs">{block.content.title as string || 'Title'}</p>
+          <p className="text-muted-foreground text-xs">{block.content.title as string || 'Title'}</p>
         </div>
       );
     default:
-      return <div className="text-xs text-slate-400">Unknown block</div>;
+      return <div className="text-xs text-muted-foreground">Unknown block</div>;
   }
 }
+
+
+
+

@@ -11,6 +11,9 @@ interface EditorToolbarProps {
   setPreviewMode: (mode: boolean) => void;
   previewDevice: 'desktop' | 'tablet' | 'mobile';
   setPreviewDevice: (device: 'desktop' | 'tablet' | 'mobile') => void;
+  onBack: () => void;
+  onCreateTemplate: () => void;
+  isSaving: boolean;
   onSave: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -26,6 +29,9 @@ export default function EditorToolbar({
   setPreviewMode,
   previewDevice,
   setPreviewDevice,
+  onBack,
+  onCreateTemplate,
+  isSaving,
   onSave,
   onUndo,
   onRedo,
@@ -33,9 +39,18 @@ export default function EditorToolbar({
   canRedo,
 }: EditorToolbarProps) {
   return (
-    <div className="h-12 bg-white border-b border-slate-200 flex items-center justify-between px-4">
-      {/* Left: Undo / Redo / Save */}
+    <div className="h-12 bg-background border-b border-border flex items-center justify-between px-4">
+      {/* Left: Navigation group */}
       <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="h-8 gap-1.5 text-xs"
+        >
+          â† Back
+        </Button>
+        <div className="w-px h-5 bg-border mx-1" />
         <Button
           variant="ghost"
           size="icon"
@@ -56,7 +71,7 @@ export default function EditorToolbar({
         >
           <Redo2 size={16} />
         </Button>
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <Button
           variant="ghost"
           size="sm"
@@ -70,14 +85,14 @@ export default function EditorToolbar({
 
       {/* Center: Tabs + Template Name */}
       <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-slate-700">{templateName}</span>
-        <div className="flex items-center bg-slate-100 rounded-md p-0.5">
+        <span className="text-sm font-medium text-foreground/80">{templateName}</span>
+        <div className="flex items-center bg-muted rounded-md p-0.5">
           <button
             onClick={() => { setActiveTab('canvas'); setPreviewMode(false); }}
             className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
               activeTab === 'canvas' && !previewMode
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground/80'
             }`}
           >
             Canvas
@@ -86,8 +101,8 @@ export default function EditorToolbar({
             onClick={() => { setActiveTab('code'); setPreviewMode(false); }}
             className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
               activeTab === 'code' && !previewMode
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground/80'
             }`}
           >
             Code
@@ -95,8 +110,8 @@ export default function EditorToolbar({
         </div>
       </div>
 
-      {/* Right: Preview + Device */}
-      <div className="flex items-center gap-1">
+      {/* Right: Action group */}
+      <div className="flex items-center gap-2">
         <Button
           variant={previewMode ? 'default' : 'ghost'}
           size="icon"
@@ -107,7 +122,7 @@ export default function EditorToolbar({
           <Eye size={16} />
         </Button>
         {previewMode && (
-          <div className="flex items-center gap-0.5 ml-1">
+          <div className="flex items-center gap-0.5">
             <Button
               variant={previewDevice === 'desktop' ? 'secondary' : 'ghost'}
               size="icon"
@@ -134,7 +149,15 @@ export default function EditorToolbar({
             </Button>
           </div>
         )}
+        <Button
+          onClick={onCreateTemplate}
+          disabled={isSaving}
+          className="h-8 px-3 text-xs"
+        >
+          {isSaving ? 'Creating...' : 'Create Template'}
+        </Button>
       </div>
     </div>
   );
 }
+

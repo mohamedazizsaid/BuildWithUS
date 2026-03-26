@@ -26,6 +26,7 @@ function EditorContent() {
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -42,6 +43,17 @@ function EditorContent() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [editorState]);
+
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   const generateMjml = useCallback(() => {
     const { rows, globalStyles } = editorState.template;
@@ -106,6 +118,9 @@ function EditorContent() {
         setPreviewMode={setPreviewMode}
         previewDevice={previewDevice}
         setPreviewDevice={setPreviewDevice}
+        onBack={() => router.push('/dashboard/templates/new')}
+        onCreateTemplate={handleCreateTemplate}
+        isSaving={isSaving}
         onSave={handleSave}
         onUndo={editorState.undo}
         onRedo={editorState.redo}
@@ -117,12 +132,9 @@ function EditorContent() {
         {/* Center */}
         <div className="flex-1 min-h-0">
           {previewMode ? (
-            <div
-              className="h-full overflow-y-auto flex justify-center p-8"
-              style={{ backgroundColor: '#e2e8f0' }}
-            >
+            <div className="h-full overflow-y-auto flex justify-center p-8 bg-muted">
               <div
-                className="bg-white shadow-lg rounded-sm h-fit"
+                className="bg-card shadow-lg rounded-sm h-fit border border-border"
                 style={{ width: deviceWidth, maxWidth: '100%' }}
                 dangerouslySetInnerHTML={{
                   __html: generatePreviewHtml(editorState.template),
@@ -153,7 +165,7 @@ function EditorContent() {
               <Editor
                 height="100%"
                 language="html"
-                theme="vs-light"
+                theme={isDark ? 'vs-dark' : 'vs-light'}
                 value={generateMjml()}
                 options={{
                   minimap: { enabled: false },
@@ -187,29 +199,13 @@ function EditorContent() {
         )}
       </div>
 
-      {/* Bottom Create Button */}
-      <div className="h-14 bg-white border-t border-slate-200 flex items-center justify-between px-6">
-        <button
-          onClick={() => router.push('/dashboard/templates/new')}
-          className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
-        >
-          ← Back
-        </button>
-        <button
-          onClick={handleCreateTemplate}
-          disabled={isSaving}
-          className="px-6 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? 'Creating...' : 'Create Template'}
-        </button>
-      </div>
     </div>
   );
 }
 
 export default function EditorPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center text-slate-500">Loading editor...</div>}>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading editor...</div>}>
       <EditorContent />
     </Suspense>
   );
@@ -301,3 +297,5 @@ function blockToHtml(block: BlockData, globalStyles: { textColor: string; fontFa
       return '';
   }
 }
+
+
