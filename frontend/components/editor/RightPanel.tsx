@@ -205,6 +205,70 @@ function BlocsPanel({ onAddRow }: { onAddRow: (layout: RowLayout) => void }) {
   );
 }
 
+// ─── Color Picker ───
+const PRESET_COLORS = [
+  '#000000', '#333333', '#555555', '#777777', '#999999', '#cccccc', '#ffffff',
+  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6',
+  '#ec4899', '#f43f5e', '#fb923c', '#fbbf24', '#4ade80', '#2dd4bf', '#60a5fa', '#a78bfa',
+  '#fecdd3', '#fed7aa', '#fef08a', '#bbf7d0', '#a5f3fc', '#bfdbfe', '#ddd6fe', '#f1f5f9',
+];
+
+function ColorPicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+  label: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div>
+      <Label className="text-xs">{label}</Label>
+      <div className="flex gap-2 mt-1 relative">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-8 h-8 rounded-md border border-slate-200 cursor-pointer shadow-sm hover:shadow transition-shadow flex-shrink-0"
+          style={{ backgroundColor: value }}
+        />
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 text-xs"
+        />
+        {isOpen && (
+          <div className="absolute top-10 left-0 z-50 bg-white rounded-lg shadow-xl border border-slate-200 p-3 w-56">
+            <div className="grid grid-cols-7 gap-1.5 mb-3">
+              {PRESET_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => { onChange(color); setIsOpen(false); }}
+                  className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
+                    value === color ? 'ring-2 ring-blue-500 ring-offset-1' : 'border-slate-200'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            <div className="flex gap-2 items-center border-t border-slate-100 pt-2">
+              <input
+                type="color"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+              />
+              <span className="text-[10px] text-slate-400">Custom color</span>
+            </div>
+          </div>
+        )}
+      </div>
+      {isOpen && <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />}
+    </div>
+  );
+}
+
 // ─── Corps Panel ───
 function CorpsPanel({
   globalStyles,
@@ -218,39 +282,17 @@ function CorpsPanel({
       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Template Body</h3>
 
       <div className="space-y-3">
-        <div>
-          <Label className="text-xs">Background Color</Label>
-          <div className="flex gap-2 mt-1">
-            <input
-              type="color"
-              value={globalStyles.backgroundColor}
-              onChange={(e) => onUpdateGlobalStyles({ backgroundColor: e.target.value })}
-              className="w-8 h-8 rounded border border-slate-200 cursor-pointer"
-            />
-            <Input
-              value={globalStyles.backgroundColor}
-              onChange={(e) => onUpdateGlobalStyles({ backgroundColor: e.target.value })}
-              className="h-8 text-xs"
-            />
-          </div>
-        </div>
+        <ColorPicker
+          label="Background Color"
+          value={globalStyles.backgroundColor}
+          onChange={(color) => onUpdateGlobalStyles({ backgroundColor: color })}
+        />
 
-        <div>
-          <Label className="text-xs">Text Color</Label>
-          <div className="flex gap-2 mt-1">
-            <input
-              type="color"
-              value={globalStyles.textColor}
-              onChange={(e) => onUpdateGlobalStyles({ textColor: e.target.value })}
-              className="w-8 h-8 rounded border border-slate-200 cursor-pointer"
-            />
-            <Input
-              value={globalStyles.textColor}
-              onChange={(e) => onUpdateGlobalStyles({ textColor: e.target.value })}
-              className="h-8 text-xs"
-            />
-          </div>
-        </div>
+        <ColorPicker
+          label="Text Color"
+          value={globalStyles.textColor}
+          onChange={(color) => onUpdateGlobalStyles({ textColor: color })}
+        />
 
         <div>
           <Label className="text-xs">Font Family</Label>
@@ -269,16 +311,45 @@ function CorpsPanel({
         </div>
 
         <div>
-          <Label className="text-xs">Font Weight</Label>
+          <Label className="text-xs">Font Size</Label>
           <select
-            value={globalStyles.fontWeight}
-            onChange={(e) => onUpdateGlobalStyles({ fontWeight: e.target.value })}
+            value={globalStyles.fontSize}
+            onChange={(e) => onUpdateGlobalStyles({ fontSize: e.target.value })}
             className="w-full h-8 mt-1 rounded-md border border-slate-200 text-xs px-2"
           >
-            <option value="normal">Normal</option>
-            <option value="bold">Bold</option>
-            <option value="lighter">Light</option>
+            <option value="12px">12px</option>
+            <option value="14px">14px</option>
+            <option value="16px">16px</option>
+            <option value="18px">18px</option>
+            <option value="20px">20px</option>
+            <option value="24px">24px</option>
+            <option value="28px">28px</option>
+            <option value="32px">32px</option>
           </select>
+        </div>
+
+        <div>
+          <Label className="text-xs">Font Weight</Label>
+          <div className="flex gap-1 mt-1">
+            {[
+              { value: 'lighter', label: 'Light' },
+              { value: 'normal', label: 'Normal' },
+              { value: 'bold', label: 'Bold' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => onUpdateGlobalStyles({ fontWeight: opt.value })}
+                className={`flex-1 h-8 text-xs rounded-md border transition-colors ${
+                  globalStyles.fontWeight === opt.value
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'border-slate-200 hover:bg-slate-50'
+                }`}
+                style={{ fontWeight: opt.value }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div>
@@ -327,6 +398,172 @@ function PhotosPanel() {
   );
 }
 
+// ─── Font Size Selector (consistent across all blocks) ───
+const FONT_SIZES = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '40px', '48px', '56px', '64px'];
+
+function FontSizeSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const currentSize = parseInt(value) || 16;
+  const decrease = () => onChange(`${Math.max(8, currentSize - 2)}px`);
+  const increase = () => onChange(`${Math.min(72, currentSize + 2)}px`);
+
+  return (
+    <div>
+      <Label className="text-xs">Font Size</Label>
+      <div className="flex items-center gap-1 mt-1">
+        <button onClick={decrease} className="w-8 h-8 rounded-md border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-sm font-medium">−</button>
+        <select
+          value={value || '16px'}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 h-8 rounded-md border border-slate-200 text-xs px-2 text-center"
+        >
+          {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <button onClick={increase} className="w-8 h-8 rounded-md border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-sm font-medium">+</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Font Family Selector ───
+function FontFamilySelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label className="text-xs">Font Family</Label>
+      <select
+        value={value || 'inherit'}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-8 mt-1 rounded-md border border-slate-200 text-xs px-2"
+      >
+        <option value="inherit">Inherit (from body)</option>
+        <option value="Inter, sans-serif">Inter</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="Verdana, sans-serif">Verdana</option>
+        <option value="'Courier New', monospace">Courier New</option>
+        <option value="'Times New Roman', serif">Times New Roman</option>
+      </select>
+    </div>
+  );
+}
+
+// ─── Font Weight Selector ───
+function FontWeightSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label className="text-xs">Font Weight</Label>
+      <div className="flex gap-1 mt-1">
+        {[
+          { v: 'lighter', l: 'Light' },
+          { v: 'normal', l: 'Normal' },
+          { v: 'bold', l: 'Bold' },
+        ].map((opt) => (
+          <button
+            key={opt.v}
+            onClick={() => onChange(opt.v)}
+            className={`flex-1 h-8 text-xs rounded-md border transition-colors ${
+              (value || 'normal') === opt.v
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'border-slate-200 hover:bg-slate-50'
+            }`}
+            style={{ fontWeight: opt.v }}
+          >
+            {opt.l}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Alignment Selector ───
+function AlignmentSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label className="text-xs">Alignment</Label>
+      <div className="flex gap-1 mt-1">
+        {['left', 'center', 'right'].map((align) => (
+          <button
+            key={align}
+            onClick={() => onChange(align)}
+            className={`flex-1 h-8 text-xs rounded-md border transition-colors capitalize ${
+              (value || 'left') === align
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {align}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Line Height Selector ───
+function LineHeightSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label className="text-xs">Line Height</Label>
+      <select
+        value={value || '1.5'}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-8 mt-1 rounded-md border border-slate-200 text-xs px-2"
+      >
+        <option value="1">1 (tight)</option>
+        <option value="1.25">1.25</option>
+        <option value="1.5">1.5 (normal)</option>
+        <option value="1.75">1.75</option>
+        <option value="2">2 (loose)</option>
+        <option value="2.5">2.5</option>
+      </select>
+    </div>
+  );
+}
+
+// ─── Letter Spacing Selector ───
+function LetterSpacingSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label className="text-xs">Letter Spacing</Label>
+      <select
+        value={value || '0px'}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-8 mt-1 rounded-md border border-slate-200 text-xs px-2"
+      >
+        <option value="-1px">-1px (tight)</option>
+        <option value="-0.5px">-0.5px</option>
+        <option value="0px">0px (normal)</option>
+        <option value="0.5px">0.5px</option>
+        <option value="1px">1px</option>
+        <option value="2px">2px</option>
+        <option value="3px">3px (wide)</option>
+        <option value="5px">5px</option>
+      </select>
+    </div>
+  );
+}
+
+// ─── Text Style Fields (shared by heading, text, button) ───
+function TextStyleFields({
+  block,
+  updateStyle,
+}: {
+  block: BlockData;
+  updateStyle: (key: string, value: string) => void;
+}) {
+  return (
+    <>
+      <FontSizeSelector value={block.styles.fontSize} onChange={(v) => updateStyle('fontSize', v)} />
+      <FontFamilySelector value={block.styles.fontFamily} onChange={(v) => updateStyle('fontFamily', v)} />
+      <FontWeightSelector value={block.styles.fontWeight} onChange={(v) => updateStyle('fontWeight', v)} />
+      <ColorPicker label="Text Color" value={block.styles.color || '#000000'} onChange={(c) => updateStyle('color', c)} />
+      <AlignmentSelector value={block.styles.textAlign} onChange={(v) => updateStyle('textAlign', v)} />
+      <LineHeightSelector value={block.styles.lineHeight} onChange={(v) => updateStyle('lineHeight', v)} />
+      <LetterSpacingSelector value={block.styles.letterSpacing} onChange={(v) => updateStyle('letterSpacing', v)} />
+    </>
+  );
+}
+
 // ─── Block Properties ───
 function BlockProperties({
   block,
@@ -343,9 +580,11 @@ function BlockProperties({
     onUpdate({ styles: { ...block.styles, [key]: value } });
   };
 
+  const isTextLike = block.type === 'heading' || block.type === 'text' || block.type === 'button';
+
   return (
     <div className="space-y-4">
-      {/* Content fields based on block type */}
+      {/* Content fields */}
       {(block.type === 'heading' || block.type === 'text') && (
         <div>
           <Label className="text-xs">Content</Label>
@@ -401,80 +640,40 @@ function BlockProperties({
         </>
       )}
 
-      {/* Common style fields */}
+      {/* Typography (consistent for heading, text, button) */}
+      {isTextLike && (
+        <div className="pt-2 border-t border-slate-200 space-y-3">
+          <h4 className="text-xs font-semibold text-slate-400 uppercase">Typography</h4>
+          <TextStyleFields block={block} updateStyle={updateStyle} />
+        </div>
+      )}
+
+      {/* Button specific styles */}
+      {block.type === 'button' && (
+        <div className="pt-2 border-t border-slate-200 space-y-3">
+          <h4 className="text-xs font-semibold text-slate-400 uppercase">Button Style</h4>
+          <ColorPicker label="Background" value={block.styles.backgroundColor || '#0f172a'} onChange={(c) => updateStyle('backgroundColor', c)} />
+          <div>
+            <Label className="text-xs">Border Radius</Label>
+            <select
+              value={block.styles.borderRadius || '6px'}
+              onChange={(e) => updateStyle('borderRadius', e.target.value)}
+              className="w-full h-8 mt-1 rounded-md border border-slate-200 text-xs px-2"
+            >
+              <option value="0px">Square</option>
+              <option value="4px">Slight (4px)</option>
+              <option value="6px">Rounded (6px)</option>
+              <option value="12px">More (12px)</option>
+              <option value="24px">Pill (24px)</option>
+              <option value="9999px">Full pill</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Spacing (all blocks) */}
       <div className="pt-2 border-t border-slate-200 space-y-3">
-        <h4 className="text-xs font-semibold text-slate-400 uppercase">Styles</h4>
-
-        {block.styles.fontSize && (
-          <div>
-            <Label className="text-xs">Font Size</Label>
-            <Input
-              value={block.styles.fontSize}
-              onChange={(e) => updateStyle('fontSize', e.target.value)}
-              className="h-8 text-xs mt-1"
-            />
-          </div>
-        )}
-
-        {block.styles.color && (
-          <div>
-            <Label className="text-xs">Color</Label>
-            <div className="flex gap-2 mt-1">
-              <input
-                type="color"
-                value={block.styles.color}
-                onChange={(e) => updateStyle('color', e.target.value)}
-                className="w-8 h-8 rounded border border-slate-200 cursor-pointer"
-              />
-              <Input
-                value={block.styles.color}
-                onChange={(e) => updateStyle('color', e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
-          </div>
-        )}
-
-        {block.styles.backgroundColor && (
-          <div>
-            <Label className="text-xs">Background</Label>
-            <div className="flex gap-2 mt-1">
-              <input
-                type="color"
-                value={block.styles.backgroundColor}
-                onChange={(e) => updateStyle('backgroundColor', e.target.value)}
-                className="w-8 h-8 rounded border border-slate-200 cursor-pointer"
-              />
-              <Input
-                value={block.styles.backgroundColor}
-                onChange={(e) => updateStyle('backgroundColor', e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
-          </div>
-        )}
-
-        {block.styles.textAlign && (
-          <div>
-            <Label className="text-xs">Alignment</Label>
-            <div className="flex gap-1 mt-1">
-              {['left', 'center', 'right'].map((align) => (
-                <button
-                  key={align}
-                  onClick={() => updateStyle('textAlign', align)}
-                  className={`flex-1 h-8 text-xs rounded-md border transition-colors capitalize ${
-                    block.styles.textAlign === align
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {align}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
+        <h4 className="text-xs font-semibold text-slate-400 uppercase">Spacing</h4>
         <div>
           <Label className="text-xs">Padding</Label>
           <Input

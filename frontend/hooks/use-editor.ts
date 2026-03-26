@@ -57,7 +57,7 @@ export function useEditor() {
         width,
         blocks: [],
       })),
-      styles: { backgroundColor: '#ffffff', padding: '10px 0' },
+      styles: { backgroundColor: 'transparent', padding: '10px 0' },
     };
 
     const newTemplate = { ...template, rows: [...template.rows, newRow] };
@@ -118,6 +118,30 @@ export function useEditor() {
             return block;
           }),
         })),
+      })),
+    };
+    updateTemplate(newTemplate);
+  }, [template, updateTemplate]);
+
+  const duplicateBlock = useCallback((blockId: string) => {
+    const newTemplate = {
+      ...template,
+      rows: template.rows.map((row) => ({
+        ...row,
+        columns: row.columns.map((col) => {
+          const blockIndex = col.blocks.findIndex((b) => b.id === blockId);
+          if (blockIndex === -1) return col;
+          const original = col.blocks[blockIndex];
+          const duplicate: BlockData = {
+            ...original,
+            id: uuid(),
+            content: { ...original.content },
+            styles: { ...original.styles },
+          };
+          const newBlocks = [...col.blocks];
+          newBlocks.splice(blockIndex + 1, 0, duplicate);
+          return { ...col, blocks: newBlocks };
+        }),
       })),
     };
     updateTemplate(newTemplate);
@@ -212,6 +236,7 @@ export function useEditor() {
     updateRowStyles,
     reorderRows,
     reorderBlocks,
+    duplicateBlock,
     getSelectedBlock,
     undo,
     redo,

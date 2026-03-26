@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Trash2, GripVertical, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Smile } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2, GripVertical, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Smile, Copy } from 'lucide-react';
 import { TemplateData, BlockData, Row, Column, RowLayout, LAYOUT_OPTIONS } from '@/lib/editor-types';
 
 interface CanvasProps {
@@ -13,6 +13,7 @@ interface CanvasProps {
   onSelectColumn: (columnId: string | null) => void;
   onRemoveRow: (rowId: string) => void;
   onRemoveBlock: (blockId: string) => void;
+  onDuplicateBlock: (blockId: string) => void;
   onUpdateBlock: (blockId: string, updates: Partial<BlockData>) => void;
   onAddRow: (layout: RowLayout) => void;
   onReorderRows: (fromIndex: number, toIndex: number) => void;
@@ -21,7 +22,32 @@ interface CanvasProps {
   activeColumnId: string | null;
 }
 
-const EMOJI_LIST = ['😀', '😍', '🎉', '🔥', '✅', '❌', '⭐', '💡', '📧', '📄', '💼', '🏢', '📞', '🌐', '💰', '📅'];
+const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
+  {
+    name: 'Smileys',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤗', '🤭', '🫢', '🤫', '🤔', '😐', '😑', '😶', '🫡', '😏', '😒', '🙄', '😬', '😮‍💨', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐'],
+  },
+  {
+    name: 'Gestures',
+    emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '🫱', '🫲', '🫳', '🫴', '👌', '🤌', '🤏', '✌️', '🤞', '🫰', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '🫵', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '🫶', '👐', '🤲', '🤝', '🙏', '💪'],
+  },
+  {
+    name: 'Hearts',
+    emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥', '❤️‍🩹', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
+  },
+  {
+    name: 'Objects',
+    emojis: ['📧', '📨', '📩', '📤', '📥', '📦', '📫', '📪', '📬', '📭', '📮', '📝', '📄', '📃', '📑', '📊', '📈', '📉', '📆', '📅', '📁', '📂', '🗂️', '🗃️', '🗄️', '📋', '📌', '📍', '📎', '🖇️', '📐', '📏', '✂️', '🖊️', '🖋️', '✒️', '🖌️', '🖍️', '📒', '📓', '📔', '📕', '📗', '📘', '📙'],
+  },
+  {
+    name: 'Business',
+    emojis: ['💼', '💰', '💵', '💴', '💶', '💷', '🪙', '💳', '💎', '⚖️', '🏦', '🏢', '🏬', '🏭', '🏗️', '📞', '☎️', '📱', '💻', '🖥️', '🖨️', '⌨️', '🖱️', '🔒', '🔓', '🔑', '🗝️'],
+  },
+  {
+    name: 'Symbols',
+    emojis: ['✅', '❌', '⭐', '🌟', '💡', '🔥', '✨', '🎉', '🎊', '🎯', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '⚡', '💥', '🌈', '☀️', '🌙', '⭕', '❗', '❓', '‼️', '⁉️', '💯', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '▶️', '⏸️', '⏹️', '⏺️', '⏏️', '🔀', '🔁', '🔂', '⏩', '⏪'],
+  },
+];
 
 export default function Canvas({
   template,
@@ -32,6 +58,7 @@ export default function Canvas({
   onSelectColumn,
   onRemoveRow,
   onRemoveBlock,
+  onDuplicateBlock,
   onUpdateBlock,
   onAddRow,
   onReorderRows,
@@ -72,6 +99,8 @@ export default function Canvas({
           backgroundColor: template.globalStyles.backgroundColor,
           fontFamily: template.globalStyles.fontFamily,
           color: template.globalStyles.textColor,
+          fontWeight: template.globalStyles.fontWeight,
+          fontSize: template.globalStyles.fontSize,
         }}
       >
         {template.rows.length === 0 ? (
@@ -115,6 +144,7 @@ export default function Canvas({
                   onSelectColumn={onSelectColumn}
                   onRemoveRow={() => onRemoveRow(row.id)}
                   onRemoveBlock={onRemoveBlock}
+                  onDuplicateBlock={onDuplicateBlock}
                   onUpdateBlock={onUpdateBlock}
                   onReorderBlocks={onReorderBlocks}
                   onDropBlock={onDropBlock}
@@ -257,18 +287,23 @@ function FloatingToolbar({
 
       {/* Emoji Picker */}
       {showEmoji && (
-        <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-slate-200 p-2 z-50">
-          <div className="grid grid-cols-8 gap-1">
-            {EMOJI_LIST.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => insertEmoji(emoji)}
-                className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center text-base transition-colors"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
+        <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 p-3 z-50 w-80 max-h-72 overflow-y-auto">
+          {EMOJI_CATEGORIES.map((category) => (
+            <div key={category.name} className="mb-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{category.name}</p>
+              <div className="grid grid-cols-10 gap-0.5">
+                {category.emojis.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => insertEmoji(emoji)}
+                    className="w-7 h-7 rounded hover:bg-slate-100 flex items-center justify-center text-base transition-colors"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -299,7 +334,7 @@ function FloatingToolbar({
 function CanvasRow({
   row, isSelected, selectedBlockId, activeColumnId,
   onSelectRow, onSelectBlock, onSelectColumn, onRemoveRow,
-  onRemoveBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
+  onRemoveBlock, onDuplicateBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
 }: {
   row: Row;
   isSelected: boolean;
@@ -310,6 +345,7 @@ function CanvasRow({
   onSelectColumn: (id: string | null) => void;
   onRemoveRow: () => void;
   onRemoveBlock: (id: string) => void;
+  onDuplicateBlock: (id: string) => void;
   onUpdateBlock: (id: string, updates: Partial<BlockData>) => void;
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
   onDropBlock: (columnId: string, blockType: string) => void;
@@ -320,7 +356,7 @@ function CanvasRow({
       className={`group relative transition-all ${
         isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : 'hover:ring-1 hover:ring-slate-300'
       }`}
-      style={{ backgroundColor: row.styles.backgroundColor, padding: row.styles.padding }}
+      style={{ backgroundColor: row.styles.backgroundColor === 'transparent' ? 'transparent' : row.styles.backgroundColor, padding: row.styles.padding }}
       onClick={onSelectRow}
     >
       <div className={`absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1 transition-opacity ${
@@ -347,6 +383,7 @@ function CanvasRow({
             onSelectColumn={(e) => { e.stopPropagation(); onSelectColumn(col.id); onSelectBlock(null); }}
             onSelectBlock={onSelectBlock}
             onRemoveBlock={onRemoveBlock}
+            onDuplicateBlock={onDuplicateBlock}
             onUpdateBlock={onUpdateBlock}
             onReorderBlocks={onReorderBlocks}
             onDropBlock={onDropBlock}
@@ -361,7 +398,7 @@ function CanvasRow({
 // ─── Canvas Column ───
 function CanvasColumn({
   column, isActive, selectedBlockId,
-  onSelectColumn, onSelectBlock, onRemoveBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
+  onSelectColumn, onSelectBlock, onRemoveBlock, onDuplicateBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
 }: {
   column: Column;
   isActive: boolean;
@@ -369,6 +406,7 @@ function CanvasColumn({
   onSelectColumn: (e: React.MouseEvent) => void;
   onSelectBlock: (id: string | null) => void;
   onRemoveBlock: (id: string) => void;
+  onDuplicateBlock: (id: string) => void;
   onUpdateBlock: (id: string, updates: Partial<BlockData>) => void;
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
   onDropBlock: (columnId: string, blockType: string) => void;
@@ -382,14 +420,14 @@ function CanvasColumn({
     <div
       className={`min-h-[60px] transition-all ${
         isDragOver
-          ? 'bg-blue-100/50 ring-2 ring-dashed ring-blue-400'
+          ? 'ring-2 ring-dashed ring-blue-400'
           : isActive
-          ? 'bg-blue-50/50 ring-1 ring-dashed ring-blue-300'
+          ? 'ring-1 ring-dashed ring-blue-300'
           : column.blocks.length === 0
-          ? 'bg-slate-50/50 ring-1 ring-dashed ring-slate-200'
+          ? 'ring-1 ring-dashed ring-slate-200'
           : ''
       }`}
-      style={{ width: column.width }}
+      style={{ width: column.width, backgroundColor: 'transparent' }}
       onClick={onSelectColumn}
       onDragOver={(e) => {
         const hasBlockType = e.dataTransfer.types.includes('blocktype');
@@ -447,6 +485,7 @@ function CanvasColumn({
               isSelected={selectedBlockId === block.id}
               onSelect={(e) => { e.stopPropagation(); onSelectBlock(block.id); }}
               onRemove={() => onRemoveBlock(block.id)}
+              onDuplicate={() => onDuplicateBlock(block.id)}
               onUpdate={(updates) => onUpdateBlock(block.id, updates)}
               globalStyles={globalStyles}
             />
@@ -459,16 +498,35 @@ function CanvasColumn({
 
 // ─── Canvas Block ───
 function CanvasBlock({
-  block, isSelected, onSelect, onRemove, onUpdate, globalStyles,
+  block, isSelected, onSelect, onRemove, onDuplicate, onUpdate, globalStyles,
 }: {
   block: BlockData;
   isSelected: boolean;
   onSelect: (e: React.MouseEvent) => void;
   onRemove: () => void;
+  onDuplicate: () => void;
   onUpdate: (updates: Partial<BlockData>) => void;
   globalStyles: TemplateData['globalStyles'];
 }) {
-  const isTextBlock = block.type === 'heading' || block.type === 'text';
+  const isTextBlock = block.type === 'heading' || block.type === 'text' || block.type === 'button';
+  const editRef = useRef<HTMLDivElement>(null);
+  const btnEditRef = useRef<HTMLSpanElement>(null);
+
+  // Move cursor to end when block becomes selected
+  useEffect(() => {
+    if (isSelected && isTextBlock) {
+      const el = block.type === 'button' ? btnEditRef.current : editRef.current;
+      if (el) {
+        el.focus();
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    }
+  }, [isSelected, isTextBlock, block.type]);
 
   return (
     <div
@@ -478,39 +536,81 @@ function CanvasBlock({
       style={{ padding: block.styles.padding }}
       onClick={onSelect}
     >
-      {/* Delete button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onRemove(); }}
-        className={`absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm z-20 transition-opacity ${
-          isSelected ? 'opacity-100' : 'opacity-0 group-hover/block:opacity-100'
-        }`}
-      >
-        <Trash2 size={10} />
-      </button>
+      {/* Block action buttons */}
+      <div className={`absolute -top-2 -right-2 flex gap-1 z-20 transition-opacity ${
+        isSelected ? 'opacity-100' : 'opacity-0 group-hover/block:opacity-100'
+      }`}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+          className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-sm hover:bg-blue-600"
+          title="Duplicate"
+        >
+          <Copy size={10} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm hover:bg-red-600"
+          title="Delete"
+        >
+          <Trash2 size={10} />
+        </button>
+      </div>
 
       {/* Block content */}
       {isSelected && isTextBlock ? (
         <>
-          <div
-            contentEditable
-            suppressContentEditableWarning
-            onBlur={(e) => {
-              onUpdate({ content: { ...block.content, text: e.currentTarget.textContent || '' } });
-            }}
-            style={{
-              fontSize: block.styles.fontSize,
-              fontWeight: block.styles.fontWeight,
-              fontStyle: block.styles.fontStyle || 'normal',
-              textDecoration: block.styles.textDecoration || 'none',
-              color: block.styles.color || globalStyles.textColor,
-              textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
-              outline: 'none',
-              minHeight: '1em',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {block.content.text as string}
-          </div>
+          {block.type === 'button' ? (
+            <div style={{ textAlign: block.styles.textAlign as React.CSSProperties['textAlign'] }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: block.styles.backgroundColor,
+                  color: block.styles.color || '#ffffff',
+                  fontSize: block.styles.fontSize || 'inherit',
+                  fontWeight: block.styles.fontWeight || 'inherit',
+                  fontFamily: block.styles.fontFamily || 'inherit',
+                  padding: block.styles.padding,
+                  borderRadius: block.styles.borderRadius,
+                  lineHeight: block.styles.lineHeight || 'inherit',
+                  letterSpacing: block.styles.letterSpacing || 'inherit',
+                }}
+              >
+                <span
+                  ref={btnEditRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.textContent || '' } })}
+                  style={{ outline: 'none', minWidth: '20px', display: 'inline-block' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {block.content.text as string}
+                </span>
+              </span>
+            </div>
+          ) : (
+            <div
+              ref={editRef}
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.textContent || '' } })}
+              style={{
+                fontSize: block.styles.fontSize || 'inherit',
+                fontWeight: block.styles.fontWeight || 'inherit',
+                fontFamily: block.styles.fontFamily || 'inherit',
+                fontStyle: block.styles.fontStyle || 'normal',
+                textDecoration: block.styles.textDecoration || 'none',
+                color: block.styles.color || 'inherit',
+                textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
+                lineHeight: block.styles.lineHeight || 'inherit',
+                letterSpacing: block.styles.letterSpacing || 'inherit',
+                outline: 'none',
+                minHeight: '1em',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {block.content.text as string}
+            </div>
+          )}
           <FloatingToolbar block={block} onUpdate={onUpdate} />
         </>
       ) : (
@@ -522,14 +622,23 @@ function CanvasBlock({
 
 // ─── Block Renderers ───
 function renderBlock(block: BlockData, globalStyles: TemplateData['globalStyles']) {
+  // Use inherit to let global styles cascade, unless block has a specific override
+  const resolveColor = (blockColor: string) => blockColor || 'inherit';
+  const resolveFontSize = (blockSize: string) => blockSize || 'inherit';
+  const resolveFontWeight = (blockWeight: string) => blockWeight || 'inherit';
+
   switch (block.type) {
     case 'heading':
       return (
         <div style={{
-          fontSize: block.styles.fontSize, fontWeight: block.styles.fontWeight,
+          fontSize: resolveFontSize(block.styles.fontSize),
+          fontWeight: resolveFontWeight(block.styles.fontWeight),
+          fontFamily: block.styles.fontFamily || 'inherit',
           fontStyle: block.styles.fontStyle || 'normal', textDecoration: block.styles.textDecoration || 'none',
-          color: block.styles.color || globalStyles.textColor,
+          color: resolveColor(block.styles.color),
           textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
+          lineHeight: block.styles.lineHeight || 'inherit',
+          letterSpacing: block.styles.letterSpacing || 'inherit',
         }}>
           {block.content.text as string || 'Heading'}
         </div>
@@ -537,10 +646,14 @@ function renderBlock(block: BlockData, globalStyles: TemplateData['globalStyles'
     case 'text':
       return (
         <div style={{
-          fontSize: block.styles.fontSize, fontWeight: block.styles.fontWeight,
+          fontSize: resolveFontSize(block.styles.fontSize),
+          fontWeight: resolveFontWeight(block.styles.fontWeight),
+          fontFamily: block.styles.fontFamily || 'inherit',
           fontStyle: block.styles.fontStyle || 'normal', textDecoration: block.styles.textDecoration || 'none',
-          color: block.styles.color || globalStyles.textColor,
+          color: resolveColor(block.styles.color),
           textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
+          lineHeight: block.styles.lineHeight || 'inherit',
+          letterSpacing: block.styles.letterSpacing || 'inherit',
         }}>
           {block.content.text as string || 'Enter text...'}
         </div>
@@ -575,7 +688,7 @@ function renderBlock(block: BlockData, globalStyles: TemplateData['globalStyles'
       const headers = (block.content.headers || []) as string[];
       const rows = (block.content.rows || []) as string[][];
       return (
-        <table className="w-full border-collapse" style={{ fontSize: block.styles.fontSize, color: block.styles.color }}>
+        <table className="w-full border-collapse" style={{ fontSize: block.styles.fontSize || 'inherit', color: block.styles.color || 'inherit' }}>
           <thead>
             <tr>
               {headers.map((h, i) => (
@@ -597,7 +710,7 @@ function renderBlock(block: BlockData, globalStyles: TemplateData['globalStyles'
     }
     case 'signature':
       return (
-        <div style={{ fontSize: block.styles.fontSize, color: block.styles.color }}>
+        <div style={{ fontSize: block.styles.fontSize || 'inherit', color: block.styles.color || 'inherit' }}>
           <div className="border-t border-slate-900 w-48 mb-2" />
           <p className="font-medium">{block.content.name as string || 'Name'}</p>
           <p className="text-slate-500 text-xs">{block.content.title as string || 'Title'}</p>

@@ -139,6 +139,7 @@ function EditorContent() {
               onSelectColumn={setActiveColumnId}
               onRemoveRow={editorState.removeRow}
               onRemoveBlock={editorState.removeBlock}
+              onDuplicateBlock={editorState.duplicateBlock}
               onUpdateBlock={editorState.updateBlock}
               onAddRow={editorState.addRow}
               onReorderRows={editorState.reorderRows}

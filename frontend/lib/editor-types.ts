@@ -37,6 +37,7 @@ export interface TemplateData {
     textColor: string;
     fontFamily: string;
     fontWeight: string;
+    fontSize: string;
     textAlign: string;
     width: string;
   };
@@ -56,11 +57,11 @@ export const LAYOUT_OPTIONS: { label: string; value: RowLayout; widths: string[]
 export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, string | string[] | string[][]>; styles: Record<string, string> }> = {
   heading: {
     content: { text: 'Heading' },
-    styles: { fontSize: '24px', color: '#000000', fontWeight: 'bold', textAlign: 'left', padding: '10px' },
+    styles: { fontSize: '', color: '', fontWeight: 'bold', textAlign: 'left', padding: '10px' },
   },
   text: {
     content: { text: 'Enter your text here...' },
-    styles: { fontSize: '16px', color: '#333333', fontWeight: 'normal', textAlign: 'left', padding: '10px' },
+    styles: { fontSize: '', color: '', fontWeight: '', textAlign: 'left', padding: '10px' },
   },
   image: {
     content: { src: '', alt: 'Image' },
@@ -79,11 +80,11 @@ export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, 
       headers: ['Item', 'Quantity', 'Price'],
       rows: [['Item 1', '1', '100 TND']],
     },
-    styles: { fontSize: '14px', color: '#333333', padding: '10px' },
+    styles: { fontSize: '', color: '', padding: '10px' },
   },
   signature: {
     content: { name: '', title: '' },
-    styles: { fontSize: '14px', color: '#333333', padding: '20px 10px' },
+    styles: { fontSize: '', color: '', padding: '20px 10px' },
   },
 };
 
@@ -92,6 +93,7 @@ export const DEFAULT_GLOBAL_STYLES: TemplateData['globalStyles'] = {
   textColor: '#000000',
   fontFamily: 'Inter, sans-serif',
   fontWeight: 'normal',
+  fontSize: '16px',
   textAlign: 'left',
   width: '600px',
 };
