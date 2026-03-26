@@ -145,6 +145,7 @@ function EditorContent() {
               onReorderRows={editorState.reorderRows}
               onReorderBlocks={editorState.reorderBlocks}
               onDropBlock={(columnId, blockType) => editorState.addBlock(columnId, blockType as BlockType)}
+              onDropBlockToCanvas={(blockType) => editorState.addBlockToNewRow(blockType as BlockType)}
               activeColumnId={activeColumnId}
             />
           ) : (
@@ -175,6 +176,7 @@ function EditorContent() {
               globalStyles={editorState.template.globalStyles}
               onAddRow={editorState.addRow}
               onAddBlock={editorState.addBlock}
+              onAddBlockToNewRow={editorState.addBlockToNewRow}
               onUpdateBlock={editorState.updateBlock}
               onRemoveBlock={editorState.removeBlock}
               onUpdateGlobalStyles={editorState.updateGlobalStyles}

@@ -19,6 +19,7 @@ interface CanvasProps {
   onReorderRows: (fromIndex: number, toIndex: number) => void;
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
   onDropBlock: (columnId: string, blockType: string) => void;
+  onDropBlockToCanvas: (blockType: string) => void;
   activeColumnId: string | null;
 }
 
@@ -64,11 +65,13 @@ export default function Canvas({
   onReorderRows,
   onReorderBlocks,
   onDropBlock,
+  onDropBlockToCanvas,
   activeColumnId,
 }: CanvasProps) {
   const [showAddRow, setShowAddRow] = useState(false);
   const [dragRowIndex, setDragRowIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [canvasDragOver, setCanvasDragOver] = useState(false);
 
   return (
     <div
@@ -93,7 +96,9 @@ export default function Canvas({
       }}
     >
       <div
-        className="mx-auto min-h-[500px] shadow-lg rounded-sm relative"
+        className={`mx-auto min-h-[500px] shadow-lg rounded-sm relative transition-all ${
+          canvasDragOver ? 'ring-2 ring-dashed ring-blue-400 ring-offset-4' : ''
+        }`}
         style={{
           width: template.globalStyles.width,
           backgroundColor: template.globalStyles.backgroundColor,
@@ -102,87 +107,101 @@ export default function Canvas({
           fontWeight: template.globalStyles.fontWeight,
           fontSize: template.globalStyles.fontSize,
         }}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('blocktype')) {
+            e.preventDefault();
+            setCanvasDragOver(true);
+          }
+        }}
+        onDragLeave={(e) => {
+          if (e.currentTarget === e.target) setCanvasDragOver(false);
+        }}
+        onDrop={(e) => {
+          const blockType = e.dataTransfer.getData('blockType');
+          if (blockType) {
+            e.preventDefault();
+            e.stopPropagation();
+            onDropBlockToCanvas(blockType);
+          }
+          setCanvasDragOver(false);
+        }}
       >
         {template.rows.length === 0 ? (
-          <div
-            className="flex flex-col items-center justify-center py-24 text-center cursor-pointer hover:bg-slate-50/50 transition-colors"
-            onClick={(e) => { e.stopPropagation(); setShowAddRow(!showAddRow); }}
-          >
-            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4 hover:bg-slate-200 transition-colors">
-              <Plus size={24} className="text-slate-400" />
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+              <Plus size={20} className="text-slate-400" />
             </div>
-            <p className="text-sm text-slate-500 mb-1">Click to add a row</p>
-            <p className="text-xs text-slate-400">Choose a column layout to get started</p>
+            <p className="text-sm text-slate-500 mb-1">Drag content here to start</p>
+            <p className="text-xs text-slate-400">Or add a custom layout below</p>
           </div>
         ) : (
-          <>
-            {template.rows.map((row, index) => (
-              <div
-                key={row.id}
-                draggable
-                onDragStart={(e) => {
-                  setDragRowIndex(index);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index); }}
-                onDragEnd={() => {
-                  if (dragRowIndex !== null && dragOverIndex !== null && dragRowIndex !== dragOverIndex) {
-                    onReorderRows(dragRowIndex, dragOverIndex);
-                  }
-                  setDragRowIndex(null);
-                  setDragOverIndex(null);
-                }}
-                className={dragOverIndex === index && dragRowIndex !== index ? 'border-t-2 border-blue-500' : ''}
-              >
-                <CanvasRow
-                  row={row}
-                  isSelected={selectedRowId === row.id}
-                  selectedBlockId={selectedBlockId}
-                  activeColumnId={activeColumnId}
-                  onSelectRow={(e) => { e.stopPropagation(); onSelectRow(row.id); onSelectBlock(null); }}
-                  onSelectBlock={onSelectBlock}
-                  onSelectColumn={onSelectColumn}
-                  onRemoveRow={() => onRemoveRow(row.id)}
-                  onRemoveBlock={onRemoveBlock}
-                  onDuplicateBlock={onDuplicateBlock}
-                  onUpdateBlock={onUpdateBlock}
-                  onReorderBlocks={onReorderBlocks}
-                  onDropBlock={onDropBlock}
-                  globalStyles={template.globalStyles}
-                />
-              </div>
-            ))}
-            <div className="relative">
-              <div
-                className="flex items-center justify-center py-4 cursor-pointer group"
-                onClick={(e) => { e.stopPropagation(); setShowAddRow(!showAddRow); }}
-              >
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-dashed border-slate-300 group-hover:border-slate-400 group-hover:bg-slate-50 transition-all">
-                  <Plus size={14} className="text-slate-400" />
-                  <span className="text-xs text-slate-500 group-hover:text-slate-700">Add row</span>
-                </div>
-              </div>
+          template.rows.map((row, index) => (
+            <div
+              key={row.id}
+              draggable
+              onDragStart={(e) => {
+                if (e.dataTransfer.types.includes('blocktype')) return;
+                setDragRowIndex(index);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index); }}
+              onDragEnd={() => {
+                if (dragRowIndex !== null && dragOverIndex !== null && dragRowIndex !== dragOverIndex) {
+                  onReorderRows(dragRowIndex, dragOverIndex);
+                }
+                setDragRowIndex(null);
+                setDragOverIndex(null);
+              }}
+              className={dragOverIndex === index && dragRowIndex !== index ? 'border-t-2 border-blue-500' : ''}
+            >
+              <CanvasRow
+                row={row}
+                isSelected={selectedRowId === row.id}
+                selectedBlockId={selectedBlockId}
+                activeColumnId={activeColumnId}
+                onSelectRow={(e) => { e.stopPropagation(); onSelectRow(row.id); onSelectBlock(null); }}
+                onSelectBlock={onSelectBlock}
+                onSelectColumn={onSelectColumn}
+                onRemoveRow={() => onRemoveRow(row.id)}
+                onRemoveBlock={onRemoveBlock}
+                onDuplicateBlock={onDuplicateBlock}
+                onUpdateBlock={onUpdateBlock}
+                onReorderBlocks={onReorderBlocks}
+                onDropBlock={onDropBlock}
+                globalStyles={template.globalStyles}
+              />
             </div>
-          </>
+          ))
         )}
 
+        {/* Add row button — subtle, at the bottom */}
+        <div
+          className="flex items-center justify-center py-3 cursor-pointer group"
+          onClick={(e) => { e.stopPropagation(); setShowAddRow(!showAddRow); }}
+        >
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-slate-300/60 group-hover:border-slate-400 transition-all opacity-40 group-hover:opacity-100">
+            <Plus size={12} className="text-slate-400" />
+            <span className="text-[11px] text-slate-400 group-hover:text-slate-600">Layout</span>
+          </div>
+        </div>
+
         {showAddRow && (
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-4 z-50" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-lg shadow-xl border border-slate-200 p-3 w-64">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Choose layout</p>
-              <div className="space-y-1.5">
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-12 z-50" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-3 w-56">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Column layout</p>
+              <div className="grid grid-cols-2 gap-1.5">
                 {LAYOUT_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => { onAddRow(option.value); setShowAddRow(false); }}
-                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-slate-50 transition-colors"
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
                   >
-                    <div className="flex gap-0.5 flex-1">
+                    <div className="flex gap-0.5 w-full">
                       {option.widths.map((width, i) => (
-                        <div key={i} className="h-6 bg-slate-200 rounded-sm" style={{ width }} />
+                        <div key={i} className="h-5 bg-slate-200 rounded-sm" style={{ width }} />
                       ))}
                     </div>
-                    <span className="text-xs text-slate-400 whitespace-nowrap">{option.label}</span>
+                    <span className="text-[10px] text-slate-400">{option.label}</span>
                   </button>
                 ))}
               </div>

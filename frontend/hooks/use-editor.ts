@@ -74,6 +74,27 @@ export function useEditor() {
     setSelectedRowId(null);
   }, [template, updateTemplate]);
 
+  const addBlockToNewRow = useCallback((type: BlockType) => {
+    const newRow: Row = {
+      id: uuid(),
+      layout: '100' as RowLayout,
+      columns: [{
+        id: uuid(),
+        width: '100%',
+        blocks: [{
+          id: uuid(),
+          type,
+          content: { ...DEFAULT_BLOCK_CONTENT[type].content },
+          styles: { ...DEFAULT_BLOCK_CONTENT[type].styles },
+        }],
+      }],
+      styles: { backgroundColor: 'transparent', padding: '10px 0' },
+    };
+    const newTemplate = { ...template, rows: [...template.rows, newRow] };
+    updateTemplate(newTemplate);
+    setSelectedBlockId(newRow.columns[0].blocks[0].id);
+  }, [template, updateTemplate]);
+
   const addBlock = useCallback((columnId: string, type: BlockType) => {
     const defaults = DEFAULT_BLOCK_CONTENT[type];
     const newBlock: BlockData = {
@@ -229,6 +250,7 @@ export function useEditor() {
     setSelectedRowId,
     addRow,
     removeRow,
+    addBlockToNewRow,
     addBlock,
     updateBlock,
     removeBlock,

@@ -20,6 +20,7 @@ interface RightPanelProps {
   globalStyles: TemplateData['globalStyles'];
   onAddRow: (layout: RowLayout) => void;
   onAddBlock: (columnId: string, type: BlockType) => void;
+  onAddBlockToNewRow: (type: BlockType) => void;
   onUpdateBlock: (blockId: string, updates: Partial<BlockData>) => void;
   onRemoveBlock: (blockId: string) => void;
   onUpdateGlobalStyles: (styles: Partial<TemplateData['globalStyles']>) => void;
@@ -42,6 +43,7 @@ export default function RightPanel({
   globalStyles,
   onAddRow,
   onAddBlock,
+  onAddBlockToNewRow,
   onUpdateBlock,
   onRemoveBlock,
   onUpdateGlobalStyles,
@@ -97,6 +99,7 @@ export default function RightPanel({
           {activeTab === 'contenu' && (
             <ContenuPanel
               onAddBlock={onAddBlock}
+              onAddBlockToNewRow={onAddBlockToNewRow}
               activeColumnId={activeColumnId}
             />
           )}
@@ -144,17 +147,24 @@ export default function RightPanel({
 // ─── Contenu Panel ───
 function ContenuPanel({
   onAddBlock,
+  onAddBlockToNewRow,
   activeColumnId,
 }: {
   onAddBlock: (columnId: string, type: BlockType) => void;
+  onAddBlockToNewRow: (type: BlockType) => void;
   activeColumnId: string | null;
 }) {
+  const handleAdd = (type: BlockType) => {
+    if (activeColumnId) {
+      onAddBlock(activeColumnId, type);
+    } else {
+      onAddBlockToNewRow(type);
+    }
+  };
+
   return (
     <div>
       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Content</h3>
-      {!activeColumnId && (
-        <p className="text-xs text-slate-400 mb-3">Drag into a column, or select a column first</p>
-      )}
       <div className="grid grid-cols-2 gap-2">
         {BLOCK_ITEMS.map((item) => (
           <div
@@ -164,7 +174,7 @@ function ContenuPanel({
               e.dataTransfer.setData('blockType', item.type);
               e.dataTransfer.effectAllowed = 'copy';
             }}
-            onClick={() => activeColumnId && onAddBlock(activeColumnId, item.type)}
+            onClick={() => handleAdd(item.type)}
             className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-slate-200 hover:border-slate-400 hover:bg-slate-50 transition-all text-center cursor-grab active:cursor-grabbing"
           >
             <span className="text-lg">{item.icon}</span>
