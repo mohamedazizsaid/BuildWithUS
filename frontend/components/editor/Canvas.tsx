@@ -604,6 +604,8 @@ function CanvasBlock({
       style={{
         padding,
         margin,
+        height: 'auto',
+        overflow: 'visible',
         width: isLayoutBlock ? block.styles.width || undefined : undefined,
         maxWidth: isLayoutBlock ? '100%' : undefined,
         backgroundColor: isLayoutBlock ? (block.styles.backgroundColor || 'transparent') : undefined,
@@ -686,7 +688,8 @@ function CanvasBlock({
                 lineHeight: block.styles.lineHeight || 'inherit',
                 letterSpacing: block.styles.letterSpacing || 'inherit',
                 outline: 'none',
-                minHeight: '1em',
+                minHeight: '1.2em',
+                wordBreak: 'break-word' as const,
               }}
               onClick={(e) => e.stopPropagation()}
             >

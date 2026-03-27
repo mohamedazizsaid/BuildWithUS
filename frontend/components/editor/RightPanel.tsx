@@ -632,9 +632,18 @@ function PhotosPanel() {
 const FONT_SIZES = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '40px', '48px', '56px', '64px'];
 
 function FontSizeSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const currentSize = parseInt(value) || 16;
-  const decrease = () => onChange(`${Math.max(8, currentSize - 2)}px`);
-  const increase = () => onChange(`${Math.min(72, currentSize + 2)}px`);
+  // Resolve the effective size — always use the actual numeric value
+  const resolvedValue = value && value !== '' ? value : '16px';
+  const currentSize = parseInt(resolvedValue) || 16;
+
+  const decrease = () => {
+    const newSize = Math.max(8, currentSize - 2);
+    onChange(`${newSize}px`);
+  };
+  const increase = () => {
+    const newSize = Math.min(72, currentSize + 2);
+    onChange(`${newSize}px`);
+  };
 
   return (
     <div>
@@ -642,11 +651,15 @@ function FontSizeSelector({ value, onChange }: { value: string; onChange: (v: st
       <div className="flex items-center gap-1 mt-1">
         <button onClick={decrease} className="w-8 h-8 rounded-md border border-border flex items-center justify-center hover:bg-muted/50 text-sm font-medium">−</button>
         <select
-          value={value || '16px'}
+          value={resolvedValue}
           onChange={(e) => onChange(e.target.value)}
           className="flex-1 h-8 rounded-md border border-border text-xs px-2 text-center"
         >
           {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+          {/* Show current size if not in preset list */}
+          {!FONT_SIZES.includes(resolvedValue) && (
+            <option value={resolvedValue}>{resolvedValue}</option>
+          )}
         </select>
         <button onClick={increase} className="w-8 h-8 rounded-md border border-border flex items-center justify-center hover:bg-muted/50 text-sm font-medium">+</button>
       </div>
