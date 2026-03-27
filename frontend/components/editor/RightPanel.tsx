@@ -284,6 +284,55 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pt-3 pb-1 border-t border-border/60 first:border-0 first:pt-0">{children}</h4>;
 }
 
+function parseBoxValue(value: string | undefined) {
+  if (!value) {
+    return { top: '0px', right: '0px', bottom: '0px', left: '0px' };
+  }
+  const parts = value.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return { top: parts[0], right: parts[0], bottom: parts[0], left: parts[0] };
+  }
+  if (parts.length === 2) {
+    return { top: parts[0], right: parts[1], bottom: parts[0], left: parts[1] };
+  }
+  if (parts.length === 3) {
+    return { top: parts[0], right: parts[1], bottom: parts[2], left: parts[1] };
+  }
+  return { top: parts[0], right: parts[1], bottom: parts[2], left: parts[3] };
+}
+
+function resolveBlockPadding(styles: Record<string, string>) {
+  if (styles.paddingTop || styles.paddingRight || styles.paddingBottom || styles.paddingLeft) {
+    return {
+      top: styles.paddingTop || '0px',
+      right: styles.paddingRight || styles.paddingTop || '0px',
+      bottom: styles.paddingBottom || styles.paddingTop || '0px',
+      left: styles.paddingLeft || styles.paddingRight || styles.paddingTop || '0px',
+    };
+  }
+  return parseBoxValue(styles.padding);
+}
+
+function resolveBlockMargin(styles: Record<string, string>) {
+  if (styles.marginTop || styles.marginRight || styles.marginBottom || styles.marginLeft) {
+    return {
+      top: styles.marginTop || '0px',
+      right: styles.marginRight || styles.marginTop || '0px',
+      bottom: styles.marginBottom || styles.marginTop || '0px',
+      left: styles.marginLeft || styles.marginRight || styles.marginTop || '0px',
+    };
+  }
+  if (styles.marginY || styles.marginX) {
+    return {
+      top: styles.marginY || '0px',
+      right: styles.marginX || '0px',
+      bottom: styles.marginY || '0px',
+      left: styles.marginX || '0px',
+    };
+  }
+  return parseBoxValue(styles.margin);
+}
+
 // ─── Numeric Input with suffix ───
 function NumericInput({ value, onChange, suffix = 'px' }: { value: string; onChange: (v: string) => void; suffix?: string }) {
   const num = parseInt(value) || 0;
@@ -657,10 +706,10 @@ function FontWeightSelector({ value, onChange }: { value: string; onChange: (v: 
 }
 
 // ─── Alignment Selector ───
-function AlignmentSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function AlignmentSelector({ value, onChange, label = 'Alignment' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
     <div>
-      <Label className="text-xs">Alignment</Label>
+      <Label className="text-xs">{label}</Label>
       <div className="flex gap-1 mt-1">
         {['left', 'center', 'right'].map((align) => (
           <button
@@ -681,10 +730,10 @@ function AlignmentSelector({ value, onChange }: { value: string; onChange: (v: s
 }
 
 // ─── Line Height Selector ───
-function LineHeightSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function LineHeightSelector({ value, onChange, label = 'Line Height' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
     <div>
-      <Label className="text-xs">Line Height</Label>
+      <Label className="text-xs">{label}</Label>
       <select
         value={value || '1.5'}
         onChange={(e) => onChange(e.target.value)}
@@ -702,10 +751,10 @@ function LineHeightSelector({ value, onChange }: { value: string; onChange: (v: 
 }
 
 // ─── Letter Spacing Selector ───
-function LetterSpacingSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function LetterSpacingSelector({ value, onChange, label = 'Letter Spacing' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
     <div>
-      <Label className="text-xs">Letter Spacing</Label>
+      <Label className="text-xs">{label}</Label>
       <select
         value={value || '0px'}
         onChange={(e) => onChange(e.target.value)}
@@ -753,6 +802,8 @@ function BlockProperties({
   block: BlockData;
   onUpdate: (updates: Partial<BlockData>) => void;
 }) {
+  const [openSection, setOpenSection] = useState<string | null>('layout');
+
   const updateContent = (key: string, value: string) => {
     onUpdate({ content: { ...block.content, [key]: value } });
   };
@@ -761,7 +812,17 @@ function BlockProperties({
     onUpdate({ styles: { ...block.styles, [key]: value } });
   };
 
+  const updateStyles = (updates: Record<string, string>) => {
+    onUpdate({ styles: { ...block.styles, ...updates } });
+  };
+
+  const isHeadingOrText = block.type === 'heading' || block.type === 'text';
   const isTextLike = block.type === 'heading' || block.type === 'text' || block.type === 'button';
+  const padding = resolveBlockPadding(block.styles);
+  const margin = resolveBlockMargin(block.styles);
+  const paddingGrouped = block.styles.paddingGroup === 'true'
+    || (!block.styles.paddingGroup && padding.top === padding.right && padding.top === padding.bottom && padding.top === padding.left);
+  const borderGrouped = block.styles.borderGroup !== 'false';
 
   return (
     <div className="space-y-4">
@@ -821,8 +882,146 @@ function BlockProperties({
         </>
       )}
 
+      {isHeadingOrText && (
+        <div className="pt-2 border-t border-border space-y-3">
+          <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="layout" title="Mise en page">
+            <div>
+              <Label className="text-xs">Police</Label>
+              <div className="space-y-2 mt-1">
+                <FontSelect value={block.styles.fontFamily || 'Verdana, sans-serif'} onChange={(v) => updateStyle('fontFamily', v)} />
+                <FontSizeSelector value={block.styles.fontSize || '16px'} onChange={(v) => updateStyle('fontSize', v)} />
+              </div>
+            </div>
+            <AlignmentSelector
+              label="Alignement du bloc"
+              value={block.styles.blockAlign || 'left'}
+              onChange={(v) => updateStyle('blockAlign', v)}
+            />
+            <AlignmentSelector
+              label="Alignement du texte"
+              value={block.styles.textAlign || 'left'}
+              onChange={(v) => updateStyle('textAlign', v)}
+            />
+            <LineHeightSelector
+              label="Interlignage"
+              value={block.styles.lineHeight || '1.5'}
+              onChange={(v) => updateStyle('lineHeight', v)}
+            />
+            <LetterSpacingSelector
+              label="Espacement"
+              value={block.styles.letterSpacing || '0px'}
+              onChange={(v) => updateStyle('letterSpacing', v)}
+            />
+            <div>
+              <Toggle
+                label="Grouper les côtés"
+                value={paddingGrouped}
+                onChange={(v) => {
+                  if (v) {
+                    updateStyles({
+                      paddingGroup: 'true',
+                      paddingTop: padding.top,
+                      paddingRight: padding.top,
+                      paddingBottom: padding.top,
+                      paddingLeft: padding.top,
+                      padding: padding.top,
+                    });
+                  } else {
+                    updateStyles({ paddingGroup: 'false' });
+                  }
+                }}
+              />
+              {paddingGrouped ? (
+                <div className="mt-2">
+                  <Label className="text-xs">Marge intérieure</Label>
+                  <NumericInput
+                    value={padding.top}
+                    onChange={(v) => updateStyles({ paddingTop: v, paddingRight: v, paddingBottom: v, paddingLeft: v, padding: v })}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Haut</Label>
+                    <NumericInput value={padding.top} onChange={(v) => updateStyles({ paddingTop: v, padding: `${v} ${padding.right} ${padding.bottom} ${padding.left}` })} />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Droite</Label>
+                    <NumericInput value={padding.right} onChange={(v) => updateStyles({ paddingRight: v, padding: `${padding.top} ${v} ${padding.bottom} ${padding.left}` })} />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Bas</Label>
+                    <NumericInput value={padding.bottom} onChange={(v) => updateStyles({ paddingBottom: v, padding: `${padding.top} ${padding.right} ${v} ${padding.left}` })} />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Gauche</Label>
+                    <NumericInput value={padding.left} onChange={(v) => updateStyles({ paddingLeft: v, padding: `${padding.top} ${padding.right} ${padding.bottom} ${v}` })} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </AccordionSection>
+
+          <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="text" title="Styles du texte">
+            <FontWeightSelector value={block.styles.fontWeight || 'normal'} onChange={(v) => updateStyle('fontWeight', v)} />
+            <ColorPicker label="Couleur du texte" value={block.styles.color || '#000000'} onChange={(c) => updateStyle('color', c)} />
+          </AccordionSection>
+
+          <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="margin" title="Marge">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Verticale</Label>
+                <NumericInput
+                  value={block.styles.marginY || margin.top}
+                  onChange={(v) => updateStyles({ marginY: v, margin: `${v} ${block.styles.marginX || margin.right}` })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Horizontale</Label>
+                <NumericInput
+                  value={block.styles.marginX || margin.right}
+                  onChange={(v) => updateStyles({ marginX: v, margin: `${block.styles.marginY || margin.top} ${v}` })}
+                />
+              </div>
+            </div>
+          </AccordionSection>
+
+          <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="background" title="Fond">
+            <ColorPicker label="Couleur" value={block.styles.backgroundColor || '#ffffff'} onChange={(c) => updateStyle('backgroundColor', c)} />
+            <SectionHeader>Image</SectionHeader>
+            <div>
+              <Label className="text-xs">URL de l&apos;image</Label>
+              <Input
+                value={block.styles.backgroundImage || ''}
+                onChange={(e) => updateStyle('backgroundImage', e.target.value)}
+                className="h-8 text-xs mt-1"
+                placeholder="https://..."
+              />
+            </div>
+            <div>
+              <SectionHeader>Angles arrondis</SectionHeader>
+              <Label className="text-xs">Radius</Label>
+              <NumericInput value={block.styles.borderRadius || '0px'} onChange={(v) => updateStyle('borderRadius', v)} />
+            </div>
+          </AccordionSection>
+
+          <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="borders" title="Bordures">
+            <Toggle
+              label="Appliquer sur tous les côtés"
+              value={borderGrouped}
+              onChange={(v) => updateStyle('borderGroup', v ? 'true' : 'false')}
+            />
+            <div>
+              <Label className="text-xs">Taille</Label>
+              <NumericInput value={block.styles.borderSize || '0px'} onChange={(v) => updateStyle('borderSize', v)} />
+            </div>
+            <ColorPicker label="Couleur" value={block.styles.borderColor || '#e2e8f0'} onChange={(c) => updateStyle('borderColor', c)} />
+          </AccordionSection>
+        </div>
+      )}
+
       {/* Typography (consistent for heading, text, button) */}
-      {isTextLike && (
+      {isTextLike && !isHeadingOrText && (
         <div className="pt-2 border-t border-border space-y-3">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase">Typography</h4>
           <TextStyleFields block={block} updateStyle={updateStyle} />

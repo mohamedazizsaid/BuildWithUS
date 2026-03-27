@@ -50,6 +50,42 @@ const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
   },
 ];
 
+function resolvePadding(styles: Record<string, string>) {
+  if (styles.padding) return styles.padding;
+  if (styles.paddingTop || styles.paddingRight || styles.paddingBottom || styles.paddingLeft) {
+    const top = styles.paddingTop || '0px';
+    const right = styles.paddingRight || top;
+    const bottom = styles.paddingBottom || top;
+    const left = styles.paddingLeft || right;
+    return `${top} ${right} ${bottom} ${left}`;
+  }
+  return undefined;
+}
+
+function resolveMargin(styles: Record<string, string>) {
+  if (styles.margin) return styles.margin;
+  if (styles.marginY || styles.marginX) {
+    const y = styles.marginY || '0px';
+    const x = styles.marginX || '0px';
+    return `${y} ${x}`;
+  }
+  if (styles.marginTop || styles.marginRight || styles.marginBottom || styles.marginLeft) {
+    const top = styles.marginTop || '0px';
+    const right = styles.marginRight || top;
+    const bottom = styles.marginBottom || top;
+    const left = styles.marginLeft || right;
+    return `${top} ${right} ${bottom} ${left}`;
+  }
+  return undefined;
+}
+
+function resolveBlockAlign(styles: Record<string, string>) {
+  const align = styles.blockAlign || 'left';
+  if (align === 'center') return { marginLeft: 'auto', marginRight: 'auto' };
+  if (align === 'right') return { marginLeft: 'auto', marginRight: '0' };
+  return { marginLeft: '0', marginRight: 'auto' };
+}
+
 export default function Canvas({
   template,
   selectedBlockId,
@@ -536,8 +572,13 @@ function CanvasBlock({
   globalStyles: GlobalStyles;
 }) {
   const isTextBlock = block.type === 'heading' || block.type === 'text' || block.type === 'button';
+  const isLayoutBlock = block.type === 'heading' || block.type === 'text';
   const editRef = useRef<HTMLDivElement>(null);
   const btnEditRef = useRef<HTMLSpanElement>(null);
+  const padding = resolvePadding(block.styles);
+  const margin = resolveMargin(block.styles);
+  const alignMargins = isLayoutBlock ? resolveBlockAlign(block.styles) : {};
+  const hasBorder = isLayoutBlock && block.styles.borderSize && block.styles.borderSize !== '0px';
 
   // Move cursor to end when block becomes selected
   useEffect(() => {
@@ -560,7 +601,20 @@ function CanvasBlock({
       className={`relative cursor-pointer transition-all group/block ${
         isSelected ? 'ring-2 ring-blue-500' : 'hover:ring-1 hover:ring-blue-300'
       }`}
-      style={{ padding: block.styles.padding }}
+      style={{
+        padding,
+        margin,
+        width: isLayoutBlock ? block.styles.width || undefined : undefined,
+        maxWidth: isLayoutBlock ? '100%' : undefined,
+        backgroundColor: isLayoutBlock ? (block.styles.backgroundColor || 'transparent') : undefined,
+        backgroundImage: isLayoutBlock && block.styles.backgroundImage ? `url(${block.styles.backgroundImage})` : undefined,
+        backgroundSize: isLayoutBlock && block.styles.backgroundImage ? 'cover' : undefined,
+        backgroundPosition: isLayoutBlock && block.styles.backgroundImage ? 'center' : undefined,
+        backgroundRepeat: isLayoutBlock && block.styles.backgroundImage ? 'no-repeat' : undefined,
+        borderRadius: isLayoutBlock ? block.styles.borderRadius : undefined,
+        border: hasBorder ? `${block.styles.borderSize} solid ${block.styles.borderColor || 'transparent'}` : undefined,
+        ...alignMargins,
+      }}
       onClick={onSelect}
     >
       {/* Block action buttons */}
