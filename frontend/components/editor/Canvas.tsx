@@ -111,17 +111,18 @@ export default function Canvas({
 
   return (
     <div
-      className="overflow-y-auto p-8 bg-background"
+      className="overflow-y-auto p-8"
       style={{
         height: 'calc(100vh - 7rem)',
         backgroundImage: `
-          linear-gradient(45deg, var(--border) 25%, transparent 25%),
-          linear-gradient(-45deg, var(--border) 25%, transparent 25%),
-          linear-gradient(45deg, transparent 75%, var(--border) 75%),
-          linear-gradient(-45deg, transparent 75%, var(--border) 75%)
+          linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+          linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+          linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)
         `,
         backgroundSize: '20px 20px',
         backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+        backgroundColor: '#e2e8f0',
       }}
       onClick={() => {
         onSelectBlock(null);
@@ -150,6 +151,13 @@ export default function Canvas({
           backgroundSize: template.globalStyles.backgroundSize === 'repeat' ? 'auto' : template.globalStyles.backgroundSize,
           backgroundRepeat: template.globalStyles.backgroundSize === 'repeat' ? 'repeat' : 'no-repeat',
           backgroundPosition: 'center',
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onSelectBlock(null);
+            onSelectRow(null);
+            onSelectColumn(null);
+          }
         }}
         onDragOver={(e) => {
           if (e.dataTransfer.types.includes('blocktype')) {
@@ -417,7 +425,7 @@ function CanvasRow({
   return (
     <div
       className={`group relative transition-all ${
-        isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : 'hover:ring-1 hover:ring-border'
+        isSelected ? 'ring-1 ring-blue-400' : 'hover:ring-1 hover:ring-border'
       }`}
       style={{ backgroundColor: row.styles.backgroundColor === 'transparent' ? 'transparent' : row.styles.backgroundColor, padding: row.styles.padding }}
       onClick={onSelectRow}

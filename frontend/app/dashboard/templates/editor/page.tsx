@@ -57,7 +57,7 @@ function EditorContent() {
 
   const generateMjml = useCallback(() => {
     const { rows, globalStyles } = editorState.template;
-    let mjml = `<mjml>\n  <mj-body background-color="${globalStyles.backgroundColor}" width="${globalStyles.width}">\n`;
+    let mjml = `<mjml>\n  <mj-body background-color="${globalStyles.bodyColor}" width="${globalStyles.width}">\n`;
 
     for (const row of rows) {
       mjml += `    <mj-section background-color="${row.styles.backgroundColor}" padding="${row.styles.padding}">\n`;
@@ -212,7 +212,7 @@ export default function EditorPage() {
 }
 
 // ─── Block to MJML ───
-import { BlockData, TemplateData } from '@/lib/editor-types';
+import { BlockData, TemplateData, GlobalStyles } from '@/lib/editor-types';
 
 function blockToMjml(block: BlockData, globalStyles: { textColor: string; fontFamily: string }) {
   switch (block.type) {
@@ -247,10 +247,18 @@ function blockToMjml(block: BlockData, globalStyles: { textColor: string; fontFa
 // ─── Preview HTML Generator ───
 function generatePreviewHtml(template: TemplateData): string {
   const { rows, globalStyles } = template;
-  let html = `<div style="background-color:${globalStyles.backgroundColor};font-family:${globalStyles.fontFamily};color:${globalStyles.textColor};max-width:${globalStyles.width};margin:0 auto;">`;
+  const padding = globalStyles.paddingGroup
+    ? globalStyles.paddingTop
+    : `${globalStyles.paddingTop} ${globalStyles.paddingRight} ${globalStyles.paddingBottom} ${globalStyles.paddingLeft}`;
+  const bgImage = globalStyles.backgroundImage
+    ? `background-image:url(${globalStyles.backgroundImage});background-size:${globalStyles.backgroundSize === 'repeat' ? 'auto' : globalStyles.backgroundSize};background-repeat:${globalStyles.backgroundSize === 'repeat' ? 'repeat' : 'no-repeat'};background-position:center;`
+    : '';
+
+  let html = `<div style="background-color:${globalStyles.bodyColor};font-family:${globalStyles.fontFamily};color:${globalStyles.textColor};font-size:${globalStyles.fontSize};font-weight:${globalStyles.fontWeight};line-height:${globalStyles.lineHeight};direction:${globalStyles.textDirection};max-width:${globalStyles.width};margin:0 auto;padding:${padding};${bgImage}">`;
 
   for (const row of rows) {
-    html += `<div style="background-color:${row.styles.backgroundColor};padding:${row.styles.padding};">`;
+    const rowBg = row.styles.backgroundColor === 'transparent' ? '' : `background-color:${row.styles.backgroundColor};`;
+    html += `<div style="${rowBg}padding:${row.styles.padding};">`;
     html += `<div style="display:flex;">`;
     for (const col of row.columns) {
       html += `<div style="width:${col.width};box-sizing:border-box;">`;
@@ -266,24 +274,31 @@ function generatePreviewHtml(template: TemplateData): string {
   return html;
 }
 
-function blockToHtml(block: BlockData, globalStyles: { textColor: string; fontFamily: string }): string {
+function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
+  const color = block.styles.color || 'inherit';
+  const fontSize = block.styles.fontSize || 'inherit';
+  const fontWeight = block.styles.fontWeight || 'inherit';
+  const fontFamily = block.styles.fontFamily || 'inherit';
+  const lineHeight = block.styles.lineHeight || 'inherit';
+  const letterSpacing = block.styles.letterSpacing || 'inherit';
+
   switch (block.type) {
     case 'heading':
-      return `<div style="font-size:${block.styles.fontSize};font-weight:${block.styles.fontWeight};color:${block.styles.color || globalStyles.textColor};text-align:${block.styles.textAlign};padding:${block.styles.padding}">${block.content.text}</div>`;
+      return `<div style="font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
     case 'text':
-      return `<div style="font-size:${block.styles.fontSize};color:${block.styles.color || globalStyles.textColor};text-align:${block.styles.textAlign};padding:${block.styles.padding}">${block.content.text}</div>`;
+      return `<div style="font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
     case 'image':
       return block.content.src
         ? `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="width:${block.styles.width};max-width:100%" /></div>`
         : `<div style="background:#f1f5f9;padding:32px;text-align:center;color:#94a3b8;font-size:12px">No image</div>`;
     case 'button':
-      return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${block.styles.backgroundColor};color:${block.styles.color};font-size:${block.styles.fontSize};padding:${block.styles.padding};border-radius:${block.styles.borderRadius};text-decoration:none">${block.content.text}</a></div>`;
+      return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${block.styles.backgroundColor || globalStyles.btnBackgroundColor};color:${block.styles.color || globalStyles.btnFontColor};font-size:${block.styles.fontSize || globalStyles.btnFontSize};font-family:${block.styles.fontFamily || globalStyles.btnFontFamily};font-weight:${block.styles.fontWeight || globalStyles.btnFontWeight};padding:${block.styles.padding};border-radius:${block.styles.borderRadius || globalStyles.btnBorderRadius};border:${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor};text-decoration:none">${block.content.text}</a></div>`;
     case 'divider':
       return `<hr style="border-color:${block.styles.borderColor};border-width:${block.styles.borderWidth};margin:${block.styles.padding} 0" />`;
     case 'table': {
       const headers = (block.content.headers || []) as string[];
       const rows = (block.content.rows || []) as string[][];
-      let t = `<table style="width:100%;border-collapse:collapse;font-size:${block.styles.fontSize};color:${block.styles.color};padding:${block.styles.padding}">`;
+      let t = `<table style="width:100%;border-collapse:collapse;font-size:${fontSize};color:${color};padding:${block.styles.padding}">`;
       t += `<tr>${headers.map((h: string) => `<th style="border:1px solid #ddd;padding:8px;background:#f1f5f9;text-align:left">${h}</th>`).join('')}</tr>`;
       for (const row of rows) {
         t += `<tr>${row.map((c: string) => `<td style="border:1px solid #ddd;padding:8px">${c}</td>`).join('')}</tr>`;

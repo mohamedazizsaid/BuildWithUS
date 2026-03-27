@@ -468,7 +468,6 @@ function CorpsPanel({
 
       {/* ─── 2. Fond ─── */}
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="background" title="Fond">
-        <ColorPicker label="Couleur de fond" value={globalStyles.backgroundColor} onChange={(c) => onUpdateGlobalStyles({ backgroundColor: c })} />
         <div>
           <Label className="text-xs">Image de fond</Label>
           <Input
