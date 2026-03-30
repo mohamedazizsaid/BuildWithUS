@@ -20,7 +20,6 @@ interface CanvasProps {
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
   onDropBlock: (columnId: string, blockType: string) => void;
   onDropBlockToCanvas: (blockType: string) => void;
-  activeColumnId: string | null;
 }
 
 const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
@@ -102,12 +101,33 @@ export default function Canvas({
   onReorderBlocks,
   onDropBlock,
   onDropBlockToCanvas,
-  activeColumnId,
 }: CanvasProps) {
   const [showAddRow, setShowAddRow] = useState(false);
   const [dragRowIndex, setDragRowIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [canvasDragOver, setCanvasDragOver] = useState(false);
+  // Drop indicator: which row index to show the blue line above (-1 = after last row)
+  const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
+  const [isExternalDrag, setIsExternalDrag] = useState(false);
+
+  // Global cleanup: clear ALL drag state when any drag ends
+  useEffect(() => {
+    const cleanup = () => {
+      setTimeout(() => {
+        setCanvasDragOver(false);
+        setDragOverIndex(null);
+        setDragRowIndex(null);
+        setDropIndicatorIndex(null);
+        setIsExternalDrag(false);
+      }, 0);
+    };
+    document.addEventListener('dragend', cleanup, true);
+    document.addEventListener('drop', cleanup, true);
+    return () => {
+      document.removeEventListener('dragend', cleanup, true);
+      document.removeEventListener('drop', cleanup, true);
+    };
+  }, []);
 
   return (
     <div
@@ -176,6 +196,8 @@ export default function Canvas({
             onDropBlockToCanvas(blockType);
           }
           setCanvasDragOver(false);
+          setDropIndicatorIndex(null);
+          setIsExternalDrag(false);
         }}
       >
         {template.rows.length === 0 ? (
@@ -188,40 +210,61 @@ export default function Canvas({
           </div>
         ) : (
           template.rows.map((row, index) => (
-            <div
-              key={row.id}
-              draggable
-              onDragStart={(e) => {
-                if (e.dataTransfer.types.includes('blocktype')) return;
-                setDragRowIndex(index);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index); }}
-              onDragEnd={() => {
-                if (dragRowIndex !== null && dragOverIndex !== null && dragRowIndex !== dragOverIndex) {
-                  onReorderRows(dragRowIndex, dragOverIndex);
-                }
-                setDragRowIndex(null);
-                setDragOverIndex(null);
-              }}
-              className={dragOverIndex === index && dragRowIndex !== index ? 'border-t-2 border-blue-500' : ''}
-            >
-              <CanvasRow
-                row={row}
-                isSelected={selectedRowId === row.id}
-                selectedBlockId={selectedBlockId}
-                activeColumnId={activeColumnId}
-                onSelectRow={(e) => { e.stopPropagation(); onSelectRow(row.id); onSelectBlock(null); }}
-                onSelectBlock={onSelectBlock}
-                onSelectColumn={onSelectColumn}
-                onRemoveRow={() => onRemoveRow(row.id)}
-                onRemoveBlock={onRemoveBlock}
-                onDuplicateBlock={onDuplicateBlock}
-                onUpdateBlock={onUpdateBlock}
-                onReorderBlocks={onReorderBlocks}
-                onDropBlock={onDropBlock}
-                globalStyles={template.globalStyles}
-              />
+            <div key={row.id}>
+              {/* Drop indicator line — above this row */}
+              {isExternalDrag && dropIndicatorIndex === index && (
+                <div className="h-0.5 bg-blue-500 mx-2 rounded-full" />
+              )}
+              <div
+                draggable
+                onDragStart={(e) => {
+                  if (e.dataTransfer.types.includes('blocktype')) return;
+                  setDragRowIndex(index);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (dragRowIndex !== null) {
+                    setDragOverIndex(index);
+                  } else if (e.dataTransfer.types.includes('blocktype')) {
+                    // External drag from panel — calculate if cursor is in top or bottom half
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    setIsExternalDrag(true);
+                    setDropIndicatorIndex(e.clientY < midY ? index : index + 1);
+                  }
+                }}
+                onDragEnd={() => {
+                  if (dragRowIndex !== null && dragOverIndex !== null && dragRowIndex !== dragOverIndex) {
+                    onReorderRows(dragRowIndex, dragOverIndex);
+                  }
+                  setDragRowIndex(null);
+                  setDragOverIndex(null);
+                  setDropIndicatorIndex(null);
+                  setIsExternalDrag(false);
+                }}
+                className={dragOverIndex === index && dragRowIndex !== null && dragRowIndex !== index ? 'border-t-2 border-blue-500' : ''}
+              >
+                <CanvasRow
+                  row={row}
+                  isSelected={selectedRowId === row.id}
+                  selectedBlockId={selectedBlockId}
+                  onSelectRow={(e) => { e.stopPropagation(); onSelectRow(row.id); onSelectBlock(null); onSelectColumn(null); }}
+                  onSelectBlock={onSelectBlock}
+                  onSelectColumn={onSelectColumn}
+                  onRemoveRow={() => onRemoveRow(row.id)}
+                  onRemoveBlock={onRemoveBlock}
+                  onDuplicateBlock={onDuplicateBlock}
+                  onUpdateBlock={onUpdateBlock}
+                  onReorderBlocks={onReorderBlocks}
+                  onDropBlock={onDropBlock}
+                  globalStyles={template.globalStyles}
+                />
+              </div>
+              {/* Drop indicator line — after last row */}
+              {isExternalDrag && dropIndicatorIndex === index + 1 && index === template.rows.length - 1 && (
+                <div className="h-0.5 bg-blue-500 mx-2 rounded-full" />
+              )}
             </div>
           ))
         )}
@@ -403,14 +446,13 @@ function FloatingToolbar({
 
 // ─── Canvas Row ───
 function CanvasRow({
-  row, isSelected, selectedBlockId, activeColumnId,
+  row, isSelected, selectedBlockId,
   onSelectRow, onSelectBlock, onSelectColumn, onRemoveRow,
   onRemoveBlock, onDuplicateBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
 }: {
   row: Row;
   isSelected: boolean;
   selectedBlockId: string | null;
-  activeColumnId: string | null;
   onSelectRow: (e: React.MouseEvent) => void;
   onSelectBlock: (id: string | null) => void;
   onSelectColumn: (id: string | null) => void;
@@ -424,8 +466,8 @@ function CanvasRow({
 }) {
   return (
     <div
-      className={`group relative transition-all ${
-        isSelected ? 'ring-1 ring-blue-400' : 'hover:ring-1 hover:ring-border'
+      className={`group relative ${
+        isSelected ? 'ring-1 ring-blue-400' : ''
       }`}
       style={{ backgroundColor: row.styles.backgroundColor === 'transparent' ? 'transparent' : row.styles.backgroundColor, padding: row.styles.padding }}
       onClick={onSelectRow}
@@ -449,7 +491,6 @@ function CanvasRow({
           <CanvasColumn
             key={col.id}
             column={col}
-            isActive={activeColumnId === col.id}
             selectedBlockId={selectedBlockId}
             onSelectColumn={(e) => { e.stopPropagation(); onSelectColumn(col.id); onSelectBlock(null); }}
             onSelectBlock={onSelectBlock}
@@ -468,11 +509,10 @@ function CanvasRow({
 
 // ─── Canvas Column ───
 function CanvasColumn({
-  column, isActive, selectedBlockId,
+  column, selectedBlockId,
   onSelectColumn, onSelectBlock, onRemoveBlock, onDuplicateBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
 }: {
   column: Column;
-  isActive: boolean;
   selectedBlockId: string | null;
   onSelectColumn: (e: React.MouseEvent) => void;
   onSelectBlock: (id: string | null) => void;
@@ -485,34 +525,17 @@ function CanvasColumn({
 }) {
   const [dragBlockIndex, setDragBlockIndex] = useState<number | null>(null);
   const [dragOverBlockIndex, setDragOverBlockIndex] = useState<number | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
 
   return (
     <div
-      className={`min-h-[60px] transition-all ${
-        isDragOver
-          ? 'ring-2 ring-dashed ring-blue-400'
-          : isActive
-          ? 'ring-1 ring-dashed ring-blue-300'
-          : column.blocks.length === 0
-          ? 'ring-1 ring-dashed ring-border/60'
-          : ''
-      }`}
-      style={{ width: column.width, backgroundColor: 'transparent' }}
+      className="min-h-[60px]"
+      style={{ width: column.width, backgroundColor: 'transparent', minWidth: 0 }}
       onClick={onSelectColumn}
       onDragOver={(e) => {
-        const hasBlockType = e.dataTransfer.types.includes('blocktype');
-        if (hasBlockType) {
-          e.preventDefault();
-          setIsDragOver(true);
-        }
-      }}
-      onDragEnter={(e) => {
         if (e.dataTransfer.types.includes('blocktype')) {
-          setIsDragOver(true);
+          e.preventDefault();
         }
       }}
-      onDragLeave={() => setIsDragOver(false)}
       onDrop={(e) => {
         const blockType = e.dataTransfer.getData('blockType');
         if (blockType) {
@@ -520,7 +543,6 @@ function CanvasColumn({
           e.stopPropagation();
           onDropBlock(column.id, blockType);
         }
-        setIsDragOver(false);
       }}
     >
       {column.blocks.length === 0 ? (
@@ -540,7 +562,7 @@ function CanvasColumn({
             onDragOver={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              setDragOverBlockIndex(index);
+              if (dragBlockIndex !== null) setDragOverBlockIndex(index);
             }}
             onDragEnd={() => {
               if (dragBlockIndex !== null && dragOverBlockIndex !== null && dragBlockIndex !== dragOverBlockIndex) {
@@ -648,6 +670,7 @@ function CanvasBlock({
       </div>
 
       {/* Block content */}
+      <div style={{ overflow: 'hidden', wordBreak: 'break-word' as const }}>
       {isSelected && isTextBlock ? (
         <>
           {block.type === 'button' ? (
@@ -709,6 +732,7 @@ function CanvasBlock({
       ) : (
         renderBlock(block, globalStyles)
       )}
+      </div>
     </div>
   );
 }
