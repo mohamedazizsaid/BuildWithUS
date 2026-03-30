@@ -38,6 +38,7 @@ function EditorContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [codeValue, setCodeValue] = useState("");
+  const [codeWasEdited, setCodeWasEdited] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -98,8 +99,9 @@ function EditorContent() {
       if (tab === "code") {
         // Going to code → generate fresh MJML from canvas state
         setCodeValue(generateMjml());
-      } else if (tab === "canvas" && codeValue) {
-        // Going to canvas → parse code back into blocks
+        setCodeWasEdited(false);
+      } else if (tab === "canvas" && codeValue && codeWasEdited) {
+        // Going to canvas → only parse if user actually edited the code
         try {
           const parsed = parseMjmlToTemplate(
             codeValue,
@@ -115,10 +117,11 @@ function EditorContent() {
         } catch {
           toast.error("Could not parse MJML — some changes may be lost");
         }
+        setCodeWasEdited(false);
       }
       setActiveTab(tab);
     },
-    [generateMjml, codeValue, editorState],
+    [generateMjml, codeValue, codeWasEdited, editorState],
   );
 
   const handleSave = async () => {
@@ -222,7 +225,7 @@ function EditorContent() {
                 language="html"
                 theme={isDark ? "vs-dark" : "vs-light"}
                 value={codeValue}
-                onChange={(val) => setCodeValue(val || "")}
+                onChange={(val) => { setCodeValue(val || ""); setCodeWasEdited(true); }}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 13,
@@ -273,25 +276,41 @@ export default function EditorPage() {
 
 // ─── Block to MJML ───
 
-function blockToMjml(
-  block: BlockData,
-  globalStyles: { textColor: string; fontFamily: string },
-) {
+function blockToMjml(block: BlockData, g: GlobalStyles) {
+  // Resolve empty block styles to global defaults
+  const color = block.styles.color || g.textColor;
+  const fontSize = block.styles.fontSize || g.fontSize;
+  const fontWeight = block.styles.fontWeight || g.fontWeight;
+  const fontFamily = block.styles.fontFamily || g.fontFamily;
+  const lineHeight = block.styles.lineHeight || g.lineHeight;
+  const letterSpacing = block.styles.letterSpacing || '0px';
+
   switch (block.type) {
-    case "heading":
-      return `        <mj-text font-size="${block.styles.fontSize}" font-weight="${block.styles.fontWeight}" color="${block.styles.color || globalStyles.textColor}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${globalStyles.fontFamily}">${block.content.text}</mj-text>\n`;
-    case "text":
-      return `        <mj-text font-size="${block.styles.fontSize}" color="${block.styles.color || globalStyles.textColor}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${globalStyles.fontFamily}">${block.content.text}</mj-text>\n`;
+    case "heading": {
+      const hBg = block.styles.backgroundColor ? ` container-background-color="${block.styles.backgroundColor}"` : '';
+      return `        <mj-text font-size="${fontSize}" font-weight="${fontWeight}" color="${color}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${fontFamily}" line-height="${lineHeight}" letter-spacing="${letterSpacing}"${hBg}>${block.content.text}</mj-text>\n`;
+    }
+    case "text": {
+      const tBg = block.styles.backgroundColor ? ` container-background-color="${block.styles.backgroundColor}"` : '';
+      return `        <mj-text font-size="${fontSize}" font-weight="${fontWeight}" color="${color}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${fontFamily}" line-height="${lineHeight}" letter-spacing="${letterSpacing}"${tBg}>${block.content.text}</mj-text>\n`;
+    }
     case "image":
       return `        <mj-image src="${block.content.src}" alt="${block.content.alt}" width="${block.styles.width}" padding="${block.styles.padding}" />\n`;
-    case "button":
-      return `        <mj-button background-color="${block.styles.backgroundColor}" color="${block.styles.color}" font-size="${block.styles.fontSize}" border-radius="${block.styles.borderRadius}" href="${block.content.href}" padding="${block.styles.padding}" align="${block.styles.textAlign}">${block.content.text}</mj-button>\n`;
+    case "button": {
+      const btnBg = block.styles.backgroundColor || g.btnBackgroundColor;
+      const btnColor = block.styles.color || g.btnFontColor;
+      const btnSize = block.styles.fontSize || g.btnFontSize;
+      const btnRadius = block.styles.borderRadius || g.btnBorderRadius;
+      const btnFamily = block.styles.fontFamily || g.btnFontFamily;
+      const btnWeight = block.styles.fontWeight || g.btnFontWeight;
+      return `        <mj-button background-color="${btnBg}" color="${btnColor}" font-size="${btnSize}" font-weight="${btnWeight}" font-family="${btnFamily}" border-radius="${btnRadius}" href="${block.content.href}" padding="${block.styles.padding}" align="${block.styles.textAlign}">${block.content.text}</mj-button>\n`;
+    }
     case "divider":
       return `        <mj-divider border-color="${block.styles.borderColor}" border-width="${block.styles.borderWidth}" padding="${block.styles.padding}" />\n`;
     case "table": {
       const headers = (block.content.headers || []) as string[];
       const rows = (block.content.rows || []) as string[][];
-      let table = `        <mj-table font-size="${block.styles.fontSize}" color="${block.styles.color}" padding="${block.styles.padding}">`;
+      let table = `        <mj-table font-size="${fontSize}" color="${color}" padding="${block.styles.padding}">`;
       table += `<tr>${headers.map((h: string) => `<th style="border:1px solid #ddd;padding:8px;background:#f1f5f9">${h}</th>`).join("")}</tr>`;
       for (const row of rows) {
         table += `<tr>${row.map((c: string) => `<td style="border:1px solid #ddd;padding:8px">${c}</td>`).join("")}</tr>`;
@@ -300,7 +319,7 @@ function blockToMjml(
       return table;
     }
     case "signature":
-      return `        <mj-text padding="${block.styles.padding}" font-size="${block.styles.fontSize}" color="${block.styles.color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></mj-text>\n`;
+      return `        <mj-text padding="${block.styles.padding}" font-size="${fontSize}" color="${color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></mj-text>\n`;
     default:
       return "";
   }
@@ -340,18 +359,22 @@ function generatePreviewHtml(template: TemplateData): string {
 }
 
 function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
-  const color = block.styles.color || "inherit";
-  const fontSize = block.styles.fontSize || "inherit";
-  const fontWeight = block.styles.fontWeight || "inherit";
-  const fontFamily = block.styles.fontFamily || "inherit";
-  const lineHeight = block.styles.lineHeight || "inherit";
-  const letterSpacing = block.styles.letterSpacing || "inherit";
+  const color = block.styles.color || globalStyles.textColor;
+  const fontSize = block.styles.fontSize || globalStyles.fontSize;
+  const fontWeight = block.styles.fontWeight || globalStyles.fontWeight;
+  const fontFamily = block.styles.fontFamily || globalStyles.fontFamily;
+  const lineHeight = block.styles.lineHeight || globalStyles.lineHeight;
+  const letterSpacing = block.styles.letterSpacing || "0px";
 
   switch (block.type) {
-    case "heading":
-      return `<div style="font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
-    case "text":
-      return `<div style="font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
+    case "heading": {
+      const hBg = block.styles.backgroundColor ? `background-color:${block.styles.backgroundColor};` : '';
+      return `<div style="${hBg}font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
+    }
+    case "text": {
+      const tBg = block.styles.backgroundColor ? `background-color:${block.styles.backgroundColor};` : '';
+      return `<div style="${tBg}font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
+    }
     case "image":
       return block.content.src
         ? `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="width:${block.styles.width};max-width:100%" /></div>`
@@ -465,11 +488,12 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
 
     // Heading = has font-weight bold + larger intent
     const isHeading = fontWeight === "bold" || fontWeight === "700";
+    const bgColor = el.getAttribute("container-background-color") || "";
     return {
       id,
       type: isHeading ? "heading" : "text",
       content: { text },
-      styles: { fontSize, fontWeight, color, textAlign: align, padding },
+      styles: { fontSize, fontWeight, color, textAlign: align, padding, backgroundColor: bgColor },
     };
   }
 
