@@ -1187,11 +1187,23 @@ function BlockProperties({
         <h4 className="text-xs font-semibold text-muted-foreground uppercase">Espacement</h4>
         <div>
           <Label className="text-xs">Marge intérieure</Label>
-          <Input
-            value={block.styles.padding}
+          <select
+            value={block.styles.padding || '10px'}
             onChange={(e) => updateStyle('padding', e.target.value)}
-            className="h-8 text-xs mt-1"
-          />
+            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
+          >
+            <option value="0px">Aucun (0px)</option>
+            <option value="4px">Très petit (4px)</option>
+            <option value="8px">Petit (8px)</option>
+            <option value="10px">Normal (10px)</option>
+            <option value="12px 24px">Moyen (12px 24px)</option>
+            <option value="16px">Grand (16px)</option>
+            <option value="20px">Très grand (20px)</option>
+            <option value="24px">Extra (24px)</option>
+            <option value="32px">XXL (32px)</option>
+            <option value="10px 20px">Horizontal (10px 20px)</option>
+            <option value="20px 10px">Vertical (20px 10px)</option>
+          </select>
         </div>
       </div>
     </div>

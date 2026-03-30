@@ -207,13 +207,6 @@ function EditorContent() {
     }
   };
 
-  const deviceWidth =
-    previewDevice === "desktop"
-      ? "100%"
-      : previewDevice === "tablet"
-        ? "768px"
-        : "375px";
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] -m-6">
@@ -249,14 +242,72 @@ function EditorContent() {
         {/* Center */}
         <div className="flex-1 min-h-0">
           {previewMode ? (
-            <div className="h-full overflow-y-auto flex justify-center p-8 bg-muted">
-              <div
-                className="bg-card shadow-lg rounded-sm h-fit border border-border"
-                style={{ width: deviceWidth, maxWidth: "100%" }}
-                dangerouslySetInnerHTML={{
-                  __html: generatePreviewHtml(editorState.template),
-                }}
-              />
+            <div className="h-full overflow-y-auto flex justify-center items-start p-8 bg-muted/50"
+              style={{
+                backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0)',
+                backgroundSize: '20px 20px',
+              }}
+            >
+              <div className="flex flex-col items-center">
+                {/* Device frame */}
+                {previewDevice === 'mobile' ? (
+                  <div className="relative">
+                    <div className="w-[375px] rounded-[2.5rem] border-[8px] border-slate-800 bg-slate-800 shadow-2xl overflow-hidden">
+                      {/* Notch */}
+                      <div className="flex justify-center pt-2 pb-3 bg-slate-800">
+                        <div className="w-28 h-5 bg-slate-900 rounded-full" />
+                      </div>
+                      {/* Screen */}
+                      <div className="bg-white overflow-y-auto" style={{ height: '667px' }}>
+                        <div
+                          dangerouslySetInnerHTML={{ __html: generatePreviewHtml(editorState.template) }}
+                        />
+                      </div>
+                      {/* Bottom bar */}
+                      <div className="flex justify-center py-2 bg-slate-800">
+                        <div className="w-32 h-1 bg-slate-600 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                ) : previewDevice === 'tablet' ? (
+                  <div className="relative">
+                    <div className="w-[768px] rounded-[1.5rem] border-[6px] border-slate-700 bg-slate-700 shadow-2xl overflow-hidden">
+                      {/* Camera dot */}
+                      <div className="flex justify-center py-2 bg-slate-700">
+                        <div className="w-2.5 h-2.5 bg-slate-800 rounded-full" />
+                      </div>
+                      {/* Screen */}
+                      <div className="bg-white overflow-y-auto" style={{ height: '900px' }}>
+                        <div
+                          dangerouslySetInnerHTML={{ __html: generatePreviewHtml(editorState.template) }}
+                        />
+                      </div>
+                      <div className="py-2 bg-slate-700" />
+                    </div>
+                  </div>
+                ) : (
+                  /* Desktop */
+                  <div className="relative w-full max-w-[900px]">
+                    <div className="rounded-t-xl border border-b-0 border-slate-200 bg-slate-100 flex items-center gap-2 px-4 py-2.5">
+                      <div className="flex gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-red-400" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                        <div className="w-3 h-3 rounded-full bg-green-400" />
+                      </div>
+                      <div className="flex-1 flex justify-center">
+                        <div className="bg-white rounded-md px-4 py-1 text-[11px] text-slate-400 border border-slate-200 w-72 text-center truncate">
+                          mail.example.com/preview
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-b-xl shadow-lg overflow-y-auto" style={{ maxHeight: '70vh' }}>
+                      <div
+                        dangerouslySetInnerHTML={{ __html: generatePreviewHtml(editorState.template) }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : activeTab === "canvas" ? (
             <Canvas
