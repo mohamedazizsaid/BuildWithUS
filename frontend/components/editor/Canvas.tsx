@@ -22,31 +22,19 @@ interface CanvasProps {
   onDropBlockToCanvas: (blockType: string) => void;
 }
 
-const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
-  {
-    name: 'Smileys',
-    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤗', '🤭', '🫢', '🤫', '🤔', '😐', '😑', '😶', '🫡', '😏', '😒', '🙄', '😬', '😮‍💨', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐'],
-  },
-  {
-    name: 'Gestures',
-    emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '🫱', '🫲', '🫳', '🫴', '👌', '🤌', '🤏', '✌️', '🤞', '🫰', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '🫵', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '🫶', '👐', '🤲', '🤝', '🙏', '💪'],
-  },
-  {
-    name: 'Hearts',
-    emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥', '❤️‍🩹', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
-  },
-  {
-    name: 'Objects',
-    emojis: ['📧', '📨', '📩', '📤', '📥', '📦', '📫', '📪', '📬', '📭', '📮', '📝', '📄', '📃', '📑', '📊', '📈', '📉', '📆', '📅', '📁', '📂', '🗂️', '🗃️', '🗄️', '📋', '📌', '📍', '📎', '🖇️', '📐', '📏', '✂️', '🖊️', '🖋️', '✒️', '🖌️', '🖍️', '📒', '📓', '📔', '📕', '📗', '📘', '📙'],
-  },
-  {
-    name: 'Business',
-    emojis: ['💼', '💰', '💵', '💴', '💶', '💷', '🪙', '💳', '💎', '⚖️', '🏦', '🏢', '🏬', '🏭', '🏗️', '📞', '☎️', '📱', '💻', '🖥️', '🖨️', '⌨️', '🖱️', '🔒', '🔓', '🔑', '🗝️'],
-  },
-  {
-    name: 'Symbols',
-    emojis: ['✅', '❌', '⭐', '🌟', '💡', '🔥', '✨', '🎉', '🎊', '🎯', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '⚡', '💥', '🌈', '☀️', '🌙', '⭕', '❗', '❓', '‼️', '⁉️', '💯', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '▶️', '⏸️', '⏹️', '⏺️', '⏏️', '🔀', '🔁', '🔂', '⏩', '⏪'],
-  },
+const EMOJI_CATEGORIES: { icon: string; name: string; emojis: string[] }[] = [
+  { icon: '😀', name: 'Smileys', emojis: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😏','🥳'] },
+  { icon: '👋', name: 'People', emojis: ['👋','🤚','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','💪'] },
+  { icon: '🐶', name: 'Nature', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🐺','🐗','🐴','🦋','🐛','🐝','🐞','🌸'] },
+  { icon: '🍕', name: 'Food', emojis: ['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🥑','🍕','🍔','🍟','🌭','🍿','🥤','☕','🍩','🍰','🧁','🍫','🍪','🍬'] },
+  { icon: '✈️', name: 'Travel', emojis: ['✈️','🚀','🚗','🚕','🚌','🚎','🏎️','🚓','🚑','🚒','🛸','🚁','⛵','🚢','🏠','🏢','🏰','🗼','🗽','⛪','🕌','🕍','⛩️','🌍','🌎','🌏','🗺️','🧭','🏔️','🌋'] },
+  { icon: '⚽', name: 'Sports', emojis: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🏒','🥊','🥋','🎯','⛳','🥅','🎿','🛷','🏂','🏋️','🤸','🤼','🤽','🚴','🏇','🧗','🤺','🏊'] },
+  { icon: '💡', name: 'Objets', emojis: ['💡','🔦','🕯️','📱','💻','⌨️','🖥️','🖨️','📷','📹','🎥','📺','📻','🎙️','🎧','🔔','📣','📢','🔑','🗝️','🔒','🔓','📦','📫','📬','📮','📝','📄','📋','📌'] },
+  { icon: '💬', name: 'Symboles', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❣️','💕','💞','💓','💗','💖','💘','💝','✅','❌','⭐','💯','❗','❓','⁉️','‼️','⚡','♻️','🔴'] },
+  { icon: '🎉', name: 'Fêtes', emojis: ['🎉','🎊','🎈','🎂','🎁','🎀','🪅','🎆','🎇','✨','🎍','🎎','🎏','🎐','🎑','🧨','🎄','🎋','🎃','👻','🎅','🤶','🧑‍🎄','🦌','🍾','🥂','🥳','🪩','🎭','🎪'] },
+  { icon: '🔥', name: 'Tendance', emojis: ['🔥','💯','✨','🚀','💎','👑','🏆','🥇','⚡','💥','🌟','🎯','💪','🙌','👏','🤝','💰','📈','🧠','💡','🎉','❤️‍🔥','🦄','🌈','☀️','🌙','⭐','🔥','✅','💫'] },
+  { icon: '❤️', name: 'Coeurs', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','❣️','💕','💞','💓','💗','💖','💘','💝','💟','💌','💑','💏','👩‍❤️‍👨','💒','🫶','🥰','😍','😘'] },
+  { icon: '🌙', name: 'Ciel', emojis: ['🌙','⭐','🌟','✨','💫','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌪️','🌈','❄️','☃️','⛄','🌊','💧','💦','🌬️','🔥','🌠','🌌','🪐','🌑','🌒','🌕'] },
 ];
 
 function resolvePadding(styles: Record<string, string>) {
@@ -205,8 +193,8 @@ export default function Canvas({
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
               <Plus size={20} className="text-muted-foreground" />
             </div>
-            <p className="text-sm text-muted-foreground mb-1">Drag content here to start</p>
-            <p className="text-xs text-muted-foreground">Or add a custom layout below</p>
+            <p className="text-sm text-muted-foreground mb-1">Glissez du contenu ici pour commencer</p>
+            <p className="text-xs text-muted-foreground">Ou ajoutez une disposition ci-dessous</p>
           </div>
         ) : (
           template.rows.map((row, index) => (
@@ -276,14 +264,14 @@ export default function Canvas({
         >
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-border/60 group-hover:border-border transition-all opacity-40 group-hover:opacity-100">
             <Plus size={12} className="text-muted-foreground" />
-            <span className="text-[11px] text-muted-foreground group-hover:text-muted-foreground">Layout</span>
+            <span className="text-[11px] text-muted-foreground group-hover:text-muted-foreground">Disposition</span>
           </div>
         </div>
 
         {showAddRow && (
           <div className="absolute left-1/2 -translate-x-1/2 bottom-12 z-50" onClick={(e) => e.stopPropagation()}>
             <div className="bg-background rounded-xl shadow-xl border border-border p-3 w-56">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Column layout</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Disposition en colonnes</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {LAYOUT_OPTIONS.map((option) => (
                   <button
@@ -305,6 +293,93 @@ export default function Canvas({
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Floating Toolbar ───
+// ─── Swipeable Emoji Picker ───
+function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [touchStartX, setTouchStartX] = useState(0);
+  const cat = EMOJI_CATEGORIES[activeIdx];
+
+  const prev = () => setActiveIdx((i) => Math.max(0, i - 1));
+  const next = () => setActiveIdx((i) => Math.min(EMOJI_CATEGORIES.length - 1, i + 1));
+
+  return (
+    <div
+      className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-[320px] h-[290px] rounded-2xl border border-white/10 bg-slate-900 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden select-none"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Category tabs */}
+      <div className="flex gap-0.5 px-2 pt-2 pb-1 overflow-x-auto no-scrollbar">
+        {EMOJI_CATEGORIES.map((c, i) => (
+          <button
+            key={c.name}
+            onClick={() => setActiveIdx(i)}
+            className={`flex-shrink-0 w-7 h-7 rounded-lg text-sm flex items-center justify-center transition-all ${
+              i === activeIdx ? 'bg-white/20 scale-110' : 'hover:bg-white/10'
+            }`}
+            title={c.name}
+          >
+            {c.icon}
+          </button>
+        ))}
+      </div>
+
+      {/* Category name */}
+      <div className="px-3 py-1">
+        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">{cat.name}</p>
+      </div>
+
+      {/* Emoji grid — swipeable */}
+      <div
+        className="px-3 pb-2"
+        onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
+        onTouchEnd={(e) => {
+          const diff = touchStartX - e.changedTouches[0].clientX;
+          if (diff > 50) next();
+          else if (diff < -50) prev();
+        }}
+      >
+        <div className="grid grid-cols-6 gap-1">
+          {cat.emojis.map((emoji, i) => (
+            <button
+              key={`${emoji}-${i}`}
+              onClick={() => onSelect(emoji)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-[22px] hover:bg-white/10 hover:scale-125 transition-all cursor-pointer"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Navigation arrows + dots */}
+      <div className="flex items-center justify-between px-3 pb-2">
+        <button onClick={prev} className={`text-white/40 hover:text-white text-xs transition-colors ${activeIdx === 0 ? 'invisible' : ''}`}>←</button>
+        <div className="flex gap-1">
+          {EMOJI_CATEGORIES.map((_, i) => (
+            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === activeIdx ? 'bg-white w-3' : 'bg-white/20'}`} />
+          ))}
+        </div>
+        <button onClick={next} className={`text-white/40 hover:text-white text-xs transition-colors ${activeIdx === EMOJI_CATEGORIES.length - 1 ? 'invisible' : ''}`}>→</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Toolbar Button ───
+function ToolBtn({ active, onClick, children }: { active?: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+        active ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white hover:bg-white/10'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -336,8 +411,7 @@ function FloatingToolbar({
 
   const applyLink = () => {
     if (linkUrl) {
-      const text = (block.content.text as string) || '';
-      onUpdate({ content: { ...block.content, text: text, href: linkUrl } });
+      onUpdate({ content: { ...block.content, href: linkUrl } });
       onUpdate({ styles: { ...block.styles, textDecoration: 'underline', color: '#2563eb' } });
     }
     setShowLink(false);
@@ -346,97 +420,33 @@ function FloatingToolbar({
 
   return (
     <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center gap-0.5 bg-slate-900 rounded-lg px-1.5 py-1 shadow-lg">
-        <button
-          onClick={() => toggleStyle('fontWeight', 'bold', 'normal')}
-          className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${isBold ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
-        >
-          <Bold size={13} />
-        </button>
-        <button
-          onClick={() => toggleStyle('fontStyle', 'italic', 'normal')}
-          className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${isItalic ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
-        >
-          <Italic size={13} />
-        </button>
-        <button
-          onClick={() => toggleStyle('textDecoration', 'underline', 'none')}
-          className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${isUnderline ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
-        >
-          <Underline size={13} />
-        </button>
-        <div className="w-px h-4 bg-white/20 mx-0.5" />
-        <button
-          onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'left' } })}
-          className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${block.styles.textAlign === 'left' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
-        >
-          <AlignLeft size={13} />
-        </button>
-        <button
-          onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'center' } })}
-          className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${block.styles.textAlign === 'center' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
-        >
-          <AlignCenter size={13} />
-        </button>
-        <button
-          onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'right' } })}
-          className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${block.styles.textAlign === 'right' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
-        >
-          <AlignRight size={13} />
-        </button>
-        <div className="w-px h-4 bg-white/20 mx-0.5" />
-        <button
-          onClick={() => { setShowLink(!showLink); setShowEmoji(false); }}
-          className="w-7 h-7 rounded flex items-center justify-center text-white/60 hover:text-white transition-colors"
-        >
-          <Link2 size={13} />
-        </button>
-        <button
-          onClick={() => { setShowEmoji(!showEmoji); setShowLink(false); }}
-          className="w-7 h-7 rounded flex items-center justify-center text-white/60 hover:text-white transition-colors"
-        >
-          <Smile size={13} />
-        </button>
+      <div className="flex items-center gap-0.5 bg-slate-900/95 backdrop-blur-sm rounded-xl px-1.5 py-1 shadow-[0_8px_24px_rgba(0,0,0,0.25)] border border-white/10">
+        <ToolBtn active={isBold} onClick={() => toggleStyle('fontWeight', 'bold', 'normal')}><Bold size={14} /></ToolBtn>
+        <ToolBtn active={isItalic} onClick={() => toggleStyle('fontStyle', 'italic', 'normal')}><Italic size={14} /></ToolBtn>
+        <ToolBtn active={isUnderline} onClick={() => toggleStyle('textDecoration', 'underline', 'none')}><Underline size={14} /></ToolBtn>
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <ToolBtn active={block.styles.textAlign === 'left'} onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'left' } })}><AlignLeft size={14} /></ToolBtn>
+        <ToolBtn active={block.styles.textAlign === 'center'} onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'center' } })}><AlignCenter size={14} /></ToolBtn>
+        <ToolBtn active={block.styles.textAlign === 'right'} onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'right' } })}><AlignRight size={14} /></ToolBtn>
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <ToolBtn active={showLink} onClick={() => { setShowLink(!showLink); setShowEmoji(false); }}><Link2 size={14} /></ToolBtn>
+        <ToolBtn active={showEmoji} onClick={() => { setShowEmoji(!showEmoji); setShowLink(false); }}><Smile size={14} /></ToolBtn>
       </div>
 
-      {/* Emoji Picker */}
-      {showEmoji && (
-        <div className="absolute top-full left-0 mt-1 bg-background rounded-xl shadow-xl border border-border p-3 z-50 w-80 max-h-72 overflow-y-auto">
-          {EMOJI_CATEGORIES.map((category) => (
-            <div key={category.name} className="mb-3">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{category.name}</p>
-              <div className="grid grid-cols-10 gap-0.5">
-                {category.emojis.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => insertEmoji(emoji)}
-                    className="w-7 h-7 rounded hover:bg-muted flex items-center justify-center text-base transition-colors"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {showEmoji && <EmojiPicker onSelect={insertEmoji} />}
 
-      {/* Link Input */}
       {showLink && (
-        <div className="absolute top-full left-0 mt-1 bg-background rounded-lg shadow-xl border border-border p-2 z-50 flex gap-1">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-900/95 backdrop-blur-sm rounded-xl border border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.25)] p-3 z-50 flex gap-2">
           <input
             type="text"
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             placeholder="https://..."
-            className="text-xs border border-border rounded px-2 py-1 w-48 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="text-xs bg-white/10 text-white border border-white/10 rounded-lg px-3 py-1.5 w-52 focus:outline-none focus:ring-1 focus:ring-white/30 placeholder:text-white/30"
             onKeyDown={(e) => { if (e.key === 'Enter') applyLink(); }}
           />
-          <button
-            onClick={applyLink}
-            className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90"
-          >
-            Apply
+          <button onClick={applyLink} className="text-xs bg-white/20 text-white px-3 py-1.5 rounded-lg hover:bg-white/30 transition-colors">
+            OK
           </button>
         </div>
       )}
@@ -547,7 +557,7 @@ function CanvasColumn({
     >
       {column.blocks.length === 0 ? (
         <div className="flex items-center justify-center h-full min-h-[60px]">
-          <p className="text-xs text-muted-foreground">Drop content here</p>
+          <p className="text-xs text-muted-foreground">Déposez du contenu ici</p>
         </div>
       ) : (
         column.blocks.map((block, index) => (
@@ -644,7 +654,7 @@ function CanvasBlock({
         backgroundPosition: isLayoutBlock && block.styles.backgroundImage ? 'center' : undefined,
         backgroundRepeat: isLayoutBlock && block.styles.backgroundImage ? 'no-repeat' : undefined,
         borderRadius: isLayoutBlock ? block.styles.borderRadius : undefined,
-        border: hasBorder ? `${block.styles.borderSize} solid ${block.styles.borderColor || 'transparent'}` : undefined,
+        border: hasBorder ? `${block.styles.borderSize} ${block.styles.borderStyle || 'solid'} ${block.styles.borderColor || 'transparent'}` : undefined,
         ...alignMargins,
       }}
       onClick={onSelect}
@@ -656,14 +666,14 @@ function CanvasBlock({
         <button
           onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
           className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-sm hover:bg-blue-600"
-          title="Duplicate"
+          title="Dupliquer"
         >
           <Copy size={10} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
           className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm hover:bg-red-600"
-          title="Delete"
+          title="Supprimer"
         >
           <Trash2 size={10} />
         </button>
@@ -757,7 +767,7 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           lineHeight: block.styles.lineHeight || 'inherit',
           letterSpacing: block.styles.letterSpacing || 'inherit',
         }}>
-          {block.content.text as string || 'Heading'}
+          {block.content.text as string || 'Titre'}
         </div>
       );
     case 'text':
@@ -772,7 +782,7 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           lineHeight: block.styles.lineHeight || 'inherit',
           letterSpacing: block.styles.letterSpacing || 'inherit',
         }}>
-          {block.content.text as string || 'Enter text...'}
+          {block.content.text as string || 'Texte'}
         </div>
       );
     case 'image':
@@ -782,7 +792,7 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
             <img src={block.content.src as string} alt={block.content.alt as string} style={{ width: block.styles.width, maxWidth: '100%' }} />
           ) : (
             <div className="bg-muted rounded-md flex items-center justify-center py-8">
-              <p className="text-xs text-muted-foreground">No image — set URL in properties</p>
+              <p className="text-xs text-muted-foreground">Pas d&apos;image — définir l&apos;URL dans les propriétés</p>
             </div>
           )}
         </div>
@@ -802,7 +812,7 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
             border: `${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor}`,
             cursor: 'pointer',
           }}>
-            {block.content.text as string || 'Button'}
+            {block.content.text as string || 'Bouton'}
           </span>
         </div>
       );
@@ -841,7 +851,7 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
         </div>
       );
     default:
-      return <div className="text-xs text-muted-foreground">Unknown block</div>;
+      return <div className="text-xs text-muted-foreground">Bloc inconnu</div>;
   }
 }
 

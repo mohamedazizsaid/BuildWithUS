@@ -67,7 +67,7 @@ export default function AuthImage() {
           transition={{ duration: 0.8, delay: 0.8 }}
           className="text-white text-2xl font-semibold mb-2"
         >
-          Build. Send. Grow.
+          Créez. Envoyez. Grandissez.
         </motion.h2>
         <motion.p
           initial={{ opacity: 0 }}
@@ -75,7 +75,7 @@ export default function AuthImage() {
           transition={{ duration: 0.8, delay: 1 }}
           className="text-white/60 text-base"
         >
-          Create stunning email templates, invoices, and contracts with drag & drop simplicity.
+          Créez de superbes modèles d&apos;e-mails, factures et contrats par simple glisser-déposer.
         </motion.p>
       </div>
     </div>

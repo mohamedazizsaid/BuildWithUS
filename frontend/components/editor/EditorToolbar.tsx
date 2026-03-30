@@ -48,7 +48,7 @@ export default function EditorToolbar({
           onClick={onBack}
           className="h-8 gap-1.5 text-xs"
         >
-          â† Back
+          ← Retour
         </Button>
         <div className="w-px h-5 bg-border mx-1" />
         <Button
@@ -57,7 +57,7 @@ export default function EditorToolbar({
           onClick={onUndo}
           disabled={!canUndo}
           className="h-8 w-8"
-          title="Undo (Ctrl+Z)"
+          title="Annuler (Ctrl+Z)"
         >
           <Undo2 size={16} />
         </Button>
@@ -67,7 +67,7 @@ export default function EditorToolbar({
           onClick={onRedo}
           disabled={!canRedo}
           className="h-8 w-8"
-          title="Redo (Ctrl+Y)"
+          title="Rétablir (Ctrl+Y)"
         >
           <Redo2 size={16} />
         </Button>
@@ -79,7 +79,7 @@ export default function EditorToolbar({
           className="h-8 gap-1.5 text-xs"
         >
           <Save size={14} />
-          Save
+          Enregistrer
         </Button>
       </div>
 
@@ -95,7 +95,7 @@ export default function EditorToolbar({
                 : 'text-muted-foreground hover:text-foreground/80'
             }`}
           >
-            Canvas
+            Canevas
           </button>
           <button
             onClick={() => { setActiveTab('code'); setPreviewMode(false); }}
@@ -117,7 +117,7 @@ export default function EditorToolbar({
           size="icon"
           onClick={() => setPreviewMode(!previewMode)}
           className="h-8 w-8"
-          title="Preview"
+          title="Aperçu"
         >
           <Eye size={16} />
         </Button>
@@ -154,10 +154,9 @@ export default function EditorToolbar({
           disabled={isSaving}
           className="h-8 px-3 text-xs"
         >
-          {isSaving ? 'Creating...' : 'Create Template'}
+          {isSaving ? 'Création...' : 'Créer le modèle'}
         </Button>
       </div>
     </div>
   );
 }
-

@@ -36,7 +36,7 @@ export default function Navbar() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search templates, members..."
+            placeholder="Rechercher modèles, membres..."
             className="w-full pl-9 pr-4 py-1.5 bg-muted/50 border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
           />
         </div>
@@ -45,7 +45,7 @@ export default function Navbar() {
         onClick={toggleTheme}
         className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-muted/50 transition-colors"
         aria-label="Toggle theme"
-        title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
       >
         {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
       </button>

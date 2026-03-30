@@ -47,15 +47,15 @@ export default function AppSidebar() {
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
 
   const mainLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/dashboard/templates', label: 'Templates', icon: FileText },
-    ...(canEdit ? [{ href: '/dashboard/templates/new', label: 'Create Template', icon: Plus }] : []),
-    { href: '/dashboard/favourites', label: 'Favourites', icon: Star },
+    { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+    { href: '/dashboard/templates', label: 'Modèles', icon: FileText },
+    ...(canEdit ? [{ href: '/dashboard/templates/new', label: 'Créer un modèle', icon: Plus }] : []),
+    { href: '/dashboard/favourites', label: 'Favoris', icon: Star },
   ];
 
   const adminLinks = [
-    { href: '/dashboard/team', label: 'Team Members', icon: Users },
-    { href: '/dashboard/invite', label: 'Invite Member', icon: UserPlus },
+    { href: '/dashboard/team', label: 'Membres de l\'équipe', icon: Users },
+    { href: '/dashboard/invite', label: 'Inviter un membre', icon: UserPlus },
   ];
 
   return (
@@ -82,7 +82,7 @@ export default function AppSidebar() {
       <SidebarContent>
         {/* Main Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+          <SidebarGroupLabel>Plateforme</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainLinks.map((link) => (
@@ -104,7 +104,7 @@ export default function AppSidebar() {
           <>
             <SidebarSeparator />
             <SidebarGroup>
-              <SidebarGroupLabel>Admin</SidebarGroupLabel>
+              <SidebarGroupLabel>Administration</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {adminLinks.map((link) => (
@@ -159,13 +159,13 @@ export default function AppSidebar() {
                 <DropdownMenuItem asChild>
                   <Link href="/dashboard/settings" className="cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                    Paramètres
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-500 focus:text-red-500">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                  Déconnexion
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

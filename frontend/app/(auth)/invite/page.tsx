@@ -25,11 +25,11 @@ export default function InvitePage() {
   const password = watch('password', '');
 
   const rules = [
-    { label: '8 or more characters', met: password.length >= 8 },
-    { label: 'One uppercase', met: /[A-Z]/.test(password) },
-    { label: 'One lowercase', met: /[a-z]/.test(password) },
-    { label: 'One special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
-    { label: 'One number', met: /\d/.test(password) },
+    { label: '8 caractères ou plus', met: password.length >= 8 },
+    { label: 'Une majuscule', met: /[A-Z]/.test(password) },
+    { label: 'Une minuscule', met: /[a-z]/.test(password) },
+    { label: 'Un caractère spécial', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+    { label: 'Un chiffre', met: /\d/.test(password) },
   ];
 
   const onSubmit = async (data: InviteForm) => {
@@ -37,9 +37,9 @@ export default function InvitePage() {
     setIsLoading(true);
     try {
       await acceptInvite({ ...data, token });
-      toast.success('Welcome to the team!');
+      toast.success('Bienvenue dans l\'équipe !');
     } catch (error: any) {
-      toast.error(error.message || 'Invite failed');
+      toast.error(error.message || 'Échec de l\'invitation');
     } finally {
       setIsLoading(false);
     }
@@ -48,8 +48,8 @@ export default function InvitePage() {
   if (!token) {
     return (
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">Invalid Invite</h1>
-        <p className="text-slate-500">This invite link is invalid or has expired.</p>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">Invitation invalide</h1>
+        <p className="text-slate-500">Ce lien d&apos;invitation est invalide ou a expiré.</p>
       </div>
     );
   }
@@ -64,27 +64,27 @@ export default function InvitePage() {
         <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center mb-6">
           <span className="text-white font-bold text-lg">W</span>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">Join your team</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Rejoignez votre équipe</h1>
         <p className="text-slate-500 mt-1">
-          You&apos;ve been invited to join an organization. Set up your account below.
+          Vous avez été invité à rejoindre une organisation. Configurez votre compte ci-dessous.
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Prénom</label>
             <input
-              {...register('firstName', { required: 'Required' })}
+              {...register('firstName', { required: 'Obligatoire' })}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
               placeholder="Sara"
             />
             {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nom</label>
             <input
-              {...register('lastName', { required: 'Required' })}
+              {...register('lastName', { required: 'Obligatoire' })}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
               placeholder="Boughdiri"
             />
@@ -94,15 +94,15 @@ export default function InvitePage() {
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium text-slate-700">Password</label>
+            <label className="block text-sm font-medium text-slate-700">Mot de passe</label>
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors">
               {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-              {showPassword ? 'Hide' : 'Show'}
+              {showPassword ? 'Masquer' : 'Afficher'}
             </button>
           </div>
           <input
             type={showPassword ? 'text' : 'password'}
-            {...register('password', { required: 'Password is required' })}
+            {...register('password', { required: 'Le mot de passe est obligatoire' })}
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
           />
           {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
@@ -122,7 +122,7 @@ export default function InvitePage() {
           disabled={isLoading}
           className="w-full py-2.5 bg-slate-900 text-white rounded-full font-medium hover:bg-slate-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Joining...' : 'Join organization'}
+          {isLoading ? 'En cours...' : 'Rejoindre l\'organisation'}
         </button>
       </form>
     </motion.div>

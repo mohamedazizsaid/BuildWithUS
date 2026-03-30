@@ -24,20 +24,20 @@ export default function RegisterPage() {
   const password = watch('password', '');
 
   const rules = [
-    { label: '8 or more characters', met: password.length >= 8 },
-    { label: 'One uppercase', met: /[A-Z]/.test(password) },
-    { label: 'One lowercase', met: /[a-z]/.test(password) },
-    { label: 'One special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
-    { label: 'One number', met: /\d/.test(password) },
+    { label: '8 caractères ou plus', met: password.length >= 8 },
+    { label: 'Une majuscule', met: /[A-Z]/.test(password) },
+    { label: 'Une minuscule', met: /[a-z]/.test(password) },
+    { label: 'Un caractère spécial', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+    { label: 'Un chiffre', met: /\d/.test(password) },
   ];
 
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
     try {
       await registerUser(data);
-      toast.success('Account created successfully');
+      toast.success('Compte créé avec succès');
     } catch (error: any) {
-      toast.error(error.message) || toast.error('Registration failed');
+      toast.error(error.message) || toast.error('Échec de l\'inscription');
     } finally {
       setIsLoading(false);
     }
@@ -53,20 +53,20 @@ export default function RegisterPage() {
         <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center mb-6">
           <span className="text-white font-bold text-lg">W</span>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">Welcome to Winaity</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Bienvenue sur Winaity Template Builder</h1>
         <p className="text-slate-500 mt-1">
-          Already have an account?{' '}
+          Vous avez déjà un compte ?{' '}
           <Link href="/login" className="text-slate-900 font-medium underline underline-offset-4 hover:text-indigo-600 transition-colors">
-            Log in
+            Se connecter
           </Link>
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Organization Name</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Nom de l&apos;organisation</label>
           <input
-            {...register('tenantName', { required: 'Organization name is required' })}
+            {...register('tenantName', { required: 'Le nom de l\'organisation est obligatoire' })}
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
             placeholder="Winaity"
           />
@@ -75,17 +75,17 @@ export default function RegisterPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Prénom</label>
             <input
-              {...register('firstName', { required: 'Required' })}
+              {...register('firstName', { required: 'Obligatoire' })}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
               placeholder="Ahmed"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nom</label>
             <input
-              {...register('lastName', { required: 'Required' })}
+              {...register('lastName', { required: 'Obligatoire' })}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
               placeholder="Boughdiri"
             />
@@ -93,10 +93,10 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
           <input
             type="email"
-            {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
+            {...register('email', { required: 'L\'e-mail est obligatoire', pattern: { value: /^\S+@\S+$/i, message: 'E-mail invalide' } })}
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
             placeholder="ahmed@winaity.com"
           />
@@ -104,15 +104,15 @@ export default function RegisterPage() {
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium text-slate-700">Password</label>
+            <label className="block text-sm font-medium text-slate-700">Mot de passe</label>
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors">
               {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-              {showPassword ? 'Hide' : 'Show'}
+              {showPassword ? 'Masquer' : 'Afficher'}
             </button>
           </div>
           <input
             type={showPassword ? 'text' : 'password'}
-            {...register('password', { required: 'Password is required' })}
+            {...register('password', { required: 'Le mot de passe est obligatoire' })}
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
           />
         </div>
@@ -131,13 +131,13 @@ export default function RegisterPage() {
           disabled={isLoading}
           className="w-full py-2.5 bg-slate-900 text-white rounded-full font-medium hover:bg-slate-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Creating account...' : 'Create an account'}
+          {isLoading ? 'Création du compte...' : 'Créer un compte'}
         </button>
 
         <p className="text-center text-sm text-slate-500">
-          Already have an account?{' '}
+          Vous avez déjà un compte ?{' '}
           <Link href="/login" className="text-slate-900 font-medium underline underline-offset-4 hover:text-indigo-600 transition-colors">
-            Log in
+            Se connecter
           </Link>
         </p>
       </form>

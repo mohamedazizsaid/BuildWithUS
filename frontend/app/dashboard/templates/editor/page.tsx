@@ -115,7 +115,7 @@ function EditorContent() {
             });
           }
         } catch {
-          toast.error("Could not parse MJML — some changes may be lost");
+          toast.error("Impossible d'analyser le MJML");
         }
         setCodeWasEdited(false);
       }
@@ -125,12 +125,12 @@ function EditorContent() {
   );
 
   const handleSave = async () => {
-    toast.success("Template draft saved!");
+    toast.success("Brouillon enregistré !");
   };
 
   const handleCreateTemplate = async () => {
     if (editorState.template.rows.length === 0) {
-      toast.error("Add at least one row to your template");
+      toast.error("Ajoutez au moins une ligne à votre modèle");
       return;
     }
 
@@ -144,11 +144,11 @@ function EditorContent() {
         subject: templateSubject,
         content: mjml,
       });
-      toast.success("Template created successfully!");
+      toast.success("Modèle créé avec succès !");
       router.push("/dashboard/templates");
     } catch (error: unknown) {
       const message =
-        error instanceof Error ? error.message : "Failed to create template";
+        error instanceof Error ? error.message : "Échec de la création du modèle";
       toast.error(message);
     } finally {
       setIsSaving(false);
@@ -265,7 +265,7 @@ export default function EditorPage() {
     <Suspense
       fallback={
         <div className="flex h-screen items-center justify-center text-muted-foreground">
-          Loading editor...
+          Chargement de l&apos;éditeur...
         </div>
       }
     >
@@ -378,7 +378,7 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
     case "image":
       return block.content.src
         ? `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="width:${block.styles.width};max-width:100%" /></div>`
-        : `<div style="background:#f1f5f9;padding:32px;text-align:center;color:#94a3b8;font-size:12px">No image</div>`;
+        : `<div style="background:#f1f5f9;padding:32px;text-align:center;color:#94a3b8;font-size:12px">Pas d'image</div>`;
     case "button":
       return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${block.styles.backgroundColor || globalStyles.btnBackgroundColor};color:${block.styles.color || globalStyles.btnFontColor};font-size:${block.styles.fontSize || globalStyles.btnFontSize};font-family:${block.styles.fontFamily || globalStyles.btnFontFamily};font-weight:${block.styles.fontWeight || globalStyles.btnFontWeight};padding:${block.styles.padding};border-radius:${block.styles.borderRadius || globalStyles.btnBorderRadius};border:${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor};text-decoration:none">${block.content.text}</a></div>`;
     case "divider":

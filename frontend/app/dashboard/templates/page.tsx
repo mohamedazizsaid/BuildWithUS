@@ -63,7 +63,7 @@ export default function TemplatesPage() {
       const data = await templates.list({ page: 1, limit: 50 });
       setTemplateList(data.templates || []);
     } catch {
-      toast.error('Failed to load templates');
+      toast.error('Échec du chargement des modèles');
     } finally {
       setLoading(false);
     }
@@ -72,10 +72,10 @@ export default function TemplatesPage() {
   const handleDuplicate = async (id: string, name: string) => {
     try {
       await templates.duplicate(id, `${name} (copy)`);
-      toast.success('Template duplicated');
+      toast.success('Modèle dupliqué');
       loadTemplates();
     } catch {
-      toast.error('Failed to duplicate');
+      toast.error('Échec de la duplication');
     }
     setMenuOpen(null);
   };
@@ -83,10 +83,10 @@ export default function TemplatesPage() {
   const handleDelete = async (id: string) => {
     try {
       await templates.delete(id);
-      toast.success('Template deleted');
+      toast.success('Modèle supprimé');
       loadTemplates();
     } catch {
-      toast.error('Failed to delete');
+      toast.error('Échec de la suppression');
     }
     setMenuOpen(null);
   };
@@ -104,9 +104,9 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Templates</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Modèles</h1>
           <p className="text-slate-500 text-sm mt-1">
-            {templateList.length} template{templateList.length !== 1 ? 's' : ''}
+            {templateList.length} modèle{templateList.length !== 1 ? 's' : ''}
           </p>
         </div>
         {canEdit && (
@@ -115,7 +115,7 @@ export default function TemplatesPage() {
             className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
           >
             <Plus size={16} />
-            New Template
+            Nouveau modèle
           </button>
         )}
       </div>
@@ -130,15 +130,15 @@ export default function TemplatesPage() {
           <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
             <Mail size={24} className="text-slate-400" />
           </div>
-          <p className="text-slate-600 font-medium mb-1">No templates yet</p>
-          <p className="text-slate-400 text-sm mb-6">Create your first template to get started</p>
+          <p className="text-slate-600 font-medium mb-1">Aucun modèle</p>
+          <p className="text-slate-400 text-sm mb-6">Créez votre premier modèle pour commencer</p>
           {canEdit && (
             <button
               onClick={() => router.push('/dashboard/templates/new')}
               className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800"
             >
               <Plus size={16} />
-              Create Template
+              Créer un modèle
             </button>
           )}
         </motion.div>
@@ -190,14 +190,14 @@ export default function TemplatesPage() {
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 transition-colors"
                               >
                                 <Copy size={12} />
-                                Duplicate
+                                Dupliquer
                               </button>
                               <button
                                 onClick={() => handleDelete(tmpl.id)}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
                               >
                                 <Trash2 size={12} />
-                                Delete
+                                Supprimer
                               </button>
                             </div>
                           </>
@@ -221,7 +221,7 @@ export default function TemplatesPage() {
                   {/* Subject (for emails) */}
                   {tmpl.subject && (
                     <p className="text-xs text-slate-400 mb-3 truncate">
-                      Subject: {tmpl.subject}
+                      Objet : {tmpl.subject}
                     </p>
                   )}
 
@@ -229,7 +229,7 @@ export default function TemplatesPage() {
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-1 text-slate-400">
                       <Clock size={11} />
-                      <span className="text-[11px]">{formatDate(tmpl.created_at) || 'Just now'}</span>
+                      <span className="text-[11px]">{formatDate(tmpl.created_at) || 'À l\'instant'}</span>
                     </div>
                     <span className="text-[11px] text-slate-400">v{tmpl.version}</span>
                   </div>

@@ -10,10 +10,10 @@ export default function DashboardPage() {
   const isAdmin = user?.role === 'admin';
 
   const stats = [
-    { label: 'Templates', value: '0', icon: FileText, color: 'bg-indigo-50 text-indigo-600' },
-    { label: 'Favourites', value: '0', icon: Star, color: 'bg-amber-50 text-amber-600' },
-    ...(isAdmin ? [{ label: 'Team Members', value: '1', icon: Users, color: 'bg-emerald-50 text-emerald-600' }] : []),
-    { label: 'Usage This Month', value: '0', icon: TrendingUp, color: 'bg-rose-50 text-rose-600' },
+    { label: 'Modèles', value: '0', icon: FileText, color: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Favoris', value: '0', icon: Star, color: 'bg-amber-50 text-amber-600' },
+    ...(isAdmin ? [{ label: 'Membres de l\'équipe', value: '1', icon: Users, color: 'bg-emerald-50 text-emerald-600' }] : []),
+    { label: 'Utilisation ce mois', value: '0', icon: TrendingUp, color: 'bg-rose-50 text-rose-600' },
   ];
 
   return (
@@ -26,9 +26,9 @@ export default function DashboardPage() {
         className="mb-8"
       >
         <h1 className="text-2xl font-bold text-slate-900">
-          Welcome back, {user?.first_name}
+          Bon retour, {user?.first_name}
         </h1>
-        <p className="text-slate-500 mt-1">Here&apos;s what&apos;s happening with your templates.</p>
+        <p className="text-slate-500 mt-1">Voici ce qui se passe avec vos modèles.</p>
       </motion.div>
 
       {/* Stats Grid */}
@@ -52,7 +52,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Templates */}
+      {/* Modèles récents */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -60,15 +60,15 @@ export default function DashboardPage() {
         className="bg-white rounded-xl border border-slate-200 p-6"
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">Recent Templates</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Modèles récents</h2>
           <button className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
-            View all
+            Voir tout
           </button>
         </div>
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FileText size={40} className="text-slate-300 mb-3" />
-          <p className="text-slate-500 text-sm">No templates yet</p>
-          <p className="text-slate-400 text-xs mt-1">Create your first template to get started</p>
+          <p className="text-slate-500 text-sm">Aucun modèle</p>
+          <p className="text-slate-400 text-xs mt-1">Créez votre premier modèle pour commencer</p>
         </div>
       </motion.div>
     </div>

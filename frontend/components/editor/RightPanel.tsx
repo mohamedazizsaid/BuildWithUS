@@ -62,11 +62,11 @@ export default function RightPanel({
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
             <ArrowLeft size={14} />
-            Back
+            Retour
           </button>
 
           <h3 className="text-sm font-semibold text-foreground mb-4 capitalize">
-            {selectedBlock.type} Properties
+            {selectedBlock.type} Propriétés
           </h3>
 
           <BlockProperties
@@ -82,7 +82,7 @@ export default function RightPanel({
               className="w-full gap-1.5"
             >
               <Trash2 size={14} />
-              Delete Block
+              Supprimer le bloc
             </Button>
           </div>
         </div>
@@ -164,7 +164,7 @@ function ContenuPanel({
 
   return (
     <div>
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Content</h3>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Contenu</h3>
       <div className="grid grid-cols-2 gap-2">
         {BLOCK_ITEMS.map((item) => (
           <div
@@ -190,7 +190,7 @@ function ContenuPanel({
 function BlocsPanel({ onAddRow }: { onAddRow: (layout: RowLayout) => void }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Row Layouts</h3>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Dispositions</h3>
       <div className="space-y-2">
         {LAYOUT_OPTIONS.map((option) => (
           <button
@@ -240,23 +240,23 @@ function ColorPicker({
       <div className="flex gap-2 mt-1 relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-8 h-8 rounded-md border border-border cursor-pointer shadow-sm hover:shadow transition-shadow flex-shrink-0"
+          className="w-9 h-9 rounded-xl border border-border cursor-pointer shadow-sm hover:shadow-md hover:border-ring transition-all flex-shrink-0"
           style={{ backgroundColor: value }}
         />
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-8 text-xs"
+          className="h-9 text-xs rounded-xl"
         />
         {isOpen && (
-          <div className="absolute top-10 left-0 z-50 bg-background rounded-lg shadow-xl border border-border p-3 w-56">
+          <div className="absolute top-11 left-0 z-50 bg-popover rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-border p-3 w-60">
             <div className="grid grid-cols-7 gap-1.5 mb-3">
               {PRESET_COLORS.map((color) => (
                 <button
                   key={color}
                   onClick={() => { onChange(color); setIsOpen(false); }}
-                  className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
-                    value === color ? 'ring-2 ring-blue-500 ring-offset-1' : 'border-border'
+                  className={`w-7 h-7 rounded-lg border transition-all hover:scale-110 ${
+                    value === color ? 'ring-2 ring-primary ring-offset-1' : 'border-border/50'
                   }`}
                   style={{ backgroundColor: color }}
                 />
@@ -267,7 +267,7 @@ function ColorPicker({
                 type="color"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+                className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0"
               />
               <span className="text-[10px] text-muted-foreground">Custom color</span>
             </div>
@@ -337,14 +337,15 @@ function resolveBlockMargin(styles: Record<string, string>) {
 function NumericInput({ value, onChange, suffix = 'px' }: { value: string; onChange: (v: string) => void; suffix?: string }) {
   const num = parseInt(value) || 0;
   return (
-    <div className="flex items-center h-8 rounded-md border border-border overflow-hidden">
+    <div className="flex items-center h-9 rounded-xl border border-border overflow-hidden shadow-sm hover:border-ring transition-all">
       <input
         type="number"
+        min={0}
         value={num}
-        onChange={(e) => onChange(`${e.target.value}${suffix}`)}
-        className="flex-1 h-full text-xs px-2 border-0 outline-none w-16"
+        onChange={(e) => { const v = Math.max(0, parseInt(e.target.value) || 0); onChange(`${v}${suffix}`); }}
+        className="flex-1 h-full text-xs px-3 border-0 outline-none w-16 bg-background"
       />
-      <span className="text-[10px] text-muted-foreground px-2 bg-muted/50 h-full flex items-center border-l border-border">{suffix}</span>
+      <span className="text-[10px] text-muted-foreground px-2.5 bg-muted/30 h-full flex items-center border-l border-border">{suffix}</span>
     </div>
   );
 }
@@ -356,28 +357,99 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
       <Label className="text-xs">{label}</Label>
       <button
         onClick={() => onChange(!value)}
-        className={`w-9 h-5 rounded-full transition-colors relative ${value ? 'bg-primary' : 'bg-muted'}`}
+        className={`w-10 h-[22px] rounded-full transition-all relative shadow-inner ${value ? 'bg-primary' : 'bg-muted border border-border'}`}
       >
-        <div className={`w-3.5 h-3.5 rounded-full bg-background absolute top-[3px] transition-all ${value ? 'left-[19px]' : 'left-[3px]'}`} />
+        <div className={`w-4 h-4 rounded-full bg-white shadow-sm absolute top-[3px] transition-all ${value ? 'left-[21px]' : 'left-[3px]'}`} />
       </button>
     </div>
   );
 }
 
+// ─── Font Groups ───
+const FONT_GROUPS = [
+  { label: 'SANS-SERIF', fonts: [
+    { name: 'Inter', value: 'Inter, sans-serif' },
+    { name: 'DM Sans', value: "'DM Sans', sans-serif" },
+    { name: 'Nunito', value: 'Nunito, sans-serif' },
+    { name: 'Poppins', value: 'Poppins, sans-serif' },
+    { name: 'Raleway', value: 'Raleway, sans-serif' },
+    { name: 'Outfit', value: 'Outfit, sans-serif' },
+    { name: 'Plus Jakarta Sans', value: "'Plus Jakarta Sans', sans-serif" },
+    { name: 'Manrope', value: 'Manrope, sans-serif' },
+    { name: 'Figtree', value: 'Figtree, sans-serif' },
+    { name: 'Sora', value: 'Sora, sans-serif' },
+    { name: 'Verdana', value: 'Verdana, sans-serif' },
+    { name: 'Arial', value: 'Arial, sans-serif' },
+    { name: 'Helvetica', value: 'Helvetica, sans-serif' },
+    { name: 'Tahoma', value: 'Tahoma, sans-serif' },
+  ]},
+  { label: 'SERIF', fonts: [
+    { name: 'Playfair Display', value: "'Playfair Display', serif" },
+    { name: 'Lora', value: 'Lora, serif' },
+    { name: 'Merriweather', value: 'Merriweather, serif' },
+    { name: 'DM Serif Display', value: "'DM Serif Display', serif" },
+    { name: 'Cormorant Garamond', value: "'Cormorant Garamond', serif" },
+    { name: 'Libre Baskerville', value: "'Libre Baskerville', serif" },
+    { name: 'Georgia', value: 'Georgia, serif' },
+    { name: 'Times New Roman', value: "'Times New Roman', serif" },
+  ]},
+  { label: 'MONOSPACE', fonts: [
+    { name: 'JetBrains Mono', value: "'JetBrains Mono', monospace" },
+    { name: 'Fira Code', value: "'Fira Code', monospace" },
+    { name: 'Space Mono', value: "'Space Mono', monospace" },
+    { name: 'IBM Plex Mono', value: "'IBM Plex Mono', monospace" },
+    { name: 'Courier New', value: "'Courier New', monospace" },
+  ]},
+  { label: 'DISPLAY', fonts: [
+    { name: 'Pacifico', value: 'Pacifico, cursive' },
+    { name: 'Lobster', value: 'Lobster, cursive' },
+    { name: 'Righteous', value: 'Righteous, cursive' },
+    { name: 'Bebas Neue', value: "'Bebas Neue', sans-serif" },
+    { name: 'Abril Fatface', value: "'Abril Fatface', serif" },
+    { name: 'Yeseva One', value: "'Yeseva One', serif" },
+  ]},
+];
+
 // ─── Font Select ───
 function FontSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const currentFont = FONT_GROUPS.flatMap(g => g.fonts).find(f => f.value === value);
+
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full h-8 rounded-md border border-border text-xs px-2">
-      <option value="Verdana, sans-serif">Verdana</option>
-      <option value="Arial, sans-serif">Arial</option>
-      <option value="Inter, sans-serif">Inter</option>
-      <option value="Georgia, serif">Georgia</option>
-      <option value="'Courier New', monospace">Courier New</option>
-      <option value="'Times New Roman', serif">Times New Roman</option>
-      <option value="Helvetica, sans-serif">Helvetica</option>
-      <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
-      <option value="Tahoma, sans-serif">Tahoma</option>
-    </select>
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full h-8 rounded-lg border border-border text-xs px-3 text-left flex items-center justify-between hover:border-ring transition-colors"
+        style={{ fontFamily: value }}
+      >
+        <span className="truncate">{currentFont?.name || 'Verdana'}</span>
+        <span className="text-muted-foreground ml-1">▾</span>
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-9 left-0 z-50 w-full max-h-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-[0_8px_24px_rgba(0,0,0,0.12)] py-1">
+            {FONT_GROUPS.map((group) => (
+              <div key={group.label}>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 pt-2 pb-1">{group.label}</p>
+                {group.fonts.map((font) => (
+                  <button
+                    key={font.value}
+                    onClick={() => { onChange(font.value); setIsOpen(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors flex items-center gap-2 ${
+                      value === font.value ? 'bg-accent text-accent-foreground' : ''
+                    }`}
+                    style={{ fontFamily: font.value }}
+                  >
+                    {font.name}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -414,7 +486,7 @@ function CorpsPanel({
 
   return (
     <div>
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Template Body</h3>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Corps du modèle</h3>
 
       {/* ─── 1. Mise en page ─── */}
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="layout" title="Mise en page">
@@ -486,7 +558,7 @@ function CorpsPanel({
                   key={size}
                   onClick={() => onUpdateGlobalStyles({ backgroundSize: size })}
                   className={`flex-1 h-7 text-[10px] rounded-md border transition-colors capitalize ${
-                    globalStyles.backgroundSize === size ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted/50'
+                    globalStyles.backgroundSize === size ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border hover:bg-accent hover:border-ring'
                   }`}
                 >
                   {size}
@@ -522,7 +594,7 @@ function CorpsPanel({
           <select
             value={globalStyles.lineHeight}
             onChange={(e) => onUpdateGlobalStyles({ lineHeight: e.target.value })}
-            className="w-full h-8 mt-1 rounded-md border border-border text-xs px-2"
+            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
           >
             <option value="1">1 (serré)</option>
             <option value="1.25">1.25</option>
@@ -539,7 +611,7 @@ function CorpsPanel({
                 key={opt.v}
                 onClick={() => onUpdateGlobalStyles({ textDirection: opt.v })}
                 className={`flex-1 h-8 text-xs rounded-md border transition-colors ${
-                  globalStyles.textDirection === opt.v ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted/50'
+                  globalStyles.textDirection === opt.v ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border hover:bg-accent hover:border-ring'
                 }`}
               >
                 {opt.l}
@@ -558,7 +630,7 @@ function CorpsPanel({
                 key={opt.v}
                 onClick={() => onUpdateGlobalStyles({ linkDecoration: opt.v })}
                 className={`flex-1 h-8 text-xs rounded-md border transition-colors ${
-                  globalStyles.linkDecoration === opt.v ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted/50'
+                  globalStyles.linkDecoration === opt.v ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border hover:bg-accent hover:border-ring'
                 }`}
               >
                 {opt.l}
@@ -588,7 +660,7 @@ function CorpsPanel({
                 key={opt.v}
                 onClick={() => onUpdateGlobalStyles({ btnWidth: opt.v })}
                 className={`flex-1 h-8 text-xs rounded-md border transition-colors ${
-                  globalStyles.btnWidth === opt.v ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted/50'
+                  globalStyles.btnWidth === opt.v ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border hover:bg-accent hover:border-ring'
                 }`}
               >
                 {opt.l}
@@ -620,8 +692,8 @@ function PhotosPanel() {
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Photos</h3>
       <div className="text-center py-8 border-2 border-dashed border-border rounded-lg">
         <ImageIcon size={24} className="mx-auto text-muted-foreground/70 mb-2" />
-        <p className="text-xs text-muted-foreground">Upload images</p>
-        <p className="text-xs text-muted-foreground mt-1">MinIO integration coming soon</p>
+        <p className="text-xs text-muted-foreground">Importer des images</p>
+        <p className="text-xs text-muted-foreground mt-1">Intégration MinIO bientôt disponible</p>
       </div>
     </div>
   );
@@ -646,13 +718,13 @@ function FontSizeSelector({ value, onChange }: { value: string; onChange: (v: st
 
   return (
     <div>
-      <Label className="text-xs">Font Size</Label>
+      <Label className="text-xs">Taille de police</Label>
       <div className="flex items-center gap-1 mt-1">
-        <button onClick={decrease} className="w-8 h-8 rounded-md border border-border flex items-center justify-center hover:bg-muted/50 text-sm font-medium">−</button>
+        <button onClick={decrease} className="w-9 h-9 rounded-xl border border-border flex items-center justify-center hover:bg-accent hover:border-ring text-sm font-medium shadow-sm transition-all">−</button>
         <select
           value={resolvedValue}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 h-8 rounded-md border border-border text-xs px-2 text-center"
+          className="flex-1 h-9 rounded-xl border border-border bg-background text-xs px-2 text-center shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
         >
           {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
           {/* Show current size if not in preset list */}
@@ -660,30 +732,59 @@ function FontSizeSelector({ value, onChange }: { value: string; onChange: (v: st
             <option value={resolvedValue}>{resolvedValue}</option>
           )}
         </select>
-        <button onClick={increase} className="w-8 h-8 rounded-md border border-border flex items-center justify-center hover:bg-muted/50 text-sm font-medium">+</button>
+        <button onClick={increase} className="w-9 h-9 rounded-xl border border-border flex items-center justify-center hover:bg-accent hover:border-ring text-sm font-medium shadow-sm transition-all">+</button>
       </div>
     </div>
   );
 }
 
-// ─── Font Family Selector ───
+// ─── Font Family Selector (block-level, with inherit option) ───
 function FontFamilySelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const allFonts = [{ name: 'Hérité (du corps)', value: 'inherit' }, ...FONT_GROUPS.flatMap(g => g.fonts)];
+  const currentFont = allFonts.find(f => f.value === value) || allFonts[0];
+
   return (
     <div>
-      <Label className="text-xs">Font Family</Label>
-      <select
-        value={value || 'inherit'}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full h-8 mt-1 rounded-md border border-border text-xs px-2"
-      >
-        <option value="inherit">Inherit (from body)</option>
-        <option value="Inter, sans-serif">Inter</option>
-        <option value="Arial, sans-serif">Arial</option>
-        <option value="Georgia, serif">Georgia</option>
-        <option value="Verdana, sans-serif">Verdana</option>
-        <option value="'Courier New', monospace">Courier New</option>
-        <option value="'Times New Roman', serif">Times New Roman</option>
-      </select>
+      <Label className="text-xs">Police</Label>
+      <div className="relative mt-1">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full h-9 rounded-xl border border-border bg-background text-xs px-3 text-left flex items-center justify-between shadow-sm hover:border-ring transition-all"
+          style={{ fontFamily: value !== 'inherit' ? value : undefined }}
+        >
+          <span className="truncate">{currentFont.name}</span>
+          <span className="text-muted-foreground ml-1">▾</span>
+        </button>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <div className="absolute top-10 left-0 z-50 w-full max-h-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-[0_8px_24px_rgba(0,0,0,0.12)] py-1">
+              <button
+                onClick={() => { onChange('inherit'); setIsOpen(false); }}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors ${value === 'inherit' ? 'bg-accent' : ''}`}
+              >
+                Hérité (du corps)
+              </button>
+              {FONT_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 pt-2 pb-1">{group.label}</p>
+                  {group.fonts.map((font) => (
+                    <button
+                      key={font.value}
+                      onClick={() => { onChange(font.value); setIsOpen(false); }}
+                      className={`w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors ${value === font.value ? 'bg-accent' : ''}`}
+                      style={{ fontFamily: font.value }}
+                    >
+                      {font.name}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -692,20 +793,20 @@ function FontFamilySelector({ value, onChange }: { value: string; onChange: (v: 
 function FontWeightSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <Label className="text-xs">Font Weight</Label>
+      <Label className="text-xs">Graisse</Label>
       <div className="flex gap-1 mt-1">
         {[
-          { v: 'lighter', l: 'Light' },
+          { v: 'lighter', l: 'Léger' },
           { v: 'normal', l: 'Normal' },
-          { v: 'bold', l: 'Bold' },
+          { v: 'bold', l: 'Gras' },
         ].map((opt) => (
           <button
             key={opt.v}
             onClick={() => onChange(opt.v)}
             className={`flex-1 h-8 text-xs rounded-md border transition-colors ${
               (value || 'normal') === opt.v
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border hover:bg-muted/50'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'border-border hover:bg-accent hover:border-ring'
             }`}
             style={{ fontWeight: opt.v }}
           >
@@ -718,7 +819,7 @@ function FontWeightSelector({ value, onChange }: { value: string; onChange: (v: 
 }
 
 // ─── Alignment Selector ───
-function AlignmentSelector({ value, onChange, label = 'Alignment' }: { value: string; onChange: (v: string) => void; label?: string }) {
+function AlignmentSelector({ value, onChange, label = 'Alignement' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
     <div>
       <Label className="text-xs">{label}</Label>
@@ -729,8 +830,8 @@ function AlignmentSelector({ value, onChange, label = 'Alignment' }: { value: st
             onClick={() => onChange(align)}
             className={`flex-1 h-8 text-xs rounded-md border transition-colors capitalize ${
               (value || 'left') === align
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border hover:bg-muted/50'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'border-border hover:bg-accent hover:border-ring'
             }`}
           >
             {align}
@@ -742,20 +843,20 @@ function AlignmentSelector({ value, onChange, label = 'Alignment' }: { value: st
 }
 
 // ─── Line Height Selector ───
-function LineHeightSelector({ value, onChange, label = 'Line Height' }: { value: string; onChange: (v: string) => void; label?: string }) {
+function LineHeightSelector({ value, onChange, label = 'Interlignage' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
     <div>
       <Label className="text-xs">{label}</Label>
       <select
         value={value || '1.5'}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full h-8 mt-1 rounded-md border border-border text-xs px-2"
+        className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
       >
-        <option value="1">1 (tight)</option>
+        <option value="1">1 (serré)</option>
         <option value="1.25">1.25</option>
         <option value="1.5">1.5 (normal)</option>
         <option value="1.75">1.75</option>
-        <option value="2">2 (loose)</option>
+        <option value="2">2 (aéré)</option>
         <option value="2.5">2.5</option>
       </select>
     </div>
@@ -763,22 +864,22 @@ function LineHeightSelector({ value, onChange, label = 'Line Height' }: { value:
 }
 
 // ─── Letter Spacing Selector ───
-function LetterSpacingSelector({ value, onChange, label = 'Letter Spacing' }: { value: string; onChange: (v: string) => void; label?: string }) {
+function LetterSpacingSelector({ value, onChange, label = 'Espacement des lettres' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
     <div>
       <Label className="text-xs">{label}</Label>
       <select
         value={value || '0px'}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full h-8 mt-1 rounded-md border border-border text-xs px-2"
+        className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
       >
-        <option value="-1px">-1px (tight)</option>
+        <option value="-1px">-1px (serré)</option>
         <option value="-0.5px">-0.5px</option>
         <option value="0px">0px (normal)</option>
         <option value="0.5px">0.5px</option>
         <option value="1px">1px</option>
         <option value="2px">2px</option>
-        <option value="3px">3px (wide)</option>
+        <option value="3px">3px (large)</option>
         <option value="5px">5px</option>
       </select>
     </div>
@@ -798,7 +899,7 @@ function TextStyleFields({
       <FontSizeSelector value={block.styles.fontSize} onChange={(v) => updateStyle('fontSize', v)} />
       <FontFamilySelector value={block.styles.fontFamily} onChange={(v) => updateStyle('fontFamily', v)} />
       <FontWeightSelector value={block.styles.fontWeight} onChange={(v) => updateStyle('fontWeight', v)} />
-      <ColorPicker label="Text Color" value={block.styles.color || '#000000'} onChange={(c) => updateStyle('color', c)} />
+      <ColorPicker label="Couleur du texte" value={block.styles.color || '#000000'} onChange={(c) => updateStyle('color', c)} />
       <AlignmentSelector value={block.styles.textAlign} onChange={(v) => updateStyle('textAlign', v)} />
       <LineHeightSelector value={block.styles.lineHeight} onChange={(v) => updateStyle('lineHeight', v)} />
       <LetterSpacingSelector value={block.styles.letterSpacing} onChange={(v) => updateStyle('letterSpacing', v)} />
@@ -834,14 +935,13 @@ function BlockProperties({
   const margin = resolveBlockMargin(block.styles);
   const paddingGrouped = block.styles.paddingGroup === 'true'
     || (!block.styles.paddingGroup && padding.top === padding.right && padding.top === padding.bottom && padding.top === padding.left);
-  const borderGrouped = block.styles.borderGroup !== 'false';
 
   return (
     <div className="space-y-4">
       {/* Content fields */}
       {(block.type === 'heading' || block.type === 'text') && (
         <div>
-          <Label className="text-xs">Content</Label>
+          <Label className="text-xs">Contenu</Label>
           <textarea
             value={block.content.text as string}
             onChange={(e) => updateContent('text', e.target.value)}
@@ -853,7 +953,7 @@ function BlockProperties({
       {block.type === 'button' && (
         <>
           <div>
-            <Label className="text-xs">Button Text</Label>
+            <Label className="text-xs">Texte du bouton</Label>
             <Input
               value={block.content.text as string}
               onChange={(e) => updateContent('text', e.target.value)}
@@ -861,7 +961,7 @@ function BlockProperties({
             />
           </div>
           <div>
-            <Label className="text-xs">Link URL</Label>
+            <Label className="text-xs">Lien URL</Label>
             <Input
               value={block.content.href as string}
               onChange={(e) => updateContent('href', e.target.value)}
@@ -875,7 +975,7 @@ function BlockProperties({
       {block.type === 'image' && (
         <>
           <div>
-            <Label className="text-xs">Image URL</Label>
+            <Label className="text-xs">URL de l&apos;image</Label>
             <Input
               value={block.content.src as string}
               onChange={(e) => updateContent('src', e.target.value)}
@@ -884,7 +984,7 @@ function BlockProperties({
             />
           </div>
           <div>
-            <Label className="text-xs">Alt Text</Label>
+            <Label className="text-xs">Texte alternatif</Label>
             <Input
               value={block.content.alt as string}
               onChange={(e) => updateContent('alt', e.target.value)}
@@ -1010,24 +1110,43 @@ function BlockProperties({
                 placeholder="https://..."
               />
             </div>
-            <div>
-              <SectionHeader>Angles arrondis</SectionHeader>
-              <Label className="text-xs">Radius</Label>
-              <NumericInput value={block.styles.borderRadius || '0px'} onChange={(v) => updateStyle('borderRadius', v)} />
-            </div>
           </AccordionSection>
 
           <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="borders" title="Bordures">
-            <Toggle
-              label="Appliquer sur tous les côtés"
-              value={borderGrouped}
-              onChange={(v) => updateStyle('borderGroup', v ? 'true' : 'false')}
-            />
             <div>
               <Label className="text-xs">Taille</Label>
               <NumericInput value={block.styles.borderSize || '0px'} onChange={(v) => updateStyle('borderSize', v)} />
             </div>
+            <div>
+              <Label className="text-xs">Style</Label>
+              <select
+                value={block.styles.borderStyle || 'solid'}
+                onChange={(e) => updateStyle('borderStyle', e.target.value)}
+                className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
+              >
+                <option value="solid">Plein</option>
+                <option value="dashed">Tirets</option>
+                <option value="dotted">Pointillés</option>
+                <option value="double">Double</option>
+              </select>
+            </div>
             <ColorPicker label="Couleur" value={block.styles.borderColor || '#e2e8f0'} onChange={(c) => updateStyle('borderColor', c)} />
+            <div>
+              <Label className="text-xs">Angles arrondis</Label>
+              <select
+                value={block.styles.borderRadius || '0px'}
+                onChange={(e) => updateStyle('borderRadius', e.target.value)}
+                className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
+              >
+                <option value="0px">Carré</option>
+                <option value="4px">Léger (4px)</option>
+                <option value="6px">Arrondi (6px)</option>
+                <option value="12px">Plus (12px)</option>
+                <option value="16px">Grand (16px)</option>
+                <option value="24px">Pilule (24px)</option>
+                <option value="9999px">Pilule complète</option>
+              </select>
+            </div>
           </AccordionSection>
         </div>
       )}
@@ -1035,7 +1154,7 @@ function BlockProperties({
       {/* Typography (consistent for heading, text, button) */}
       {isTextLike && !isHeadingOrText && (
         <div className="pt-2 border-t border-border space-y-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase">Typography</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase">Typographie</h4>
           <TextStyleFields block={block} updateStyle={updateStyle} />
         </div>
       )}
@@ -1043,21 +1162,21 @@ function BlockProperties({
       {/* Button specific styles */}
       {block.type === 'button' && (
         <div className="pt-2 border-t border-border space-y-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase">Button Style</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase">Style du bouton</h4>
           <ColorPicker label="Background" value={block.styles.backgroundColor || '#0f172a'} onChange={(c) => updateStyle('backgroundColor', c)} />
           <div>
-            <Label className="text-xs">Border Radius</Label>
+            <Label className="text-xs">Rayon de bordure</Label>
             <select
               value={block.styles.borderRadius || '6px'}
               onChange={(e) => updateStyle('borderRadius', e.target.value)}
-              className="w-full h-8 mt-1 rounded-md border border-border text-xs px-2"
+              className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
             >
-              <option value="0px">Square</option>
-              <option value="4px">Slight (4px)</option>
-              <option value="6px">Rounded (6px)</option>
-              <option value="12px">More (12px)</option>
-              <option value="24px">Pill (24px)</option>
-              <option value="9999px">Full pill</option>
+              <option value="0px">Carré</option>
+              <option value="4px">Léger (4px)</option>
+              <option value="6px">Arrondi (6px)</option>
+              <option value="12px">Plus (12px)</option>
+              <option value="24px">Pilule (24px)</option>
+              <option value="9999px">Pilule complète</option>
             </select>
           </div>
         </div>
@@ -1065,9 +1184,9 @@ function BlockProperties({
 
       {/* Spacing (all blocks) */}
       <div className="pt-2 border-t border-border space-y-3">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase">Spacing</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase">Espacement</h4>
         <div>
-          <Label className="text-xs">Padding</Label>
+          <Label className="text-xs">Marge intérieure</Label>
           <Input
             value={block.styles.padding}
             onChange={(e) => updateStyle('padding', e.target.value)}
