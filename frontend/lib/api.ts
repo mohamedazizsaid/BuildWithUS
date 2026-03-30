@@ -66,8 +66,8 @@ export const templates = {
     delete:(id: string) =>
         request(`/templates/${id}`, { method: 'DELETE' }),
 
-    dupilcate: (id: string, name: string)=>
-        request('/templates/$/{id}/duplicate', { method: 'POST', body: JSON.stringify({name}) }),
+    duplicate: (id: string, name: string)=>
+        request(`/templates/${id}/duplicate`, { method: 'POST', body: JSON.stringify({name}) }),
 
     render:(id: string, variables: Record<string, string>) =>
         request(`/templates/${id}/render`, { method: 'POST', body: JSON.stringify(variables) }),

@@ -66,11 +66,11 @@ export default function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-                  <span className="font-bold text-sm">W</span>
+                <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-slate-900 text-white">
+                  <span className="font-bold text-sm">WTB</span>
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Winaity</span>
+                  <span className="truncate font-semibold">WinTB</span>
                   <span className="truncate text-xs text-muted-foreground">{user?.tenant_name}</span>
                 </div>
               </Link>

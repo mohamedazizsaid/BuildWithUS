@@ -14,6 +14,7 @@ interface EditorToolbarProps {
   onBack: () => void;
   onCreateTemplate: () => void;
   isSaving: boolean;
+  isEditMode?: boolean;
   onSave: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -32,6 +33,7 @@ export default function EditorToolbar({
   onBack,
   onCreateTemplate,
   isSaving,
+  isEditMode,
   onSave,
   onUndo,
   onRedo,
@@ -154,7 +156,7 @@ export default function EditorToolbar({
           disabled={isSaving}
           className="h-8 px-3 text-xs"
         >
-          {isSaving ? 'Création...' : 'Créer le modèle'}
+          {isSaving ? (isEditMode ? 'Enregistrement...' : 'Création...') : (isEditMode ? 'Enregistrer' : 'Créer le modèle')}
         </Button>
       </div>
     </div>

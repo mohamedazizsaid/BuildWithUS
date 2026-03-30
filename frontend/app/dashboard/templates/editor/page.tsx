@@ -24,10 +24,16 @@ function EditorContent() {
   const searchParams = useSearchParams();
   const editorState = useEditor();
 
-  const templateName = searchParams.get("name") || "Untitled Template";
-  const templateType = parseInt(searchParams.get("type") || "1");
-  const templateDescription = searchParams.get("description") || "";
-  const templateSubject = searchParams.get("subject") || templateName;
+  // Edit mode: ?id=xxx loads existing template
+  // Create mode: ?name=xxx&type=1 creates a new one
+  const editId = searchParams.get("id");
+  const isEditMode = !!editId;
+
+  const [templateName, setTemplateName] = useState(searchParams.get("name") || "Sans titre");
+  const [templateType, setTemplateType] = useState(parseInt(searchParams.get("type") || "1"));
+  const [templateDescription, setTemplateDescription] = useState(searchParams.get("description") || "");
+  const [templateSubject, setTemplateSubject] = useState(searchParams.get("subject") || "");
+  const [isLoading, setIsLoading] = useState(isEditMode);
 
   const [activeTab, setActiveTab] = useState<"canvas" | "code">("canvas");
   const [previewMode, setPreviewMode] = useState(false);
@@ -39,6 +45,45 @@ function EditorContent() {
   const [isDark, setIsDark] = useState(false);
   const [codeValue, setCodeValue] = useState("");
   const [codeWasEdited, setCodeWasEdited] = useState(false);
+
+  // Load existing template in edit mode
+  useEffect(() => {
+    if (!editId) return;
+    let cancelled = false;
+
+    const loadTemplate = async () => {
+      try {
+        const data = await templates.get(editId);
+        if (cancelled) return;
+        const tmpl = data.template || data;
+
+        setTemplateName(tmpl.name || "Sans titre");
+        setTemplateType(tmpl.type || 1);
+        setTemplateDescription(tmpl.description || "");
+        setTemplateSubject(tmpl.subject || "");
+
+        // Parse MJML content back into canvas blocks
+        if (tmpl.content) {
+          const parsed = parseMjmlToTemplate(tmpl.content, editorState.template.globalStyles);
+          if (parsed) {
+            editorState.setTemplate({
+              ...editorState.template,
+              rows: parsed.rows,
+              globalStyles: parsed.globalStyles,
+            });
+          }
+        }
+      } catch {
+        toast.error("Échec du chargement du modèle");
+        router.push("/dashboard/templates");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    loadTemplate();
+    return () => { cancelled = true; };
+  }, [editId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -128,7 +173,7 @@ function EditorContent() {
     toast.success("Brouillon enregistré !");
   };
 
-  const handleCreateTemplate = async () => {
+  const handleSaveOrCreate = async () => {
     if (editorState.template.rows.length === 0) {
       toast.error("Ajoutez au moins une ligne à votre modèle");
       return;
@@ -137,18 +182,25 @@ function EditorContent() {
     setIsSaving(true);
     try {
       const mjml = generateMjml();
-      await templates.create({
+      const body = {
         name: templateName,
         description: templateDescription,
         type: templateType,
         subject: templateSubject,
         content: mjml,
-      });
-      toast.success("Modèle créé avec succès !");
+      };
+
+      if (isEditMode && editId) {
+        await templates.update(editId, body);
+        toast.success("Modèle enregistré !");
+      } else {
+        await templates.create(body);
+        toast.success("Modèle créé avec succès !");
+      }
       router.push("/dashboard/templates");
     } catch (error: unknown) {
       const message =
-        error instanceof Error ? error.message : "Échec de la création du modèle";
+        error instanceof Error ? error.message : "Échec de l'enregistrement";
       toast.error(message);
     } finally {
       setIsSaving(false);
@@ -162,6 +214,15 @@ function EditorContent() {
         ? "768px"
         : "375px";
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] -m-6">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-sm text-muted-foreground">Chargement du modèle...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] -m-6 overflow-hidden">
       {/* Toolbar */}
@@ -173,9 +234,10 @@ function EditorContent() {
         setPreviewMode={setPreviewMode}
         previewDevice={previewDevice}
         setPreviewDevice={setPreviewDevice}
-        onBack={() => router.push("/dashboard/templates/new")}
-        onCreateTemplate={handleCreateTemplate}
+        onBack={() => router.push(isEditMode ? "/dashboard/templates" : "/dashboard/templates/new")}
+        onCreateTemplate={handleSaveOrCreate}
         isSaving={isSaving}
+        isEditMode={isEditMode}
         onSave={handleSave}
         onUndo={editorState.undo}
         onRedo={editorState.redo}
