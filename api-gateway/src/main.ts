@@ -10,7 +10,12 @@ import * as cookieParser from 'cookie-parser';
  */
 async function bootstrap() {
   // Create a standard HTTP/REST server (not gRPC — that's for the microservices)
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: true,
+  });
+  // Increase upload size limit for videos (50MB)
+  app.use(require('express').json({ limit: '50mb' }));
+  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
 
   // Enable cookie parsing — so we can read JWT tokens from browser cookies
   // When a user logs in, the token is stored as an httpOnly cookie

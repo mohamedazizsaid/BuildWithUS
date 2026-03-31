@@ -85,10 +85,16 @@ export const media = {
             method: 'POST',
             credentials: 'include',
             body: formData,
-            // No Content-Type header — browser sets it with boundary for multipart
         });
 
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            console.error('Server response:', res.status, text.substring(0, 200));
+            throw new Error(`Server error: ${res.status}`);
+        }
         if (!res.ok) throw new Error(data.error || 'Upload failed');
         return data;
     },

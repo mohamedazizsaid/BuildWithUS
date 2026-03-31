@@ -101,10 +101,25 @@ function mjmlToPreviewHtml(mjml: string): string {
             html += `<div style="text-align:${align};padding:10px;"><span style="display:inline-block;background-color:${bgc};color:${c};font-size:${fs};padding:${pad};border-radius:${br};text-decoration:none;">${child.textContent || ''}</span></div>`;
           } else if (tag === 'mj-image') {
             const src = child.getAttribute('src') || '';
+            const alt = child.getAttribute('alt') || '';
             const w = child.getAttribute('width') || '100%';
             const pad = child.getAttribute('padding') || '10px';
-            if (src) {
-              html += `<div style="text-align:center;padding:${pad};"><img src="${src}" style="width:${w};max-width:100%;" /></div>`;
+            const br = child.getAttribute('border-radius') || '0px';
+            const videoMatch = alt.match(/^video:(youtube|upload):(.+)$/);
+            if (videoMatch) {
+              const vType = videoMatch[1];
+              const vSrc = videoMatch[2];
+              const ytMatch = vSrc.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+              const ytId = ytMatch ? ytMatch[1] : null;
+              if (vType === 'youtube' && ytId) {
+                html += `<div style="text-align:center;padding:${pad};"><div style="position:relative;width:${w};max-width:100%;margin:0 auto;border-radius:${br};overflow:hidden;padding-bottom:56.25%;height:0"><iframe src="https://www.youtube.com/embed/${ytId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div></div>`;
+              } else if (src) {
+                html += `<div style="text-align:center;padding:${pad};"><div style="position:relative;width:${w};max-width:100%;margin:0 auto;border-radius:${br};overflow:hidden"><img src="${src}" style="width:100%;display:block" /><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3)"><div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center"><div style="width:0;height:0;border-left:12px solid #0f172a;border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:2px"></div></div></div></div></div>`;
+              } else {
+                html += `<div style="text-align:center;padding:${pad};"><video src="${vSrc}" style="width:${w};max-width:100%;border-radius:${br}" controls></video></div>`;
+              }
+            } else if (src) {
+              html += `<div style="text-align:center;padding:${pad};"><img src="${src}" style="width:${w};max-width:100%;border-radius:${br}" /></div>`;
             }
           } else if (tag === 'mj-divider') {
             const bc = child.getAttribute('border-color') || '#e2e8f0';

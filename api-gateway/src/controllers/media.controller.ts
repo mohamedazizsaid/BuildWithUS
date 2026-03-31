@@ -45,21 +45,25 @@ ensureBucket();
 export class MediaController {
 
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
   async upload(@UploadedFile() file: any, @Req() req: any, @Res() res: Response) {
     if (!file) {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
 
     // Validate file type
-    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    const allowedImages = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    const allowedVideos = ['video/mp4', 'video/webm', 'video/ogg'];
+    const allowed = [...allowedImages, ...allowedVideos];
     if (!allowed.includes(file.mimetype)) {
-      return res.status(400).json({ error: 'Type de fichier non autorisé. Utilisez JPG, PNG, GIF, WebP ou SVG.' });
+      return res.status(400).json({ error: 'Type de fichier non autorisé. Utilisez JPG, PNG, GIF, WebP, SVG, MP4, WebM ou OGG.' });
     }
 
-    // Max 5MB
-    if (file.size > 5 * 1024 * 1024) {
-      return res.status(400).json({ error: 'Le fichier ne doit pas dépasser 5 Mo' });
+    // Max 50MB for videos, 5MB for images
+    const isVideo = allowedVideos.includes(file.mimetype);
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return res.status(400).json({ error: `Le fichier ne doit pas dépasser ${isVideo ? '50' : '5'} Mo` });
     }
 
     try {

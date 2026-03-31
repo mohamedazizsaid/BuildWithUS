@@ -1195,10 +1195,12 @@ function VideoBlockProperties({
   block,
   updateContent,
   updateStyle,
+  onUpdate,
 }: {
   block: BlockData;
   updateContent: (key: string, value: string) => void;
   updateStyle: (key: string, value: string) => void;
+  onUpdate: (updates: Partial<BlockData>) => void;
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>('source');
@@ -1213,22 +1215,23 @@ function VideoBlockProperties({
     try {
       const { media } = await import('@/lib/api');
       const result = await media.upload(file);
-      updateContent('src', result.url);
-      updateContent('type', 'upload');
-    } catch {
-      console.error('Upload failed');
+      onUpdate({ content: { ...block.content, src: result.url, type: 'upload' } });
+    } catch (err) {
+      console.error('Upload failed:', err);
     } finally {
       setIsUploading(false);
       if (fileRef.current) fileRef.current.value = '';
     }
   };
 
-  const handleYoutubeUrl = (url: string) => {
-    updateContent('src', url);
-    updateContent('type', 'youtube');
-    const id = extractYoutubeId(url);
+  const [youtubeInput, setYoutubeInput] = useState((block.content.type === 'youtube' ? block.content.src as string : '') || '');
+
+  const applyYoutubeUrl = (url?: string) => {
+    const val = url ?? youtubeInput;
+    if (!val) return;
+    const id = extractYoutubeId(val);
     if (id) {
-      updateContent('cover', getYoutubeThumbnail(id));
+      onUpdate({ content: { ...block.content, src: val, type: 'youtube', cover: getYoutubeThumbnail(id) } });
     }
   };
 
@@ -1290,11 +1293,22 @@ function VideoBlockProperties({
             <div>
               <Label className="text-xs">URL YouTube</Label>
               <Input
-                value={block.content.src as string || ''}
-                onChange={(e) => handleYoutubeUrl(e.target.value)}
+                value={youtubeInput}
+                onChange={(e) => {
+                  setYoutubeInput(e.target.value);
+                  // Auto-apply if valid YouTube URL detected (paste)
+                  if (extractYoutubeId(e.target.value)) {
+                    applyYoutubeUrl(e.target.value);
+                  }
+                }}
+                onBlur={() => applyYoutubeUrl()}
+                onKeyDown={(e) => { if (e.key === 'Enter') applyYoutubeUrl(); }}
                 className="h-8 text-xs mt-1"
                 placeholder="https://youtube.com/watch?v=..."
               />
+              {youtubeInput && !extractYoutubeId(youtubeInput) && (
+                <p className="text-[10px] text-red-500 mt-1">URL YouTube invalide</p>
+              )}
             </div>
             {youtubeId && (
               <div className="relative rounded-xl overflow-hidden border border-border">
@@ -1434,7 +1448,7 @@ function BlockProperties({
       )}
 
       {block.type === 'video' && (
-        <VideoBlockProperties block={block} updateContent={updateContent} updateStyle={updateStyle} />
+        <VideoBlockProperties block={block} updateContent={updateContent} updateStyle={updateStyle} onUpdate={onUpdate} />
       )}
 
       {isHeadingOrText && (

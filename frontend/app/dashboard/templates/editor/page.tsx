@@ -431,6 +431,25 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
       table += `</mj-table>\n`;
       return table;
     }
+    case "video": {
+      const vSrc = block.content.src as string || '';
+      const vCover = block.content.cover as string || '';
+      const vBr = block.styles.borderRadius || '0px';
+      const vW = block.styles.width || '100%';
+      const vPad = block.styles.padding || '10px';
+      // Use data-video-src and data-video-type as custom attributes to preserve video info
+      // mj-image css-class is used as a marker for the parser
+      const ytMatch = vSrc.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+      const ytId = ytMatch ? ytMatch[1] : null;
+      if (ytId) {
+        return `        <mj-image css-class="video-block" src="https://img.youtube.com/vi/${ytId}/hqdefault.jpg" alt="video:youtube:${vSrc}" href="https://www.youtube.com/watch?v=${ytId}" width="${vW}" padding="${vPad}" border-radius="${vBr}" />\n`;
+      }
+      if (vSrc) {
+        const imgSrc = vCover || '';
+        return `        <mj-image css-class="video-block" src="${imgSrc}" alt="video:upload:${vSrc}" href="${vSrc}" width="${vW}" padding="${vPad}" border-radius="${vBr}" />\n`;
+      }
+      return '';
+    }
     case "signature":
       return `        <mj-text padding="${block.styles.padding}" font-size="${fontSize}" color="${color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></mj-text>\n`;
     default:
@@ -506,6 +525,25 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
       }
       t += `</table>`;
       return t;
+    }
+    case "video": {
+      const vSrc = block.content.src as string || '';
+      const vYtMatch = vSrc.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+      const vYtId = vYtMatch ? vYtMatch[1] : null;
+      const vWidth = block.styles.width || '100%';
+      const vAlign = block.styles.textAlign || 'center';
+      const vRadius = block.styles.borderRadius || '0px';
+      if (vYtId) {
+        return `<div style="text-align:${vAlign};padding:${block.styles.padding}"><div style="width:${vWidth};max-width:100%;margin:${vAlign === 'center' ? '0 auto' : '0'};border-radius:${vRadius};overflow:hidden;position:relative;padding-bottom:56.25%;height:0"><iframe src="https://www.youtube.com/embed/${vYtId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div></div>`;
+      }
+      if (vSrc) {
+        const vCover = block.content.cover as string;
+        if (vCover) {
+          return `<div style="text-align:${vAlign};padding:${block.styles.padding}"><div style="position:relative;width:${vWidth};max-width:100%;margin:${vAlign === 'center' ? '0 auto' : '0'};border-radius:${vRadius};overflow:hidden"><img src="${vCover}" style="width:100%;display:block" /><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3)"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center"><div style="width:0;height:0;border-left:14px solid #0f172a;border-top:9px solid transparent;border-bottom:9px solid transparent;margin-left:3px"></div></div></div></div></div>`;
+        }
+        return `<div style="text-align:${vAlign};padding:${block.styles.padding}"><video src="${vSrc}" style="width:${vWidth};max-width:100%;border-radius:${vRadius}" controls></video></div>`;
+      }
+      return '';
     }
     case "signature":
       return `<div style="padding:${block.styles.padding};font-size:${block.styles.fontSize};color:${block.styles.color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></div>`;
@@ -611,12 +649,30 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
   }
 
   if (tag === "mj-image") {
+    const alt = el.getAttribute("alt") || "";
+    const videoMatch = alt.match(/^video:(youtube|upload):(.+)$/);
+    if (videoMatch) {
+      const videoType = videoMatch[1];
+      const videoSrc = videoMatch[2];
+      const cover = el.getAttribute("src") || "";
+      return {
+        id,
+        type: "video",
+        content: { src: videoSrc, type: videoType, cover },
+        styles: {
+          width: el.getAttribute("width") || "100%",
+          padding: el.getAttribute("padding") || "10px",
+          textAlign: "center",
+          borderRadius: el.getAttribute("border-radius") || "0px",
+        },
+      };
+    }
     return {
       id,
       type: "image",
       content: {
         src: el.getAttribute("src") || "",
-        alt: el.getAttribute("alt") || "Image",
+        alt,
       },
       styles: {
         width: el.getAttribute("width") || "100%",

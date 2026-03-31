@@ -814,12 +814,13 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
       );
     }
     case 'video': {
-      const videoType = (block.content.type as string) || 'upload';
-      const youtubeMatch = (block.content.src as string || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+      const src = (block.content.src as string) || '';
+      const youtubeMatch = src.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
       const youtubeId = youtubeMatch ? youtubeMatch[1] : null;
+      const isYoutube = youtubeId !== null;
       return (
         <div style={{ textAlign: block.styles.textAlign as React.CSSProperties['textAlign'], padding: block.styles.padding }}>
-          {videoType === 'youtube' && youtubeId ? (
+          {isYoutube ? (
             <div style={{ width: block.styles.width, maxWidth: '100%', margin: block.styles.textAlign === 'center' ? '0 auto' : undefined, borderRadius: block.styles.borderRadius, overflow: 'hidden' }}>
               <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
                 <iframe
