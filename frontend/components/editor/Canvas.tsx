@@ -785,11 +785,26 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           {block.content.text as string || 'Texte'}
         </div>
       );
-    case 'image':
+    case 'image': {
+      const imgBorderSize = block.styles.borderSize || '0px';
+      const imgBorderStyle = block.styles.borderStyle || 'solid';
+      const imgBorderColor = block.styles.borderColor || 'transparent';
+      const imgHasBorder = imgBorderSize !== '0px' && imgBorderSize !== '0';
       return (
         <div style={{ textAlign: block.styles.textAlign as React.CSSProperties['textAlign'] }}>
           {block.content.src ? (
-            <img src={block.content.src as string} alt={block.content.alt as string} style={{ width: block.styles.width, maxWidth: '100%' }} />
+            <img
+              src={block.content.src as string}
+              alt={block.content.alt as string}
+              style={{
+                width: block.styles.width,
+                maxWidth: '100%',
+                borderRadius: block.styles.borderRadius || '0px',
+                border: imgHasBorder ? `${imgBorderSize} ${imgBorderStyle} ${imgBorderColor}` : 'none',
+                display: 'inline-block',
+                ...(block.styles.borderRadius === '50%' ? { aspectRatio: '1/1', objectFit: 'cover' as const } : {}),
+              }}
+            />
           ) : (
             <div className="bg-muted rounded-md flex items-center justify-center py-8">
               <p className="text-xs text-muted-foreground">Pas d&apos;image — définir l&apos;URL dans les propriétés</p>
@@ -797,6 +812,50 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           )}
         </div>
       );
+    }
+    case 'video': {
+      const videoType = (block.content.type as string) || 'upload';
+      const youtubeMatch = (block.content.src as string || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+      const youtubeId = youtubeMatch ? youtubeMatch[1] : null;
+      return (
+        <div style={{ textAlign: block.styles.textAlign as React.CSSProperties['textAlign'], padding: block.styles.padding }}>
+          {videoType === 'youtube' && youtubeId ? (
+            <div style={{ width: block.styles.width, maxWidth: '100%', margin: block.styles.textAlign === 'center' ? '0 auto' : undefined, borderRadius: block.styles.borderRadius, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                <iframe
+                  src={`https://www.youtube.com/embed/${youtubeId}`}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          ) : block.content.src ? (
+            <div style={{ position: 'relative', width: block.styles.width, maxWidth: '100%', margin: block.styles.textAlign === 'center' ? '0 auto' : undefined, borderRadius: block.styles.borderRadius, overflow: 'hidden' }}>
+              {block.content.cover ? (
+                <div style={{ position: 'relative' }}>
+                  <img src={block.content.cover as string} alt="Cover" style={{ width: '100%', display: 'block' }} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: 0, height: 0, borderLeft: '14px solid #0f172a', borderTop: '9px solid transparent', borderBottom: '9px solid transparent', marginLeft: 3 }} />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <video src={block.content.src as string} style={{ width: '100%', display: 'block' }} controls />
+              )}
+            </div>
+          ) : (
+            <div className="bg-muted rounded-md flex flex-col items-center justify-center py-10 gap-2">
+              <div className="w-10 h-10 rounded-full bg-muted-foreground/10 flex items-center justify-center">
+                <div style={{ width: 0, height: 0, borderLeft: '10px solid currentColor', borderTop: '6px solid transparent', borderBottom: '6px solid transparent', marginLeft: 2 }} className="text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">Aucune vidéo</p>
+            </div>
+          )}
+        </div>
+      );
+    }
     case 'button':
       return (
         <div style={{ textAlign: block.styles.textAlign as React.CSSProperties['textAlign'] }}>

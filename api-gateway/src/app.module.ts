@@ -3,6 +3,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { AuthController } from '../src/controllers/auth.controller';
 import { TemplateController } from '../src/controllers/template.controller';
+import { MediaController } from './controllers/media.controller';
 import { AuthGuard } from '../src/guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Reflector } from '@nestjs/core';
@@ -81,7 +82,7 @@ import { Reflector } from '@nestjs/core';
       },
     ]),
   ],
-  controllers: [AuthController, TemplateController], // REST controllers that handle HTTP requests
+  controllers: [AuthController, TemplateController, MediaController], // REST controllers that handle HTTP requests
   providers: [AuthGuard, RolesGuard , Reflector], // The JWT guard, injectable into any controller
 })
 export class AppModule {}

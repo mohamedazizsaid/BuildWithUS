@@ -71,6 +71,29 @@ export const templates = {
 
     render:(id: string, variables: Record<string, string>) =>
         request(`/templates/${id}/render`, { method: 'POST', body: JSON.stringify(variables) }),
+};
 
+// ─── Media ───
+const API_URL_RAW = 'http://localhost:3000';
 
-}
+export const media = {
+    upload: async (file: File): Promise<{ url: string; fileName: string; size: number; type: string }> => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch(`${API_URL_RAW}/media/upload`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+            // No Content-Type header — browser sets it with boundary for multipart
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        return data;
+    },
+
+    delete: async (fileName: string): Promise<void> => {
+        await request(`/media/${fileName}`, { method: 'DELETE' });
+    },
+};

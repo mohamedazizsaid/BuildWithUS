@@ -1,4 +1,4 @@
-export type BlockType = 'heading' | 'text' | 'image' | 'button' | 'divider' | 'table' | 'signature';
+export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature';
 
 export type RowLayout =
   | '100'
@@ -96,6 +96,10 @@ export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, 
   image: {
     content: { src: '', alt: 'Image' },
     styles: { width: '100%', padding: '10px', textAlign: 'center' },
+  },
+  video: {
+    content: { src: '', cover: '', type: 'upload' },
+    styles: { width: '100%', padding: '10px', textAlign: 'center', borderRadius: '0px' },
   },
   button: {
     content: { text: 'Click here', href: '#' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Type, LayoutGrid, Palette, ImageIcon, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ const BLOCK_ITEMS: { type: BlockType; label: string; icon: string }[] = [
   { type: 'heading', label: 'Titre', icon: '📄' },
   { type: 'text', label: 'Paragraphe', icon: '📝' },
   { type: 'image', label: 'Image', icon: '🖼️' },
+  { type: 'video', label: 'Vidéo', icon: '🎬' },
   { type: 'button', label: 'Bouton', icon: '🔘' },
   { type: 'divider', label: 'Séparateur', icon: '➖' },
   { type: 'table', label: 'Tableau', icon: '📊' },
@@ -687,14 +688,79 @@ function CorpsPanel({
 
 // ─── Photos Panel ───
 function PhotosPanel() {
+  const [uploads, setUploads] = useState<{ url: string; name: string }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const { media } = await import('@/lib/api');
+      const result = await media.upload(file);
+      setUploads((prev) => [{ url: result.url, name: file.name }, ...prev]);
+    } catch {
+      console.error('Upload failed');
+    } finally {
+      setIsUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const copyUrl = (url: string) => {
+    navigator.clipboard.writeText(url);
+  };
+
   return (
     <div>
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Photos</h3>
-      <div className="text-center py-8 border-2 border-dashed border-border rounded-lg">
-        <ImageIcon size={24} className="mx-auto text-muted-foreground/70 mb-2" />
-        <p className="text-xs text-muted-foreground">Importer des images</p>
-        <p className="text-xs text-muted-foreground mt-1">Intégration MinIO bientôt disponible</p>
-      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+        onChange={handleUpload}
+        className="hidden"
+      />
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={isUploading}
+        className="w-full py-6 border-2 border-dashed border-border rounded-xl text-center hover:bg-accent hover:border-ring transition-all disabled:opacity-50"
+      >
+        {isUploading ? (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-muted-foreground">Upload en cours...</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <ImageIcon size={20} className="text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">Cliquez pour importer</p>
+            <p className="text-[10px] text-muted-foreground/60">JPG, PNG, GIF, WebP, SVG (max 5 Mo)</p>
+          </div>
+        )}
+      </button>
+
+      {uploads.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Récemment importées</p>
+          <div className="grid grid-cols-2 gap-2">
+            {uploads.map((img, i) => (
+              <div
+                key={i}
+                className="relative group rounded-lg overflow-hidden border border-border cursor-pointer hover:border-ring transition-all"
+                onClick={() => copyUrl(img.url)}
+                title="Cliquez pour copier l'URL"
+              >
+                <img src={img.url} alt={img.name} className="w-full h-20 object-cover" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                  <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Copier URL</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -908,6 +974,397 @@ function TextStyleFields({
 }
 
 // ─── Block Properties ───
+// ─── Image Block Properties (with upload + full options) ───
+function ImageBlockProperties({
+  block,
+  updateContent,
+  updateStyle,
+  updateStyles,
+}: {
+  block: BlockData;
+  updateContent: (key: string, value: string) => void;
+  updateStyle: (key: string, value: string) => void;
+  updateStyles: (updates: Record<string, string>) => void;
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>('visual');
+  const [imgDimensions, setImgDimensions] = useState<{ w: number; h: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const { media } = await import('@/lib/api');
+      const result = await media.upload(file);
+      updateContent('src', result.url);
+    } catch (err: unknown) {
+      console.error('Upload failed:', err instanceof Error ? err.message : err);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Detect image dimensions
+  const onImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setImgDimensions({ w: img.naturalWidth, h: img.naturalHeight });
+  };
+
+  return (
+    <div className="space-y-1">
+      {/* ─── Visuel ─── */}
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="visual" title="Visuel">
+        <div className="space-y-2">
+          {block.content.src && (
+            <div className="relative rounded-xl overflow-hidden border border-border">
+              <img
+                src={block.content.src as string}
+                alt={block.content.alt as string || ''}
+                className="w-full h-32 object-contain bg-muted/30"
+                onLoad={onImgLoad}
+              />
+              <button
+                onClick={() => { updateContent('src', ''); setImgDimensions(null); }}
+                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600 shadow"
+              >
+                ×
+              </button>
+              {imgDimensions && (
+                <div className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/60 text-white text-[10px]">
+                  {imgDimensions.w} × {imgDimensions.h} px
+                </div>
+              )}
+            </div>
+          )}
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" onChange={handleUpload} className="hidden" />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full h-9 rounded-xl border border-dashed border-border text-xs text-muted-foreground hover:bg-accent hover:border-ring transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isUploading ? (
+              <><div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Upload en cours...</>
+            ) : (
+              <><ImageIcon size={14} />{block.content.src ? "Changer l'image" : "Importer une image"}</>
+            )}
+          </button>
+        </div>
+        <div>
+          <Label className="text-xs">URL de l&apos;image</Label>
+          <Input value={block.content.src as string} onChange={(e) => updateContent('src', e.target.value)} className="h-8 text-xs mt-1" placeholder="https://..." />
+        </div>
+        <div>
+          <Label className="text-xs">Texte alternatif</Label>
+          <Input value={block.content.alt as string} onChange={(e) => updateContent('alt', e.target.value)} className="h-8 text-xs mt-1" />
+        </div>
+      </AccordionSection>
+
+      {/* ─── Lien ─── */}
+      {/* ─── Lien ─── */}
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="link" title="Lien">
+        <div>
+          <Label className="text-xs">URL du lien</Label>
+          <Input value={block.content.href as string || ''} onChange={(e) => updateContent('href', e.target.value)} className="h-8 text-xs mt-1" placeholder="https://..." />
+        </div>
+      </AccordionSection>
+
+      {/* ─── Mise en page ─── */}
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="layout" title="Mise en page">
+        <div>
+          <Label className="text-xs">Largeur</Label>
+          <div className="flex items-center gap-2 mt-1">
+            <input
+              type="range"
+              min={10}
+              max={100}
+              value={parseInt(block.styles.width) || 100}
+              onChange={(e) => updateStyle('width', `${e.target.value}%`)}
+              className="flex-1 h-2 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
+            />
+            <span className="text-xs text-muted-foreground w-12 text-right">{parseInt(block.styles.width) || 100}%</span>
+          </div>
+          {imgDimensions && (
+            <p className="text-[10px] text-muted-foreground mt-1">Original : {imgDimensions.w} × {imgDimensions.h} px</p>
+          )}
+        </div>
+        <div>
+          <Label className="text-xs">Alignement du bloc</Label>
+          <div className="flex gap-1 mt-1">
+            {[
+              { v: 'left', l: 'Gauche' },
+              { v: 'center', l: 'Centre' },
+              { v: 'right', l: 'Droite' },
+            ].map((opt) => (
+              <button
+                key={opt.v}
+                onClick={() => updateStyles({ textAlign: opt.v, blockAlign: opt.v })}
+                className={`flex-1 h-8 text-xs rounded-xl border transition-colors ${
+                  (block.styles.textAlign || 'center') === opt.v
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'border-border hover:bg-accent hover:border-ring'
+                }`}
+              >
+                {opt.l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs">Forme</Label>
+          <div className="grid grid-cols-3 gap-1.5 mt-1">
+            {[
+              { v: '0px', l: 'Rectangle', preview: 'rounded-none' },
+              { v: '8px', l: 'Arrondi', preview: 'rounded-lg' },
+              { v: '50%', l: 'Cercle', preview: 'rounded-full' },
+            ].map((opt) => (
+              <button
+                key={opt.v}
+                onClick={() => updateStyle('borderRadius', opt.v)}
+                className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                  (block.styles.borderRadius || '0px') === opt.v
+                    ? 'bg-primary/10 border-primary shadow-sm'
+                    : 'border-border hover:bg-accent hover:border-ring'
+                }`}
+              >
+                <div className={`w-8 h-8 bg-muted-foreground/20 ${opt.preview}`} />
+                <span className="text-[10px] text-muted-foreground">{opt.l}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </AccordionSection>
+
+      {/* ─── Espacement ─── */}
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
+        <div>
+          <Label className="text-xs">Marge intérieure</Label>
+          <select
+            value={block.styles.padding || '10px'}
+            onChange={(e) => updateStyle('padding', e.target.value)}
+            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
+          >
+            <option value="0px">Aucun</option>
+            <option value="4px">Très petit (4px)</option>
+            <option value="8px">Petit (8px)</option>
+            <option value="10px">Normal (10px)</option>
+            <option value="16px">Grand (16px)</option>
+            <option value="24px">Extra (24px)</option>
+          </select>
+        </div>
+      </AccordionSection>
+
+      {/* ─── Bordures ─── */}
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="borders" title="Bordures">
+        <div>
+          <Label className="text-xs">Taille</Label>
+          <NumericInput value={block.styles.borderSize || '0px'} onChange={(v) => updateStyle('borderSize', v)} />
+        </div>
+        <div>
+          <Label className="text-xs">Style</Label>
+          <select
+            value={block.styles.borderStyle || 'solid'}
+            onChange={(e) => updateStyle('borderStyle', e.target.value)}
+            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
+          >
+            <option value="solid">Plein</option>
+            <option value="dashed">Tirets</option>
+            <option value="dotted">Pointillés</option>
+          </select>
+        </div>
+        <ColorPicker label="Couleur" value={block.styles.borderColor || '#e2e8f0'} onChange={(c) => updateStyle('borderColor', c)} />
+      </AccordionSection>
+    </div>
+  );
+}
+
+// ─── YouTube URL helpers ───
+function extractYoutubeId(url: string): string | null {
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+  return match ? match[1] : null;
+}
+
+function getYoutubeThumbnail(videoId: string): string {
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+}
+
+// ─── Video Block Properties ───
+function VideoBlockProperties({
+  block,
+  updateContent,
+  updateStyle,
+}: {
+  block: BlockData;
+  updateContent: (key: string, value: string) => void;
+  updateStyle: (key: string, value: string) => void;
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>('source');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const videoType = (block.content.type as string) || 'upload';
+  const youtubeId = videoType === 'youtube' ? extractYoutubeId(block.content.src as string || '') : null;
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const { media } = await import('@/lib/api');
+      const result = await media.upload(file);
+      updateContent('src', result.url);
+      updateContent('type', 'upload');
+    } catch {
+      console.error('Upload failed');
+    } finally {
+      setIsUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const handleYoutubeUrl = (url: string) => {
+    updateContent('src', url);
+    updateContent('type', 'youtube');
+    const id = extractYoutubeId(url);
+    if (id) {
+      updateContent('cover', getYoutubeThumbnail(id));
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="source" title="Source">
+        {/* Type toggle */}
+        <div>
+          <Label className="text-xs">Type de vidéo</Label>
+          <div className="flex gap-1 mt-1">
+            {[
+              { v: 'upload', l: 'Fichier' },
+              { v: 'youtube', l: 'YouTube' },
+            ].map((opt) => (
+              <button
+                key={opt.v}
+                onClick={() => updateContent('type', opt.v)}
+                className={`flex-1 h-8 text-xs rounded-xl border transition-colors ${
+                  videoType === opt.v ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border hover:bg-accent hover:border-ring'
+                }`}
+              >
+                {opt.l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {videoType === 'upload' ? (
+          <>
+            {block.content.src && (
+              <div className="relative rounded-xl overflow-hidden border border-border bg-black">
+                <video src={block.content.src as string} className="w-full h-32 object-contain" />
+                <button
+                  onClick={() => updateContent('src', '')}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600 shadow"
+                >×</button>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center">
+                    <div className="w-0 h-0 border-l-[10px] border-l-slate-900 border-y-[6px] border-y-transparent ml-1" />
+                  </div>
+                </div>
+              </div>
+            )}
+            <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/ogg" onChange={handleUpload} className="hidden" />
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={isUploading}
+              className="w-full h-9 rounded-xl border border-dashed border-border text-xs text-muted-foreground hover:bg-accent hover:border-ring transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isUploading ? (
+                <><div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Upload...</>
+              ) : (
+                <>{block.content.src ? 'Changer la vidéo' : 'Importer une vidéo'}</>
+              )}
+            </button>
+          </>
+        ) : (
+          <>
+            <div>
+              <Label className="text-xs">URL YouTube</Label>
+              <Input
+                value={block.content.src as string || ''}
+                onChange={(e) => handleYoutubeUrl(e.target.value)}
+                className="h-8 text-xs mt-1"
+                placeholder="https://youtube.com/watch?v=..."
+              />
+            </div>
+            {youtubeId && (
+              <div className="relative rounded-xl overflow-hidden border border-border">
+                <img src={getYoutubeThumbnail(youtubeId)} alt="YouTube thumbnail" className="w-full h-32 object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-12 h-8 rounded-lg bg-red-600 flex items-center justify-center">
+                    <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[5px] border-y-transparent ml-0.5" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Cover image */}
+        {videoType === 'upload' && (
+          <div>
+            <Label className="text-xs">Image de couverture (URL)</Label>
+            <Input value={block.content.cover as string || ''} onChange={(e) => updateContent('cover', e.target.value)} className="h-8 text-xs mt-1" placeholder="https://..." />
+          </div>
+        )}
+      </AccordionSection>
+
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="layout" title="Mise en page">
+        <div>
+          <Label className="text-xs">Largeur</Label>
+          <select
+            value={block.styles.width || '100%'}
+            onChange={(e) => updateStyle('width', e.target.value)}
+            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
+          >
+            <option value="50%">50%</option>
+            <option value="75%">75%</option>
+            <option value="100%">100%</option>
+          </select>
+        </div>
+        <AlignmentSelector label="Alignement" value={block.styles.textAlign || 'center'} onChange={(v) => updateStyle('textAlign', v)} />
+        <div>
+          <Label className="text-xs">Angles arrondis</Label>
+          <select
+            value={block.styles.borderRadius || '0px'}
+            onChange={(e) => updateStyle('borderRadius', e.target.value)}
+            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
+          >
+            <option value="0px">Carré</option>
+            <option value="8px">Arrondi (8px)</option>
+            <option value="16px">Grand (16px)</option>
+          </select>
+        </div>
+      </AccordionSection>
+
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
+        <div>
+          <Label className="text-xs">Marge intérieure</Label>
+          <select
+            value={block.styles.padding || '10px'}
+            onChange={(e) => updateStyle('padding', e.target.value)}
+            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
+          >
+            <option value="0px">Aucun</option>
+            <option value="10px">Normal (10px)</option>
+            <option value="16px">Grand (16px)</option>
+            <option value="24px">Extra (24px)</option>
+          </select>
+        </div>
+      </AccordionSection>
+    </div>
+  );
+}
+
 function BlockProperties({
   block,
   onUpdate,
@@ -973,25 +1430,11 @@ function BlockProperties({
       )}
 
       {block.type === 'image' && (
-        <>
-          <div>
-            <Label className="text-xs">URL de l&apos;image</Label>
-            <Input
-              value={block.content.src as string}
-              onChange={(e) => updateContent('src', e.target.value)}
-              className="h-8 text-xs mt-1"
-              placeholder="https://..."
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Texte alternatif</Label>
-            <Input
-              value={block.content.alt as string}
-              onChange={(e) => updateContent('alt', e.target.value)}
-              className="h-8 text-xs mt-1"
-            />
-          </div>
-        </>
+        <ImageBlockProperties block={block} updateContent={updateContent} updateStyle={updateStyle} updateStyles={updateStyles} />
+      )}
+
+      {block.type === 'video' && (
+        <VideoBlockProperties block={block} updateContent={updateContent} updateStyle={updateStyle} />
       )}
 
       {isHeadingOrText && (
