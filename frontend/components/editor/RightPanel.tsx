@@ -1938,7 +1938,8 @@ function BlockProperties({
         </div>
       )}
 
-      {/* Spacing (all blocks) */}
+      {/* Spacing — only for blocks without dedicated spacing (button) */}
+      {block.type === 'button' && (
       <div className="pt-2 border-t border-border space-y-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase">Espacement</h4>
         <StyledSelect
@@ -1960,6 +1961,7 @@ function BlockProperties({
           ]}
         />
       </div>
+      )}
     </div>
   );
 }

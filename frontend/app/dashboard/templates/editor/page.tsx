@@ -236,6 +236,8 @@ function EditorContent() {
         onRedo={editorState.redo}
         canUndo={editorState.canUndo}
         canRedo={editorState.canRedo}
+        selectedBlock={editorState.getSelectedBlock()}
+        onUpdateBlock={editorState.updateBlock}
       />
 
       <div className="flex flex-1 overflow-hidden">

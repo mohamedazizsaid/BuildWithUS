@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, GripVertical, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Smile, Copy } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Copy } from 'lucide-react';
 import { TemplateData, BlockData, Row, Column, RowLayout, LAYOUT_OPTIONS, GlobalStyles } from '@/lib/editor-types';
 
 interface CanvasProps {
@@ -22,20 +22,6 @@ interface CanvasProps {
   onDropBlockToCanvas: (blockType: string) => void;
 }
 
-const EMOJI_CATEGORIES: { icon: string; name: string; emojis: string[] }[] = [
-  { icon: '😀', name: 'Smileys', emojis: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😏','🥳'] },
-  { icon: '👋', name: 'People', emojis: ['👋','🤚','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','💪'] },
-  { icon: '🐶', name: 'Nature', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🐺','🐗','🐴','🦋','🐛','🐝','🐞','🌸'] },
-  { icon: '🍕', name: 'Food', emojis: ['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🥑','🍕','🍔','🍟','🌭','🍿','🥤','☕','🍩','🍰','🧁','🍫','🍪','🍬'] },
-  { icon: '✈️', name: 'Travel', emojis: ['✈️','🚀','🚗','🚕','🚌','🚎','🏎️','🚓','🚑','🚒','🛸','🚁','⛵','🚢','🏠','🏢','🏰','🗼','🗽','⛪','🕌','🕍','⛩️','🌍','🌎','🌏','🗺️','🧭','🏔️','🌋'] },
-  { icon: '⚽', name: 'Sports', emojis: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🏒','🥊','🥋','🎯','⛳','🥅','🎿','🛷','🏂','🏋️','🤸','🤼','🤽','🚴','🏇','🧗','🤺','🏊'] },
-  { icon: '💡', name: 'Objets', emojis: ['💡','🔦','🕯️','📱','💻','⌨️','🖥️','🖨️','📷','📹','🎥','📺','📻','🎙️','🎧','🔔','📣','📢','🔑','🗝️','🔒','🔓','📦','📫','📬','📮','📝','📄','📋','📌'] },
-  { icon: '💬', name: 'Symboles', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❣️','💕','💞','💓','💗','💖','💘','💝','✅','❌','⭐','💯','❗','❓','⁉️','‼️','⚡','♻️','🔴'] },
-  { icon: '🎉', name: 'Fêtes', emojis: ['🎉','🎊','🎈','🎂','🎁','🎀','🪅','🎆','🎇','✨','🎍','🎎','🎏','🎐','🎑','🧨','🎄','🎋','🎃','👻','🎅','🤶','🧑‍🎄','🦌','🍾','🥂','🥳','🪩','🎭','🎪'] },
-  { icon: '🔥', name: 'Tendance', emojis: ['🔥','💯','✨','🚀','💎','👑','🏆','🥇','⚡','💥','🌟','🎯','💪','🙌','👏','🤝','💰','📈','🧠','💡','🎉','❤️‍🔥','🦄','🌈','☀️','🌙','⭐','🔥','✅','💫'] },
-  { icon: '❤️', name: 'Coeurs', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','❣️','💕','💞','💓','💗','💖','💘','💝','💟','💌','💑','💏','👩‍❤️‍👨','💒','🫶','🥰','😍','😘'] },
-  { icon: '🌙', name: 'Ciel', emojis: ['🌙','⭐','🌟','✨','💫','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌪️','🌈','❄️','☃️','⛄','🌊','💧','💦','🌬️','🔥','🌠','🌌','🪐','🌑','🌒','🌕'] },
-];
 
 function resolvePadding(styles: Record<string, string>) {
   if (styles.padding) return styles.padding;
@@ -292,164 +278,6 @@ export default function Canvas({
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── Floating Toolbar ───
-// ─── Swipeable Emoji Picker ───
-function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void }) {
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [touchStartX, setTouchStartX] = useState(0);
-  const cat = EMOJI_CATEGORIES[activeIdx];
-
-  const prev = () => setActiveIdx((i) => Math.max(0, i - 1));
-  const next = () => setActiveIdx((i) => Math.min(EMOJI_CATEGORIES.length - 1, i + 1));
-
-  return (
-    <div
-      className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-[320px] h-[290px] rounded-2xl border border-white/10 bg-slate-900 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden select-none"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Category tabs */}
-      <div className="flex gap-0.5 px-2 pt-2 pb-1 overflow-x-auto no-scrollbar">
-        {EMOJI_CATEGORIES.map((c, i) => (
-          <button
-            key={c.name}
-            onClick={() => setActiveIdx(i)}
-            className={`flex-shrink-0 w-7 h-7 rounded-lg text-sm flex items-center justify-center transition-all ${
-              i === activeIdx ? 'bg-white/20 scale-110' : 'hover:bg-white/10'
-            }`}
-            title={c.name}
-          >
-            {c.icon}
-          </button>
-        ))}
-      </div>
-
-      {/* Category name */}
-      <div className="px-3 py-1">
-        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">{cat.name}</p>
-      </div>
-
-      {/* Emoji grid — swipeable */}
-      <div
-        className="px-3 pb-2"
-        onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
-        onTouchEnd={(e) => {
-          const diff = touchStartX - e.changedTouches[0].clientX;
-          if (diff > 50) next();
-          else if (diff < -50) prev();
-        }}
-      >
-        <div className="grid grid-cols-6 gap-1">
-          {cat.emojis.map((emoji, i) => (
-            <button
-              key={`${emoji}-${i}`}
-              onClick={() => onSelect(emoji)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[22px] hover:bg-white/10 hover:scale-125 transition-all cursor-pointer"
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Navigation arrows + dots */}
-      <div className="flex items-center justify-between px-3 pb-2">
-        <button onClick={prev} className={`text-white/40 hover:text-white text-xs transition-colors ${activeIdx === 0 ? 'invisible' : ''}`}>←</button>
-        <div className="flex gap-1">
-          {EMOJI_CATEGORIES.map((_, i) => (
-            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === activeIdx ? 'bg-white w-3' : 'bg-white/20'}`} />
-          ))}
-        </div>
-        <button onClick={next} className={`text-white/40 hover:text-white text-xs transition-colors ${activeIdx === EMOJI_CATEGORIES.length - 1 ? 'invisible' : ''}`}>→</button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Toolbar Button ───
-function ToolBtn({ active, onClick, children }: { active?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-        active ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white hover:bg-white/10'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-// ─── Floating Toolbar ───
-function FloatingToolbar({
-  block,
-  onUpdate,
-}: {
-  block: BlockData;
-  onUpdate: (updates: Partial<BlockData>) => void;
-}) {
-  const [showEmoji, setShowEmoji] = useState(false);
-  const [showLink, setShowLink] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
-  const isBold = block.styles.fontWeight === 'bold';
-  const isItalic = block.styles.fontStyle === 'italic';
-  const isUnderline = block.styles.textDecoration === 'underline';
-
-  const toggleStyle = (key: string, onValue: string, offValue: string) => {
-    const current = block.styles[key];
-    onUpdate({ styles: { ...block.styles, [key]: current === onValue ? offValue : onValue } });
-  };
-
-  const insertEmoji = (emoji: string) => {
-    const text = (block.content.text as string) || '';
-    onUpdate({ content: { ...block.content, text: text + emoji } });
-    setShowEmoji(false);
-  };
-
-  const applyLink = () => {
-    if (linkUrl) {
-      onUpdate({ content: { ...block.content, href: linkUrl } });
-      onUpdate({ styles: { ...block.styles, textDecoration: 'underline', color: '#2563eb' } });
-    }
-    setShowLink(false);
-    setLinkUrl('');
-  };
-
-  return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center gap-0.5 bg-slate-900/95 backdrop-blur-sm rounded-xl px-1.5 py-1 shadow-[0_8px_24px_rgba(0,0,0,0.25)] border border-white/10">
-        <ToolBtn active={isBold} onClick={() => toggleStyle('fontWeight', 'bold', 'normal')}><Bold size={14} /></ToolBtn>
-        <ToolBtn active={isItalic} onClick={() => toggleStyle('fontStyle', 'italic', 'normal')}><Italic size={14} /></ToolBtn>
-        <ToolBtn active={isUnderline} onClick={() => toggleStyle('textDecoration', 'underline', 'none')}><Underline size={14} /></ToolBtn>
-        <div className="w-px h-5 bg-white/10 mx-1" />
-        <ToolBtn active={block.styles.textAlign === 'left'} onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'left' } })}><AlignLeft size={14} /></ToolBtn>
-        <ToolBtn active={block.styles.textAlign === 'center'} onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'center' } })}><AlignCenter size={14} /></ToolBtn>
-        <ToolBtn active={block.styles.textAlign === 'right'} onClick={() => onUpdate({ styles: { ...block.styles, textAlign: 'right' } })}><AlignRight size={14} /></ToolBtn>
-        <div className="w-px h-5 bg-white/10 mx-1" />
-        <ToolBtn active={showLink} onClick={() => { setShowLink(!showLink); setShowEmoji(false); }}><Link2 size={14} /></ToolBtn>
-        <ToolBtn active={showEmoji} onClick={() => { setShowEmoji(!showEmoji); setShowLink(false); }}><Smile size={14} /></ToolBtn>
-      </div>
-
-      {showEmoji && <EmojiPicker onSelect={insertEmoji} />}
-
-      {showLink && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-900/95 backdrop-blur-sm rounded-xl border border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.25)] p-3 z-50 flex gap-2">
-          <input
-            type="text"
-            value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            placeholder="https://..."
-            className="text-xs bg-white/10 text-white border border-white/10 rounded-lg px-3 py-1.5 w-52 focus:outline-none focus:ring-1 focus:ring-white/30 placeholder:text-white/30"
-            onKeyDown={(e) => { if (e.key === 'Enter') applyLink(); }}
-          />
-          <button onClick={applyLink} className="text-xs bg-white/20 text-white px-3 py-1.5 rounded-lg hover:bg-white/30 transition-colors">
-            OK
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -737,7 +565,6 @@ function CanvasBlock({
               {block.content.text as string}
             </div>
           )}
-          <FloatingToolbar block={block} onUpdate={onUpdate} />
         </>
       ) : (
         renderBlock(block, globalStyles)
