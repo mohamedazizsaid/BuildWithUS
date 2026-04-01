@@ -410,13 +410,25 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
   const letterSpacing = block.styles.letterSpacing || '0px';
 
   switch (block.type) {
-    case "heading": {
-      const hBg = block.styles.backgroundColor ? ` container-background-color="${block.styles.backgroundColor}"` : '';
-      return `        <mj-text font-size="${fontSize}" font-weight="${fontWeight}" color="${color}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${fontFamily}" line-height="${lineHeight}" letter-spacing="${letterSpacing}"${hBg}>${block.content.text}</mj-text>\n`;
-    }
+    case "heading":
     case "text": {
-      const tBg = block.styles.backgroundColor ? ` container-background-color="${block.styles.backgroundColor}"` : '';
-      return `        <mj-text font-size="${fontSize}" font-weight="${fontWeight}" color="${color}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${fontFamily}" line-height="${lineHeight}" letter-spacing="${letterSpacing}"${tBg}>${block.content.text}</mj-text>\n`;
+      const bg = block.styles.backgroundColor ? ` container-background-color="${block.styles.backgroundColor}"` : '';
+      const isItalic = block.styles.fontStyle === 'italic';
+      const isUnderline = block.styles.textDecoration === 'underline';
+      let textContent = block.content.text as string;
+      // Wrap with inline styles for italic/underline since MJML doesn't support these as attributes
+      if (isItalic || isUnderline) {
+        const inlineStyles: string[] = [];
+        if (isItalic) inlineStyles.push('font-style:italic');
+        if (isUnderline) inlineStyles.push('text-decoration:underline');
+        textContent = `<span style="${inlineStyles.join(';')}">${textContent}</span>`;
+      }
+      // Store fontStyle and textDecoration as css-class markers for the parser
+      const markers: string[] = [];
+      if (isItalic) markers.push('italic');
+      if (isUnderline) markers.push('underline');
+      const cssClass = markers.length > 0 ? ` css-class="${markers.join(' ')}"` : '';
+      return `        <mj-text font-size="${fontSize}" font-weight="${fontWeight}" color="${color}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${fontFamily}" line-height="${lineHeight}" letter-spacing="${letterSpacing}"${bg}${cssClass}>${textContent}</mj-text>\n`;
     }
     case "image": {
       const imgBr = block.styles.borderRadius || '0px';
@@ -435,17 +447,28 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
       const btnRadius = block.styles.borderRadius || g.btnBorderRadius;
       const btnFamily = block.styles.fontFamily || g.btnFontFamily;
       const btnWeight = block.styles.fontWeight || g.btnFontWeight;
-      return `        <mj-button background-color="${btnBg}" color="${btnColor}" font-size="${btnSize}" font-weight="${btnWeight}" font-family="${btnFamily}" border-radius="${btnRadius}" href="${block.content.href}" padding="${block.styles.padding}" align="${block.styles.textAlign}">${block.content.text}</mj-button>\n`;
+      const btnBorderSize = block.styles.borderSize || g.btnBorderSize || '0px';
+      const btnBorderColor = block.styles.borderColor || g.btnBorderColor || 'transparent';
+      const btnBorder = btnBorderSize !== '0px' ? ` border="${btnBorderSize} solid ${btnBorderColor}"` : '';
+      const btnLh = block.styles.lineHeight || g.lineHeight;
+      const btnLs = block.styles.letterSpacing || '0px';
+      return `        <mj-button background-color="${btnBg}" color="${btnColor}" font-size="${btnSize}" font-weight="${btnWeight}" font-family="${btnFamily}" border-radius="${btnRadius}" href="${block.content.href}" padding="${block.styles.padding}" align="${block.styles.textAlign}" line-height="${btnLh}" letter-spacing="${btnLs}"${btnBorder}>${block.content.text}</mj-button>\n`;
     }
-    case "divider":
-      return `        <mj-divider border-color="${block.styles.borderColor}" border-width="${block.styles.borderWidth}" padding="${block.styles.padding}" />\n`;
+    case "divider": {
+      const divStyle = block.styles.borderStyle || 'solid';
+      const divWidth = block.styles.width || '100%';
+      const divAlign = block.styles.textAlign || 'center';
+      return `        <mj-divider border-color="${block.styles.borderColor || '#e2e8f0'}" border-width="${block.styles.borderWidth || '1px'}" border-style="${divStyle}" width="${divWidth}" align="${divAlign}" padding="${block.styles.padding || '10px 0'}" />\n`;
+    }
     case "table": {
-      const headers = (block.content.headers || []) as string[];
-      const rows = (block.content.rows || []) as string[][];
-      let table = `        <mj-table font-size="${fontSize}" color="${color}" padding="${block.styles.padding}">`;
-      table += `<tr>${headers.map((h: string) => `<th style="border:1px solid #ddd;padding:8px;background:#f1f5f9">${h}</th>`).join("")}</tr>`;
-      for (const row of rows) {
-        table += `<tr>${row.map((c: string) => `<td style="border:1px solid #ddd;padding:8px">${c}</td>`).join("")}</tr>`;
+      const tHeaders = (block.content.headers || []) as string[];
+      const tRows = (block.content.rows || []) as string[][];
+      const tBorderColor = block.styles.tableBorderColor || '#dddddd';
+      const tHeaderBg = block.styles.headerBg || '#f1f5f9';
+      let table = `        <mj-table font-size="${fontSize}" color="${color}" padding="${block.styles.padding}" css-class="tb:${tBorderColor}:${tHeaderBg}">`;
+      table += `<tr>${tHeaders.map((h: string) => `<th style="border:1px solid ${tBorderColor};padding:8px;background:${tHeaderBg}">${h}</th>`).join("")}</tr>`;
+      for (const row of tRows) {
+        table += `<tr>${row.map((c: string) => `<td style="border:1px solid ${tBorderColor};padding:8px">${c}</td>`).join("")}</tr>`;
       }
       table += `</mj-table>\n`;
       return table;
@@ -469,8 +492,15 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
       }
       return '';
     }
-    case "signature":
-      return `        <mj-text padding="${block.styles.padding}" font-size="${fontSize}" color="${color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></mj-text>\n`;
+    case "signature": {
+      const sigLineColor = block.styles.lineColor || '#000000';
+      const sigLineWidth = block.styles.lineWidth || '200px';
+      const sigAlign = block.styles.textAlign || 'left';
+      const sigEmail = block.content.email ? `<p style="margin:2px 0 0;opacity:0.6;font-size:0.8em">${block.content.email}</p>` : '';
+      const sigPhone = block.content.phone ? `<p style="margin:2px 0 0;opacity:0.6;font-size:0.8em">${block.content.phone}</p>` : '';
+      const sigTitle = block.content.title ? `<p style="margin:2px 0 0;opacity:0.7;font-size:0.85em">${block.content.title}</p>` : '';
+      return `        <mj-text padding="${block.styles.padding}" font-size="${fontSize}" color="${color}" align="${sigAlign}" css-class="sig:${sigLineColor}:${sigLineWidth}"><div style="border-top:1px solid ${sigLineColor};width:${sigLineWidth};margin-bottom:8px;${sigAlign === 'center' ? 'margin-left:auto;margin-right:auto' : sigAlign === 'right' ? 'margin-left:auto' : ''}"></div><p style="margin:0;font-weight:bold">${block.content.name}</p>${sigTitle}${sigEmail}${sigPhone}</mj-text>\n`;
+    }
     default:
       return "";
   }
@@ -518,13 +548,12 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
   const letterSpacing = block.styles.letterSpacing || "0px";
 
   switch (block.type) {
-    case "heading": {
-      const hBg = block.styles.backgroundColor ? `background-color:${block.styles.backgroundColor};` : '';
-      return `<div style="${hBg}font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
-    }
+    case "heading":
     case "text": {
-      const tBg = block.styles.backgroundColor ? `background-color:${block.styles.backgroundColor};` : '';
-      return `<div style="${tBg}font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
+      const txtBg = block.styles.backgroundColor ? `background-color:${block.styles.backgroundColor};` : '';
+      const txtItalic = block.styles.fontStyle === 'italic' ? 'font-style:italic;' : '';
+      const txtUnderline = block.styles.textDecoration === 'underline' ? 'text-decoration:underline;' : '';
+      return `<div style="${txtBg}${txtItalic}${txtUnderline}font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
     }
     case "image": {
       const pBr = block.styles.borderRadius || '0px';
@@ -667,26 +696,53 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
     const padding = el.getAttribute("padding") || "10px";
     const text = el.textContent || "";
 
-    // Detect signature by content pattern
-    if (el.innerHTML.includes("border-top:1px solid")) {
+    // Detect signature by content pattern or css-class marker
+    const sigCssClass = el.getAttribute("css-class") || "";
+    if (el.innerHTML.includes("border-top:1px solid") || sigCssClass.startsWith("sig:")) {
       const nameMatch = el.innerHTML.match(/font-weight:bold">(.*?)<\/p>/);
-      const titleMatch = el.innerHTML.match(/color:#64748b">(.*?)<\/p>/);
+      const titleMatch = el.innerHTML.match(/font-size:0\.85em">(.*?)<\/p>/);
+      // Extract 0.8em matches for email and phone
+      const smallMatches = [...el.innerHTML.matchAll(/font-size:0\.8em">(.*?)<\/p>/g)];
+      const sigAlign = el.getAttribute("align") || "left";
+      // Parse sig:lineColor:lineWidth from css-class
+      const sigMarker = sigCssClass.match(/^sig:(#[0-9a-fA-F]{6}):(.+)$/);
       return {
         id,
         type: "signature",
-        content: { name: nameMatch?.[1] || "", title: titleMatch?.[1] || "" },
-        styles: { fontSize, color, padding },
+        content: {
+          name: nameMatch?.[1] || "",
+          title: titleMatch?.[1] || "",
+          email: smallMatches[0]?.[1] || "",
+          phone: smallMatches[1]?.[1] || "",
+        },
+        styles: {
+          fontSize, color, padding,
+          textAlign: sigAlign,
+          lineColor: sigMarker ? sigMarker[1] : "#000000",
+          lineWidth: sigMarker ? sigMarker[2] : "200px",
+        },
       };
     }
 
     // Heading = has font-weight bold + larger intent
     const isHeading = fontWeight === "bold" || fontWeight === "700";
     const bgColor = el.getAttribute("container-background-color") || "";
+    const cssClass = el.getAttribute("css-class") || "";
+    const fontStyle = cssClass.includes("italic") ? "italic" : "normal";
+    const textDecoration = cssClass.includes("underline") ? "underline" : "none";
+    // Strip the <span style="..."> wrapper if present
+    const cleanText = text.replace(/<span style="[^"]*">(.*?)<\/span>/g, '$1') || text;
     return {
       id,
       type: isHeading ? "heading" : "text",
-      content: { text },
-      styles: { fontSize, fontWeight, color, textAlign: align, padding, backgroundColor: bgColor },
+      content: { text: cleanText },
+      styles: {
+        fontSize, fontWeight, fontStyle, textDecoration, color,
+        textAlign: align, padding, backgroundColor: bgColor,
+        fontFamily: el.getAttribute("font-family") || "",
+        lineHeight: el.getAttribute("line-height") || "",
+        letterSpacing: el.getAttribute("letter-spacing") || "",
+      },
     };
   }
 
@@ -728,6 +784,8 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
   }
 
   if (tag === "mj-button") {
+    const btnBorderAttr = el.getAttribute("border") || "";
+    const btnBorderParts = parseBorderAttr(btnBorderAttr);
     return {
       id,
       type: "button",
@@ -739,13 +797,14 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
         backgroundColor: el.getAttribute("background-color") || "",
         color: el.getAttribute("color") || "",
         fontSize: el.getAttribute("font-size") || "",
+        fontWeight: el.getAttribute("font-weight") || "",
+        fontFamily: el.getAttribute("font-family") || "",
         borderRadius: el.getAttribute("border-radius") || "",
         padding: el.getAttribute("padding") || "12px 24px",
         textAlign: el.getAttribute("align") || "center",
-        fontFamily: "",
-        fontWeight: "",
-        borderSize: "",
-        borderColor: "",
+        lineHeight: el.getAttribute("line-height") || "",
+        letterSpacing: el.getAttribute("letter-spacing") || "",
+        ...btnBorderParts,
       },
     };
   }
@@ -758,6 +817,9 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
       styles: {
         borderColor: el.getAttribute("border-color") || "#e2e8f0",
         borderWidth: el.getAttribute("border-width") || "1px",
+        borderStyle: el.getAttribute("border-style") || "solid",
+        width: el.getAttribute("width") || "100%",
+        textAlign: el.getAttribute("align") || "center",
         padding: el.getAttribute("padding") || "10px 0",
       },
     };
@@ -787,6 +849,9 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
       if (cells.length) rows.push(cells);
     }
 
+    // Parse table colors from css-class marker "tb:borderColor:headerBg"
+    const tbClass = el.getAttribute("css-class") || "";
+    const tbMatch = tbClass.match(/^tb:(#[0-9a-fA-F]{6}):(#[0-9a-fA-F]{6})$/);
     return {
       id,
       type: "table",
@@ -795,6 +860,8 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
         fontSize: el.getAttribute("font-size") || "",
         color: el.getAttribute("color") || "",
         padding: el.getAttribute("padding") || "10px",
+        tableBorderColor: tbMatch ? tbMatch[1] : "#dddddd",
+        headerBg: tbMatch ? tbMatch[2] : "#f1f5f9",
       },
     };
   }
