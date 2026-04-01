@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/context/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -11,6 +11,9 @@ import Navbar from '@/components/dashboard/Navbar';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isEditorPage = pathname?.startsWith('/dashboard/templates/editor');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -27,6 +30,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!user) return null;
+
+  // Editor page: full screen, no sidebar/navbar
+  if (isEditorPage) {
+    return (
+      <div className="h-screen overflow-hidden">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>

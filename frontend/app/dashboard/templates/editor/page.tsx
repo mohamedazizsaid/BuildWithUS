@@ -209,7 +209,7 @@ function EditorContent() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] -m-6">
+      <div className="flex flex-col items-center justify-center h-screen">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
         <p className="text-sm text-muted-foreground">Chargement du modèle...</p>
       </div>
@@ -217,7 +217,7 @@ function EditorContent() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] -m-6 overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden">
       {/* Toolbar */}
       <EditorToolbar
         templateName={templateName}
@@ -339,6 +339,15 @@ function EditorContent() {
                 theme={isDark ? "vs-dark" : "vs-light"}
                 value={codeValue}
                 onChange={(val) => { setCodeValue(val || ""); setCodeWasEdited(true); }}
+                onMount={(editor) => {
+                  // Suppress Firefox Monaco hit-test bug
+                  const origError = console.error;
+                  console.error = (...args) => {
+                    if (typeof args[0] === 'string' && args[0].includes('offsetNode')) return;
+                    origError.apply(console, args);
+                  };
+                  editor.onDidDispose(() => { console.error = origError; });
+                }}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 13,

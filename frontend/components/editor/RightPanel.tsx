@@ -590,20 +590,18 @@ function CorpsPanel({
         <ColorPicker label="Couleur du texte" value={globalStyles.textColor} onChange={(c) => onUpdateGlobalStyles({ textColor: c })} />
 
         <SectionHeader>Paramètres du texte</SectionHeader>
-        <div>
-          <Label className="text-xs">Interlignage</Label>
-          <select
-            value={globalStyles.lineHeight}
-            onChange={(e) => onUpdateGlobalStyles({ lineHeight: e.target.value })}
-            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="1">1 (serré)</option>
-            <option value="1.25">1.25</option>
-            <option value="1.5">1.5 (normal)</option>
-            <option value="1.75">1.75</option>
-            <option value="2">2 (aéré)</option>
-          </select>
-        </div>
+        <StyledSelect
+          label="Interlignage"
+          value={globalStyles.lineHeight}
+          onChange={(v) => onUpdateGlobalStyles({ lineHeight: v })}
+          options={[
+            { value: '1', label: '1 (serré)' },
+            { value: '1.25', label: '1.25' },
+            { value: '1.5', label: '1.5 (normal)' },
+            { value: '1.75', label: '1.75' },
+            { value: '2', label: '2 (aéré)' },
+          ]}
+        />
         <div>
           <Label className="text-xs">Sens de l&apos;écriture</Label>
           <div className="flex gap-1 mt-1">
@@ -908,47 +906,88 @@ function AlignmentSelector({ value, onChange, label = 'Alignement' }: { value: s
   );
 }
 
+// ─── Styled Select (custom dropdown, replaces native <select>) ───
+function StyledSelect({ value, onChange, options, label, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  label?: string;
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const current = options.find(o => o.value === value);
+
+  return (
+    <div>
+      {label && <Label className="text-xs">{label}</Label>}
+      <div className="relative mt-1">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full h-9 rounded-xl border border-border bg-background text-xs px-3 text-left flex items-center justify-between shadow-sm hover:border-ring transition-all"
+        >
+          <span className="truncate">{current?.label || placeholder || value}</span>
+          <span className="text-muted-foreground ml-1 text-[10px]">▾</span>
+        </button>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <div className="absolute top-10 left-0 z-50 w-full max-h-52 overflow-y-auto rounded-xl border border-border bg-popover shadow-[0_8px_24px_rgba(0,0,0,0.12)] py-1">
+              {options.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-accent transition-colors ${
+                    value === opt.value ? 'bg-accent font-medium' : ''
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Line Height Selector ───
 function LineHeightSelector({ value, onChange, label = 'Interlignage' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
-    <div>
-      <Label className="text-xs">{label}</Label>
-      <select
-        value={value || '1.5'}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-      >
-        <option value="1">1 (serré)</option>
-        <option value="1.25">1.25</option>
-        <option value="1.5">1.5 (normal)</option>
-        <option value="1.75">1.75</option>
-        <option value="2">2 (aéré)</option>
-        <option value="2.5">2.5</option>
-      </select>
-    </div>
+    <StyledSelect
+      label={label}
+      value={value || '1.5'}
+      onChange={onChange}
+      options={[
+        { value: '1', label: '1 (serré)' },
+        { value: '1.25', label: '1.25' },
+        { value: '1.5', label: '1.5 (normal)' },
+        { value: '1.75', label: '1.75' },
+        { value: '2', label: '2 (aéré)' },
+        { value: '2.5', label: '2.5' },
+      ]}
+    />
   );
 }
 
 // ─── Letter Spacing Selector ───
 function LetterSpacingSelector({ value, onChange, label = 'Espacement des lettres' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
-    <div>
-      <Label className="text-xs">{label}</Label>
-      <select
-        value={value || '0px'}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-      >
-        <option value="-1px">-1px (serré)</option>
-        <option value="-0.5px">-0.5px</option>
-        <option value="0px">0px (normal)</option>
-        <option value="0.5px">0.5px</option>
-        <option value="1px">1px</option>
-        <option value="2px">2px</option>
-        <option value="3px">3px (large)</option>
-        <option value="5px">5px</option>
-      </select>
-    </div>
+    <StyledSelect
+      label={label}
+      value={value || '0px'}
+      onChange={onChange}
+      options={[
+        { value: '-1px', label: '-1px (serré)' },
+        { value: '-0.5px', label: '-0.5px' },
+        { value: '0px', label: '0px (normal)' },
+        { value: '0.5px', label: '0.5px' },
+        { value: '1px', label: '1px' },
+        { value: '2px', label: '2px' },
+        { value: '3px', label: '3px (large)' },
+        { value: '5px', label: '5px' },
+      ]}
+    />
   );
 }
 
@@ -1139,21 +1178,19 @@ function ImageBlockProperties({
 
       {/* ─── Espacement ─── */}
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
-        <div>
-          <Label className="text-xs">Marge intérieure</Label>
-          <select
-            value={block.styles.padding || '10px'}
-            onChange={(e) => updateStyle('padding', e.target.value)}
-            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="0px">Aucun</option>
-            <option value="4px">Très petit (4px)</option>
-            <option value="8px">Petit (8px)</option>
-            <option value="10px">Normal (10px)</option>
-            <option value="16px">Grand (16px)</option>
-            <option value="24px">Extra (24px)</option>
-          </select>
-        </div>
+        <StyledSelect
+          label="Marge intérieure"
+          value={block.styles.padding || '10px'}
+          onChange={(v) => updateStyle('padding', v)}
+          options={[
+            { value: '0px', label: 'Aucun' },
+            { value: '4px', label: 'Très petit (4px)' },
+            { value: '8px', label: 'Petit (8px)' },
+            { value: '10px', label: 'Normal (10px)' },
+            { value: '16px', label: 'Grand (16px)' },
+            { value: '24px', label: 'Extra (24px)' },
+          ]}
+        />
       </AccordionSection>
 
       {/* ─── Bordures ─── */}
@@ -1162,18 +1199,16 @@ function ImageBlockProperties({
           <Label className="text-xs">Taille</Label>
           <NumericInput value={block.styles.borderSize || '0px'} onChange={(v) => updateStyle('borderSize', v)} />
         </div>
-        <div>
-          <Label className="text-xs">Style</Label>
-          <select
-            value={block.styles.borderStyle || 'solid'}
-            onChange={(e) => updateStyle('borderStyle', e.target.value)}
-            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="solid">Plein</option>
-            <option value="dashed">Tirets</option>
-            <option value="dotted">Pointillés</option>
-          </select>
-        </div>
+        <StyledSelect
+          label="Style"
+          value={block.styles.borderStyle || 'solid'}
+          onChange={(v) => updateStyle('borderStyle', v)}
+          options={[
+            { value: 'solid', label: 'Plein' },
+            { value: 'dashed', label: 'Tirets' },
+            { value: 'dotted', label: 'Pointillés' },
+          ]}
+        />
         <ColorPicker label="Couleur" value={block.styles.borderColor || '#e2e8f0'} onChange={(c) => updateStyle('borderColor', c)} />
       </AccordionSection>
     </div>
@@ -1333,47 +1368,41 @@ function VideoBlockProperties({
       </AccordionSection>
 
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="layout" title="Mise en page">
-        <div>
-          <Label className="text-xs">Largeur</Label>
-          <select
-            value={block.styles.width || '100%'}
-            onChange={(e) => updateStyle('width', e.target.value)}
-            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="50%">50%</option>
-            <option value="75%">75%</option>
-            <option value="100%">100%</option>
-          </select>
-        </div>
+        <StyledSelect
+          label="Largeur"
+          value={block.styles.width || '100%'}
+          onChange={(v) => updateStyle('width', v)}
+          options={[
+            { value: '50%', label: '50%' },
+            { value: '75%', label: '75%' },
+            { value: '100%', label: '100%' },
+          ]}
+        />
         <AlignmentSelector label="Alignement" value={block.styles.textAlign || 'center'} onChange={(v) => updateStyle('textAlign', v)} />
-        <div>
-          <Label className="text-xs">Angles arrondis</Label>
-          <select
-            value={block.styles.borderRadius || '0px'}
-            onChange={(e) => updateStyle('borderRadius', e.target.value)}
-            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="0px">Carré</option>
-            <option value="8px">Arrondi (8px)</option>
-            <option value="16px">Grand (16px)</option>
-          </select>
-        </div>
+        <StyledSelect
+          label="Angles arrondis"
+          value={block.styles.borderRadius || '0px'}
+          onChange={(v) => updateStyle('borderRadius', v)}
+          options={[
+            { value: '0px', label: 'Carré' },
+            { value: '8px', label: 'Arrondi (8px)' },
+            { value: '16px', label: 'Grand (16px)' },
+          ]}
+        />
       </AccordionSection>
 
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
-        <div>
-          <Label className="text-xs">Marge intérieure</Label>
-          <select
-            value={block.styles.padding || '10px'}
-            onChange={(e) => updateStyle('padding', e.target.value)}
-            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="0px">Aucun</option>
-            <option value="10px">Normal (10px)</option>
-            <option value="16px">Grand (16px)</option>
-            <option value="24px">Extra (24px)</option>
-          </select>
-        </div>
+        <StyledSelect
+          label="Marge intérieure"
+          value={block.styles.padding || '10px'}
+          onChange={(v) => updateStyle('padding', v)}
+          options={[
+            { value: '0px', label: 'Aucun' },
+            { value: '10px', label: 'Normal (10px)' },
+            { value: '16px', label: 'Grand (16px)' },
+            { value: '24px', label: 'Extra (24px)' },
+          ]}
+        />
       </AccordionSection>
     </div>
   );
@@ -1574,36 +1603,32 @@ function BlockProperties({
               <Label className="text-xs">Taille</Label>
               <NumericInput value={block.styles.borderSize || '0px'} onChange={(v) => updateStyle('borderSize', v)} />
             </div>
-            <div>
-              <Label className="text-xs">Style</Label>
-              <select
-                value={block.styles.borderStyle || 'solid'}
-                onChange={(e) => updateStyle('borderStyle', e.target.value)}
-                className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-              >
-                <option value="solid">Plein</option>
-                <option value="dashed">Tirets</option>
-                <option value="dotted">Pointillés</option>
-                <option value="double">Double</option>
-              </select>
-            </div>
+            <StyledSelect
+              label="Style"
+              value={block.styles.borderStyle || 'solid'}
+              onChange={(v) => updateStyle('borderStyle', v)}
+              options={[
+                { value: 'solid', label: 'Plein' },
+                { value: 'dashed', label: 'Tirets' },
+                { value: 'dotted', label: 'Pointillés' },
+                { value: 'double', label: 'Double' },
+              ]}
+            />
             <ColorPicker label="Couleur" value={block.styles.borderColor || '#e2e8f0'} onChange={(c) => updateStyle('borderColor', c)} />
-            <div>
-              <Label className="text-xs">Angles arrondis</Label>
-              <select
-                value={block.styles.borderRadius || '0px'}
-                onChange={(e) => updateStyle('borderRadius', e.target.value)}
-                className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-              >
-                <option value="0px">Carré</option>
-                <option value="4px">Léger (4px)</option>
-                <option value="6px">Arrondi (6px)</option>
-                <option value="12px">Plus (12px)</option>
-                <option value="16px">Grand (16px)</option>
-                <option value="24px">Pilule (24px)</option>
-                <option value="9999px">Pilule complète</option>
-              </select>
-            </div>
+            <StyledSelect
+              label="Angles arrondis"
+              value={block.styles.borderRadius || '0px'}
+              onChange={(v) => updateStyle('borderRadius', v)}
+              options={[
+                { value: '0px', label: 'Carré' },
+                { value: '4px', label: 'Léger (4px)' },
+                { value: '6px', label: 'Arrondi (6px)' },
+                { value: '12px', label: 'Plus (12px)' },
+                { value: '16px', label: 'Grand (16px)' },
+                { value: '24px', label: 'Pilule (24px)' },
+                { value: '9999px', label: 'Pilule complète' },
+              ]}
+            />
           </AccordionSection>
         </div>
       )}
@@ -1621,47 +1646,43 @@ function BlockProperties({
         <div className="pt-2 border-t border-border space-y-3">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase">Style du bouton</h4>
           <ColorPicker label="Background" value={block.styles.backgroundColor || '#0f172a'} onChange={(c) => updateStyle('backgroundColor', c)} />
-          <div>
-            <Label className="text-xs">Rayon de bordure</Label>
-            <select
-              value={block.styles.borderRadius || '6px'}
-              onChange={(e) => updateStyle('borderRadius', e.target.value)}
-              className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-            >
-              <option value="0px">Carré</option>
-              <option value="4px">Léger (4px)</option>
-              <option value="6px">Arrondi (6px)</option>
-              <option value="12px">Plus (12px)</option>
-              <option value="24px">Pilule (24px)</option>
-              <option value="9999px">Pilule complète</option>
-            </select>
-          </div>
+          <StyledSelect
+            label="Rayon de bordure"
+            value={block.styles.borderRadius || '6px'}
+            onChange={(v) => updateStyle('borderRadius', v)}
+            options={[
+              { value: '0px', label: 'Carré' },
+              { value: '4px', label: 'Léger (4px)' },
+              { value: '6px', label: 'Arrondi (6px)' },
+              { value: '12px', label: 'Plus (12px)' },
+              { value: '24px', label: 'Pilule (24px)' },
+              { value: '9999px', label: 'Pilule complète' },
+            ]}
+          />
         </div>
       )}
 
       {/* Spacing (all blocks) */}
       <div className="pt-2 border-t border-border space-y-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase">Espacement</h4>
-        <div>
-          <Label className="text-xs">Marge intérieure</Label>
-          <select
-            value={block.styles.padding || '10px'}
-            onChange={(e) => updateStyle('padding', e.target.value)}
-            className="w-full h-9 mt-1 rounded-xl border border-border bg-background text-xs px-3 shadow-sm hover:border-ring focus:border-ring focus:ring-1 focus:ring-ring/20 outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="0px">Aucun (0px)</option>
-            <option value="4px">Très petit (4px)</option>
-            <option value="8px">Petit (8px)</option>
-            <option value="10px">Normal (10px)</option>
-            <option value="12px 24px">Moyen (12px 24px)</option>
-            <option value="16px">Grand (16px)</option>
-            <option value="20px">Très grand (20px)</option>
-            <option value="24px">Extra (24px)</option>
-            <option value="32px">XXL (32px)</option>
-            <option value="10px 20px">Horizontal (10px 20px)</option>
-            <option value="20px 10px">Vertical (20px 10px)</option>
-          </select>
-        </div>
+        <StyledSelect
+          label="Marge intérieure"
+          value={block.styles.padding || '10px'}
+          onChange={(v) => updateStyle('padding', v)}
+          options={[
+            { value: '0px', label: 'Aucun (0px)' },
+            { value: '4px', label: 'Très petit (4px)' },
+            { value: '8px', label: 'Petit (8px)' },
+            { value: '10px', label: 'Normal (10px)' },
+            { value: '12px 24px', label: 'Moyen (12px 24px)' },
+            { value: '16px', label: 'Grand (16px)' },
+            { value: '20px', label: 'Très grand (20px)' },
+            { value: '24px', label: 'Extra (24px)' },
+            { value: '32px', label: 'XXL (32px)' },
+            { value: '10px 20px', label: 'Horizontal (10px 20px)' },
+            { value: '20px 10px', label: 'Vertical (20px 10px)' },
+          ]}
+        />
       </div>
     </div>
   );

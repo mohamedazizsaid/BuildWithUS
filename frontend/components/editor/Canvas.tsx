@@ -121,7 +121,7 @@ export default function Canvas({
     <div
       className="overflow-y-auto p-8"
       style={{
-        height: 'calc(100vh - 7rem)',
+        height: '100%',
         backgroundImage: `
           linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
           linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
