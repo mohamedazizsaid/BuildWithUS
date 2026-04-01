@@ -416,8 +416,16 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
       const tBg = block.styles.backgroundColor ? ` container-background-color="${block.styles.backgroundColor}"` : '';
       return `        <mj-text font-size="${fontSize}" font-weight="${fontWeight}" color="${color}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${fontFamily}" line-height="${lineHeight}" letter-spacing="${letterSpacing}"${tBg}>${block.content.text}</mj-text>\n`;
     }
-    case "image":
-      return `        <mj-image src="${block.content.src}" alt="${block.content.alt}" width="${block.styles.width}" padding="${block.styles.padding}" />\n`;
+    case "image": {
+      const imgBr = block.styles.borderRadius || '0px';
+      const imgBs = block.styles.borderSize || '0px';
+      const imgBst = block.styles.borderStyle || 'solid';
+      const imgBc = block.styles.borderColor || 'transparent';
+      const imgBorder = imgBs !== '0px' ? ` border="${imgBs} ${imgBst} ${imgBc}"` : '';
+      const imgAlign = block.styles.textAlign || 'center';
+      const imgHref = block.content.href ? ` href="${block.content.href}"` : '';
+      return `        <mj-image src="${block.content.src}" alt="${block.content.alt}" width="${block.styles.width}" padding="${block.styles.padding}" border-radius="${imgBr}" align="${imgAlign}"${imgBorder}${imgHref} />\n`;
+    }
     case "button": {
       const btnBg = block.styles.backgroundColor || g.btnBackgroundColor;
       const btnColor = block.styles.color || g.btnFontColor;
@@ -516,10 +524,17 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
       const tBg = block.styles.backgroundColor ? `background-color:${block.styles.backgroundColor};` : '';
       return `<div style="${tBg}font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
     }
-    case "image":
+    case "image": {
+      const pBr = block.styles.borderRadius || '0px';
+      const pBs = block.styles.borderSize || '0px';
+      const pBst = block.styles.borderStyle || 'solid';
+      const pBc = block.styles.borderColor || 'transparent';
+      const pBorder = pBs !== '0px' ? `border:${pBs} ${pBst} ${pBc};` : '';
+      const pCircle = pBr === '50%' ? 'aspect-ratio:1/1;object-fit:cover;' : '';
       return block.content.src
-        ? `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="width:${block.styles.width};max-width:100%" /></div>`
+        ? `<div style="text-align:${block.styles.textAlign || 'center'};padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="width:${block.styles.width};max-width:100%;border-radius:${pBr};${pBorder}${pCircle}" /></div>`
         : `<div style="background:#f1f5f9;padding:32px;text-align:center;color:#94a3b8;font-size:12px">Pas d'image</div>`;
+    }
     case "button":
       return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${block.styles.backgroundColor || globalStyles.btnBackgroundColor};color:${block.styles.color || globalStyles.btnFontColor};font-size:${block.styles.fontSize || globalStyles.btnFontSize};font-family:${block.styles.fontFamily || globalStyles.btnFontFamily};font-weight:${block.styles.fontWeight || globalStyles.btnFontWeight};padding:${block.styles.padding};border-radius:${block.styles.borderRadius || globalStyles.btnBorderRadius};border:${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor};text-decoration:none">${block.content.text}</a></div>`;
     case "divider":
@@ -623,6 +638,22 @@ function parseMjmlToTemplate(
   return { rows, globalStyles };
 }
 
+// Parse MJML border attribute "2px solid #000" into separate style props
+function parseBorderAttr(border: string): Record<string, string> {
+  if (!border) return {};
+  const parts = border.trim().split(/\s+/);
+  if (parts.length >= 3) {
+    return { borderSize: parts[0], borderStyle: parts[1], borderColor: parts.slice(2).join(' ') };
+  }
+  if (parts.length === 2) {
+    return { borderSize: parts[0], borderStyle: parts[1] };
+  }
+  if (parts.length === 1 && parts[0] !== '0px' && parts[0] !== '0') {
+    return { borderSize: parts[0] };
+  }
+  return {};
+}
+
 function parseBlockFromElement(tag: string, el: Element): BlockData | null {
   const id = uuid();
 
@@ -682,11 +713,14 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
       content: {
         src: el.getAttribute("src") || "",
         alt,
+        href: el.getAttribute("href") || "",
       },
       styles: {
         width: el.getAttribute("width") || "100%",
         padding: el.getAttribute("padding") || "10px",
-        textAlign: "center",
+        textAlign: el.getAttribute("align") || "center",
+        borderRadius: el.getAttribute("border-radius") || "0px",
+        ...parseBorderAttr(el.getAttribute("border") || ""),
       },
     };
   }

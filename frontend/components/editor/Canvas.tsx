@@ -876,25 +876,40 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           </span>
         </div>
       );
-    case 'divider':
-      return <hr style={{ borderColor: block.styles.borderColor, borderWidth: block.styles.borderWidth }} />;
-    case 'table': {
-      const headers = (block.content.headers || []) as string[];
-      const rows = (block.content.rows || []) as string[][];
+    case 'divider': {
+      const dW = block.styles.width || '100%';
+      const dAlign = block.styles.textAlign || 'center';
+      const dMargin = dAlign === 'center' ? '0 auto' : dAlign === 'right' ? '0 0 0 auto' : '0';
       return (
-        <table className="w-full border-collapse" style={{ fontSize: block.styles.fontSize || 'inherit', color: block.styles.color || 'inherit' }}>
+        <div style={{ padding: block.styles.padding || '10px 0' }}>
+          <hr style={{
+            border: 'none',
+            borderTop: `${block.styles.borderWidth || '1px'} ${block.styles.borderStyle || 'solid'} ${block.styles.borderColor || '#e2e8f0'}`,
+            width: dW,
+            margin: dMargin,
+          }} />
+        </div>
+      );
+    }
+    case 'table': {
+      const tHeaders = (block.content.headers || []) as string[];
+      const tRows = (block.content.rows || []) as string[][];
+      const tBorderColor = block.styles.tableBorderColor || '#dddddd';
+      const tHeaderBg = block.styles.headerBg || '#f1f5f9';
+      return (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: block.styles.fontSize || 'inherit', color: block.styles.color || 'inherit' }}>
           <thead>
             <tr>
-              {headers.map((h, i) => (
-                <th key={i} className="border border-border bg-muted px-3 py-2 text-left text-xs font-semibold">{h}</th>
+              {tHeaders.map((h, i) => (
+                <th key={i} style={{ border: `1px solid ${tBorderColor}`, backgroundColor: tHeaderBg, padding: '8px 12px', textAlign: 'left', fontSize: '12px', fontWeight: 600 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, ri) => (
+            {tRows.map((row, ri) => (
               <tr key={ri}>
                 {row.map((cell, ci) => (
-                  <td key={ci} className="border border-border px-3 py-2 text-xs">{cell}</td>
+                  <td key={ci} style={{ border: `1px solid ${tBorderColor}`, padding: '8px 12px', fontSize: '12px' }}>{cell}</td>
                 ))}
               </tr>
             ))}
@@ -902,14 +917,20 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
         </table>
       );
     }
-    case 'signature':
+    case 'signature': {
+      const sLineColor = block.styles.lineColor || '#000000';
+      const sLineWidth = block.styles.lineWidth || '200px';
+      const sAlign = block.styles.textAlign || 'left';
       return (
-        <div style={{ fontSize: block.styles.fontSize || 'inherit', color: block.styles.color || 'inherit' }}>
-          <div className="border-t border-border w-48 mb-2" />
-          <p className="font-medium">{block.content.name as string || 'Name'}</p>
-          <p className="text-muted-foreground text-xs">{block.content.title as string || 'Title'}</p>
+        <div style={{ fontSize: block.styles.fontSize || 'inherit', color: block.styles.color || 'inherit', textAlign: sAlign as React.CSSProperties['textAlign'] }}>
+          <div style={{ borderTop: `1px solid ${sLineColor}`, width: sLineWidth, marginBottom: '8px', display: 'inline-block' }} />
+          <p style={{ margin: 0, fontWeight: 600 }}>{block.content.name as string || 'Nom'}</p>
+          {block.content.title && <p style={{ margin: '2px 0 0', opacity: 0.7, fontSize: '0.85em' }}>{block.content.title as string}</p>}
+          {block.content.email && <p style={{ margin: '2px 0 0', opacity: 0.6, fontSize: '0.8em' }}>{block.content.email as string}</p>}
+          {block.content.phone && <p style={{ margin: '2px 0 0', opacity: 0.6, fontSize: '0.8em' }}>{block.content.phone as string}</p>}
         </div>
       );
+    }
     default:
       return <div className="text-xs text-muted-foreground">Bloc inconnu</div>;
   }

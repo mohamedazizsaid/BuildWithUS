@@ -1408,6 +1408,270 @@ function VideoBlockProperties({
   );
 }
 
+// ─── Divider (Séparateur) Properties ───
+function DividerBlockProperties({
+  block, updateStyle, updateStyles,
+}: {
+  block: BlockData;
+  updateStyle: (key: string, value: string) => void;
+  updateStyles: (updates: Record<string, string>) => void;
+}) {
+  const [openSection, setOpenSection] = useState<string | null>('appearance');
+  const pad = resolveBlockPadding(block.styles);
+  const mar = resolveBlockMargin(block.styles);
+  const paddingGrouped = block.styles.paddingGroup !== 'false';
+
+  return (
+    <div className="space-y-1">
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="appearance" title="Apparence">
+        <div>
+          <Label className="text-xs">Épaisseur</Label>
+          <NumericInput value={block.styles.borderWidth || '1px'} onChange={(v) => updateStyle('borderWidth', v)} />
+        </div>
+        <ColorPicker label="Couleur" value={block.styles.borderColor || '#e2e8f0'} onChange={(c) => updateStyle('borderColor', c)} />
+        <StyledSelect
+          label="Style"
+          value={block.styles.borderStyle || 'solid'}
+          onChange={(v) => updateStyle('borderStyle', v)}
+          options={[
+            { value: 'solid', label: 'Plein' },
+            { value: 'dashed', label: 'Tirets' },
+            { value: 'dotted', label: 'Pointillés' },
+            { value: 'double', label: 'Double' },
+          ]}
+        />
+      </AccordionSection>
+
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="layout" title="Mise en page">
+        <StyledSelect
+          label="Largeur"
+          value={block.styles.width || '100%'}
+          onChange={(v) => updateStyle('width', v)}
+          options={[
+            { value: '25%', label: '25%' },
+            { value: '50%', label: '50%' },
+            { value: '75%', label: '75%' },
+            { value: '100%', label: '100%' },
+          ]}
+        />
+        <AlignmentSelector label="Alignement du bloc" value={block.styles.textAlign || 'center'} onChange={(v) => updateStyle('textAlign', v)} />
+      </AccordionSection>
+
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
+        <SectionHeader>Marge intérieure</SectionHeader>
+        <Toggle
+          label="Grouper les côtés"
+          value={paddingGrouped}
+          onChange={(v) => {
+            if (v) updateStyles({ paddingGroup: 'true', paddingTop: pad.top, paddingRight: pad.top, paddingBottom: pad.top, paddingLeft: pad.top, padding: pad.top });
+            else updateStyles({ paddingGroup: 'false' });
+          }}
+        />
+        {paddingGrouped ? (
+          <NumericInput value={pad.top} onChange={(v) => updateStyles({ paddingTop: v, paddingRight: v, paddingBottom: v, paddingLeft: v, padding: v })} />
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label className="text-[10px] text-muted-foreground">Haut</Label><NumericInput value={pad.top} onChange={(v) => updateStyles({ paddingTop: v })} /></div>
+            <div><Label className="text-[10px] text-muted-foreground">Droite</Label><NumericInput value={pad.right} onChange={(v) => updateStyles({ paddingRight: v })} /></div>
+            <div><Label className="text-[10px] text-muted-foreground">Bas</Label><NumericInput value={pad.bottom} onChange={(v) => updateStyles({ paddingBottom: v })} /></div>
+            <div><Label className="text-[10px] text-muted-foreground">Gauche</Label><NumericInput value={pad.left} onChange={(v) => updateStyles({ paddingLeft: v })} /></div>
+          </div>
+        )}
+        <SectionHeader>Marge</SectionHeader>
+        <div className="grid grid-cols-2 gap-2">
+          <div><Label className="text-xs">Verticale</Label><NumericInput value={mar.top} onChange={(v) => updateStyles({ marginY: v, margin: `${v} ${mar.right}` })} /></div>
+          <div><Label className="text-xs">Horizontale</Label><NumericInput value={mar.right} onChange={(v) => updateStyles({ marginX: v, margin: `${mar.top} ${v}` })} /></div>
+        </div>
+      </AccordionSection>
+    </div>
+  );
+}
+
+// ─── Table Properties ───
+function TableBlockProperties({
+  block, onUpdate, updateStyle,
+}: {
+  block: BlockData;
+  onUpdate: (updates: Partial<BlockData>) => void;
+  updateStyle: (key: string, value: string) => void;
+}) {
+  const [openSection, setOpenSection] = useState<string | null>('data');
+  const headers = (block.content.headers || []) as string[];
+  const rows = (block.content.rows || []) as string[][];
+
+  const setHeaders = (h: string[]) => onUpdate({ content: { ...block.content, headers: h } });
+  const setRows = (r: string[][]) => onUpdate({ content: { ...block.content, rows: r } });
+
+  const addColumn = () => {
+    setHeaders([...headers, `Col ${headers.length + 1}`]);
+    setRows(rows.map(r => [...r, '']));
+  };
+
+  const removeColumn = (idx: number) => {
+    if (headers.length <= 1) return;
+    setHeaders(headers.filter((_, i) => i !== idx));
+    setRows(rows.map(r => r.filter((_, i) => i !== idx)));
+  };
+
+  const addRow = () => {
+    setRows([...rows, headers.map(() => '')]);
+  };
+
+  const removeRow = (idx: number) => {
+    setRows(rows.filter((_, i) => i !== idx));
+  };
+
+  const updateHeader = (idx: number, val: string) => {
+    const h = [...headers];
+    h[idx] = val;
+    setHeaders(h);
+  };
+
+  const updateCell = (rowIdx: number, colIdx: number, val: string) => {
+    const r = rows.map(row => [...row]);
+    r[rowIdx][colIdx] = val;
+    setRows(r);
+  };
+
+  return (
+    <div className="space-y-1">
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="data" title="Données">
+        {/* Headers */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Label className="text-xs">Colonnes ({headers.length})</Label>
+            <button onClick={addColumn} className="text-[10px] text-primary hover:underline">+ Ajouter</button>
+          </div>
+          <div className="space-y-1">
+            {headers.map((h, i) => (
+              <div key={i} className="flex gap-1">
+                <Input value={h} onChange={(e) => updateHeader(i, e.target.value)} className="h-7 text-xs flex-1" />
+                {headers.length > 1 && (
+                  <button onClick={() => removeColumn(i)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-50 text-red-500 text-xs">×</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Rows */}
+        <div>
+          <div className="flex items-center justify-between mb-1 mt-3">
+            <Label className="text-xs">Lignes ({rows.length})</Label>
+            <button onClick={addRow} className="text-[10px] text-primary hover:underline">+ Ajouter</button>
+          </div>
+          <div className="space-y-2">
+            {rows.map((row, ri) => (
+              <div key={ri} className="rounded-lg border border-border p-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground">Ligne {ri + 1}</span>
+                  <button onClick={() => removeRow(ri)} className="text-[10px] text-red-500 hover:underline">Supprimer</button>
+                </div>
+                <div className="space-y-1">
+                  {row.map((cell, ci) => (
+                    <div key={ci} className="flex gap-1 items-center">
+                      <span className="text-[9px] text-muted-foreground w-12 truncate">{headers[ci] || `C${ci}`}</span>
+                      <Input value={cell} onChange={(e) => updateCell(ri, ci, e.target.value)} className="h-6 text-xs flex-1" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </AccordionSection>
+
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="style" title="Style">
+        <FontSizeSelector value={block.styles.fontSize || '14px'} onChange={(v) => updateStyle('fontSize', v)} />
+        <ColorPicker label="Couleur du texte" value={block.styles.color || '#333333'} onChange={(c) => updateStyle('color', c)} />
+        <ColorPicker label="Fond de l'en-tête" value={block.styles.headerBg || '#f1f5f9'} onChange={(c) => updateStyle('headerBg', c)} />
+        <ColorPicker label="Couleur de bordure" value={block.styles.tableBorderColor || '#dddddd'} onChange={(c) => updateStyle('tableBorderColor', c)} />
+      </AccordionSection>
+
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
+        <StyledSelect
+          label="Marge intérieure"
+          value={block.styles.padding || '10px'}
+          onChange={(v) => updateStyle('padding', v)}
+          options={[
+            { value: '0px', label: 'Aucun' },
+            { value: '10px', label: 'Normal (10px)' },
+            { value: '16px', label: 'Grand (16px)' },
+            { value: '24px', label: 'Extra (24px)' },
+          ]}
+        />
+      </AccordionSection>
+    </div>
+  );
+}
+
+// ─── Signature Properties ───
+function SignatureBlockProperties({
+  block, updateContent, updateStyle,
+}: {
+  block: BlockData;
+  updateContent: (key: string, value: string) => void;
+  updateStyle: (key: string, value: string) => void;
+}) {
+  const [openSection, setOpenSection] = useState<string | null>('content');
+
+  return (
+    <div className="space-y-1">
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="content" title="Contenu">
+        <div>
+          <Label className="text-xs">Nom</Label>
+          <Input value={block.content.name as string || ''} onChange={(e) => updateContent('name', e.target.value)} className="h-8 text-xs mt-1" placeholder="Prénom Nom" />
+        </div>
+        <div>
+          <Label className="text-xs">Titre / Fonction</Label>
+          <Input value={block.content.title as string || ''} onChange={(e) => updateContent('title', e.target.value)} className="h-8 text-xs mt-1" placeholder="Directeur, Développeur..." />
+        </div>
+        <div>
+          <Label className="text-xs">Email</Label>
+          <Input value={block.content.email as string || ''} onChange={(e) => updateContent('email', e.target.value)} className="h-8 text-xs mt-1" placeholder="nom@entreprise.com" />
+        </div>
+        <div>
+          <Label className="text-xs">Téléphone</Label>
+          <Input value={block.content.phone as string || ''} onChange={(e) => updateContent('phone', e.target.value)} className="h-8 text-xs mt-1" placeholder="+33 6 12 34 56 78" />
+        </div>
+      </AccordionSection>
+
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="style" title="Style">
+        <FontSizeSelector value={block.styles.fontSize || '14px'} onChange={(v) => updateStyle('fontSize', v)} />
+        <ColorPicker label="Couleur du texte" value={block.styles.color || '#333333'} onChange={(c) => updateStyle('color', c)} />
+        <ColorPicker label="Couleur de la ligne" value={block.styles.lineColor || '#000000'} onChange={(c) => updateStyle('lineColor', c)} />
+        <StyledSelect
+          label="Largeur de la ligne"
+          value={block.styles.lineWidth || '200px'}
+          onChange={(v) => updateStyle('lineWidth', v)}
+          options={[
+            { value: '100px', label: 'Courte (100px)' },
+            { value: '150px', label: 'Moyenne (150px)' },
+            { value: '200px', label: 'Normale (200px)' },
+            { value: '300px', label: 'Large (300px)' },
+            { value: '100%', label: 'Pleine largeur' },
+          ]}
+        />
+        <AlignmentSelector label="Placement" value={block.styles.textAlign || 'left'} onChange={(v) => updateStyle('textAlign', v)} />
+      </AccordionSection>
+
+      <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
+        <StyledSelect
+          label="Marge intérieure"
+          value={block.styles.padding || '20px 10px'}
+          onChange={(v) => updateStyle('padding', v)}
+          options={[
+            { value: '10px', label: 'Petit (10px)' },
+            { value: '20px 10px', label: 'Normal (20px 10px)' },
+            { value: '24px', label: 'Grand (24px)' },
+            { value: '32px', label: 'Extra (32px)' },
+          ]}
+        />
+      </AccordionSection>
+    </div>
+  );
+}
+
 function BlockProperties({
   block,
   onUpdate,
@@ -1478,6 +1742,18 @@ function BlockProperties({
 
       {block.type === 'video' && (
         <VideoBlockProperties block={block} updateContent={updateContent} updateStyle={updateStyle} onUpdate={onUpdate} />
+      )}
+
+      {block.type === 'divider' && (
+        <DividerBlockProperties block={block} updateStyle={updateStyle} updateStyles={updateStyles} />
+      )}
+
+      {block.type === 'table' && (
+        <TableBlockProperties block={block} onUpdate={onUpdate} updateStyle={updateStyle} />
+      )}
+
+      {block.type === 'signature' && (
+        <SignatureBlockProperties block={block} updateContent={updateContent} updateStyle={updateStyle} />
       )}
 
       {isHeadingOrText && (
