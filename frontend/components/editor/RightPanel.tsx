@@ -1759,13 +1759,6 @@ function BlockProperties({
       {isHeadingOrText && (
         <div className="pt-2 border-t border-border space-y-3">
           <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="layout" title="Mise en page">
-            <div>
-              <Label className="text-xs">Police</Label>
-              <div className="space-y-2 mt-1">
-                <FontSelect value={block.styles.fontFamily || 'Verdana, sans-serif'} onChange={(v) => updateStyle('fontFamily', v)} />
-                <FontSizeSelector value={block.styles.fontSize || '16px'} onChange={(v) => updateStyle('fontSize', v)} />
-              </div>
-            </div>
             <AlignmentSelector
               label="Alignement du bloc"
               value={block.styles.blockAlign || 'left'}
@@ -1838,7 +1831,6 @@ function BlockProperties({
 
           <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="text" title="Styles du texte">
             <FontWeightSelector value={block.styles.fontWeight || 'normal'} onChange={(v) => updateStyle('fontWeight', v)} />
-            <ColorPicker label="Couleur du texte" value={block.styles.color || '#000000'} onChange={(c) => updateStyle('color', c)} />
           </AccordionSection>
 
           <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="margin" title="Marge">

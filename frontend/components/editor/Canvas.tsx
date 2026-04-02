@@ -443,30 +443,36 @@ function CanvasBlock({
   const isLayoutBlock = block.type === 'heading' || block.type === 'text';
   const editRef = useRef<HTMLDivElement>(null);
   const btnEditRef = useRef<HTMLSpanElement>(null);
+  const placeCaretEndRef = useRef(false);
   const padding = resolvePadding(block.styles);
   const margin = resolveMargin(block.styles);
   const alignMargins = isLayoutBlock ? resolveBlockAlign(block.styles) : {};
   const hasBorder = isLayoutBlock && block.styles.borderSize && block.styles.borderSize !== '0px';
 
-  // Move cursor to end when block becomes selected
+  // Move cursor to end only when block selected from outside the text
   useEffect(() => {
     if (isSelected && isTextBlock) {
       const el = block.type === 'button' ? btnEditRef.current : editRef.current;
       if (el) {
         el.focus();
-        const range = document.createRange();
-        const sel = window.getSelection();
-        range.selectNodeContents(el);
-        range.collapse(false);
-        sel?.removeAllRanges();
-        sel?.addRange(range);
+        if (placeCaretEndRef.current) {
+          const sel = window.getSelection();
+          if (sel) {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            range.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+          placeCaretEndRef.current = false;
+        }
       }
     }
   }, [isSelected, isTextBlock, block.type]);
 
   return (
     <div
-      className={`relative cursor-pointer transition-all group/block ${
+      className={`relative transition-all group/block ${isTextBlock ? 'cursor-text' : 'cursor-pointer'} ${
         isSelected ? 'ring-2 ring-blue-500' : 'hover:ring-1 hover:ring-blue-300'
       }`}
       style={{
@@ -485,7 +491,13 @@ function CanvasBlock({
         border: hasBorder ? `${block.styles.borderSize} ${block.styles.borderStyle || 'solid'} ${block.styles.borderColor || 'transparent'}` : undefined,
         ...alignMargins,
       }}
-      onClick={onSelect}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        const insideEditable = !!target.closest('[contenteditable="true"]');
+        // selecting block by clicking outside editable text should put caret at end
+        placeCaretEndRef.current = !insideEditable;
+        onSelect(e);
+      }}
     >
       {/* Block action buttons */}
       <div className={`absolute -top-2 -right-2 flex gap-1 z-20 transition-opacity ${
@@ -528,16 +540,19 @@ function CanvasBlock({
                   letterSpacing: block.styles.letterSpacing || 'inherit',
                 }}
               >
-                <span
-                  ref={btnEditRef}
-                  contentEditable
-                  suppressContentEditableWarning
-                  onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.textContent || '' } })}
-                  style={{ outline: 'none', minWidth: '20px', display: 'inline-block' }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {block.content.text as string}
-                </span>
+              <span
+                ref={btnEditRef}
+                contentEditable
+                suppressContentEditableWarning
+                onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.innerHTML || '' } })}
+                style={{ outline: 'none', minWidth: '20px', display: 'inline-block' }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  placeCaretEndRef.current = false;
+                  onSelect(e as unknown as React.MouseEvent);
+                }}
+                dangerouslySetInnerHTML={{ __html: (block.content.text as string) || '' }}
+              />
               </span>
             </div>
           ) : (
@@ -545,7 +560,7 @@ function CanvasBlock({
               ref={editRef}
               contentEditable
               suppressContentEditableWarning
-              onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.textContent || '' } })}
+              onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.innerHTML || '' } })}
               style={{
                 fontSize: block.styles.fontSize || 'inherit',
                 fontWeight: block.styles.fontWeight || 'inherit',
@@ -560,10 +575,13 @@ function CanvasBlock({
                 minHeight: '1.2em',
                 wordBreak: 'break-word' as const,
               }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {block.content.text as string}
-            </div>
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                placeCaretEndRef.current = false;
+                onSelect(e as unknown as React.MouseEvent);
+              }}
+              dangerouslySetInnerHTML={{ __html: (block.content.text as string) || '' }}
+            />
           )}
         </>
       ) : (
@@ -593,9 +611,9 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
           lineHeight: block.styles.lineHeight || 'inherit',
           letterSpacing: block.styles.letterSpacing || 'inherit',
-        }}>
-          {block.content.text as string || 'Titre'}
-        </div>
+        }}
+        dangerouslySetInnerHTML={{ __html: (block.content.text as string) || 'Titre' }}
+        />
       );
     case 'text':
       return (
@@ -608,9 +626,9 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
           lineHeight: block.styles.lineHeight || 'inherit',
           letterSpacing: block.styles.letterSpacing || 'inherit',
-        }}>
-          {block.content.text as string || 'Texte'}
-        </div>
+        }}
+        dangerouslySetInnerHTML={{ __html: (block.content.text as string) || 'Texte' }}
+        />
       );
     case 'image': {
       const imgBorderSize = block.styles.borderSize || '0px';
@@ -699,7 +717,7 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
             border: `${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor}`,
             cursor: 'pointer',
           }}>
-            {block.content.text as string || 'Bouton'}
+            <span dangerouslySetInnerHTML={{ __html: (block.content.text as string) || 'Bouton' }} />
           </span>
         </div>
       );
@@ -762,7 +780,3 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
       return <div className="text-xs text-muted-foreground">Bloc inconnu</div>;
   }
 }
-
-
-
-
