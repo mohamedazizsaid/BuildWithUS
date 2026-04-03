@@ -17,6 +17,7 @@ import {
   Link2,
   Smile,
   Highlighter,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
@@ -42,6 +43,9 @@ interface EditorToolbarProps {
   // Formatting toolbar
   selectedBlock: BlockData | null;
   onUpdateBlock: (blockId: string, updates: Partial<BlockData>) => void;
+  // Test email
+  onSendTestEmail?: () => void;
+  isSendingTest?: boolean;
 }
 
 // Emoji categories for the picker
@@ -337,6 +341,8 @@ export default function EditorToolbar({
   canRedo,
   selectedBlock,
   onUpdateBlock,
+  onSendTestEmail,
+  isSendingTest,
 }: EditorToolbarProps) {
   const isTextBlock =
     selectedBlock &&
@@ -457,6 +463,18 @@ export default function EditorToolbar({
                 <Smartphone size={14} />
               </Button>
             </div>
+          )}
+          {onSendTestEmail && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSendTestEmail}
+              disabled={isSendingTest}
+              className="h-8 px-3 text-xs gap-1.5"
+            >
+              <Send size={13} />
+              {isSendingTest ? "Envoi..." : "Tester l'e-mail"}
+            </Button>
           )}
           <Button
             onClick={onCreateTemplate}
@@ -881,6 +899,7 @@ function FormatBar({
       {/* Text background color */}
       <div className="relative mr-1">
         <button
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             setShowBgColor(!showBgColor);
             setShowEmoji(false);
@@ -905,6 +924,7 @@ function FormatBar({
               {PRESET_COLORS.map((c) => (
                 <button
                   key={c}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     applyBackgroundColor(c);
                     setShowBgColor(false);

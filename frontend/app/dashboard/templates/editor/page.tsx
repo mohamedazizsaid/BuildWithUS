@@ -173,6 +173,33 @@ function EditorContent() {
     toast.success("Brouillon enregistré !");
   };
 
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  const handleSendTestEmail = async () => {
+    if (editorState.template.rows.length === 0) {
+      toast.error("Ajoutez du contenu avant de tester");
+      return;
+    }
+    setIsSendingTest(true);
+    try {
+      const html = generatePreviewHtml(editorState.template);
+      const result = await templates.sendTestEmail({
+        subject: templateSubject || templateName,
+        content: html,
+      });
+      if (result.success) {
+        toast.success("E-mail de test envoyé ! Vérifiez MailHog (localhost:8025)");
+      } else {
+        toast.error(result.message || "Échec de l'envoi");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Échec de l'envoi";
+      toast.error(msg);
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
   const handleSaveOrCreate = async () => {
     if (editorState.template.rows.length === 0) {
       toast.error("Ajoutez au moins une ligne à votre modèle");
@@ -238,6 +265,8 @@ function EditorContent() {
         canRedo={editorState.canRedo}
         selectedBlock={editorState.getSelectedBlock()}
         onUpdateBlock={editorState.updateBlock}
+        onSendTestEmail={handleSendTestEmail}
+        isSendingTest={isSendingTest}
       />
 
       <div className="flex flex-1 overflow-hidden">

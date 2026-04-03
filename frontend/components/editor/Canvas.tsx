@@ -553,6 +553,7 @@ function CanvasBlock({
                 ref={btnEditRef}
                 contentEditable
                 suppressContentEditableWarning
+                spellCheck={false}
                 onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.innerHTML || '' } })}
                 style={{ outline: 'none', minWidth: '20px', display: 'inline-block' }}
                 onMouseDown={(e) => {

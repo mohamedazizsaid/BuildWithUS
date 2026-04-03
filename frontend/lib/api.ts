@@ -71,6 +71,9 @@ export const templates = {
 
     render:(id: string, variables: Record<string, string>) =>
         request(`/templates/${id}/render`, { method: 'POST', body: JSON.stringify(variables) }),
+
+    sendTestEmail: (body: { to?: string; subject?: string; content: string }) =>
+        request('/templates/test-email', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // ─── Media ───

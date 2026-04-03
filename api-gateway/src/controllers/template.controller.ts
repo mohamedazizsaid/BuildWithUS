@@ -154,8 +154,41 @@ export class TemplateController implements OnModuleInit {
     const result = await firstValueFrom(this.queryService.RenderTemplate({
       id,
       user_id: req.user.id,
-      variables: body.variables || {},  // key-value pairs to replace in template
+      variables: body.variables || {},
     }));
     return result;
+  }
+
+  /**
+   * POST /templates/test-email — Send a test email with MJML content via MailHog.
+   * Does NOT require a saved template — sends raw MJML/HTML content directly.
+   */
+  @Post('test-email')
+  @Roles('admin', 'editor')
+  async sendTestEmail(@Req() req: any, @Body() body: any) {
+    const nodemailer = require('nodemailer');
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAILHOG_HOST || 'localhost',
+      port: parseInt(process.env.MAILHOG_PORT || '1025'),
+      ignoreTLS: true,
+    });
+
+    const to = body.to || req.user.email;
+    const subject = body.subject || 'Test — Winaity Template Builder';
+    const html = body.content || '<p>No content</p>';
+
+    try {
+      await transporter.sendMail({
+        from: `"Winaity" <test@winaity.com>`,
+        to,
+        subject,
+        html,
+      });
+      return { success: true, message: `E-mail de test envoyé à ${to}` };
+    } catch (error) {
+      console.error('Test email failed:', error);
+      return { success: false, message: "Échec de l'envoi" };
+    }
   }
 }
