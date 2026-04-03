@@ -467,7 +467,8 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
       const imgBorder = imgBs !== '0px' ? ` border="${imgBs} ${imgBst} ${imgBc}"` : '';
       const imgAlign = block.styles.textAlign || 'center';
       const imgHref = block.content.href ? ` href="${block.content.href}"` : '';
-      return `        <mj-image src="${block.content.src}" alt="${block.content.alt}" width="${block.styles.width}" padding="${block.styles.padding}" border-radius="${imgBr}" align="${imgAlign}"${imgBorder}${imgHref} />\n`;
+      const imgHeight = block.styles.height && block.styles.height !== 'auto' ? ` css-class="h:${block.styles.height}"` : '';
+      return `        <mj-image src="${block.content.src}" alt="${block.content.alt}" width="${block.styles.width}" height="${block.styles.height || 'auto'}" padding="${block.styles.padding}" border-radius="${imgBr}" align="${imgAlign}"${imgBorder}${imgHref}${imgHeight} />\n`;
     }
     case "button": {
       const btnBg = block.styles.backgroundColor || g.btnBackgroundColor;
@@ -591,8 +592,10 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
       const pBc = block.styles.borderColor || 'transparent';
       const pBorder = pBs !== '0px' ? `border:${pBs} ${pBst} ${pBc};` : '';
       const pCircle = pBr === '50%' ? 'aspect-ratio:1/1;object-fit:cover;' : '';
+      const pAlign = block.styles.textAlign || 'center';
+      const pMargin = pAlign === 'center' ? 'margin:0 auto;' : pAlign === 'right' ? 'margin-left:auto;' : '';
       return block.content.src
-        ? `<div style="text-align:${block.styles.textAlign || 'center'};padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="width:${block.styles.width};max-width:100%;border-radius:${pBr};${pBorder}${pCircle}" /></div>`
+        ? `<div style="padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="display:block;width:${block.styles.width};max-width:100%;height:${block.styles.height || 'auto'};${block.styles.height && block.styles.height !== 'auto' ? 'object-fit:cover;' : ''}border-radius:${pBr};${pBorder}${pCircle}${pMargin}" /></div>`
         : `<div style="background:#f1f5f9;padding:32px;text-align:center;color:#94a3b8;font-size:12px">Pas d'image</div>`;
     }
     case "button":
@@ -845,6 +848,7 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
       },
       styles: {
         width: el.getAttribute("width") || "100%",
+        height: el.getAttribute("height") || "auto",
         padding: el.getAttribute("padding") || "10px",
         textAlign: el.getAttribute("align") || "center",
         borderRadius: el.getAttribute("border-radius") || "0px",

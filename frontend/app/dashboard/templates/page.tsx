@@ -143,7 +143,14 @@ function mjmlToPreviewHtml(mjml: string): string {
                 html += `<div style="text-align:center;padding:${pad};"><video src="${vSrc}" style="width:${w};max-width:100%;border-radius:${br}" controls></video></div>`;
               }
             } else if (src) {
-              html += `<div style="text-align:center;padding:${pad};"><img src="${src}" style="width:${w};max-width:100%;border-radius:${br}" /></div>`;
+              const imgAlign = child.getAttribute('align') || 'center';
+              const imgMargin = imgAlign === 'center' ? 'margin:0 auto;' : imgAlign === 'right' ? 'margin-left:auto;' : '';
+              const imgH = child.getAttribute('height') || 'auto';
+              const imgHStyle = imgH !== 'auto' ? `height:${imgH};object-fit:cover;` : '';
+              const imgBorder = child.getAttribute('border') || '';
+              const imgBorderStyle = imgBorder ? `border:${imgBorder};` : '';
+              const imgCircle = br === '50%' ? 'aspect-ratio:1/1;object-fit:cover;' : '';
+              html += `<div style="padding:${pad};"><img src="${src}" style="display:block;width:${w};max-width:100%;border-radius:${br};${imgHStyle}${imgBorderStyle}${imgCircle}${imgMargin}" /></div>`;
             }
           } else if (tag === 'mj-divider') {
             const bc = child.getAttribute('border-color') || '#e2e8f0';
