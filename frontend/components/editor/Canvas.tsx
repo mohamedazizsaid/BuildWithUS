@@ -449,11 +449,18 @@ function CanvasBlock({
   const alignMargins = isLayoutBlock ? resolveBlockAlign(block.styles) : {};
   const hasBorder = isLayoutBlock && block.styles.borderSize && block.styles.borderSize !== '0px';
 
-  // Move cursor to end only when block selected from outside the text
+  // Set innerHTML only on initial selection (not on style changes)
+  const initializedRef = useRef(false);
+
   useEffect(() => {
     if (isSelected && isTextBlock) {
       const el = block.type === 'button' ? btnEditRef.current : editRef.current;
       if (el) {
+        // Only set innerHTML when first entering edit mode
+        if (!initializedRef.current) {
+          el.innerHTML = (block.content.text as string) || '';
+          initializedRef.current = true;
+        }
         el.focus();
         if (placeCaretEndRef.current) {
           const sel = window.getSelection();
@@ -467,6 +474,8 @@ function CanvasBlock({
           placeCaretEndRef.current = false;
         }
       }
+    } else {
+      initializedRef.current = false;
     }
   }, [isSelected, isTextBlock, block.type]);
 
@@ -551,7 +560,6 @@ function CanvasBlock({
                   placeCaretEndRef.current = false;
                   onSelect(e as unknown as React.MouseEvent);
                 }}
-                dangerouslySetInnerHTML={{ __html: (block.content.text as string) || '' }}
               />
               </span>
             </div>
@@ -580,7 +588,6 @@ function CanvasBlock({
                 placeCaretEndRef.current = false;
                 onSelect(e as unknown as React.MouseEvent);
               }}
-              dangerouslySetInnerHTML={{ __html: (block.content.text as string) || '' }}
             />
           )}
         </>

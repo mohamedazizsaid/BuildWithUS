@@ -58,8 +58,16 @@ function relativeTime(dateStr: string): string {
 // ─── MJML to HTML converter for preview ───
 function mjmlToPreviewHtml(mjml: string): string {
   try {
+    // Sanitize: replace content inside mj-text with placeholders to avoid XML parse errors
+    const textContents: string[] = [];
+    const sanitized = mjml.replace(/(<mj-text[^>]*>)([\s\S]*?)(<\/mj-text>)/g, (_m, open, content, close) => {
+      textContents.push(content);
+      return `${open}__PLACEHOLDER_${textContents.length - 1}__${close}`;
+    });
+
     const parser = new DOMParser();
-    const doc = parser.parseFromString(mjml, 'text/xml');
+    const doc = parser.parseFromString(sanitized, 'text/xml');
+    if (doc.querySelector('parsererror')) return '';
     const body = doc.querySelector('mj-body');
     if (!body) return '';
 
@@ -85,12 +93,25 @@ function mjmlToPreviewHtml(mjml: string): string {
           if (tag === 'mj-text') {
             const fs = child.getAttribute('font-size') || 'inherit';
             const fw = child.getAttribute('font-weight') || 'inherit';
+            const ff = child.getAttribute('font-family') || 'inherit';
             const color = child.getAttribute('color') || 'inherit';
             const align = child.getAttribute('align') || 'left';
             const pad = child.getAttribute('padding') || '10px';
+            const lh = child.getAttribute('line-height') || 'inherit';
+            const ls = child.getAttribute('letter-spacing') || '0px';
             const bg = child.getAttribute('container-background-color');
             const bgStyle = bg ? `background-color:${bg};` : '';
-            html += `<div style="${bgStyle}font-size:${fs};font-weight:${fw};color:${color};text-align:${align};padding:${pad};">${child.textContent || ''}</div>`;
+            const cssClass = child.getAttribute('css-class') || '';
+            const italic = cssClass.includes('italic') ? 'font-style:italic;' : '';
+            const underline = cssClass.includes('underline') ? 'text-decoration:underline;' : '';
+            // Restore original text content from placeholder
+            let textContent = child.textContent || '';
+            const phMatch = textContent.match(/__PLACEHOLDER_(\d+)__/);
+            if (phMatch) {
+              const idx = parseInt(phMatch[1]);
+              textContent = textContents[idx] || textContent;
+            }
+            html += `<div style="${bgStyle}${italic}${underline}font-size:${fs};font-weight:${fw};font-family:${ff};color:${color};text-align:${align};padding:${pad};line-height:${lh};letter-spacing:${ls};">${textContent}</div>`;
           } else if (tag === 'mj-button') {
             const bgc = child.getAttribute('background-color') || '#0f172a';
             const c = child.getAttribute('color') || '#ffffff';
@@ -98,7 +119,10 @@ function mjmlToPreviewHtml(mjml: string): string {
             const br = child.getAttribute('border-radius') || '6px';
             const pad = child.getAttribute('padding') || '12px 24px';
             const align = child.getAttribute('align') || 'center';
-            html += `<div style="text-align:${align};padding:10px;"><span style="display:inline-block;background-color:${bgc};color:${c};font-size:${fs};padding:${pad};border-radius:${br};text-decoration:none;">${child.textContent || ''}</span></div>`;
+            let btnText = child.textContent || '';
+            const btnPhMatch = btnText.match(/__PLACEHOLDER_(\d+)__/);
+            if (btnPhMatch) btnText = textContents[parseInt(btnPhMatch[1])] || btnText;
+            html += `<div style="text-align:${align};padding:10px;"><span style="display:inline-block;background-color:${bgc};color:${c};font-size:${fs};padding:${pad};border-radius:${br};text-decoration:none;">${btnText}</span></div>`;
           } else if (tag === 'mj-image') {
             const src = child.getAttribute('src') || '';
             const alt = child.getAttribute('alt') || '';

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -607,13 +607,41 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
   }
 }
 
+// ─── Sanitize MJML for XML parsing ───
+// HTML entities like &nbsp; and inline HTML inside mj-text break XML parsing.
+// We extract text content, replace it with a safe placeholder, parse XML, then restore.
+function sanitizeMjmlForXml(mjml: string): { sanitized: string; textMap: Map<string, string> } {
+  const textMap = new Map<string, string>();
+  let counter = 0;
+
+  // Extract content between mj-text tags and replace with safe placeholder
+  const sanitized = mjml.replace(
+    /(<mj-text[^>]*>)([\s\S]*?)(<\/mj-text>)/g,
+    (_match, openTag, content, closeTag) => {
+      const key = `__MJML_TEXT_${counter++}__`;
+      textMap.set(key, content);
+      return `${openTag}${key}${closeTag}`;
+    }
+  );
+
+  return { sanitized, textMap };
+}
+
 // ─── MJML → Template Parser ───
 function parseMjmlToTemplate(
   mjml: string,
   currentGlobalStyles: GlobalStyles,
 ): { rows: Row[]; globalStyles: GlobalStyles } | null {
+  const { sanitized, textMap } = sanitizeMjmlForXml(mjml);
   const parser = new DOMParser();
-  const doc = parser.parseFromString(mjml, "text/xml");
+  const doc = parser.parseFromString(sanitized, "text/xml");
+
+  // Check for XML parse errors
+  const parseError = doc.querySelector("parsererror");
+  if (parseError) {
+    console.warn("MJML XML parse error, falling back to regex parser");
+    return null;
+  }
 
   const body = doc.querySelector("mj-body");
   if (!body) return null;
@@ -637,7 +665,7 @@ function parseMjmlToTemplate(
 
       for (const child of Array.from(mjCol.children)) {
         const tag = child.tagName.toLowerCase();
-        const block = parseBlockFromElement(tag, child);
+        const block = parseBlockFromElement(tag, child, textMap);
         if (block) blocks.push(block);
       }
 
@@ -685,7 +713,7 @@ function parseBorderAttr(border: string): Record<string, string> {
   return {};
 }
 
-function parseBlockFromElement(tag: string, el: Element): BlockData | null {
+function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, string>): BlockData | null {
   const id = uuid();
 
   if (tag === "mj-text") {
@@ -694,15 +722,25 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
     const color = el.getAttribute("color") || "";
     const align = el.getAttribute("align") || "left";
     const padding = el.getAttribute("padding") || "10px";
-    const text = el.textContent || "";
+    // Restore original text content from the textMap (was replaced with placeholder for XML safety)
+    let rawText = el.textContent || "";
+    if (textMap) {
+      for (const [key, original] of textMap) {
+        if (rawText.includes(key)) {
+          rawText = original;
+          break;
+        }
+      }
+    }
+    const text = rawText;
 
     // Detect signature by content pattern or css-class marker
     const sigCssClass = el.getAttribute("css-class") || "";
-    if (el.innerHTML.includes("border-top:1px solid") || sigCssClass.startsWith("sig:")) {
-      const nameMatch = el.innerHTML.match(/font-weight:bold">(.*?)<\/p>/);
-      const titleMatch = el.innerHTML.match(/font-size:0\.85em">(.*?)<\/p>/);
+    if (text.includes("border-top:1px solid") || sigCssClass.startsWith("sig:")) {
+      const nameMatch = text.match(/font-weight:bold">(.*?)<\/p>/);
+      const titleMatch = text.match(/font-size:0\.85em">(.*?)<\/p>/);
       // Extract 0.8em matches for email and phone
-      const smallMatches = [...el.innerHTML.matchAll(/font-size:0\.8em">(.*?)<\/p>/g)];
+      const smallMatches = [...text.matchAll(/font-size:0\.8em">(.*?)<\/p>/g)];
       const sigAlign = el.getAttribute("align") || "left";
       // Parse sig:lineColor:lineWidth from css-class
       const sigMarker = sigCssClass.match(/^sig:(#[0-9a-fA-F]{6}):(.+)$/);
@@ -730,8 +768,11 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
     const cssClass = el.getAttribute("css-class") || "";
     const fontStyle = cssClass.includes("italic") ? "italic" : "normal";
     const textDecoration = cssClass.includes("underline") ? "underline" : "none";
-    // Strip the <span style="..."> wrapper if present
-    const cleanText = text.replace(/<span style="[^"]*">(.*?)<\/span>/g, '$1') || text;
+    // Strip only our italic/underline formatting wrapper spans.
+    // Keep all other HTML (like background-color spans from the editor).
+    let cleanText = text;
+    // Remove our formatting wrapper: <span style="font-style:italic">...</span> etc
+    cleanText = cleanText.replace(/<span style="(?:font-style:italic|text-decoration:underline|font-style:italic;text-decoration:underline|text-decoration:underline;font-style:italic)">([\s\S]*?)<\/span>/g, '$1');
     return {
       id,
       type: isHeading ? "heading" : "text",
@@ -868,3 +909,5 @@ function parseBlockFromElement(tag: string, el: Element): BlockData | null {
 
   return null;
 }
+
+

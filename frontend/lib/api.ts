@@ -48,7 +48,7 @@ export const auth = {
 export const templates = {
     create: (body: { name: string; description?: string; type: number; subject?: string; content: string }) =>
         request('/templates', { method: 'POST', body: JSON.stringify(body) }),
-
+    
     list:(params?: {page?: number; limit?: number; type?: string; search?: string;}) =>{
         const query = new URLSearchParams();
         if(params?.page) query.set('page', String(params.page));
