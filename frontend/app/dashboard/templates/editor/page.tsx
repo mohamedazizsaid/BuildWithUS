@@ -361,6 +361,12 @@ function EditorContent() {
               onDropBlockToCanvas={(blockType) =>
                 editorState.addBlockToNewRow(blockType as BlockType)
               }
+              onDropSection={(sectionId) => {
+                import('@/lib/editor-sections').then(({ SECTIONS }) => {
+                  const section = SECTIONS.find((s: { id: string }) => s.id === sectionId);
+                  if (section) editorState.addSection(section.rows());
+                });
+              }}
             />
           ) : (
             <div className="h-full">

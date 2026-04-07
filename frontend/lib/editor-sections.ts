@@ -1,12 +1,12 @@
-import { Row, RowLayout, DEFAULT_BLOCK_CONTENT } from './editor-types';
+import { Row, RowLayout, BlockType, BlockData, DEFAULT_BLOCK_CONTENT } from './editor-types';
 import { v4 as uuid } from 'uuid';
 
 // Helper to create a block with defaults
-function b(type: string, content?: Record<string, string>, styles?: Record<string, string>) {
+function b(type: string, content?: Record<string, string>, styles?: Record<string, string>): BlockData {
   const defaults = DEFAULT_BLOCK_CONTENT[type as keyof typeof DEFAULT_BLOCK_CONTENT];
   return {
     id: uuid(),
-    type: type as Row['layout'],
+    type: type as BlockType,
     content: { ...(defaults?.content || {}), ...content } as Record<string, string | string[] | string[][]>,
     styles: { ...(defaults?.styles || {}), ...styles } as Record<string, string>,
   };
@@ -21,11 +21,19 @@ function row(layout: RowLayout, columns: { width: string; blocks: ReturnType<typ
   };
 }
 
+// Visual layout descriptor for mini preview rendering
+// Each row is an array of cells, each cell has a type and width percentage
+export type CellType = 'img' | 'title' | 'text' | 'btn' | 'divider' | 'empty';
+export interface LayoutRow {
+  cells: { type: CellType; w: number }[];
+}
+
 export interface SectionDef {
   id: string;
   name: string;
   category: 'text-image' | 'text' | 'images';
-  preview: string; // ASCII art for the mini preview
+  preview: string; // Fallback text
+  layout: LayoutRow[]; // Visual layout for mini preview
   rows: () => Row[]; // Function so each insertion gets fresh UUIDs
 }
 
@@ -44,6 +52,7 @@ export const SECTIONS: SectionDef[] = [
     name: 'Image + Titre + Texte + Bouton',
     category: 'text-image',
     preview: '🖼️\n━━━\n𝗧𝗶𝘁𝗿𝗲\n━━━\nTexte\n━━━\n[Bouton]',
+    layout: [{ cells: [{ type: 'img', w: 100 }] }, { cells: [{ type: 'title', w: 100 }] }, { cells: [{ type: 'text', w: 100 }] }, { cells: [{ type: 'btn', w: 100 }] }],
     rows: () => [
       row('100', [{ width: '100%', blocks: [b('image', { src: '', alt: 'Image' })] }]),
       row('100', [{ width: '100%', blocks: [b('heading', { text: 'Votre titre ici' })] }]),
@@ -56,6 +65,7 @@ export const SECTIONS: SectionDef[] = [
     name: 'Image | Titre + Texte + Bouton',
     category: 'text-image',
     preview: '🖼️ | 𝗧𝗶𝘁𝗿𝗲\n    | Texte\n    | [Bouton]',
+    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'text', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'btn', w: 50 }] }],
     rows: () => [
       row('50-50', [
         { width: '50%', blocks: [b('image', { src: '', alt: 'Image' }, { width: '100%' })] },
@@ -72,6 +82,7 @@ export const SECTIONS: SectionDef[] = [
     name: 'Titre + Texte + Bouton | Image',
     category: 'text-image',
     preview: '𝗧𝗶𝘁𝗿𝗲  | 🖼️\nTexte  |\n[Bouton]|',
+    layout: [{ cells: [{ type: 'title', w: 50 }, { type: 'img', w: 50 }] }, { cells: [{ type: 'text', w: 50 }, { type: 'empty', w: 50 }] }, { cells: [{ type: 'btn', w: 50 }, { type: 'empty', w: 50 }] }],
     rows: () => [
       row('50-50', [
         { width: '50%', blocks: [
@@ -88,6 +99,7 @@ export const SECTIONS: SectionDef[] = [
     name: '3 colonnes: Image + Titre + Texte + CTA',
     category: 'text-image',
     preview: '🖼️|🖼️|🖼️\n𝗧 | 𝗧 | 𝗧\ntxt|txt|txt\n[•]|[•]|[•]',
+    layout: [{ cells: [{ type: 'img', w: 33 }, { type: 'img', w: 33 }, { type: 'img', w: 33 }] }, { cells: [{ type: 'title', w: 33 }, { type: 'title', w: 33 }, { type: 'title', w: 33 }] }, { cells: [{ type: 'text', w: 33 }, { type: 'text', w: 33 }, { type: 'text', w: 33 }] }, { cells: [{ type: 'btn', w: 33 }, { type: 'btn', w: 33 }, { type: 'btn', w: 33 }] }],
     rows: () => [
       row('33-33-33', [
         { width: '33.33%', blocks: [
@@ -116,6 +128,7 @@ export const SECTIONS: SectionDef[] = [
     name: 'Image | Titre + Sous-titre + Texte',
     category: 'text-image',
     preview: '🖼️ | 𝗧𝗶𝘁𝗿𝗲\n    | sous-titre\n    | texte',
+    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'text', w: 50 }] }],
     rows: () => [
       row('50-50', [
         { width: '50%', blocks: [b('image', { src: '', alt: 'Image' }, { width: '100%' })] },
@@ -136,6 +149,7 @@ export const SECTIONS: SectionDef[] = [
     name: 'Titre + Sous-titre + Texte',
     category: 'text',
     preview: '𝗧𝗶𝘁𝗿𝗲\n━━━\nSous-titre\n━━━\nTexte',
+    layout: [{ cells: [{ type: 'title', w: 100 }] }, { cells: [{ type: 'title', w: 100 }] }, { cells: [{ type: 'text', w: 100 }] }],
     rows: () => [
       row('100', [{ width: '100%', blocks: [
         b('heading', { text: 'Titre' }),
@@ -149,6 +163,7 @@ export const SECTIONS: SectionDef[] = [
     name: '2 colonnes: Titre + Texte',
     category: 'text',
     preview: '𝗧𝗶𝘁𝗿𝗲 | 𝗧𝗶𝘁𝗿𝗲\ntexte | texte',
+    layout: [{ cells: [{ type: 'title', w: 50 }, { type: 'title', w: 50 }] }, { cells: [{ type: 'text', w: 50 }, { type: 'text', w: 50 }] }],
     rows: () => [
       row('50-50', [
         { width: '50%', blocks: [
@@ -167,6 +182,7 @@ export const SECTIONS: SectionDef[] = [
     name: 'Texte + Titre',
     category: 'text',
     preview: 'Texte\n━━━\n𝗧𝗶𝘁𝗿𝗲',
+    layout: [{ cells: [{ type: 'text', w: 100 }] }, { cells: [{ type: 'title', w: 100 }] }],
     rows: () => [
       row('100', [{ width: '100%', blocks: [
         b('text', { text: 'Lorem ipsum dolor sit amet.' }),
@@ -179,6 +195,7 @@ export const SECTIONS: SectionDef[] = [
     name: '3 colonnes: Titre + Texte',
     category: 'text',
     preview: '𝗧 | 𝗧 | 𝗧\ntxt|txt|txt',
+    layout: [{ cells: [{ type: 'title', w: 33 }, { type: 'title', w: 33 }, { type: 'title', w: 33 }] }, { cells: [{ type: 'text', w: 33 }, { type: 'text', w: 33 }, { type: 'text', w: 33 }] }],
     rows: () => [
       row('33-33-33', [
         { width: '33.33%', blocks: [b('heading', { text: 'Titre 1' }, { fontSize: '18px' }), b('text', { text: 'Description courte.' }, { fontSize: '14px' })] },
@@ -192,6 +209,7 @@ export const SECTIONS: SectionDef[] = [
     name: '4 colonnes avec séparateurs',
     category: 'text',
     preview: '𝗧|𝗧|𝗧|𝗧\ntxt|txt|txt|txt\n---|---|---|---\n𝗧|𝗧|𝗧|𝗧\ntxt|txt|txt|txt',
+    layout: [{ cells: [{ type: 'title', w: 25 }, { type: 'title', w: 25 }, { type: 'title', w: 25 }, { type: 'title', w: 25 }] }, { cells: [{ type: 'text', w: 25 }, { type: 'text', w: 25 }, { type: 'text', w: 25 }, { type: 'text', w: 25 }] }, { cells: [{ type: 'divider', w: 100 }] }, { cells: [{ type: 'title', w: 25 }, { type: 'title', w: 25 }, { type: 'title', w: 25 }, { type: 'title', w: 25 }] }, { cells: [{ type: 'text', w: 25 }, { type: 'text', w: 25 }, { type: 'text', w: 25 }, { type: 'text', w: 25 }] }],
     rows: () => [
       row('25-25-25-25', [
         { width: '25%', blocks: [b('heading', { text: 'Titre' }, { fontSize: '16px' }), b('text', { text: 'Texte' }, { fontSize: '13px' })] },
@@ -217,6 +235,7 @@ export const SECTIONS: SectionDef[] = [
     name: '2 images côte à côte',
     category: 'images',
     preview: '🖼️ | 🖼️',
+    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'img', w: 50 }] }],
     rows: () => [
       row('50-50', [
         { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
@@ -229,6 +248,7 @@ export const SECTIONS: SectionDef[] = [
     name: '2x2 grille d\'images',
     category: 'images',
     preview: '🖼️|🖼️\n🖼️|🖼️',
+    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'img', w: 50 }] }, { cells: [{ type: 'img', w: 50 }, { type: 'img', w: 50 }] }],
     rows: () => [
       row('50-50', [
         { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
@@ -245,6 +265,7 @@ export const SECTIONS: SectionDef[] = [
     name: '4 images en ligne',
     category: 'images',
     preview: '🖼️|🖼️|🖼️|🖼️',
+    layout: [{ cells: [{ type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }] }],
     rows: () => [
       row('25-25-25-25', [
         { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
@@ -259,6 +280,7 @@ export const SECTIONS: SectionDef[] = [
     name: '3 images en ligne',
     category: 'images',
     preview: '🖼️ | 🖼️ | 🖼️',
+    layout: [{ cells: [{ type: 'img', w: 33 }, { type: 'img', w: 33 }, { type: 'img', w: 33 }] }],
     rows: () => [
       row('33-33-33', [
         { width: '33.33%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
@@ -272,6 +294,7 @@ export const SECTIONS: SectionDef[] = [
     name: 'Grande image + 2 petites',
     category: 'images',
     preview: '🖼️  |🖼️\n     |🖼️',
+    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'img', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'img', w: 50 }] }],
     rows: () => [
       row('50-50', [
         { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
@@ -287,6 +310,7 @@ export const SECTIONS: SectionDef[] = [
     name: '4x2 grille d\'images',
     category: 'images',
     preview: '🖼️|🖼️|🖼️|🖼️\n🖼️|🖼️|🖼️|🖼️',
+    layout: [{ cells: [{ type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }] }, { cells: [{ type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }] }],
     rows: () => [
       row('25-25-25-25', [
         { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },

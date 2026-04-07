@@ -20,6 +20,7 @@ interface CanvasProps {
   onReorderBlocks: (columnId: string, fromIndex: number, toIndex: number) => void;
   onDropBlock: (columnId: string, blockType: string) => void;
   onDropBlockToCanvas: (blockType: string) => void;
+  onDropSection: (sectionId: string) => void;
 }
 
 
@@ -75,6 +76,7 @@ export default function Canvas({
   onReorderBlocks,
   onDropBlock,
   onDropBlockToCanvas,
+  onDropSection,
 }: CanvasProps) {
   const [showAddRow, setShowAddRow] = useState(false);
   const [dragRowIndex, setDragRowIndex] = useState<number | null>(null);
@@ -154,7 +156,7 @@ export default function Canvas({
           }
         }}
         onDragOver={(e) => {
-          if (e.dataTransfer.types.includes('blocktype')) {
+          if (e.dataTransfer.types.includes('blocktype') || e.dataTransfer.types.includes('sectionid')) {
             e.preventDefault();
             setCanvasDragOver(true);
           }
@@ -164,10 +166,15 @@ export default function Canvas({
         }}
         onDrop={(e) => {
           const blockType = e.dataTransfer.getData('blockType');
+          const sectionId = e.dataTransfer.getData('sectionId');
           if (blockType) {
             e.preventDefault();
             e.stopPropagation();
             onDropBlockToCanvas(blockType);
+          } else if (sectionId) {
+            e.preventDefault();
+            e.stopPropagation();
+            onDropSection(sectionId);
           }
           setCanvasDragOver(false);
           setDropIndicatorIndex(null);

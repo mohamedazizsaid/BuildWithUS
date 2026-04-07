@@ -772,6 +772,53 @@ function PhotosPanel() {
   );
 }
 
+// ─── Section Mini Preview ───
+function SectionMiniPreview({ layout }: { layout: import('@/lib/editor-sections').LayoutRow[] }) {
+  const cellConfig: Record<string, { bg: string; border: string; h: string; label: string; icon?: string }> = {
+    img:     { bg: 'bg-blue-50',   border: 'border-blue-200',  h: 'h-8',   label: '', icon: '🖼️' },
+    title:   { bg: 'bg-slate-100', border: 'border-slate-200', h: 'h-4',   label: 'Titre' },
+    text:    { bg: 'bg-slate-50',  border: 'border-slate-200', h: 'h-3',   label: 'Texte' },
+    btn:     { bg: 'bg-slate-800', border: 'border-slate-900', h: 'h-4',   label: 'Bouton' },
+    divider: { bg: '',             border: '',                  h: '',      label: '' },
+    empty:   { bg: '',             border: '',                  h: '',      label: '' },
+  };
+
+  return (
+    <div className="space-y-0.5">
+      {layout.map((row, ri) => (
+        <div key={ri} className="flex gap-0.5">
+          {row.cells.map((cell, ci) => {
+            const cfg = cellConfig[cell.type] || cellConfig.empty;
+
+            if (cell.type === 'divider') {
+              return <div key={ci} className="w-full h-px bg-slate-300 my-1" />;
+            }
+            if (cell.type === 'empty') {
+              return <div key={ci} style={{ width: `${cell.w}%` }} />;
+            }
+
+            return (
+              <div
+                key={ci}
+                className={`${cfg.h} rounded-sm ${cfg.bg} border ${cfg.border} flex items-center justify-center overflow-hidden`}
+                style={{ width: `${cell.w}%` }}
+              >
+                {cfg.icon ? (
+                  <span className="text-[8px]">{cfg.icon}</span>
+                ) : (
+                  <span className={`text-[7px] leading-none ${cell.type === 'btn' ? 'text-white' : 'text-muted-foreground/70'}`}>
+                    {cfg.label}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Sections Panel ───
 function SectionsPanel({ onAddSection }: { onAddSection: (rows: Row[]) => void }) {
   const [activeCategory, setActiveCategory] = useState<string>('text-image');
@@ -788,22 +835,21 @@ function SectionsPanel({ onAddSection }: { onAddSection: (rows: Row[]) => void }
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
-            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-[10px] font-medium transition-all ${
               activeCategory === cat.id
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'border border-border hover:bg-accent hover:border-ring'
             }`}
           >
             <span>{cat.icon}</span>
-            <span className="hidden xl:inline">{cat.label}</span>
           </button>
         ))}
       </div>
 
       {/* Section items */}
-      <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
         {filtered.map((section) => (
-          <button
+          <div
             key={section.id}
             onClick={() => onAddSection(section.rows())}
             draggable
@@ -811,11 +857,13 @@ function SectionsPanel({ onAddSection }: { onAddSection: (rows: Row[]) => void }
               e.dataTransfer.setData('sectionId', section.id);
               e.dataTransfer.effectAllowed = 'copy';
             }}
-            className="w-full text-left rounded-xl border border-border p-3 hover:border-ring hover:bg-accent/50 transition-all cursor-grab active:cursor-grabbing group"
+            className="rounded-xl border border-border p-2.5 hover:border-ring hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing"
           >
-            <p className="text-xs font-medium mb-1.5">{section.name}</p>
-            <pre className="text-[9px] text-muted-foreground font-mono leading-tight whitespace-pre-wrap">{section.preview}</pre>
-          </button>
+            <p className="text-[9px] font-medium text-muted-foreground mb-1.5 leading-tight truncate">{section.name}</p>
+            <div className="p-1.5 bg-muted/30 rounded-lg">
+              <SectionMiniPreview layout={section.layout} />
+            </div>
+          </div>
         ))}
       </div>
     </div>
