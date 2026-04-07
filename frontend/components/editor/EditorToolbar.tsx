@@ -348,7 +348,8 @@ export default function EditorToolbar({
     selectedBlock &&
     (selectedBlock.type === "heading" ||
       selectedBlock.type === "text" ||
-      selectedBlock.type === "button");
+      selectedBlock.type === "button" ||
+      selectedBlock.type === "table");
   const showFormatBar = isTextBlock && activeTab === "canvas" && !previewMode;
 
   return (
