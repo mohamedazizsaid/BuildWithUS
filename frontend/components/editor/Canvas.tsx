@@ -587,6 +587,12 @@ function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onSelect, 
             spellCheck={false}
             onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.innerHTML || '' } })}
             style={{ outline: 'none', minWidth: '20px', display: 'inline-block' }}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                document.execCommand('insertText', false, '\u00a0\u00a0\u00a0\u00a0');
+              }
+            }}
             onMouseDown={(e) => {
               e.stopPropagation();
               placeCaretEndRef.current = false;
@@ -767,6 +773,12 @@ function CanvasBlock({
                 outline: 'none',
                 minHeight: '1.2em',
                 wordBreak: 'break-word' as const,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Tab') {
+                  e.preventDefault();
+                  document.execCommand('insertText', false, '\u00a0\u00a0\u00a0\u00a0');
+                }
               }}
               onMouseDown={(e) => {
                 e.stopPropagation();
