@@ -1106,7 +1106,18 @@ function ImageBlockProperties({
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="link" title="Lien">
         <div>
           <Label className="text-xs">URL du lien</Label>
-          <Input value={block.content.href as string || ''} onChange={(e) => updateContent('href', e.target.value)} className="h-8 text-xs mt-1" placeholder="https://..." />
+          <Input
+            value={block.content.href as string || ''}
+            onChange={(e) => updateContent('href', e.target.value)}
+            onBlur={(e) => {
+              const val = e.target.value.trim();
+              if (val && !val.match(/^https?:\/\//) && val !== '#') {
+                updateContent('href', `https://${val}`);
+              }
+            }}
+            className="h-8 text-xs mt-1"
+            placeholder="https://..."
+          />
         </div>
       </AccordionSection>
 
@@ -1729,6 +1740,12 @@ function BlockProperties({
             <Input
               value={block.content.href as string}
               onChange={(e) => updateContent('href', e.target.value)}
+              onBlur={(e) => {
+                const val = e.target.value.trim();
+                if (val && !val.match(/^https?:\/\//) && val !== '#') {
+                  updateContent('href', `https://${val}`);
+                }
+              }}
               className="h-8 text-xs mt-1"
               placeholder="https://..."
             />

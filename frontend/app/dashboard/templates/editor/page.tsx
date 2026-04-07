@@ -482,7 +482,8 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
       const btnBorder = btnBorderSize !== '0px' ? ` border="${btnBorderSize} solid ${btnBorderColor}"` : '';
       const btnLh = block.styles.lineHeight || g.lineHeight;
       const btnLs = block.styles.letterSpacing || '0px';
-      return `        <mj-button background-color="${btnBg}" color="${btnColor}" font-size="${btnSize}" font-weight="${btnWeight}" font-family="${btnFamily}" border-radius="${btnRadius}" href="${block.content.href}" padding="${block.styles.padding}" align="${block.styles.textAlign}" line-height="${btnLh}" letter-spacing="${btnLs}"${btnBorder}>${block.content.text}</mj-button>\n`;
+      const btnW = block.styles.btnWidth && block.styles.btnWidth !== 'auto' ? ` width="${block.styles.btnWidth}"` : '';
+      return `        <mj-button background-color="${btnBg}" color="${btnColor}" font-size="${btnSize}" font-weight="${btnWeight}" font-family="${btnFamily}" border-radius="${btnRadius}" href="${block.content.href}" padding="${block.styles.padding}" align="${block.styles.textAlign}" line-height="${btnLh}" letter-spacing="${btnLs}"${btnBorder}${btnW}>${block.content.text}</mj-button>\n`;
     }
     case "divider": {
       const divStyle = block.styles.borderStyle || 'solid';
@@ -878,6 +879,7 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
         textAlign: el.getAttribute("align") || "center",
         lineHeight: el.getAttribute("line-height") || "",
         letterSpacing: el.getAttribute("letter-spacing") || "",
+        btnWidth: el.getAttribute("width") || "auto",
         ...btnBorderParts,
       },
     };

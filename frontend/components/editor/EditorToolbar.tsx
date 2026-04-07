@@ -507,17 +507,20 @@ export default function EditorToolbar({
 function FmtBtn({
   active,
   onClick,
+  onMouseDown,
   children,
   title,
 }: {
   active?: boolean;
   onClick: () => void;
+  onMouseDown?: (e: React.MouseEvent) => void;
   children: React.ReactNode;
   title?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      onMouseDown={onMouseDown}
       title={title}
       className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}
     >
@@ -650,16 +653,52 @@ function FormatBar({
   };
 
   const applyLink = () => {
-    if (linkUrl) {
-      onUpdate({
-        content: { ...block.content, href: linkUrl },
-        styles: {
-          ...block.styles,
-          textDecoration: "underline",
-          color: "#2563eb",
-        },
-      });
+    if (!linkUrl) { setShowLink(false); return; }
+
+    // Ensure URL has protocol
+    const url = linkUrl.match(/^https?:\/\//) ? linkUrl : `https://${linkUrl}`;
+
+    const selection = window.getSelection();
+
+    // Restore last selection if toolbar click collapsed it
+    if (selection && (selection.isCollapsed || selection.rangeCount === 0) && lastRangeRef.current) {
+      selection.removeAllRanges();
+      selection.addRange(lastRangeRef.current);
     }
+
+    const anchor = selection?.anchorNode as HTMLElement | null;
+    const editable = anchor
+      ? (anchor.nodeType === 1 ? (anchor as HTMLElement) : anchor.parentElement)?.closest('[contenteditable="true"]')
+      : null;
+
+    if (editable && selection && !selection.isCollapsed && selection.rangeCount > 0) {
+      // Wrap selected text in <a> tag
+      const range = selection.getRangeAt(0);
+      if (editable.contains(range.commonAncestorContainer)) {
+        const fragment = range.extractContents();
+        const link = document.createElement('a');
+        link.href = url;
+        link.style.color = '#2563eb';
+        link.style.textDecoration = 'underline';
+        link.setAttribute('target', '_blank');
+        link.appendChild(fragment);
+        range.insertNode(link);
+
+        // Place caret after the link
+        const after = document.createRange();
+        after.setStartAfter(link);
+        after.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(after);
+
+        // Save the updated innerHTML back to block content
+        onUpdate({ content: { ...block.content, text: editable.innerHTML } });
+      }
+    } else {
+      // No selection — for buttons, set the href directly
+      onUpdate({ content: { ...block.content, href: url } });
+    }
+
     setShowLink(false);
     setLinkUrl("");
   };
@@ -1013,6 +1052,7 @@ function FormatBar({
 
       <FmtBtn
         active={showLink}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
         onClick={() => {
           setShowLink(!showLink);
           setShowEmoji(false);
