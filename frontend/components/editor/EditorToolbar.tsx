@@ -535,6 +535,8 @@ function Dropdown({
   displayValue,
   options,
   onChange,
+  onPreview,
+  onPreviewEnd,
   maxWidth = 190,
   fontPreview,
 }: {
@@ -543,10 +545,17 @@ function Dropdown({
   displayValue: string;
   options: { label: string; value: string }[];
   onChange: (v: string) => void;
+  onPreview?: (v: string) => void;
+  onPreviewEnd?: () => void;
   maxWidth?: number;
   fontPreview?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+
+  const handleClose = () => {
+    setOpen(false);
+    onPreviewEnd?.();
+  };
 
   return (
     <div className="relative">
@@ -569,7 +578,7 @@ function Dropdown({
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-40" onClick={handleClose} />
           <div className="absolute top-full left-0 mt-1 z-50 w-[240px] max-h-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-[0_12px_30px_rgba(0,0,0,0.14)] p-1">
             {options.map((opt) => (
               <button
@@ -578,6 +587,8 @@ function Dropdown({
                   onChange(opt.value);
                   setOpen(false);
                 }}
+                onMouseEnter={() => onPreview?.(opt.value)}
+                onMouseLeave={() => onPreviewEnd?.()}
                 className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
                   value === opt.value
                     ? "bg-accent text-accent-foreground"
@@ -611,6 +622,26 @@ function FormatBar({
   const [emojiPage, setEmojiPage] = useState(0);
   const [currentBgColor, setCurrentBgColor] = useState("#ffffff");
   const lastRangeRef = useRef<Range | null>(null);
+  const previewOrigRef = useRef<Record<string, string> | null>(null);
+
+  const previewStyle = (key: string, val: string) => {
+    if (!previewOrigRef.current) {
+      previewOrigRef.current = { ...block.styles };
+    }
+    onUpdate({ styles: { ...block.styles, [key]: val } });
+  };
+
+  const endPreview = () => {
+    if (previewOrigRef.current) {
+      onUpdate({ styles: previewOrigRef.current });
+      previewOrigRef.current = null;
+    }
+  };
+
+  const commitStyle = (key: string, val: string) => {
+    previewOrigRef.current = null;
+    onUpdate({ styles: { ...block.styles, [key]: val } });
+  };
 
   // Track last text selection inside editable so toolbar actions can apply to it
   useEffect(() => {
@@ -850,9 +881,9 @@ function FormatBar({
             )?.label || "Verdana"
           }
           options={FONT_OPTIONS}
-          onChange={(v) =>
-            onUpdate({ styles: { ...block.styles, fontFamily: v } })
-          }
+          onChange={(v) => commitStyle('fontFamily', v)}
+          onPreview={(v) => previewStyle('fontFamily', v)}
+          onPreviewEnd={endPreview}
           maxWidth={190}
           fontPreview
         />
@@ -868,9 +899,9 @@ function FormatBar({
             label: s.replace("px", ""),
             value: s,
           }))}
-          onChange={(v) =>
-            onUpdate({ styles: { ...block.styles, fontSize: v } })
-          }
+          onChange={(v) => commitStyle('fontSize', v)}
+          onPreview={(v) => previewStyle('fontSize', v)}
+          onPreviewEnd={endPreview}
           maxWidth={80}
         />
       </div>
