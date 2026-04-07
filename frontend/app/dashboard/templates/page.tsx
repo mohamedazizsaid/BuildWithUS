@@ -157,7 +157,15 @@ function mjmlToPreviewHtml(mjml: string): string {
             const bw = child.getAttribute('border-width') || '1px';
             html += `<hr style="border:none;border-top:${bw} solid ${bc};margin:10px 0;" />`;
           } else if (tag === 'mj-table') {
-            html += `<div style="padding:10px;font-size:14px;">${child.innerHTML}</div>`;
+            const tFs = child.getAttribute('font-size') || '13px';
+            const tColor = child.getAttribute('color') || 'inherit';
+            // Restore table content from placeholder if needed
+            let tableHtml = child.innerHTML || '';
+            const tPhMatch = tableHtml.match(/__PLACEHOLDER_(\d+)__/);
+            if (tPhMatch) {
+              tableHtml = textContents[parseInt(tPhMatch[1])] || tableHtml;
+            }
+            html += `<table style="width:100%;border-collapse:collapse;font-size:${tFs};color:${tColor};padding:10px;">${tableHtml}</table>`;
           }
         }
         html += `</div>`;
