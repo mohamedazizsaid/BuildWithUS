@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Type, LayoutGrid, Palette, ImageIcon, ArrowLeft, Trash2 } from 'lucide-react';
+import { Type, LayoutGrid, Palette, ImageIcon, ArrowLeft, Trash2, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,10 @@ import {
   GlobalStyles,
 } from '@/lib/editor-types';
 
-type PanelTab = 'contenu' | 'blocs' | 'corps' | 'photos';
+import { Row } from '@/lib/editor-types';
+import { SECTIONS, SECTION_CATEGORIES, SectionDef } from '@/lib/editor-sections';
+
+type PanelTab = 'contenu' | 'blocs' | 'corps' | 'photos' | 'sections';
 
 interface RightPanelProps {
   selectedBlock: BlockData | null;
@@ -21,6 +24,7 @@ interface RightPanelProps {
   onAddRow: (layout: RowLayout) => void;
   onAddBlock: (columnId: string, type: BlockType) => void;
   onAddBlockToNewRow: (type: BlockType) => void;
+  onAddSection: (rows: Row[]) => void;
   onUpdateBlock: (blockId: string, updates: Partial<BlockData>) => void;
   onRemoveBlock: (blockId: string) => void;
   onUpdateGlobalStyles: (styles: Partial<GlobalStyles>) => void;
@@ -45,6 +49,7 @@ export default function RightPanel({
   onAddRow,
   onAddBlock,
   onAddBlockToNewRow,
+  onAddSection,
   onUpdateBlock,
   onRemoveBlock,
   onUpdateGlobalStyles,
@@ -116,6 +121,9 @@ export default function RightPanel({
           {activeTab === 'photos' && (
             <PhotosPanel />
           )}
+          {activeTab === 'sections' && (
+            <SectionsPanel onAddSection={onAddSection} />
+          )}
         </div>
       </div>
 
@@ -126,6 +134,7 @@ export default function RightPanel({
           { key: 'blocs' as PanelTab, icon: LayoutGrid, label: 'B' },
           { key: 'corps' as PanelTab, icon: Palette, label: 'Co' },
           { key: 'photos' as PanelTab, icon: ImageIcon, label: 'P' },
+          { key: 'sections' as PanelTab, icon: LayoutTemplate, label: 'S' },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -759,6 +768,56 @@ function PhotosPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Sections Panel ───
+function SectionsPanel({ onAddSection }: { onAddSection: (rows: Row[]) => void }) {
+  const [activeCategory, setActiveCategory] = useState<string>('text-image');
+
+  const filtered = SECTIONS.filter(s => s.category === activeCategory);
+
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sections</h3>
+
+      {/* Category tabs */}
+      <div className="flex gap-1 mb-3">
+        {SECTION_CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id)}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+              activeCategory === cat.id
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'border border-border hover:bg-accent hover:border-ring'
+            }`}
+          >
+            <span>{cat.icon}</span>
+            <span className="hidden xl:inline">{cat.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Section items */}
+      <div className="space-y-2">
+        {filtered.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => onAddSection(section.rows())}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('sectionId', section.id);
+              e.dataTransfer.effectAllowed = 'copy';
+            }}
+            className="w-full text-left rounded-xl border border-border p-3 hover:border-ring hover:bg-accent/50 transition-all cursor-grab active:cursor-grabbing group"
+          >
+            <p className="text-xs font-medium mb-1.5">{section.name}</p>
+            <pre className="text-[9px] text-muted-foreground font-mono leading-tight whitespace-pre-wrap">{section.preview}</pre>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

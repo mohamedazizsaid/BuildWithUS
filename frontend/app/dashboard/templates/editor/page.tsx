@@ -400,6 +400,7 @@ function EditorContent() {
               onAddRow={editorState.addRow}
               onAddBlock={editorState.addBlock}
               onAddBlockToNewRow={editorState.addBlockToNewRow}
+              onAddSection={editorState.addSection}
               onUpdateBlock={editorState.updateBlock}
               onRemoveBlock={editorState.removeBlock}
               onUpdateGlobalStyles={editorState.updateGlobalStyles}

@@ -260,6 +260,10 @@ export function useEditor() {
     reorderRows,
     reorderBlocks,
     duplicateBlock,
+    addSection: useCallback((newRows: Row[]) => {
+      const newTemplate = { ...template, rows: [...template.rows, ...newRows] };
+      updateTemplate(newTemplate);
+    }, [template, updateTemplate]),
     getSelectedBlock,
     undo,
     redo,
