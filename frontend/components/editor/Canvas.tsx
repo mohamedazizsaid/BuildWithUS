@@ -6,6 +6,7 @@ import { TemplateData, BlockData, Row, Column, RowLayout, LAYOUT_OPTIONS, Global
 
 interface CanvasProps {
   template: TemplateData;
+  editDevice: 'desktop' | 'tablet' | 'mobile';
   selectedBlockId: string | null;
   selectedRowId: string | null;
   onSelectBlock: (blockId: string | null) => void;
@@ -62,6 +63,7 @@ function resolveBlockAlign(styles: Record<string, string>) {
 
 export default function Canvas({
   template,
+  editDevice,
   selectedBlockId,
   selectedRowId,
   onSelectBlock,
@@ -128,11 +130,11 @@ export default function Canvas({
       }}
     >
       <div
-        className={`mx-auto min-h-[500px] shadow-lg rounded-sm relative transition-all ${
+        className={`mx-auto min-h-[500px] shadow-lg rounded-sm relative transition-all duration-300 ${
           canvasDragOver ? 'ring-2 ring-dashed ring-blue-400 ring-offset-4' : ''
         }`}
         style={{
-          width: template.globalStyles.width,
+          width: editDevice === 'mobile' ? '320px' : editDevice === 'tablet' ? '480px' : template.globalStyles.width,
           backgroundColor: template.globalStyles.bodyColor,
           fontFamily: template.globalStyles.fontFamily,
           color: template.globalStyles.textColor,

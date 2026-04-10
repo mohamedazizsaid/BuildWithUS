@@ -31,6 +31,8 @@ interface EditorToolbarProps {
   setPreviewMode: (mode: boolean) => void;
   previewDevice: "desktop" | "tablet" | "mobile";
   setPreviewDevice: (device: "desktop" | "tablet" | "mobile") => void;
+  editDevice: "desktop" | "tablet" | "mobile";
+  setEditDevice: (device: "desktop" | "tablet" | "mobile") => void;
   onBack: () => void;
   onCreateTemplate: () => void;
   isSaving: boolean;
@@ -330,6 +332,8 @@ export default function EditorToolbar({
   setPreviewMode,
   previewDevice,
   setPreviewDevice,
+  editDevice,
+  setEditDevice,
   onBack,
   onCreateTemplate,
   isSaving,
@@ -424,6 +428,39 @@ export default function EditorToolbar({
               Code
             </button>
           </div>
+
+          {/* Edit device toggle — only in canvas mode */}
+          {activeTab === "canvas" && !previewMode && (
+            <div className="flex items-center gap-0.5 ml-2">
+              <Button
+                variant={editDevice === "desktop" ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setEditDevice("desktop")}
+                className="h-7 w-7"
+                title="Bureau"
+              >
+                <Monitor size={14} />
+              </Button>
+              <Button
+                variant={editDevice === "tablet" ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setEditDevice("tablet")}
+                className="h-7 w-7"
+                title="Tablette"
+              >
+                <Tablet size={14} />
+              </Button>
+              <Button
+                variant={editDevice === "mobile" ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setEditDevice("mobile")}
+                className="h-7 w-7"
+                title="Mobile"
+              >
+                <Smartphone size={14} />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Right */}

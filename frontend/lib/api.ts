@@ -106,3 +106,37 @@ export const media = {
         await request(`/media/${fileName}`, { method: 'DELETE' });
     },
 };
+
+// ─── AI Template Generation ───
+const AI_SERVICE_URL = 'http://127.0.0.1:8001';
+
+export const ai = {
+    generate: async (body: { prompt: string; tenant_id: string; user_id: string }): Promise<{ mjml: string }> => {
+        const res = await fetch(`${AI_SERVICE_URL}/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error(`AI service error: ${res.status}`);
+        }
+        if (data.error) throw new Error(data.error);
+        if (!data.mjml) throw new Error('No MJML returned');
+
+        // Clean MJML: extract only the <mjml>...</mjml> block, fix common issues
+        let mjml = data.mjml;
+        const mjmlMatch = mjml.match(/<mjml[\s\S]*<\/mjml>/i);
+        if (mjmlMatch) mjml = mjmlMatch[0];
+        // Fix double slashes in self-closing tags: / /> → />
+        mjml = mjml.replace(/\/ \/>/g, '/>');
+        // Fix missing closing on self-closing tags
+        mjml = mjml.replace(/<mj-image([^>]*[^/])>/g, '<mj-image$1 />');
+        mjml = mjml.replace(/<mj-divider([^>]*[^/])>/g, '<mj-divider$1 />');
+
+        return { mjml };
+    },
+};

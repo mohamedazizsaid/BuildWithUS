@@ -41,6 +41,7 @@ function EditorContent() {
     "desktop" | "tablet" | "mobile"
   >("desktop");
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [editDevice, setEditDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [isSaving, setIsSaving] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [codeValue, setCodeValue] = useState("");
@@ -254,6 +255,8 @@ function EditorContent() {
         setPreviewMode={setPreviewMode}
         previewDevice={previewDevice}
         setPreviewDevice={setPreviewDevice}
+        editDevice={editDevice}
+        setEditDevice={setEditDevice}
         onBack={() => router.push(isEditMode ? "/dashboard/templates" : "/dashboard/templates/new")}
         onCreateTemplate={handleSaveOrCreate}
         isSaving={isSaving}
@@ -343,6 +346,7 @@ function EditorContent() {
           ) : activeTab === "canvas" ? (
             <Canvas
               template={editorState.template}
+              editDevice={editDevice}
               selectedBlockId={editorState.selectedBlockId}
               selectedRowId={editorState.selectedRowId}
               onSelectBlock={editorState.setSelectedBlockId}
@@ -411,6 +415,23 @@ function EditorContent() {
               onRemoveBlock={editorState.removeBlock}
               onUpdateGlobalStyles={editorState.updateGlobalStyles}
               onDeselectBlock={() => editorState.setSelectedBlockId(null)}
+              onAiGenerate={(mjml: string) => {
+                try {
+                  const parsed = parseMjmlToTemplate(mjml, editorState.template.globalStyles);
+                  if (parsed) {
+                    editorState.setTemplate({
+                      ...editorState.template,
+                      rows: [...editorState.template.rows, ...parsed.rows],
+                      globalStyles: { ...editorState.template.globalStyles, ...parsed.globalStyles },
+                    });
+                    toast.success('Modèle IA ajouté au canevas !');
+                  } else {
+                    toast.error('Impossible de parser le MJML généré');
+                  }
+                } catch {
+                  toast.error('Erreur lors du parsing du MJML');
+                }
+              }}
               activeColumnId={activeColumnId}
             />
           </div>
