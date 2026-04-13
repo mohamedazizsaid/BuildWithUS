@@ -57,6 +57,10 @@ export class TemplateOrmEntity {
   @Column({ name: 'usage_count', type: 'integer', default: 0 })
   usageCount: number;
 
+  @Column({ name: 'is_favorite', type: 'boolean', default: false })
+  @Index()
+  isFavorite: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 

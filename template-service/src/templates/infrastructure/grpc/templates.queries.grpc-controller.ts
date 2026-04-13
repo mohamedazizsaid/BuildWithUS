@@ -69,6 +69,7 @@ export class TemplatesQueriesGrpcController implements TemplateQueryServiceContr
       request.search,
       request.userId,
       (request as any).tenantId || (request as any).tenant_id || '',
+      (request as any).favoritesOnly || (request as any).favorites_only || false,
     );
 
     return this.queryBus.execute<ListTemplatesQuery, ListTemplatesResponse>(query);

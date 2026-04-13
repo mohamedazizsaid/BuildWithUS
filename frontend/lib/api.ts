@@ -49,12 +49,13 @@ export const templates = {
     create: (body: { name: string; description?: string; type: number; subject?: string; content: string }) =>
         request('/templates', { method: 'POST', body: JSON.stringify(body) }),
     
-    list:(params?: {page?: number; limit?: number; type?: string; search?: string;}) =>{
+    list:(params?: {page?: number; limit?: number; type?: string; search?: string; favoritesOnly?: boolean;}) =>{
         const query = new URLSearchParams();
         if(params?.page) query.set('page', String(params.page));
         if(params?.limit) query.set('limit', String(params.limit));
         if(params?.type) query.set('type', params.type);
         if(params?.search) query.set('search', params.search);
+        if(params?.favoritesOnly) query.set('favoritesOnly', 'true');
         return request(`/templates?${query.toString()}`);
     },
     get:(id: string) =>
@@ -68,6 +69,9 @@ export const templates = {
 
     duplicate: (id: string, name: string)=>
         request(`/templates/${id}/duplicate`, { method: 'POST', body: JSON.stringify({name}) }),
+
+    toggleFavorite: (id: string, isFavorite: boolean) =>
+        request(`/templates/${id}/favorite`, { method: 'PUT', body: JSON.stringify({ isFavorite }) }),
 
     render:(id: string, variables: Record<string, string>) =>
         request(`/templates/${id}/render`, { method: 'POST', body: JSON.stringify(variables) }),

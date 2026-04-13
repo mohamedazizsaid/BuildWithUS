@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Mail, FileText, ScrollText, Pencil, Trash2, Copy, Eye, X, Clock } from 'lucide-react';
+import { Plus, Mail, FileText, ScrollText, Pencil, Trash2, Copy, Eye, X, Clock, Star } from 'lucide-react';
 import { templates } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import toast from 'react-hot-toast';
@@ -19,6 +19,7 @@ interface Template {
   updated_at: string;
   version: number;
   usage_count: number;
+  is_favorite?: boolean;
 }
 
 const TYPE_CONFIG: Record<string, { label: string; icon: typeof Mail; color: string; bg: string; gradient: string }> = {
@@ -385,6 +386,24 @@ export default function TemplatesPage() {
     }
   };
 
+  const handleToggleFavorite = async (tmpl: Template) => {
+    const next = !tmpl.is_favorite;
+    // Optimistic update
+    setTemplateList((prev) =>
+      prev.map((t) => (t.id === tmpl.id ? { ...t, is_favorite: next } : t)),
+    );
+    try {
+      await templates.toggleFavorite(tmpl.id, next);
+      toast.success(next ? 'Ajouté aux favoris' : 'Retiré des favoris');
+    } catch {
+      // Rollback on failure
+      setTemplateList((prev) =>
+        prev.map((t) => (t.id === tmpl.id ? { ...t, is_favorite: !next } : t)),
+      );
+      toast.error('Échec de la mise à jour');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -449,67 +468,82 @@ export default function TemplatesPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04, duration: 0.3 }}
-                className="group relative bg-card rounded-2xl border border-border overflow-hidden hover:shadow-[0_8px_32px_rgba(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300"
+                className="group relative bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
               >
                 {/* Preview Area */}
                 <div className="relative">
                   <TemplatePreview content={tmpl.content} type={tmpl.type} />
 
-                  {/* Hover overlay with preview button */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
+                  {/* Subtle hover overlay + preview pill */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 flex items-center justify-center">
                     <button
                       onClick={() => setPreviewTarget(tmpl)}
-                      className="opacity-0 group-hover:opacity-100 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-white transition-all duration-200 hover:scale-110"
+                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full text-xs font-medium text-slate-700 shadow-md hover:bg-slate-50 transition-all duration-150 hover:scale-105"
                     >
-                      <Eye size={18} className="text-slate-700" />
+                      <Eye size={13} />
+                      Aperçu
                     </button>
                   </div>
 
-                  {/* Type badge overlay */}
-                  <div className="absolute top-3 left-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${config.bg} ${config.color} backdrop-blur-sm`}>
-                      <Icon size={10} />
+                  {/* Type badge */}
+                  <div className="absolute top-2.5 left-2.5">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${config.bg} ${config.color}`}>
+                      <Icon size={9} />
                       {config.label}
                     </span>
                   </div>
+
+                  {/* Star */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleToggleFavorite(tmpl); }}
+                    className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+                    title={tmpl.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  >
+                    <Star
+                      size={13}
+                      className={tmpl.is_favorite ? 'text-amber-400' : 'text-slate-300'}
+                      fill={tmpl.is_favorite ? 'currentColor' : 'none'}
+                    />
+                  </button>
                 </div>
 
-                {/* Card Info */}
-                <div className="p-4">
-                  <h3 className="text-sm font-semibold truncate mb-0.5">{tmpl.name}</h3>
-                  {tmpl.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{tmpl.description}</p>
-                  )}
-                  {!tmpl.description && <div className="mb-3" />}
+                {/* Colored accent line */}
+                <div className={`h-[2px] bg-gradient-to-r ${config.gradient}`} />
 
-                  {/* Footer: time + actions */}
-                  <div className="flex items-center justify-between">
+                {/* Card Info */}
+                <div className="p-3.5">
+                  <h3 className="text-sm font-semibold truncate text-foreground">{tmpl.name}</h3>
+                  {tmpl.description && (
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">{tmpl.description}</p>
+                  )}
+
+                  <div className="flex items-center justify-between mt-2.5">
                     <div className="flex items-center gap-1 text-muted-foreground">
-                      <Clock size={11} />
-                      <span className="text-[11px]">{relativeTime(tmpl.updated_at || tmpl.created_at)}</span>
+                      <Clock size={10} />
+                      <span className="text-[10px]">{relativeTime(tmpl.updated_at || tmpl.created_at)}</span>
                     </div>
 
                     {canEdit && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleEdit(tmpl.id)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-accent transition-colors"
+                          className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-accent transition-colors"
                           title="Modifier"
                         >
-                          <Pencil size={13} className="text-muted-foreground" />
+                          <Pencil size={12} className="text-muted-foreground" />
                         </button>
                         <button
-                          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-accent transition-colors opacity-40 cursor-not-allowed"
+                          className="w-6 h-6 rounded-md flex items-center justify-center opacity-30 cursor-not-allowed"
                           title="Bientôt disponible"
                         >
-                          <Copy size={13} className="text-muted-foreground" />
+                          <Copy size={12} className="text-muted-foreground" />
                         </button>
                         <button
                           onClick={() => setDeleteTarget(tmpl)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors"
+                          className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-red-50 transition-colors"
                           title="Supprimer"
                         >
-                          <Trash2 size={13} className="text-red-500" />
+                          <Trash2 size={12} className="text-red-400" />
                         </button>
                       </div>
                     )}

@@ -16,5 +16,6 @@ export class ListTemplatesQuery implements ListTemplatesRequest {
     public readonly search: string = '',
     public readonly userId: string = '',
     public readonly tenantId: string = '',
+    public readonly favoritesOnly: boolean = false,
   ) {}
 }

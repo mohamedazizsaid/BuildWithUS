@@ -30,6 +30,7 @@ export class ListTemplatesHandler implements IQueryHandler<ListTemplatesQuery, L
       limit: query.limit,
       sortBy: query.sortBy,
       ascending: query.ascending,
+      favoritesOnly: query.favoritesOnly || false,
     });
 
     const page = query.page || 1;

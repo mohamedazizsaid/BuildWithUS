@@ -134,6 +134,8 @@ export interface TemplateDTO {
   channelContents: ChannelContent[];
   /** Template variants (optional) */
   variants: { [key: string]: string };
+  /** Whether this template is marked as favorite */
+  isFavorite: boolean;
 }
 
 export interface TemplateDTO_VariantsEntry {
@@ -707,6 +709,7 @@ function createBaseTemplateDTO(): TemplateDTO {
     channels: [],
     channelContents: [],
     variants: {},
+    isFavorite: false,
   };
 }
 
@@ -759,6 +762,9 @@ export const TemplateDTO: MessageFns<TemplateDTO> = {
     Object.entries(message.variants).forEach(([key, value]) => {
       TemplateDTO_VariantsEntry.encode({ key: key as any, value }, writer.uint32(122).fork()).join();
     });
+    if (message.isFavorite === true) {
+      writer.uint32(128).bool(message.isFavorite);
+    }
     return writer;
   },
 
@@ -900,6 +906,14 @@ export const TemplateDTO: MessageFns<TemplateDTO> = {
           if (entry15.value !== undefined) {
             message.variants[entry15.key] = entry15.value;
           }
+          continue;
+        }
+        case 16: {
+          if (tag !== 128) {
+            break;
+          }
+
+          message.isFavorite = reader.bool();
           continue;
         }
       }

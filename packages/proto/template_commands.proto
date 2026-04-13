@@ -93,6 +93,20 @@ message TemplateDTO {
   repeated TemplateType channels = 13;
   repeated ChannelContent channel_contents = 14;
   map<string, string> variants = 15;
+  bool is_favorite = 16;
+}
+
+message ToggleFavoriteRequest {
+  string id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  bool is_favorite = 4;
+}
+
+message ToggleFavoriteResponse {
+  bool success = 1;
+  string message = 2;
+  TemplateDTO template = 3;
 }
 
 // Template Command Service - Write operations (CQRS)
@@ -101,4 +115,5 @@ service TemplateCommandService {
   rpc UpdateTemplate (UpdateTemplateRequest) returns (UpdateTemplateResponse);
   rpc DeleteTemplate (DeleteTemplateRequest) returns (DeleteTemplateResponse);
   rpc DuplicateTemplate (DuplicateTemplateRequest) returns (DuplicateTemplateResponse);
+  rpc ToggleFavorite (ToggleFavoriteRequest) returns (ToggleFavoriteResponse);
 }

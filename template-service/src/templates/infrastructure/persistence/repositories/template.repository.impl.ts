@@ -60,6 +60,10 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       );
     }
 
+    if (options?.favoritesOnly) {
+      queryBuilder.andWhere('template.isFavorite = :isFavorite', { isFavorite: true });
+    }
+
     // Apply sorting
     const sortBy = options?.sortBy || 'createdAt';
     const sortOrder = options?.ascending ? 'ASC' : 'DESC';
@@ -117,6 +121,7 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       createdAt: primitives.createdAt,
       updatedAt: primitives.updatedAt,
       deletedAt: primitives.deletedAt || null,
+      isFavorite: primitives.isFavorite ?? false,
     };
 
     await this.repository.save(entity);
@@ -213,6 +218,7 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       entity.updatedAt,
       entity.deletedAt || undefined,
       entity.version,
+      entity.isFavorite ?? false,
     );
   }
 }

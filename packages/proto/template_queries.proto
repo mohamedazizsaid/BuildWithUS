@@ -20,6 +20,7 @@ message ListTemplatesRequest {
   string sort_by = 5;
   bool ascending = 6;
   string search = 7;
+  bool favorites_only = 9;
 }
 
 message RenderTemplateRequest {

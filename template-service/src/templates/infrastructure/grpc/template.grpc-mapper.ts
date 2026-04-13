@@ -63,7 +63,8 @@ export class TemplateGrpcMapper {
       deletedAt: TimestampHelper.toUnixSeconds(primitives.deletedAt) ?? 0,
       version: primitives.version,
       usageCount,
-    };
+      is_favorite: primitives.isFavorite ?? false,
+    } as unknown as TemplateDTO;
   }
 
   /**
@@ -86,6 +87,7 @@ export class TemplateGrpcMapper {
       deletedAt: TimestampHelper.toUnixSeconds(entity.deletedAt) ?? 0,
       version: entity.version,
       usageCount: entity.usageCount || 0,
-    };
+      is_favorite: entity.isFavorite ?? false,
+    } as unknown as TemplateDTO;
   }
 }

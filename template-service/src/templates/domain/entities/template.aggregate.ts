@@ -48,6 +48,7 @@ export class Template extends AggregateRoot {
   private updatedAt: Date;
   private deletedAt?: Date;
   private _version: number;
+  private isFavorite: boolean;
 
   /**
    * Private constructor - use factory methods
@@ -68,6 +69,7 @@ export class Template extends AggregateRoot {
     updatedAt?: Date,
     deletedAt?: Date,
     version: number = 0,
+    isFavorite: boolean = false,
   ) {
     super();
     this.id = id;
@@ -85,6 +87,7 @@ export class Template extends AggregateRoot {
     this.updatedAt = updatedAt || new Date();
     this.deletedAt = deletedAt;
     this._version = version;
+    this.isFavorite = isFavorite;
   }
 
   /**
@@ -183,6 +186,7 @@ export class Template extends AggregateRoot {
     updatedAt: Date,
     deletedAt: Date | undefined,
     version: number,
+    isFavorite: boolean = false,
   ): Template {
     const resolvedChannels = (channels && channels.length > 0
       ? channels
@@ -216,6 +220,7 @@ export class Template extends AggregateRoot {
       updatedAt,
       deletedAt,
       version,
+      isFavorite,
     );
   }
 
@@ -307,6 +312,17 @@ export class Template extends AggregateRoot {
   }
 
   /**
+   * Toggle favorite status
+   */
+  public setFavorite(isFavorite: boolean): void {
+    this.ensureNotDeleted();
+    if (this.isFavorite === isFavorite) return;
+    this.isFavorite = isFavorite;
+    this.updatedAt = new Date();
+    this.incrementVersion();
+  }
+
+  /**
    * Soft delete the template
    */
   public delete(): void {
@@ -383,6 +399,7 @@ export class Template extends AggregateRoot {
       updatedAt: this.updatedAt,
       deletedAt: this.deletedAt,
       version: this._version,
+      isFavorite: this.isFavorite,
     };
   }
 
@@ -447,5 +464,9 @@ export class Template extends AggregateRoot {
 
   public getVersion(): number {
     return this._version;
+  }
+
+  public getIsFavorite(): boolean {
+    return this.isFavorite;
   }
 }

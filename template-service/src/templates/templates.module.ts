@@ -16,6 +16,7 @@ import {
   UpdateTemplateHandler,
   DeleteTemplateHandler,
   DuplicateTemplateHandler,
+  ToggleFavoriteHandler,
 } from './application/commands/handlers/index.js';
 
 // Query Handlers
@@ -47,6 +48,7 @@ const CommandHandlers = [
   UpdateTemplateHandler,
   DeleteTemplateHandler,
   DuplicateTemplateHandler,
+  ToggleFavoriteHandler,
 ];
 
 // Query Handlers array

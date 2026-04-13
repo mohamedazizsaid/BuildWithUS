@@ -71,6 +71,7 @@ export class TemplateController implements OnModuleInit {
       search: query.search || '',
       sort_by: query.sortBy || '',
       ascending: query.ascending === 'true',
+      favorites_only: query.favoritesOnly === 'true' || query.favorites_only === 'true',
     }));
     return result;
   }
@@ -121,6 +122,22 @@ export class TemplateController implements OnModuleInit {
       id,
       user_id: req.user.id,
       tenant_id: req.user.tenant_id,
+    }));
+    return result;
+  }
+
+  /**
+   * PUT /templates/:id/favorite — Mark / unmark a template as favorite.
+   * Body: { isFavorite: true | false }
+   */
+  @Put(':id/favorite')
+  @Roles('admin', 'editor')
+  async toggleFavorite(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+    const result = await firstValueFrom(this.commandService.ToggleFavorite({
+      id,
+      user_id: req.user.id,
+      tenant_id: req.user.tenant_id,
+      is_favorite: Boolean(body.isFavorite),
     }));
     return result;
   }

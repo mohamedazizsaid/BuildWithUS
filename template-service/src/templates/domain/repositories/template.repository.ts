@@ -11,6 +11,7 @@ export interface TemplateFilterOptions {
   limit?: number;
   sortBy?: string;
   ascending?: boolean;
+  favoritesOnly?: boolean;
 }
 
 /**

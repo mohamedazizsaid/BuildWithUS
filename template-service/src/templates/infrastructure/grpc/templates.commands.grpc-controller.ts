@@ -17,6 +17,7 @@ import {
   UpdateTemplateCommand,
   DeleteTemplateCommand,
   DuplicateTemplateCommand,
+  ToggleFavoriteCommand,
 } from '../../application/commands/index.js';
 import { Template } from '../../domain/entities/template.aggregate.js';
 import { TemplateGrpcMapper } from './template.grpc-mapper.js';
@@ -121,6 +122,31 @@ export class TemplatesCommandsGrpcController implements TemplateCommandServiceCo
     return {
       success: true,
       message: 'Template duplicated successfully',
+      template: TemplateGrpcMapper.toDto(template),
+    };
+  }
+
+  /**
+   * Toggle favorite status on a template
+   */
+  @GrpcMethod('TemplateCommandService', 'ToggleFavorite')
+  async toggleFavorite(request: any): Promise<any> {
+    const tenantId = request.tenantId || request.tenant_id || '';
+    const isFavorite = Boolean(
+      request.isFavorite ?? request.is_favorite ?? false,
+    );
+    const command = new ToggleFavoriteCommand(
+      request.id,
+      request.userId || request.user_id,
+      tenantId,
+      isFavorite,
+    );
+
+    const template = await this.commandBus.execute<ToggleFavoriteCommand, Template>(command);
+
+    return {
+      success: true,
+      message: 'Template favorite status updated',
       template: TemplateGrpcMapper.toDto(template),
     };
   }
