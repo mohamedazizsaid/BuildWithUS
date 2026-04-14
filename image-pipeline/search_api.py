@@ -163,7 +163,7 @@ def health():
 @app.get("/search", response_model=list[ImageResult])
 def search(
     q: str = Query(..., min_length=1, max_length=500, description="French search query"),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(40, ge=1, le=500),
 ):
     """Semantic search — encode French query and find nearest images."""
     if state.txt_model is None or state.chroma_collection is None:
@@ -192,7 +192,7 @@ def search(
 
 
 @app.get("/popular", response_model=list[ImageResult])
-def popular(limit: int = Query(20, ge=1, le=100)):
+def popular(limit: int = Query(40, ge=1, le=500)):
     """Return most-used images sorted by usage_count DESC."""
     conn = get_pg_conn()
     try:
