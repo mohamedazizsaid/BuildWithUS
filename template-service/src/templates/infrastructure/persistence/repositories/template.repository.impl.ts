@@ -64,10 +64,12 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       queryBuilder.andWhere('template.isFavorite = :isFavorite', { isFavorite: true });
     }
 
-    // Apply sorting
-    const sortBy = options?.sortBy || 'createdAt';
+    // Apply sorting — primary by sortBy, secondary by createdAt
+    const sortBy = options?.sortBy || 'updatedAt';
     const sortOrder = options?.ascending ? 'ASC' : 'DESC';
-    queryBuilder.orderBy(`template.${sortBy}`, sortOrder);
+    queryBuilder
+      .orderBy(`template.${sortBy}`, sortOrder)
+      .addOrderBy('template.createdAt', sortOrder);
 
     // Apply pagination
     const page = options?.page || 1;

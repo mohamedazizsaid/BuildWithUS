@@ -60,16 +60,17 @@ export class TemplatesQueriesGrpcController implements TemplateQueryServiceContr
    * List templates with filtering and pagination
    */
   async listTemplates(request: ListTemplatesRequest): Promise<ListTemplatesResponse> {
+    const req = request as any;
     const query = new ListTemplatesQuery(
-      request.page,
-      request.limit,
-      request.type,
-      request.sortBy,
-      request.ascending,
-      request.search,
-      request.userId,
-      (request as any).tenantId || (request as any).tenant_id || '',
-      (request as any).favoritesOnly || (request as any).favorites_only || false,
+      req.page,
+      req.limit,
+      req.type,
+      req.sort_by || req.sortBy || 'updatedAt',
+      req.ascending,
+      req.search,
+      req.user_id || req.userId,
+      req.tenant_id || req.tenantId || '',
+      req.favorites_only || req.favoritesOnly || false,
     );
 
     return this.queryBus.execute<ListTemplatesQuery, ListTemplatesResponse>(query);

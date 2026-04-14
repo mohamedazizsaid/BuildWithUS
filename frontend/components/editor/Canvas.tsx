@@ -22,6 +22,7 @@ interface CanvasProps {
   onDropBlock: (columnId: string, blockType: string) => void;
   onDropBlockToCanvas: (blockType: string) => void;
   onDropSection: (sectionId: string) => void;
+  onDropStockImage: (url: string) => void;
 }
 
 
@@ -79,6 +80,7 @@ export default function Canvas({
   onDropBlock,
   onDropBlockToCanvas,
   onDropSection,
+  onDropStockImage,
 }: CanvasProps) {
   const [showAddRow, setShowAddRow] = useState(false);
   const [dragRowIndex, setDragRowIndex] = useState<number | null>(null);
@@ -158,7 +160,7 @@ export default function Canvas({
           }
         }}
         onDragOver={(e) => {
-          if (e.dataTransfer.types.includes('blocktype') || e.dataTransfer.types.includes('sectionid')) {
+          if (e.dataTransfer.types.includes('blocktype') || e.dataTransfer.types.includes('sectionid') || e.dataTransfer.types.includes('stockimageurl')) {
             e.preventDefault();
             setCanvasDragOver(true);
           }
@@ -169,6 +171,7 @@ export default function Canvas({
         onDrop={(e) => {
           const blockType = e.dataTransfer.getData('blockType');
           const sectionId = e.dataTransfer.getData('sectionId');
+          const stockImageUrl = e.dataTransfer.getData('stockImageUrl');
           if (blockType) {
             e.preventDefault();
             e.stopPropagation();
@@ -177,6 +180,10 @@ export default function Canvas({
             e.preventDefault();
             e.stopPropagation();
             onDropSection(sectionId);
+          } else if (stockImageUrl) {
+            e.preventDefault();
+            e.stopPropagation();
+            onDropStockImage(stockImageUrl);
           }
           setCanvasDragOver(false);
           setDropIndicatorIndex(null);

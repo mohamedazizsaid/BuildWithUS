@@ -1,0 +1,16 @@
+# Python virtual environment
+venv/
+
+# Downloaded images (large files, reproducible via download.py)
+images/
+
+# ChromaDB vector store (reproducible via embed.py)
+chroma_db/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment (contains passwords — never commit)
+.env

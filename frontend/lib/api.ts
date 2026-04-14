@@ -49,13 +49,15 @@ export const templates = {
     create: (body: { name: string; description?: string; type: number; subject?: string; content: string }) =>
         request('/templates', { method: 'POST', body: JSON.stringify(body) }),
     
-    list:(params?: {page?: number; limit?: number; type?: string; search?: string; favoritesOnly?: boolean;}) =>{
+    list:(params?: {page?: number; limit?: number; type?: string; search?: string; favoritesOnly?: boolean; sortBy?: string; ascending?: boolean;}) =>{
         const query = new URLSearchParams();
         if(params?.page) query.set('page', String(params.page));
         if(params?.limit) query.set('limit', String(params.limit));
         if(params?.type) query.set('type', params.type);
         if(params?.search) query.set('search', params.search);
         if(params?.favoritesOnly) query.set('favoritesOnly', 'true');
+        if(params?.sortBy) query.set('sortBy', params.sortBy);
+        if(params?.ascending !== undefined) query.set('ascending', String(params.ascending));
         return request(`/templates?${query.toString()}`);
     },
     get:(id: string) =>

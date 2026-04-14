@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Type, LayoutGrid, Palette, ImageIcon, ArrowLeft, Trash2, LayoutTemplate, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -700,10 +700,72 @@ function CorpsPanel({
 }
 
 // ─── Photos Panel ───
+const IMAGE_SEARCH_API = process.env.NEXT_PUBLIC_IMAGE_SEARCH_API ?? 'http://localhost:8001';
+
+interface StockImage {
+  id: string;
+  url: string;
+  tags: string[];
+  description: string | null;
+  width: number | null;
+  height: number | null;
+  score: number;
+}
+
 function PhotosPanel() {
+  const [tab, setTab] = useState<'stock' | 'imports'>('stock');
+
+  // ── Stock state
+  const [query, setQuery] = useState('');
+  const [stockImages, setStockImages] = useState<StockImage[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Upload state
   const [uploads, setUploads] = useState<{ url: string; name: string }[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const fetchImages = useCallback(async (q: string) => {
+    setIsSearching(true);
+    setSearchError(null);
+    try {
+      const endpoint = q.trim()
+        ? `${IMAGE_SEARCH_API}/search?q=${encodeURIComponent(q)}&limit=30`
+        : `${IMAGE_SEARCH_API}/popular?limit=30`;
+      const res = await fetch(endpoint);
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      const data: StockImage[] = await res.json();
+      setStockImages(data);
+    } catch (err) {
+      setSearchError(err instanceof Error ? err.message : 'Erreur de connexion');
+      // Keep previous results visible on error
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Load popular images on mount
+  useEffect(() => {
+    fetchImages('');
+  }, [fetchImages]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => fetchImages(val), 500);
+  };
+
+  const handleCopyUrl = async (img: StockImage) => {
+    await navigator.clipboard.writeText(img.url);
+    setCopiedId(img.id);
+    setTimeout(() => setCopiedId(null), 1500);
+    // Increment usage count in background
+    fetch(`${IMAGE_SEARCH_API}/use/${img.id}`, { method: 'POST' }).catch(() => {});
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -721,57 +783,132 @@ function PhotosPanel() {
     }
   };
 
-  const copyUrl = (url: string) => {
-    navigator.clipboard.writeText(url);
-  };
-
   return (
     <div>
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Photos</h3>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-        onChange={handleUpload}
-        className="hidden"
-      />
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={isUploading}
-        className="w-full py-6 border-2 border-dashed border-border rounded-xl text-center hover:bg-accent hover:border-ring transition-all disabled:opacity-50"
-      >
-        {isUploading ? (
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-muted-foreground">Upload en cours...</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <ImageIcon size={20} className="text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">Cliquez pour importer</p>
-            <p className="text-[10px] text-muted-foreground/60">JPG, PNG, GIF, WebP, SVG (max 5 Mo)</p>
-          </div>
-        )}
-      </button>
 
-      {uploads.length > 0 && (
-        <div className="mt-3 space-y-2">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Récemment importées</p>
-          <div className="grid grid-cols-2 gap-2">
-            {uploads.map((img, i) => (
-              <div
-                key={i}
-                className="relative group rounded-lg overflow-hidden border border-border cursor-pointer hover:border-ring transition-all"
-                onClick={() => copyUrl(img.url)}
-                title="Cliquez pour copier l'URL"
-              >
-                <img src={img.url} alt={img.name} className="w-full h-20 object-cover" />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                  <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Copier URL</span>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-3 bg-muted rounded-lg p-0.5">
+        <button
+          onClick={() => setTab('stock')}
+          className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${tab === 'stock' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          Stock
+        </button>
+        <button
+          onClick={() => setTab('imports')}
+          className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${tab === 'imports' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          Mes imports
+        </button>
+      </div>
+
+      {/* Stock Tab */}
+      {tab === 'stock' && (
+        <div>
+          <input
+            type="text"
+            value={query}
+            onChange={handleSearchChange}
+            placeholder="Rechercher... plage, bureau, nature"
+            className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring mb-3"
+          />
+          {!query.trim() && (
+            <p className="text-[10px] text-muted-foreground mb-2">Images populaires</p>
+          )}
+          {searchError && (
+            <p className="text-xs text-red-500 mb-2">⚠ {searchError} — vérifiez que le serveur images est lancé (port 8001).</p>
+          )}
+          {isSearching && stockImages.length === 0 ? (
+            <div className="flex justify-center py-8">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : stockImages.length === 0 && !isSearching ? (
+            <p className="text-xs text-muted-foreground text-center py-6">Aucune image trouvée.</p>
+          ) : (
+            <div className={`grid grid-cols-2 gap-1.5 transition-opacity ${isSearching ? 'opacity-50' : 'opacity-100'}`}>
+              {stockImages.map((img) => (
+                <div
+                  key={img.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('stockImageUrl', img.url);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="relative group rounded-lg overflow-hidden border border-border cursor-grab active:cursor-grabbing hover:border-ring transition-all aspect-[4/3]"
+                  onClick={() => handleCopyUrl(img)}
+                  title={img.description ?? img.tags.join(', ')}
+                >
+                  <img
+                    src={img.url}
+                    alt={img.tags[0] ?? 'stock'}
+                    className="w-full h-full object-cover pointer-events-none"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col items-center justify-center gap-1">
+                    {copiedId === img.id ? (
+                      <span className="text-white text-[10px] font-medium bg-green-600 px-2 py-0.5 rounded">Copié ✓</span>
+                    ) : (
+                      <>
+                        <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Glisser ou cliquer</span>
+                      </>
+                    )}
+                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Imports Tab */}
+      {tab === 'imports' && (
+        <div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+            onChange={handleUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={isUploading}
+            className="w-full py-6 border-2 border-dashed border-border rounded-xl text-center hover:bg-accent hover:border-ring transition-all disabled:opacity-50"
+          >
+            {isUploading ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-muted-foreground">Upload en cours...</p>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <ImageIcon size={20} className="text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Cliquez pour importer</p>
+                <p className="text-[10px] text-muted-foreground/60">JPG, PNG, GIF, WebP, SVG (max 5 Mo)</p>
+              </div>
+            )}
+          </button>
+          {uploads.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Récemment importées</p>
+              <div className="grid grid-cols-2 gap-2">
+                {uploads.map((img, i) => (
+                  <div
+                    key={i}
+                    className="relative group rounded-lg overflow-hidden border border-border cursor-pointer hover:border-ring transition-all"
+                    onClick={() => navigator.clipboard.writeText(img.url)}
+                    title="Cliquez pour copier l'URL"
+                  >
+                    <img src={img.url} alt={img.name} className="w-full h-20 object-cover" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                      <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Copier URL</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

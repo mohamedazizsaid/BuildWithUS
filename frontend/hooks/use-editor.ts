@@ -96,6 +96,27 @@ export function useEditor() {
     setSelectedBlockId(newRow.columns[0].blocks[0].id);
   }, [template, updateTemplate]);
 
+  const addStockImageToNewRow = useCallback((src: string) => {
+    const newRow: Row = {
+      id: uuid(),
+      layout: '100' as RowLayout,
+      columns: [{
+        id: uuid(),
+        width: '100%',
+        blocks: [{
+          id: uuid(),
+          type: 'image',
+          content: { ...DEFAULT_BLOCK_CONTENT['image'].content, src },
+          styles: { ...DEFAULT_BLOCK_CONTENT['image'].styles },
+        }],
+      }],
+      styles: { backgroundColor: 'transparent', padding: '10px 0' },
+    };
+    const newTemplate = { ...template, rows: [...template.rows, newRow] };
+    updateTemplate(newTemplate);
+    setSelectedBlockId(newRow.columns[0].blocks[0].id);
+  }, [template, updateTemplate]);
+
   const addBlock = useCallback((columnId: string, type: BlockType) => {
     const defaults = DEFAULT_BLOCK_CONTENT[type];
     const newBlock: BlockData = {
@@ -252,6 +273,7 @@ export function useEditor() {
     addRow,
     removeRow,
     addBlockToNewRow,
+    addStockImageToNewRow,
     addBlock,
     updateBlock,
     removeBlock,

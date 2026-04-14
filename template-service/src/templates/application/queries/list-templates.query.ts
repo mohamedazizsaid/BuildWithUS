@@ -11,7 +11,7 @@ export class ListTemplatesQuery implements ListTemplatesRequest {
     public readonly page: number = 1,
     public readonly limit: number = 20,
     public readonly type: string = '',
-    public readonly sortBy: string = 'createdAt',
+    public readonly sortBy: string = 'updatedAt',
     public readonly ascending: boolean = false,
     public readonly search: string = '',
     public readonly userId: string = '',

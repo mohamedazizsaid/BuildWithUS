@@ -371,6 +371,7 @@ function EditorContent() {
                   if (section) editorState.addSection(section.rows());
                 });
               }}
+              onDropStockImage={(url) => editorState.addStockImageToNewRow(url)}
             />
           ) : (
             <div className="h-full">
