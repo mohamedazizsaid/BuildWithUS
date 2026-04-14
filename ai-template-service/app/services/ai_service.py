@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import httpx
 import logging
@@ -6,6 +7,8 @@ from app.utils.prompt_builder import build_prompt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+IMAGE_SEARCH_API = os.getenv("IMAGE_SEARCH_API", "http://localhost:8002")
 
 class AiService:
     def __init__(self):
@@ -35,7 +38,7 @@ class AiService:
         payload = {
             "model": "deepseek/deepseek-v3.2",
             "messages": messages,
-            "reasoning": {"enabled": True}
+            "max_tokens": 4096,
         }
 
         try:
@@ -75,7 +78,10 @@ class AiService:
         # Sanitize MJML: remove invalid tags, replace % widths with px
         sanitized_mjml = self.sanitize_mjml(mjml)
 
-        return {"mjml": sanitized_mjml}
+        # Inject real stock images from MinIO (replaces AI placeholder URLs)
+        final_mjml = await self.inject_stock_images(sanitized_mjml, prompt)
+
+        return {"mjml": final_mjml}
 
     @staticmethod
     def sanitize_mjml(mjml: str) -> str:
@@ -105,3 +111,48 @@ class AiService:
         mjml = re.sub(r'<mj-image([^>]*)\/?>', r'<mj-image\1 />', mjml)
 
         return mjml
+
+    async def inject_stock_images(self, mjml: str, prompt: str) -> str:
+        """
+        Replace placeholder mj-image src values with real stock images
+        fetched from the image search API based on the user's prompt.
+        Falls back gracefully if the search API is unavailable.
+        """
+        # Find all src attributes in mj-image tags
+        src_pattern = re.compile(r'(<mj-image\b[^>]*?\bsrc=")([^"]*?)(")', re.IGNORECASE)
+        matches = src_pattern.findall(mjml)
+
+        if not matches:
+            return mjml
+
+        num_images = len(matches)
+        logger.info(f"[Images] Found {num_images} mj-image tags — searching stock images for: '{prompt[:60]}'")
+
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(
+                    f"{IMAGE_SEARCH_API}/search",
+                    params={"q": prompt, "limit": num_images}
+                )
+                resp.raise_for_status()
+                stock_images = resp.json()
+        except Exception as e:
+            logger.warning(f"[Images] Stock image search unavailable ({e}) — keeping placeholder URLs")
+            return mjml
+
+        if not stock_images:
+            logger.warning("[Images] Search returned 0 results — keeping placeholder URLs")
+            return mjml
+
+        logger.info(f"[Images] Got {len(stock_images)} stock images, injecting into MJML")
+
+        # Replace each placeholder src with a real stock image URL (cycle if needed)
+        img_index = 0
+
+        def replace_src(match):
+            nonlocal img_index
+            stock = stock_images[img_index % len(stock_images)]
+            img_index += 1
+            return f'{match.group(1)}{stock["url"]}{match.group(3)}'
+
+        return src_pattern.sub(replace_src, mjml)

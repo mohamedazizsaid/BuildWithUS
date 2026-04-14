@@ -25,8 +25,12 @@ function row(layout: RowLayout, columns: { width: string; blocks: ReturnType<typ
 // Each row is an array of cells, each cell has a type and width percentage
 export type CellType = 'img' | 'title' | 'text' | 'btn' | 'divider' | 'empty';
 export interface LayoutRow {
-  cells: { type: CellType; w: number }[];
+  cells: { type: CellType; w: number; src?: string }[];
 }
+
+// Pool of real stock images from MinIO (picsum collection)
+const MINIO = 'http://localhost:9000/stock-images';
+const S = (id: number) => `${MINIO}/picsum_${String(id).padStart(4, '0')}.jpg`;
 
 export interface SectionDef {
   id: string;
@@ -52,9 +56,9 @@ export const SECTIONS: SectionDef[] = [
     name: 'Image + Titre + Texte + Bouton',
     category: 'text-image',
     preview: '🖼️\n━━━\n𝗧𝗶𝘁𝗿𝗲\n━━━\nTexte\n━━━\n[Bouton]',
-    layout: [{ cells: [{ type: 'img', w: 100 }] }, { cells: [{ type: 'title', w: 100 }] }, { cells: [{ type: 'text', w: 100 }] }, { cells: [{ type: 'btn', w: 100 }] }],
+    layout: [{ cells: [{ type: 'img', w: 100, src: S(152) }] }, { cells: [{ type: 'title', w: 100 }] }, { cells: [{ type: 'text', w: 100 }] }, { cells: [{ type: 'btn', w: 100 }] }],
     rows: () => [
-      row('100', [{ width: '100%', blocks: [b('image', { src: '', alt: 'Image' })] }]),
+      row('100', [{ width: '100%', blocks: [b('image', { src: S(152), alt: 'Image' })] }]),
       row('100', [{ width: '100%', blocks: [b('heading', { text: 'Votre titre ici' })] }]),
       row('100', [{ width: '100%', blocks: [b('text', { text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.' })] }]),
       row('100', [{ width: '100%', blocks: [b('button', { text: 'En savoir plus', href: '#' })] }]),
@@ -65,10 +69,10 @@ export const SECTIONS: SectionDef[] = [
     name: 'Image | Titre + Texte + Bouton',
     category: 'text-image',
     preview: '🖼️ | 𝗧𝗶𝘁𝗿𝗲\n    | Texte\n    | [Bouton]',
-    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'text', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'btn', w: 50 }] }],
+    layout: [{ cells: [{ type: 'img', w: 50, src: S(193) }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'text', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'btn', w: 50 }] }],
     rows: () => [
       row('50-50', [
-        { width: '50%', blocks: [b('image', { src: '', alt: 'Image' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(193), alt: 'Image' }, { width: '100%' })] },
         { width: '50%', blocks: [
           b('heading', { text: 'Titre' }),
           b('text', { text: 'Description du contenu ici.' }),
@@ -82,7 +86,7 @@ export const SECTIONS: SectionDef[] = [
     name: 'Titre + Texte + Bouton | Image',
     category: 'text-image',
     preview: '𝗧𝗶𝘁𝗿𝗲  | 🖼️\nTexte  |\n[Bouton]|',
-    layout: [{ cells: [{ type: 'title', w: 50 }, { type: 'img', w: 50 }] }, { cells: [{ type: 'text', w: 50 }, { type: 'empty', w: 50 }] }, { cells: [{ type: 'btn', w: 50 }, { type: 'empty', w: 50 }] }],
+    layout: [{ cells: [{ type: 'title', w: 50 }, { type: 'img', w: 50, src: S(247) }] }, { cells: [{ type: 'text', w: 50 }, { type: 'empty', w: 50 }] }, { cells: [{ type: 'btn', w: 50 }, { type: 'empty', w: 50 }] }],
     rows: () => [
       row('50-50', [
         { width: '50%', blocks: [
@@ -90,7 +94,7 @@ export const SECTIONS: SectionDef[] = [
           b('text', { text: 'Description du contenu ici.' }),
           b('button', { text: 'Découvrir', href: '#' }),
         ]},
-        { width: '50%', blocks: [b('image', { src: '', alt: 'Image' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(247), alt: 'Image' }, { width: '100%' })] },
       ]),
     ],
   },
@@ -99,23 +103,23 @@ export const SECTIONS: SectionDef[] = [
     name: '3 colonnes: Image + Titre + Texte + CTA',
     category: 'text-image',
     preview: '🖼️|🖼️|🖼️\n𝗧 | 𝗧 | 𝗧\ntxt|txt|txt\n[•]|[•]|[•]',
-    layout: [{ cells: [{ type: 'img', w: 33 }, { type: 'img', w: 33 }, { type: 'img', w: 33 }] }, { cells: [{ type: 'title', w: 33 }, { type: 'title', w: 33 }, { type: 'title', w: 33 }] }, { cells: [{ type: 'text', w: 33 }, { type: 'text', w: 33 }, { type: 'text', w: 33 }] }, { cells: [{ type: 'btn', w: 33 }, { type: 'btn', w: 33 }, { type: 'btn', w: 33 }] }],
+    layout: [{ cells: [{ type: 'img', w: 33, src: S(84) }, { type: 'img', w: 33, src: S(176) }, { type: 'img', w: 33, src: S(257) }] }, { cells: [{ type: 'title', w: 33 }, { type: 'title', w: 33 }, { type: 'title', w: 33 }] }, { cells: [{ type: 'text', w: 33 }, { type: 'text', w: 33 }, { type: 'text', w: 33 }] }, { cells: [{ type: 'btn', w: 33 }, { type: 'btn', w: 33 }, { type: 'btn', w: 33 }] }],
     rows: () => [
       row('33-33-33', [
         { width: '33.33%', blocks: [
-          b('image', { src: '', alt: '' }, { width: '100%' }),
+          b('image', { src: S(84), alt: '' }, { width: '100%' }),
           b('heading', { text: 'Titre 1' }, { fontSize: '18px' }),
           b('text', { text: 'Description courte.' }, { fontSize: '14px' }),
           b('button', { text: 'Action', href: '#' }),
         ]},
         { width: '33.33%', blocks: [
-          b('image', { src: '', alt: '' }, { width: '100%' }),
+          b('image', { src: S(176), alt: '' }, { width: '100%' }),
           b('heading', { text: 'Titre 2' }, { fontSize: '18px' }),
           b('text', { text: 'Description courte.' }, { fontSize: '14px' }),
           b('button', { text: 'Action', href: '#' }),
         ]},
         { width: '33.33%', blocks: [
-          b('image', { src: '', alt: '' }, { width: '100%' }),
+          b('image', { src: S(257), alt: '' }, { width: '100%' }),
           b('heading', { text: 'Titre 3' }, { fontSize: '18px' }),
           b('text', { text: 'Description courte.' }, { fontSize: '14px' }),
           b('button', { text: 'Action', href: '#' }),
@@ -128,10 +132,10 @@ export const SECTIONS: SectionDef[] = [
     name: 'Image | Titre + Sous-titre + Texte',
     category: 'text-image',
     preview: '🖼️ | 𝗧𝗶𝘁𝗿𝗲\n    | sous-titre\n    | texte',
-    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'text', w: 50 }] }],
+    layout: [{ cells: [{ type: 'img', w: 50, src: S(338) }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'title', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'text', w: 50 }] }],
     rows: () => [
       row('50-50', [
-        { width: '50%', blocks: [b('image', { src: '', alt: 'Image' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(338), alt: 'Image' }, { width: '100%' })] },
         { width: '50%', blocks: [
           b('heading', { text: 'Titre principal' }),
           b('heading', { text: 'Sous-titre' }, { fontSize: '16px', fontWeight: 'normal', color: '#666666' }),
@@ -235,11 +239,11 @@ export const SECTIONS: SectionDef[] = [
     name: '2 images côte à côte',
     category: 'images',
     preview: '🖼️ | 🖼️',
-    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'img', w: 50 }] }],
+    layout: [{ cells: [{ type: 'img', w: 50, src: S(400) }, { type: 'img', w: 50, src: S(450) }] }],
     rows: () => [
       row('50-50', [
-        { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(400), alt: '' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(450), alt: '' }, { width: '100%' })] },
       ]),
     ],
   },
@@ -248,15 +252,15 @@ export const SECTIONS: SectionDef[] = [
     name: '2x2 grille d\'images',
     category: 'images',
     preview: '🖼️|🖼️\n🖼️|🖼️',
-    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'img', w: 50 }] }, { cells: [{ type: 'img', w: 50 }, { type: 'img', w: 50 }] }],
+    layout: [{ cells: [{ type: 'img', w: 50, src: S(500) }, { type: 'img', w: 50, src: S(550) }] }, { cells: [{ type: 'img', w: 50, src: S(600) }, { type: 'img', w: 50, src: S(650) }] }],
     rows: () => [
       row('50-50', [
-        { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(500), alt: '' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(550), alt: '' }, { width: '100%' })] },
       ]),
       row('50-50', [
-        { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(600), alt: '' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(650), alt: '' }, { width: '100%' })] },
       ]),
     ],
   },
@@ -265,13 +269,13 @@ export const SECTIONS: SectionDef[] = [
     name: '4 images en ligne',
     category: 'images',
     preview: '🖼️|🖼️|🖼️|🖼️',
-    layout: [{ cells: [{ type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }] }],
+    layout: [{ cells: [{ type: 'img', w: 25, src: S(11) }, { type: 'img', w: 25, src: S(54) }, { type: 'img', w: 25, src: S(110) }, { type: 'img', w: 25, src: S(162) }] }],
     rows: () => [
       row('25-25-25-25', [
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(11), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(54), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(110), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(162), alt: '' }, { width: '100%' })] },
       ]),
     ],
   },
@@ -280,12 +284,12 @@ export const SECTIONS: SectionDef[] = [
     name: '3 images en ligne',
     category: 'images',
     preview: '🖼️ | 🖼️ | 🖼️',
-    layout: [{ cells: [{ type: 'img', w: 33 }, { type: 'img', w: 33 }, { type: 'img', w: 33 }] }],
+    layout: [{ cells: [{ type: 'img', w: 33, src: S(200) }, { type: 'img', w: 33, src: S(300) }, { type: 'img', w: 33, src: S(350) }] }],
     rows: () => [
       row('33-33-33', [
-        { width: '33.33%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '33.33%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '33.33%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
+        { width: '33.33%', blocks: [b('image', { src: S(200), alt: '' }, { width: '100%' })] },
+        { width: '33.33%', blocks: [b('image', { src: S(300), alt: '' }, { width: '100%' })] },
+        { width: '33.33%', blocks: [b('image', { src: S(350), alt: '' }, { width: '100%' })] },
       ]),
     ],
   },
@@ -294,13 +298,13 @@ export const SECTIONS: SectionDef[] = [
     name: 'Grande image + 2 petites',
     category: 'images',
     preview: '🖼️  |🖼️\n     |🖼️',
-    layout: [{ cells: [{ type: 'img', w: 50 }, { type: 'img', w: 50 }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'img', w: 50 }] }],
+    layout: [{ cells: [{ type: 'img', w: 50, src: S(700) }, { type: 'img', w: 50, src: S(755) }] }, { cells: [{ type: 'empty', w: 50 }, { type: 'img', w: 50, src: S(800) }] }],
     rows: () => [
       row('50-50', [
-        { width: '50%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
+        { width: '50%', blocks: [b('image', { src: S(700), alt: '' }, { width: '100%' })] },
         { width: '50%', blocks: [
-          b('image', { src: '', alt: '' }, { width: '100%' }),
-          b('image', { src: '', alt: '' }, { width: '100%' }),
+          b('image', { src: S(755), alt: '' }, { width: '100%' }),
+          b('image', { src: S(800), alt: '' }, { width: '100%' }),
         ]},
       ]),
     ],
@@ -310,19 +314,19 @@ export const SECTIONS: SectionDef[] = [
     name: '4x2 grille d\'images',
     category: 'images',
     preview: '🖼️|🖼️|🖼️|🖼️\n🖼️|🖼️|🖼️|🖼️',
-    layout: [{ cells: [{ type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }] }, { cells: [{ type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }, { type: 'img', w: 25 }] }],
+    layout: [{ cells: [{ type: 'img', w: 25, src: S(50) }, { type: 'img', w: 25, src: S(100) }, { type: 'img', w: 25, src: S(150) }, { type: 'img', w: 25, src: S(220) }] }, { cells: [{ type: 'img', w: 25, src: S(270) }, { type: 'img', w: 25, src: S(320) }, { type: 'img', w: 25, src: S(370) }, { type: 'img', w: 25, src: S(420) }] }],
     rows: () => [
       row('25-25-25-25', [
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(50), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(100), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(150), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(220), alt: '' }, { width: '100%' })] },
       ]),
       row('25-25-25-25', [
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
-        { width: '25%', blocks: [b('image', { src: '', alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(270), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(320), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(370), alt: '' }, { width: '100%' })] },
+        { width: '25%', blocks: [b('image', { src: S(420), alt: '' }, { width: '100%' })] },
       ]),
     ],
   },

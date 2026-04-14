@@ -700,7 +700,7 @@ function CorpsPanel({
 }
 
 // ─── Photos Panel ───
-const IMAGE_SEARCH_API = process.env.NEXT_PUBLIC_IMAGE_SEARCH_API ?? 'http://localhost:8001';
+const IMAGE_SEARCH_API = process.env.NEXT_PUBLIC_IMAGE_SEARCH_API ?? 'http://localhost:8002';
 
 interface StockImage {
   id: string;
@@ -1017,11 +1017,11 @@ function AiPanel({ onGenerate }: { onGenerate: (mjml: string) => void }) {
 
 // ─── Section Mini Preview ───
 function SectionMiniPreview({ layout }: { layout: import('@/lib/editor-sections').LayoutRow[] }) {
-  const cellConfig: Record<string, { bg: string; border: string; h: string; label: string; icon?: string }> = {
-    img:     { bg: 'bg-blue-50',   border: 'border-blue-200',  h: 'h-8',   label: '', icon: '🖼️' },
-    title:   { bg: 'bg-slate-100', border: 'border-slate-200', h: 'h-4',   label: 'Titre' },
-    text:    { bg: 'bg-slate-50',  border: 'border-slate-200', h: 'h-3',   label: 'Texte' },
-    btn:     { bg: 'bg-slate-800', border: 'border-slate-900', h: 'h-4',   label: 'Bouton' },
+  const cellConfig: Record<string, { bg: string; border: string; h: string; label: string }> = {
+    img:     { bg: 'bg-slate-100', border: 'border-slate-200', h: 'h-10',  label: '' },
+    title:   { bg: 'bg-slate-100', border: 'border-slate-200', h: 'h-3',   label: 'Titre' },
+    text:    { bg: 'bg-slate-50',  border: 'border-slate-200', h: 'h-2.5', label: 'Texte' },
+    btn:     { bg: 'bg-slate-800', border: 'border-slate-900', h: 'h-3.5', label: 'Bouton' },
     divider: { bg: '',             border: '',                  h: '',      label: '' },
     empty:   { bg: '',             border: '',                  h: '',      label: '' },
   };
@@ -1040,19 +1040,33 @@ function SectionMiniPreview({ layout }: { layout: import('@/lib/editor-sections'
               return <div key={ci} style={{ width: `${cell.w}%` }} />;
             }
 
+            if (cell.type === 'img') {
+              return (
+                <div
+                  key={ci}
+                  className={`${cfg.h} rounded-sm border ${cfg.border} overflow-hidden`}
+                  style={{ width: `${cell.w}%` }}
+                >
+                  {cell.src ? (
+                    <img src={cell.src} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className={`w-full h-full ${cfg.bg} flex items-center justify-center`}>
+                      <span className="text-[8px] text-muted-foreground">🖼️</span>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <div
                 key={ci}
                 className={`${cfg.h} rounded-sm ${cfg.bg} border ${cfg.border} flex items-center justify-center overflow-hidden`}
                 style={{ width: `${cell.w}%` }}
               >
-                {cfg.icon ? (
-                  <span className="text-[8px]">{cfg.icon}</span>
-                ) : (
-                  <span className={`text-[7px] leading-none ${cell.type === 'btn' ? 'text-white' : 'text-muted-foreground/70'}`}>
-                    {cfg.label}
-                  </span>
-                )}
+                <span className={`text-[7px] leading-none ${cell.type === 'btn' ? 'text-white' : 'text-muted-foreground/70'}`}>
+                  {cfg.label}
+                </span>
               </div>
             );
           })}
