@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEditor } from "@/hooks/use-editor";
+import { useCollaboration } from "@/hooks/use-collaboration";
+import { useAuth } from "@/context/auth";
 import EditorToolbar from "@/components/editor/EditorToolbar";
 import Canvas from "@/components/editor/Canvas";
 import RightPanel from "@/components/editor/RightPanel";
@@ -23,6 +25,7 @@ function EditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editorState = useEditor();
+  const { user } = useAuth();
 
   // Edit mode: ?id=xxx loads existing template
   // Create mode: ?name=xxx&type=1 creates a new one
@@ -46,6 +49,16 @@ function EditorContent() {
   const [isDark, setIsDark] = useState(false);
   const [codeValue, setCodeValue] = useState("");
   const [codeWasEdited, setCodeWasEdited] = useState(false);
+
+  // ── Real-time collaboration
+  const { otherUsers, updateCursor } = useCollaboration({
+    templateId: editId,
+    tenantId: user?.tenant_id ?? '',
+    userId: user?.id ?? '',
+    userName: user ? `${user.first_name} ${user.last_name}`.trim() : 'Anonyme',
+    template: editorState.template,
+    onRemoteUpdate: editorState.applyRemoteTemplate,
+  });
 
   // Load existing template in edit mode
   useEffect(() => {
@@ -270,6 +283,7 @@ function EditorContent() {
         onUpdateBlock={editorState.updateBlock}
         onSendTestEmail={handleSendTestEmail}
         isSendingTest={isSendingTest}
+        collaborators={otherUsers}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -372,6 +386,8 @@ function EditorContent() {
                 });
               }}
               onDropStockImage={(url) => editorState.addStockImageToNewRow(url)}
+              collaborators={otherUsers}
+              onCursorMove={updateCursor}
             />
           ) : (
             <div className="h-full">

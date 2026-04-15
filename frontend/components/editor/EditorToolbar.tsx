@@ -48,6 +48,8 @@ interface EditorToolbarProps {
   // Test email
   onSendTestEmail?: () => void;
   isSendingTest?: boolean;
+  // Collaboration
+  collaborators?: { userId: string; userName: string; color: string }[];
 }
 
 // Emoji categories for the picker
@@ -347,6 +349,7 @@ export default function EditorToolbar({
   onUpdateBlock,
   onSendTestEmail,
   isSendingTest,
+  collaborators,
 }: EditorToolbarProps) {
   const isTextBlock =
     selectedBlock &&
@@ -500,6 +503,26 @@ export default function EditorToolbar({
               >
                 <Smartphone size={14} />
               </Button>
+            </div>
+          )}
+          {/* Collaborator presence avatars */}
+          {collaborators && collaborators.length > 0 && (
+            <div className="flex items-center -space-x-2 mr-1">
+              {collaborators.slice(0, 5).map((c) => (
+                <div
+                  key={c.userId}
+                  title={c.userName}
+                  className="w-7 h-7 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                  style={{ backgroundColor: c.color }}
+                >
+                  {c.userName.charAt(0).toUpperCase()}
+                </div>
+              ))}
+              {collaborators.length > 5 && (
+                <div className="w-7 h-7 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground shadow-sm">
+                  +{collaborators.length - 5}
+                </div>
+              )}
             </div>
           )}
           {onSendTestEmail && (
@@ -786,12 +809,12 @@ function FormatBar({
     }
 
     const anchor = selection.anchorNode as HTMLElement | null;
-    const editable = anchor
+    const editable = (anchor
       ? (anchor.nodeType === 1
           ? (anchor as HTMLElement)
           : anchor.parentElement
         )?.closest('[contenteditable="true"]')
-      : null;
+      : null) as HTMLElement | null;
 
     if (!editable) {
       const raw = (block.content.text as string) || "";
@@ -869,7 +892,7 @@ function FormatBar({
       const spans = Array.from(
         root.querySelectorAll('span[style*="background-color"]'),
       );
-      spans.forEach((span) => {
+      (spans as HTMLElement[]).forEach((span) => {
         // unwrap child bg spans
         Array.from(
           span.querySelectorAll('span[style*="background-color"]'),
@@ -884,9 +907,9 @@ function FormatBar({
         while (
           next &&
           next.nodeType === 1 &&
-          (next as HTMLElement).tagName === "SPAN"
+          next.tagName === "SPAN"
         ) {
-          const nextEl = next as HTMLElement;
+          const nextEl = next;
           if (nextEl.style.backgroundColor === span.style.backgroundColor) {
             while (nextEl.firstChild) span.appendChild(nextEl.firstChild);
             const toRemove = nextEl;

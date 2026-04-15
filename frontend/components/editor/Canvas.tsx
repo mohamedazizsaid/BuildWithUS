@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, GripVertical, Copy } from 'lucide-react';
 import { TemplateData, BlockData, Row, Column, RowLayout, LAYOUT_OPTIONS, GlobalStyles } from '@/lib/editor-types';
+import CollabCursors from './CollabCursors';
+import { CollabUser } from '@/hooks/use-collaboration';
 
 interface CanvasProps {
   template: TemplateData;
@@ -23,6 +25,9 @@ interface CanvasProps {
   onDropBlockToCanvas: (blockType: string) => void;
   onDropSection: (sectionId: string) => void;
   onDropStockImage: (url: string) => void;
+  // Collaboration
+  collaborators?: CollabUser[];
+  onCursorMove?: (x: number, y: number) => void;
 }
 
 
@@ -81,7 +86,14 @@ export default function Canvas({
   onDropBlockToCanvas,
   onDropSection,
   onDropStockImage,
+  collaborators,
+  onCursorMove,
 }: CanvasProps) {
+  const scrollableRef = useRef<HTMLDivElement>(null);
+  // Ref to the fixed-width inner template box — cursor coords are relative to this,
+  // so the same % maps to the same visual position regardless of monitor size.
+  const innerRef = useRef<HTMLDivElement>(null);
+  const cursorThrottle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showAddRow, setShowAddRow] = useState(false);
   const [dragRowIndex, setDragRowIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -109,9 +121,25 @@ export default function Canvas({
     };
   }, []);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onCursorMove || cursorThrottle.current) return;
+    cursorThrottle.current = setTimeout(() => { cursorThrottle.current = null; }, 30);
+    const inner = innerRef.current;
+    if (!inner) return;
+    const rect = inner.getBoundingClientRect();
+    // Both axes are % of the inner template box dimensions.
+    // clientX/Y minus the box's current viewport rect accounts for scroll automatically
+    // (scrolling moves the box up/left, changing rect.top/left).
+    const x = (e.clientX - rect.left) / rect.width * 100;
+    const y = (e.clientY - rect.top)  / rect.height * 100;
+    onCursorMove(Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)));
+  };
+
   return (
     <div
+      ref={scrollableRef}
       className="overflow-y-auto p-8"
+      onMouseMove={handleMouseMove}
       style={{
         height: '100%',
         backgroundImage: `
@@ -132,6 +160,7 @@ export default function Canvas({
       }}
     >
       <div
+        ref={innerRef}
         className={`mx-auto min-h-[500px] shadow-lg rounded-sm relative transition-all duration-300 ${
           canvasDragOver ? 'ring-2 ring-dashed ring-blue-400 ring-offset-4' : ''
         }`}
@@ -292,6 +321,12 @@ export default function Canvas({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Cursors inside the inner box so left/top % are relative to the fixed-width
+            template area — identical on all screen sizes */}
+        {collaborators && collaborators.length > 0 && (
+          <CollabCursors users={collaborators} />
         )}
       </div>
     </div>
@@ -700,13 +735,14 @@ function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate: (updat
 }
 
 // ─── Resizable Button ───
-function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onSelect, placeCaretEndRef }: {
+function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onSelect, placeCaretEndRef, pendingText }: {
   block: BlockData;
   onUpdate: (updates: Partial<BlockData>) => void;
   globalStyles: GlobalStyles;
   btnEditRef: React.RefObject<HTMLSpanElement | null>;
   onSelect: (e: React.MouseEvent) => void;
   placeCaretEndRef: React.MutableRefObject<boolean>;
+  pendingText: React.MutableRefObject<string | null>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -767,7 +803,11 @@ function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onSelect, 
             contentEditable
             suppressContentEditableWarning
             spellCheck={false}
-            onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.innerHTML || '' } })}
+            onInput={(e) => { pendingText.current = e.currentTarget.innerHTML || ''; }}
+            onBlur={(e) => {
+              pendingText.current = null;
+              onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
+            }}
             style={{ outline: 'none', minWidth: '20px', display: 'inline-block' }}
             onKeyDown={(e) => {
               if (e.key === 'Tab') {
@@ -849,6 +889,10 @@ function CanvasBlock({
   const alignMargins = isLayoutBlock ? resolveBlockAlign(block.styles) : {};
   const hasBorder = isLayoutBlock && block.styles.borderSize && block.styles.borderSize !== '0px';
 
+  // Typed-but-not-yet-committed text — onInput writes here, interval flushes to state.
+  // This keeps React out of the hot path while typing (zero re-renders per keystroke).
+  const pendingText = useRef<string | null>(null);
+
   // Set innerHTML only on initial selection (not on style changes)
   const initializedRef = useRef(false);
 
@@ -876,8 +920,25 @@ function CanvasBlock({
       }
     } else {
       initializedRef.current = false;
+      pendingText.current = null;
     }
   }, [isSelected, isTextBlock, block.type]);
+
+  // Flush pending text to template state at most once every 100ms.
+  // Decouples keystrokes from React renders → no caret jumps, no lag.
+  useEffect(() => {
+    if (!isSelected || !isTextBlock) return;
+    const id = setInterval(() => {
+      if (pendingText.current !== null) {
+        onUpdate({ content: { text: pendingText.current } });
+        pendingText.current = null;
+      }
+    }, 100);
+    return () => clearInterval(id);
+  // onUpdate identity changes each render but we intentionally keep the interval
+  // alive across those renders — the ref always carries the latest text.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSelected, isTextBlock]);
 
   return (
     <div
@@ -937,13 +998,17 @@ function CanvasBlock({
       ) : isSelected && isTextBlock ? (
         <>
           {block.type === 'button' ? (
-            <ResizableButton block={block} onUpdate={onUpdate} globalStyles={globalStyles} btnEditRef={btnEditRef} onSelect={onSelect} placeCaretEndRef={placeCaretEndRef} />
+            <ResizableButton block={block} onUpdate={onUpdate} globalStyles={globalStyles} btnEditRef={btnEditRef} onSelect={onSelect} placeCaretEndRef={placeCaretEndRef} pendingText={pendingText} />
           ) : (
             <div
               ref={editRef}
               contentEditable
               suppressContentEditableWarning
-              onBlur={(e) => onUpdate({ content: { ...block.content, text: e.currentTarget.innerHTML || '' } })}
+              onInput={(e) => { pendingText.current = e.currentTarget.innerHTML || ''; }}
+              onBlur={(e) => {
+                pendingText.current = null;
+                onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
+              }}
               style={{
                 fontSize: block.styles.fontSize || 'inherit',
                 fontWeight: block.styles.fontWeight || 'inherit',

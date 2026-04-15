@@ -263,9 +263,15 @@ export function useEditor() {
     return null;
   }, [template, selectedBlockId]);
 
+  // Apply a remote (collaborative) update — bypasses history so undo stays clean
+  const applyRemoteTemplate = useCallback((newTemplate: TemplateData) => {
+    setTemplate(newTemplate);
+  }, []);
+
   return {
     template,
     setTemplate: updateTemplate,
+    applyRemoteTemplate,
     selectedBlockId,
     setSelectedBlockId,
     selectedRowId,
