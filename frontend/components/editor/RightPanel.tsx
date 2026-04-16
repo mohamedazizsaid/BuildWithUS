@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Type, LayoutGrid, Palette, ImageIcon, ArrowLeft, Trash2, LayoutTemplate, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,21 +16,24 @@ import {
 import { Row } from '@/lib/editor-types';
 import { SECTIONS, SECTION_CATEGORIES, SectionDef } from '@/lib/editor-sections';
 
-type PanelTab = 'contenu' | 'blocs' | 'corps' | 'photos' | 'sections' | 'ai';
+type PanelTab = 'contenu' | 'blocs' | 'photos' | 'sections' | 'ai';
 
-interface RightPanelProps {
-  selectedBlock: BlockData | null;
-  globalStyles: GlobalStyles;
+interface LeftPanelProps {
   onAddRow: (layout: RowLayout) => void;
   onAddBlock: (columnId: string, type: BlockType) => void;
   onAddBlockToNewRow: (type: BlockType) => void;
   onAddSection: (rows: Row[]) => void;
+  onAiGenerate: (mjml: string) => void;
+  activeColumnId: string | null;
+}
+
+interface PropertiesPanelProps {
+  selectedBlock: BlockData | null;
+  globalStyles: GlobalStyles;
   onUpdateBlock: (blockId: string, updates: Partial<BlockData>) => void;
   onRemoveBlock: (blockId: string) => void;
   onUpdateGlobalStyles: (styles: Partial<GlobalStyles>) => void;
   onDeselectBlock: () => void;
-  onAiGenerate: (mjml: string) => void;
-  activeColumnId: string | null;
 }
 
 const BLOCK_ITEMS: { type: BlockType; label: string; icon: string }[] = [
@@ -44,65 +47,46 @@ const BLOCK_ITEMS: { type: BlockType; label: string; icon: string }[] = [
   { type: 'signature', label: 'Signature', icon: '✍️' },
 ];
 
-export default function RightPanel({
-  selectedBlock,
-  globalStyles,
+// ─── Left Panel (content tabs — sits on the LEFT of the canvas) ───────────────
+
+export function LeftPanel({
   onAddRow,
   onAddBlock,
   onAddBlockToNewRow,
   onAddSection,
-  onUpdateBlock,
-  onRemoveBlock,
-  onUpdateGlobalStyles,
-  onDeselectBlock,
   onAiGenerate,
   activeColumnId,
-}: RightPanelProps) {
+}: LeftPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('contenu');
 
-  // When a block is selected, show full-width properties
-  if (selectedBlock) {
-    return (
-      <div className="h-full bg-background border-l border-border overflow-y-auto">
-        <div className="p-4">
-          <button
-            onClick={onDeselectBlock}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <ArrowLeft size={14} />
-            Retour
-          </button>
-
-          <h3 className="text-sm font-semibold text-foreground mb-4 capitalize">
-            {selectedBlock.type} Propriétés
-          </h3>
-
-          <BlockProperties
-            block={selectedBlock}
-            onUpdate={(updates) => onUpdateBlock(selectedBlock.id, updates)}
-          />
-
-          <div className="mt-6 pt-4 border-t border-border">
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => onRemoveBlock(selectedBlock.id)}
-              className="w-full gap-1.5"
-            >
-              <Trash2 size={14} />
-              Supprimer le bloc
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Default: 80/20 split
   return (
-    <div className="h-full flex border-l border-border">
-      {/* 80% - Panel Content */}
-      <div className="flex-1 bg-background overflow-y-auto">
+    <div className="h-full flex border-r border-border">
+      {/* Tab strip — left edge */}
+      <div className="w-12 bg-muted/50 border-r border-border flex flex-col items-center py-2 gap-1 flex-shrink-0">
+        {([
+          { key: 'contenu'  , icon: Type,           title: 'Contenu'      },
+          { key: 'blocs'    , icon: LayoutGrid,     title: 'Dispositions' },
+          { key: 'photos'   , icon: ImageIcon,      title: 'Photos'       },
+          { key: 'sections' , icon: LayoutTemplate, title: 'Sections'     },
+          { key: 'ai'       , icon: Sparkles,       title: 'IA'           },
+        ] as { key: PanelTab; icon: React.ElementType; title: string }[]).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
+              activeTab === tab.key
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground/80'
+            }`}
+            title={tab.title}
+          >
+            <tab.icon size={16} />
+          </button>
+        ))}
+      </div>
+
+      {/* Panel content */}
+      <div className="flex-1 bg-background overflow-y-auto min-w-0">
         <div className="p-4">
           {activeTab === 'contenu' && (
             <ContenuPanel
@@ -113,12 +97,6 @@ export default function RightPanel({
           )}
           {activeTab === 'blocs' && (
             <BlocsPanel onAddRow={onAddRow} />
-          )}
-          {activeTab === 'corps' && (
-            <CorpsPanel
-              globalStyles={globalStyles}
-              onUpdateGlobalStyles={onUpdateGlobalStyles}
-            />
           )}
           {activeTab === 'photos' && (
             <PhotosPanel />
@@ -131,34 +109,70 @@ export default function RightPanel({
           )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* 20% - Vertical Tabs */}
-      <div className="w-12 bg-muted/50 border-l border-border flex flex-col items-center py-2 gap-1">
-        {[
-          { key: 'contenu' as PanelTab, icon: Type, label: 'C' },
-          { key: 'blocs' as PanelTab, icon: LayoutGrid, label: 'B' },
-          { key: 'corps' as PanelTab, icon: Palette, label: 'Co' },
-          { key: 'photos' as PanelTab, icon: ImageIcon, label: 'P' },
-          { key: 'sections' as PanelTab, icon: LayoutTemplate, label: 'S' },
-          { key: 'ai' as PanelTab, icon: Sparkles, label: 'AI' },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
-              activeTab === tab.key
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground/80'
-            }`}
-            title={tab.key}
-          >
-            <tab.icon size={16} />
-          </button>
-        ))}
+// ─── Properties Panel (sits on the RIGHT of the canvas) ──────────────────────
+
+export function PropertiesPanel({
+  selectedBlock,
+  globalStyles,
+  onUpdateBlock,
+  onRemoveBlock,
+  onUpdateGlobalStyles,
+  onDeselectBlock,
+}: PropertiesPanelProps) {
+  return (
+    <div className="h-full bg-background border-l border-border overflow-y-auto">
+      <div className="p-4">
+        {selectedBlock ? (
+          <>
+            <button
+              onClick={onDeselectBlock}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+            >
+              <ArrowLeft size={14} />
+              Retour
+            </button>
+            <h3 className="text-sm font-semibold text-foreground mb-4 capitalize">
+              {selectedBlock.type} — Propriétés
+            </h3>
+            <BlockProperties
+              block={selectedBlock}
+              onUpdate={(updates) => onUpdateBlock(selectedBlock.id, updates)}
+            />
+            <div className="mt-6 pt-4 border-t border-border">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onRemoveBlock(selectedBlock.id)}
+                className="w-full gap-1.5"
+              >
+                <Trash2 size={14} />
+                Supprimer le bloc
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 mb-4">
+              <Palette size={14} className="text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Apparence</h3>
+            </div>
+            <CorpsPanel
+              globalStyles={globalStyles}
+              onUpdateGlobalStyles={onUpdateGlobalStyles}
+            />
+          </>
+        )}
       </div>
     </div>
   );
 }
+
+// Keep default export for any other imports
+export default LeftPanel;
 
 // ─── Contenu Panel ───
 function ContenuPanel({

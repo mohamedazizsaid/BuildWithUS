@@ -1,80 +1,34 @@
 """
-Script 5 — Search API
-FastAPI server that exposes semantic image search.
+search_api.py — Pexels-powered image search proxy.
+
+All images are served directly from Pexels CDN — no MinIO, no ChromaDB needed.
 
 Endpoints:
-  GET /search?q=plage&limit=20        → semantic search by French text
-  GET /popular?limit=20&type=         → most used images (by usage_count)
-  POST /use/{image_id}                → increment usage_count
-  GET /health                         → health check
+  GET /search?q=lion&limit=40     → search Pexels by query
+  GET /popular?limit=40           → Pexels curated/popular photos
+  POST /use/{image_id}            → no-op (kept for frontend compatibility)
+  GET /health                     → health check
 
 Run:
-  uvicorn search_api:app --host 0.0.0.0 --port 8001 --reload
+  uvicorn search_api:app --host 0.0.0.0 --port 8002 --reload
 """
 
 import os
-from contextlib import asynccontextmanager
+import requests
 from typing import Optional
-
-import chromadb
-import numpy as np
-import psycopg2
-import psycopg2.extras
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
-CHROMA_DIR = "chroma_db"
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
+PEXELS_SEARCH  = "https://api.pexels.com/v1/search"
+PEXELS_CURATED = "https://api.pexels.com/v1/curated"
+HEADERS        = {"Authorization": PEXELS_API_KEY}
 
-POSTGRES_HOST     = os.getenv("POSTGRES_HOST", "localhost")
-POSTGRES_PORT     = int(os.getenv("POSTGRES_PORT", 5432))
-POSTGRES_USER     = os.getenv("POSTGRES_USER", "winaity")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "winaity_dev")
-POSTGRES_DB       = os.getenv("POSTGRES_DB", "images_db")
-
-
-# ─── Global singletons (loaded once at startup) ───────────────────────────────
-
-class AppState:
-    txt_model: SentenceTransformer = None
-    chroma_collection = None
-
-
-state = AppState()
-
-
-def get_pg_conn():
-    return psycopg2.connect(
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-        user=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-        dbname=POSTGRES_DB,
-    )
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("[Startup] Loading multilingual text encoder...")
-    state.txt_model = SentenceTransformer("clip-ViT-B-32-multilingual-v1")
-    print("[Startup] Connecting to ChromaDB...")
-    chroma_client = chromadb.PersistentClient(path=CHROMA_DIR)
-    state.chroma_collection = chroma_client.get_collection("stock_images")
-    count = state.chroma_collection.count()
-    print(f"[Startup] Ready — {count} images indexed.")
-    yield
-    print("[Shutdown] Bye.")
-
-
-app = FastAPI(
-    title="Winaity Image Search API",
-    version="1.0.0",
-    lifespan=lifespan,
-)
+app = FastAPI(title="Winaity Image Search API — Pexels", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -84,162 +38,110 @@ app.add_middleware(
 )
 
 
-# ─── Models ───────────────────────────────────────────────────────────────────
+# ─── Model ────────────────────────────────────────────────────────────────────
 
-class ImageResult(BaseModel):
+class StockImage(BaseModel):
     id: str
-    file_name: str
     url: str
     tags: list[str]
-    description: Optional[str]
-    width: Optional[int]
-    height: Optional[int]
-    usage_count: int
-    score: float
+    description: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    score: float = 1.0
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# ─── Helper ───────────────────────────────────────────────────────────────────
 
-def fetch_images_by_ids(ids: list[str]) -> dict[str, dict]:
-    """Fetch image rows from PostgreSQL by their UUIDs."""
-    if not ids:
-        return {}
-    conn = get_pg_conn()
+def pexels_photo_to_image(photo: dict, score: float = 1.0) -> StockImage:
+    alt = photo.get("alt") or ""
+    # Use medium-large size — good balance of quality and speed
+    url = photo["src"].get("large") or photo["src"].get("original")
+    # Build simple tags from alt text words (3+ chars, deduplicated)
+    tag_words = list(dict.fromkeys(
+        w.lower() for w in alt.replace(",", " ").split() if len(w) >= 3
+    ))[:8]
+
+    return StockImage(
+        id=str(photo["id"]),
+        url=url,
+        tags=tag_words,
+        description=alt or None,
+        width=photo.get("width"),
+        height=photo.get("height"),
+        score=score,
+    )
+
+
+def pexels_get(endpoint: str, params: dict) -> dict:
+    """Call Pexels API, raise 502 on failure."""
+    if not PEXELS_API_KEY:
+        raise HTTPException(503, "PEXELS_API_KEY not configured.")
     try:
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cursor.execute(
-            "SELECT id, file_name, minio_url, tags, description, width, height, usage_count "
-            "FROM images WHERE id = ANY(%s::uuid[])",
-            (ids,),
-        )
-        rows = cursor.fetchall()
-        return {str(row["id"]): dict(row) for row in rows}
-    finally:
-        conn.close()
-
-
-def chroma_results_to_images(results, pg_rows: dict[str, dict]) -> list[ImageResult]:
-    """Merge ChromaDB results with PostgreSQL rows into ImageResult objects."""
-    images = []
-    ids = results["ids"][0]
-    distances = results["distances"][0]
-    metadatas = results["metadatas"][0]
-
-    for i, chroma_id in enumerate(ids):
-        metadata = metadatas[i]
-        image_id = metadata.get("image_id", "")
-        pg = pg_rows.get(image_id)
-        if not pg:
-            continue
-
-        # ChromaDB cosine distance → similarity score (0–1)
-        score = round(1 - distances[i], 4)
-
-        images.append(ImageResult(
-            id=image_id,
-            file_name=pg["file_name"],
-            url=pg["minio_url"],
-            tags=pg.get("tags") or [],
-            description=pg.get("description"),
-            width=pg.get("width"),
-            height=pg.get("height"),
-            usage_count=pg.get("usage_count", 0),
-            score=score,
-        ))
-
-    return images
+        r = requests.get(endpoint, headers=HEADERS, params=params, timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.HTTPError as e:
+        raise HTTPException(502, f"Pexels API error: {e}")
+    except requests.RequestException as e:
+        raise HTTPException(502, f"Pexels unreachable: {e}")
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
-    return {
-        "status": "ok",
-        "indexed": state.chroma_collection.count(),
-    }
+    ok = bool(PEXELS_API_KEY)
+    return {"status": "ok" if ok else "missing_api_key", "backend": "pexels"}
 
 
-@app.get("/search", response_model=list[ImageResult])
+@app.get("/search", response_model=list[StockImage])
 def search(
-    q: str = Query(..., min_length=1, max_length=500, description="French search query"),
-    limit: int = Query(40, ge=1, le=500),
+    q: str = Query(..., min_length=1, max_length=500),
+    limit: int = Query(40, ge=1, le=200),
 ):
-    """Semantic search — encode French query and find nearest images."""
-    if state.txt_model is None or state.chroma_collection is None:
-        raise HTTPException(503, "Search engine not ready yet.")
+    """Search Pexels by any query (French or English)."""
+    data = pexels_get(PEXELS_SEARCH, {
+        "query": q,
+        "per_page": min(limit, 80),   # Pexels max per page
+        "orientation": "landscape",
+        "locale": "fr-FR",            # prefer French metadata when available
+    })
+    photos = data.get("photos", [])
 
-    # Encode the query
-    query_embedding = state.txt_model.encode(q, show_progress_bar=False)
-    query_embedding = np.array(query_embedding, dtype=np.float32)
-    query_embedding = query_embedding / (np.linalg.norm(query_embedding) + 1e-8)
+    # If limit > 80, fetch a second page
+    if limit > 80 and data.get("next_page"):
+        data2 = pexels_get(PEXELS_SEARCH, {
+            "query": q,
+            "per_page": min(limit - 80, 80),
+            "orientation": "landscape",
+            "locale": "fr-FR",
+            "page": 2,
+        })
+        photos += data2.get("photos", [])
 
-    # Search ChromaDB
-    results = state.chroma_collection.query(
-        query_embeddings=[query_embedding.tolist()],
-        n_results=min(limit, state.chroma_collection.count()),
-        include=["metadatas", "distances"],
-    )
-
-    if not results["ids"] or not results["ids"][0]:
-        return []
-
-    # Fetch PostgreSQL rows
-    image_ids = [m.get("image_id", "") for m in results["metadatas"][0]]
-    pg_rows = fetch_images_by_ids(image_ids)
-
-    return chroma_results_to_images(results, pg_rows)
-
-
-@app.get("/popular", response_model=list[ImageResult])
-def popular(limit: int = Query(40, ge=1, le=500)):
-    """Return most-used images sorted by usage_count DESC."""
-    conn = get_pg_conn()
-    try:
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cursor.execute(
-            """
-            SELECT id, file_name, minio_url, tags, description, width, height, usage_count
-            FROM images
-            ORDER BY usage_count DESC, created_at DESC
-            LIMIT %s
-            """,
-            (limit,),
-        )
-        rows = cursor.fetchall()
-    finally:
-        conn.close()
-
+    total = len(photos)
     return [
-        ImageResult(
-            id=str(row["id"]),
-            file_name=row["file_name"],
-            url=row["minio_url"],
-            tags=row.get("tags") or [],
-            description=row.get("description"),
-            width=row.get("width"),
-            height=row.get("height"),
-            usage_count=row.get("usage_count", 0),
-            score=1.0,
-        )
-        for row in rows
+        pexels_photo_to_image(p, score=round(1 - i / max(total, 1), 4))
+        for i, p in enumerate(photos)
     ]
+
+
+@app.get("/popular", response_model=list[StockImage])
+def popular(limit: int = Query(40, ge=1, le=200)):
+    """Return Pexels curated (editor-picked) photos."""
+    data = pexels_get(PEXELS_CURATED, {
+        "per_page": min(limit, 80),
+    })
+    photos = data.get("photos", [])
+
+    if limit > 80 and data.get("next_page"):
+        data2 = pexels_get(PEXELS_CURATED, {"per_page": min(limit - 80, 80), "page": 2})
+        photos += data2.get("photos", [])
+
+    return [pexels_photo_to_image(p) for p in photos]
 
 
 @app.post("/use/{image_id}")
 def increment_usage(image_id: str):
-    """Called when a user inserts an image into a template."""
-    conn = get_pg_conn()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE images SET usage_count = usage_count + 1 WHERE id = %s",
-            (image_id,),
-        )
-        if cursor.rowcount == 0:
-            raise HTTPException(404, f"Image {image_id} not found.")
-        conn.commit()
-    finally:
-        conn.close()
-
+    """No-op — kept for frontend compatibility. Pexels tracks usage server-side."""
     return {"ok": True}

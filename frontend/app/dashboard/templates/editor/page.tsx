@@ -7,7 +7,7 @@ import { useCollaboration } from "@/hooks/use-collaboration";
 import { useAuth } from "@/context/auth";
 import EditorToolbar from "@/components/editor/EditorToolbar";
 import Canvas from "@/components/editor/Canvas";
-import RightPanel from "@/components/editor/RightPanel";
+import { LeftPanel, PropertiesPanel } from "@/components/editor/RightPanel";
 import toast from "react-hot-toast";
 import { templates } from "@/lib/api";
 import {
@@ -287,7 +287,37 @@ function EditorContent() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Center */}
+        {/* Left Panel */}
+        {!previewMode && (
+          <div className="w-[280px] shrink-0">
+            <LeftPanel
+              onAddRow={editorState.addRow}
+              onAddBlock={editorState.addBlock}
+              onAddBlockToNewRow={editorState.addBlockToNewRow}
+              onAddSection={editorState.addSection}
+              onAiGenerate={(mjml: string) => {
+                try {
+                  const parsed = parseMjmlToTemplate(mjml, editorState.template.globalStyles);
+                  if (parsed) {
+                    editorState.setTemplate({
+                      ...editorState.template,
+                      rows: [...editorState.template.rows, ...parsed.rows],
+                      globalStyles: { ...editorState.template.globalStyles, ...parsed.globalStyles },
+                    });
+                    toast.success('Modèle IA ajouté au canevas !');
+                  } else {
+                    toast.error('Impossible de parser le MJML généré');
+                  }
+                } catch {
+                  toast.error('Erreur lors du parsing du MJML');
+                }
+              }}
+              activeColumnId={activeColumnId}
+            />
+          </div>
+        )}
+
+        {/* Center — Canvas */}
         <div className="flex-1 min-h-0">
           {previewMode ? (
             <div className="h-full overflow-y-auto flex justify-center items-start p-8 bg-muted/50"
@@ -418,38 +448,16 @@ function EditorContent() {
           )}
         </div>
 
-        {/* Right Panel */}
+        {/* Right Panel — Properties */}
         {!previewMode && (
-          <div className="w-[320px] flex-shrink-0">
-            <RightPanel
+          <div className="w-[280px] shrink-0">
+            <PropertiesPanel
               selectedBlock={editorState.getSelectedBlock()}
               globalStyles={editorState.template.globalStyles}
-              onAddRow={editorState.addRow}
-              onAddBlock={editorState.addBlock}
-              onAddBlockToNewRow={editorState.addBlockToNewRow}
-              onAddSection={editorState.addSection}
               onUpdateBlock={editorState.updateBlock}
               onRemoveBlock={editorState.removeBlock}
               onUpdateGlobalStyles={editorState.updateGlobalStyles}
               onDeselectBlock={() => editorState.setSelectedBlockId(null)}
-              onAiGenerate={(mjml: string) => {
-                try {
-                  const parsed = parseMjmlToTemplate(mjml, editorState.template.globalStyles);
-                  if (parsed) {
-                    editorState.setTemplate({
-                      ...editorState.template,
-                      rows: [...editorState.template.rows, ...parsed.rows],
-                      globalStyles: { ...editorState.template.globalStyles, ...parsed.globalStyles },
-                    });
-                    toast.success('Modèle IA ajouté au canevas !');
-                  } else {
-                    toast.error('Impossible de parser le MJML généré');
-                  }
-                } catch {
-                  toast.error('Erreur lors du parsing du MJML');
-                }
-              }}
-              activeColumnId={activeColumnId}
             />
           </div>
         )}
@@ -511,9 +519,11 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
       const imgBc = block.styles.borderColor || 'transparent';
       const imgBorder = imgBs !== '0px' ? ` border="${imgBs} ${imgBst} ${imgBc}"` : '';
       const imgAlign = block.styles.textAlign || 'center';
-      const imgHref = block.content.href ? ` href="${block.content.href}"` : '';
+      // Escape & in URLs so the MJML is valid XML when parsed back
+      const imgSrc = (block.content.src as string || '').replace(/&/g, '&amp;');
+      const imgHref = block.content.href ? ` href="${(block.content.href as string).replace(/&/g, '&amp;')}"` : '';
       const imgHeight = block.styles.height && block.styles.height !== 'auto' ? ` css-class="h:${block.styles.height}"` : '';
-      return `        <mj-image src="${block.content.src}" alt="${block.content.alt}" width="${block.styles.width}" height="${block.styles.height || 'auto'}" padding="${block.styles.padding}" border-radius="${imgBr}" align="${imgAlign}"${imgBorder}${imgHref}${imgHeight} />\n`;
+      return `        <mj-image src="${imgSrc}" alt="${block.content.alt}" width="${block.styles.width}" height="${block.styles.height || 'auto'}" padding="${block.styles.padding}" border-radius="${imgBr}" align="${imgAlign}"${imgBorder}${imgHref}${imgHeight} />\n`;
     }
     case "button": {
       const btnBg = block.styles.backgroundColor || g.btnBackgroundColor;
@@ -692,8 +702,8 @@ function sanitizeMjmlForXml(mjml: string): { sanitized: string; textMap: Map<str
   const textMap = new Map<string, string>();
   let counter = 0;
 
-  // Extract content between mj-text tags and replace with safe placeholder
-  const sanitized = mjml.replace(
+  // 1. Extract content between mj-text tags and replace with safe placeholder
+  let sanitized = mjml.replace(
     /(<mj-text[^>]*>)([\s\S]*?)(<\/mj-text>)/g,
     (_match, openTag, content, closeTag) => {
       const key = `__MJML_TEXT_${counter++}__`;
@@ -701,6 +711,10 @@ function sanitizeMjmlForXml(mjml: string): { sanitized: string; textMap: Map<str
       return `${openTag}${key}${closeTag}`;
     }
   );
+
+  // 2. Escape bare & in attribute values (e.g. Pexels URLs contain & in query strings)
+  //    Negative lookahead skips already-escaped entities like &amp; &lt; &#39; etc.
+  sanitized = sanitized.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\w+;)/g, '&amp;');
 
   return { sanitized, textMap };
 }
