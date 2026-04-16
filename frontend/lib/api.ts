@@ -115,6 +115,74 @@ export const media = {
 
 // ─── AI Template Generation ───
 const AI_SERVICE_URL = 'http://127.0.0.1:8001';
+const IMAGE_SEARCH_URL = process.env.NEXT_PUBLIC_IMAGE_SEARCH_API ?? 'http://localhost:8002';
+
+/**
+ * Replace empty/placeholder mj-image src attributes with real Pexels images.
+ * Uses each image's alt text as search query; falls back to prompt keywords.
+ */
+async function enrichImagesWithPexels(mjml: string, fallbackQuery: string): Promise<string> {
+    // Match self-closing mj-image tags (after cleanup they're all self-closing)
+    const imgRegex = /<mj-image([^>]*?)\/>/g;
+    const altRegex = /\balt="([^"]*)"/;
+    const srcRegex = /\bsrc="([^"]*)"/;
+
+    const matches = [...mjml.matchAll(imgRegex)];
+    if (!matches.length) return mjml;
+
+    // Cache: query → url  (avoid duplicate API calls for same query)
+    const cache: Record<string, string> = {};
+
+    const fetchPexelsUrl = async (query: string): Promise<string | null> => {
+        if (cache[query] !== undefined) return cache[query] || null;
+        try {
+            const res = await fetch(
+                `${IMAGE_SEARCH_URL}/search?q=${encodeURIComponent(query)}&limit=3`,
+                { signal: AbortSignal.timeout(4000) }
+            );
+            if (!res.ok) { cache[query] = ''; return null; }
+            const images: { url: string }[] = await res.json();
+            const url = images[0]?.url ?? '';
+            cache[query] = url;
+            return url || null;
+        } catch {
+            cache[query] = '';
+            return null;
+        }
+    };
+
+    let result = mjml;
+
+    for (const match of matches) {
+        const attrs = match[1];
+        const currentSrc = srcRegex.exec(attrs)?.[1] ?? '';
+
+        // Skip if already has a real image URL
+        const isPlaceholder =
+            !currentSrc ||
+            currentSrc.includes('via.placeholder') ||
+            currentSrc.includes('placeholder.com') ||
+            currentSrc.includes('example.com') ||
+            currentSrc === 'YOUR_IMAGE_URL' ||
+            currentSrc.startsWith('http://placeholder');
+
+        if (!isPlaceholder) continue;
+
+        // Use alt text as query, fall back to the user's prompt
+        const altText = altRegex.exec(attrs)?.[1]?.trim() ?? '';
+        const query = altText || fallbackQuery;
+        if (!query) continue;
+
+        const url = await fetchPexelsUrl(query);
+        if (!url) continue;
+
+        // Replace the src value in-place
+        const newTag = match[0].replace(srcRegex, `src="${url.replace(/&/g, '&amp;')}"`);
+        result = result.replace(match[0], newTag);
+    }
+
+    return result;
+}
 
 export const ai = {
     generate: async (body: { prompt: string; tenant_id: string; user_id: string }): Promise<{ mjml: string }> => {
@@ -137,11 +205,12 @@ export const ai = {
         let mjml = data.mjml;
         const mjmlMatch = mjml.match(/<mjml[\s\S]*<\/mjml>/i);
         if (mjmlMatch) mjml = mjmlMatch[0];
-        // Fix double slashes in self-closing tags: / /> → />
         mjml = mjml.replace(/\/ \/>/g, '/>');
-        // Fix missing closing on self-closing tags
         mjml = mjml.replace(/<mj-image([^>]*[^/])>/g, '<mj-image$1 />');
         mjml = mjml.replace(/<mj-divider([^>]*[^/])>/g, '<mj-divider$1 />');
+
+        // Swap placeholder image srcs with real Pexels photos
+        mjml = await enrichImagesWithPexels(mjml, body.prompt);
 
         return { mjml };
     },
