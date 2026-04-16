@@ -289,7 +289,7 @@ function EditorContent() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Panel */}
         {!previewMode && (
-          <div className="w-[340px] shrink-0">
+          <div className="shrink-0">
             <LeftPanel
               onAddRow={editorState.addRow}
               onAddBlock={editorState.addBlock}
@@ -450,7 +450,7 @@ function EditorContent() {
 
         {/* Right Panel — Properties */}
         {!previewMode && (
-          <div className="w-[280px] shrink-0">
+          <div className="shrink-0">
             <PropertiesPanel
               selectedBlock={editorState.getSelectedBlock()}
               globalStyles={editorState.template.globalStyles}

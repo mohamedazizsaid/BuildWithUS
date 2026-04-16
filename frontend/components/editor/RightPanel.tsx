@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Type, LayoutGrid, Palette, ImageIcon, ArrowLeft, Trash2, LayoutTemplate, Sparkles } from 'lucide-react';
+import { Type, LayoutGrid, ImageIcon, ArrowLeft, Trash2, LayoutTemplate, Sparkles, ChevronLeft, ChevronRight, Heading, AlignLeft, Video, MousePointerClick, Minus, Table2, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,15 +36,15 @@ interface PropertiesPanelProps {
   onDeselectBlock: () => void;
 }
 
-const BLOCK_ITEMS: { type: BlockType; label: string; icon: string }[] = [
-  { type: 'heading', label: 'Titre', icon: '📄' },
-  { type: 'text', label: 'Paragraphe', icon: '📝' },
-  { type: 'image', label: 'Image', icon: '🖼️' },
-  { type: 'video', label: 'Vidéo', icon: '🎬' },
-  { type: 'button', label: 'Bouton', icon: '🔘' },
-  { type: 'divider', label: 'Séparateur', icon: '➖' },
-  { type: 'table', label: 'Tableau', icon: '📊' },
-  { type: 'signature', label: 'Signature', icon: '✍️' },
+const BLOCK_ITEMS: { type: BlockType; label: string; icon: React.ElementType }[] = [
+  { type: 'heading',   label: 'Titre',      icon: Heading           },
+  { type: 'text',      label: 'Paragraphe', icon: AlignLeft         },
+  { type: 'image',     label: 'Image',      icon: ImageIcon         },
+  { type: 'video',     label: 'Vidéo',      icon: Video             },
+  { type: 'button',    label: 'Bouton',     icon: MousePointerClick },
+  { type: 'divider',   label: 'Séparateur', icon: Minus             },
+  { type: 'table',     label: 'Tableau',    icon: Table2            },
+  { type: 'signature', label: 'Signature',  icon: PenLine           },
 ];
 
 // ─── Left Panel (content tabs — sits on the LEFT of the canvas) ───────────────
@@ -58,11 +58,23 @@ export function LeftPanel({
   activeColumnId,
 }: LeftPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('contenu');
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="h-full flex border-r border-border">
+    <div className={`h-full flex border-r border-border transition-all duration-200 ${collapsed ? 'w-12' : 'w-[340px]'}`}>
       {/* Tab strip — left edge */}
-      <div className="w-12 bg-muted/50 border-r border-border flex flex-col items-center py-2 gap-1 flex-shrink-0">
+      <div className="w-12 bg-muted/50 border-r border-border flex flex-col items-center py-2 gap-1 shrink-0">
+        {/* Collapse toggle — top */}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="w-10 h-10 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground/80 transition-colors"
+          title={collapsed ? 'Ouvrir le panneau' : 'Fermer le panneau'}
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+
+        <div className="w-8 border-b border-border mb-1" />
+
         {([
           { key: 'contenu'  , icon: Type,           title: 'Contenu'      },
           { key: 'blocs'    , icon: LayoutGrid,     title: 'Dispositions' },
@@ -72,9 +84,9 @@ export function LeftPanel({
         ] as { key: PanelTab; icon: React.ElementType; title: string }[]).map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => { setActiveTab(tab.key); setCollapsed(false); }}
             className={`w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
-              activeTab === tab.key
+              activeTab === tab.key && !collapsed
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground/80'
             }`}
@@ -85,30 +97,32 @@ export function LeftPanel({
         ))}
       </div>
 
-      {/* Panel content */}
-      <div className="flex-1 bg-background overflow-y-auto min-w-0">
-        <div className="p-4">
-          {activeTab === 'contenu' && (
-            <ContenuPanel
-              onAddBlock={onAddBlock}
-              onAddBlockToNewRow={onAddBlockToNewRow}
-              activeColumnId={activeColumnId}
-            />
-          )}
-          {activeTab === 'blocs' && (
-            <BlocsPanel onAddRow={onAddRow} />
-          )}
-          {activeTab === 'photos' && (
-            <PhotosPanel />
-          )}
-          {activeTab === 'sections' && (
-            <SectionsPanel onAddSection={onAddSection} />
-          )}
-          {activeTab === 'ai' && (
-            <AiPanel onGenerate={onAiGenerate} />
-          )}
+      {/* Panel content — hidden when collapsed */}
+      {!collapsed && (
+        <div className="flex-1 bg-background overflow-y-auto min-w-0">
+          <div className="p-4">
+            {activeTab === 'contenu' && (
+              <ContenuPanel
+                onAddBlock={onAddBlock}
+                onAddBlockToNewRow={onAddBlockToNewRow}
+                activeColumnId={activeColumnId}
+              />
+            )}
+            {activeTab === 'blocs' && (
+              <BlocsPanel onAddRow={onAddRow} />
+            )}
+            {activeTab === 'photos' && (
+              <PhotosPanel />
+            )}
+            {activeTab === 'sections' && (
+              <SectionsPanel onAddSection={onAddSection} />
+            )}
+            {activeTab === 'ai' && (
+              <AiPanel onGenerate={onAiGenerate} />
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -123,50 +137,62 @@ export function PropertiesPanel({
   onUpdateGlobalStyles,
   onDeselectBlock,
 }: PropertiesPanelProps) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="h-full bg-background border-l border-border overflow-y-auto">
-      <div className="p-4">
-        {selectedBlock ? (
-          <>
-            <button
-              onClick={onDeselectBlock}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-            >
-              <ArrowLeft size={14} />
-              Retour
-            </button>
-            <h3 className="text-sm font-semibold text-foreground mb-4 capitalize">
-              {selectedBlock.type} — Propriétés
-            </h3>
-            <BlockProperties
-              block={selectedBlock}
-              onUpdate={(updates) => onUpdateBlock(selectedBlock.id, updates)}
-            />
-            <div className="mt-6 pt-4 border-t border-border">
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => onRemoveBlock(selectedBlock.id)}
-                className="w-full gap-1.5"
-              >
-                <Trash2 size={14} />
-                Supprimer le bloc
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 mb-4">
-              <Palette size={14} className="text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Apparence</h3>
-            </div>
-            <CorpsPanel
-              globalStyles={globalStyles}
-              onUpdateGlobalStyles={onUpdateGlobalStyles}
-            />
-          </>
-        )}
+    <div className={`h-full flex border-l border-border transition-all duration-200 ${collapsed ? 'w-8' : 'w-[280px]'}`}>
+      {/* Thin toggle strip — always visible on the left edge of this panel */}
+      <div className="w-8 shrink-0 bg-muted/50 border-r border-border flex flex-col items-center justify-start pt-2">
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground/80 transition-colors"
+          title={collapsed ? 'Ouvrir les propriétés' : 'Fermer les propriétés'}
+        >
+          {collapsed ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
+        </button>
       </div>
+
+      {/* Content — disappears when collapsed */}
+      {!collapsed && (
+        <div className="flex-1 overflow-y-auto bg-background min-w-0">
+          <div className="p-4">
+            {selectedBlock ? (
+              <>
+                <button
+                  onClick={onDeselectBlock}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+                >
+                  <ArrowLeft size={14} />
+                  Retour
+                </button>
+                <h3 className="text-sm font-semibold text-foreground mb-4 capitalize">
+                  {selectedBlock.type} — Propriétés
+                </h3>
+                <BlockProperties
+                  block={selectedBlock}
+                  onUpdate={(updates) => onUpdateBlock(selectedBlock.id, updates)}
+                />
+                <div className="mt-6 pt-4 border-t border-border">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => onRemoveBlock(selectedBlock.id)}
+                    className="w-full gap-1.5"
+                  >
+                    <Trash2 size={14} />
+                    Supprimer le bloc
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <CorpsPanel
+                globalStyles={globalStyles}
+                onUpdateGlobalStyles={onUpdateGlobalStyles}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -207,7 +233,7 @@ function ContenuPanel({
             onClick={() => handleAdd(item.type)}
             className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:border-border hover:bg-muted/50 transition-all text-center cursor-grab active:cursor-grabbing"
           >
-            <span className="text-lg">{item.icon}</span>
+            <item.icon size={18} className="text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
           </div>
         ))}
@@ -221,23 +247,25 @@ function BlocsPanel({ onAddRow }: { onAddRow: (layout: RowLayout) => void }) {
   return (
     <div>
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Dispositions</h3>
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         {LAYOUT_OPTIONS.map((option) => (
           <button
             key={option.value}
             onClick={() => onAddRow(option.value)}
-            className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-border hover:border-border hover:bg-muted/50 transition-all"
+            title={option.label}
+            className="group flex gap-1 w-full h-12 p-2 rounded-xl border border-border bg-background hover:border-primary/50 hover:bg-primary/5 hover:shadow-sm transition-all cursor-pointer"
           >
-            <div className="flex gap-0.5 flex-1">
-              {option.widths.map((width, i) => (
-                <div
-                  key={i}
-                  className="h-8 bg-muted rounded-sm"
-                  style={{ width }}
-                />
-              ))}
-            </div>
-            <span className="text-xs text-muted-foreground whitespace-nowrap">{option.label}</span>
+            {option.widths.map((width, i) => (
+              <div
+                key={i}
+                className="h-full rounded bg-muted group-hover:bg-primary/20 transition-colors flex items-center justify-center"
+                style={{ flex: parseFloat(width) }}
+              >
+                <span className="text-[9px] font-medium text-muted-foreground group-hover:text-primary/70 transition-colors leading-none">
+                  {Math.round(parseFloat(width))}
+                </span>
+              </div>
+            ))}
           </button>
         ))}
       </div>
@@ -729,8 +757,6 @@ interface StockImage {
 const PAGE_SIZE = 40;
 
 function PhotosPanel() {
-  const [tab, setTab] = useState<'stock' | 'imports'>('stock');
-
   // ── Stock state
   const [query, setQuery] = useState('');
   const [stockImages, setStockImages] = useState<StockImage[]>([]);
@@ -739,11 +765,6 @@ function PhotosPanel() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ── Upload state
-  const [uploads, setUploads] = useState<{ url: string; name: string }[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchImages = useCallback(async (q: string) => {
     setIsSearching(true);
@@ -785,157 +806,69 @@ function PhotosPanel() {
     fetch(`${IMAGE_SEARCH_API}/use/${img.id}`, { method: 'POST' }).catch(() => {});
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploading(true);
-    try {
-      const { media } = await import('@/lib/api');
-      const result = await media.upload(file);
-      setUploads((prev) => [{ url: result.url, name: file.name }, ...prev]);
-    } catch {
-      console.error('Upload failed');
-    } finally {
-      setIsUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
-
   return (
     <div>
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Photos</h3>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-3 bg-muted rounded-lg p-0.5">
-        <button
-          onClick={() => setTab('stock')}
-          className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${tab === 'stock' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          Stock
-        </button>
-        <button
-          onClick={() => setTab('imports')}
-          className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${tab === 'imports' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          Mes imports
-        </button>
-      </div>
-
-      {/* Stock Tab */}
-      {tab === 'stock' && (
-        <div>
-          <input
-            type="text"
-            value={query}
-            onChange={handleSearchChange}
-            placeholder="Rechercher... plage, bureau, nature"
-            className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring mb-3"
-          />
-          {!query.trim() && (
-            <p className="text-[10px] text-muted-foreground mb-2">Images populaires</p>
-          )}
-          {searchError && (
-            <p className="text-xs text-red-500 mb-2">⚠ {searchError} — vérifiez que le serveur images est lancé (port 8002).</p>
-          )}
-          {isSearching && stockImages.length === 0 ? (
-            <div className="flex justify-center py-8">
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : stockImages.length === 0 && !isSearching ? (
-            <p className="text-xs text-muted-foreground text-center py-6">Aucune image trouvée.</p>
-          ) : (
-            <>
-              <div className={`grid grid-cols-2 gap-1.5 transition-opacity ${isSearching ? 'opacity-50' : 'opacity-100'}`}>
-                {stockImages.slice(0, displayCount).map((img) => (
-                  <div
-                    key={img.id}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('stockImageUrl', img.url);
-                      e.dataTransfer.effectAllowed = 'copy';
-                    }}
-                    className="relative group rounded-lg overflow-hidden border border-border cursor-grab active:cursor-grabbing hover:border-ring transition-all aspect-[4/3]"
-                    onClick={() => handleCopyUrl(img)}
-                    title={img.description ?? img.tags.join(', ')}
-                  >
-                    <img
-                      src={img.url}
-                      alt={img.tags[0] ?? 'stock'}
-                      className="w-full h-full object-cover pointer-events-none"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col items-center justify-center gap-1">
-                      {copiedId === img.id ? (
-                        <span className="text-white text-[10px] font-medium bg-green-600 px-2 py-0.5 rounded">Copié ✓</span>
-                      ) : (
-                        <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Glisser ou cliquer</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {displayCount < stockImages.length && (
-                <button
-                  onClick={() => setDisplayCount(c => c + PAGE_SIZE)}
-                  className="w-full mt-2 py-1.5 text-xs text-muted-foreground border border-border rounded-lg hover:bg-accent transition-all"
-                >
-                  Voir plus ({stockImages.length - displayCount} restantes)
-                </button>
-              )}
-            </>
-          )}
-        </div>
+      <input
+        type="text"
+        value={query}
+        onChange={handleSearchChange}
+        placeholder="Rechercher... plage, bureau, nature"
+        className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring mb-3"
+      />
+      {!query.trim() && (
+        <p className="text-[10px] text-muted-foreground mb-2">Images populaires</p>
       )}
-
-      {/* Imports Tab */}
-      {tab === 'imports' && (
-        <div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-            onChange={handleUpload}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={isUploading}
-            className="w-full py-6 border-2 border-dashed border-border rounded-xl text-center hover:bg-accent hover:border-ring transition-all disabled:opacity-50"
-          >
-            {isUploading ? (
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs text-muted-foreground">Upload en cours...</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <ImageIcon size={20} className="text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Cliquez pour importer</p>
-                <p className="text-[10px] text-muted-foreground/60">JPG, PNG, GIF, WebP, SVG (max 5 Mo)</p>
-              </div>
-            )}
-          </button>
-          {uploads.length > 0 && (
-            <div className="mt-3 space-y-2">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Récemment importées</p>
-              <div className="grid grid-cols-2 gap-2">
-                {uploads.map((img, i) => (
-                  <div
-                    key={i}
-                    className="relative group rounded-lg overflow-hidden border border-border cursor-pointer hover:border-ring transition-all"
-                    onClick={() => navigator.clipboard.writeText(img.url)}
-                    title="Cliquez pour copier l'URL"
-                  >
-                    <img src={img.url} alt={img.name} className="w-full h-20 object-cover" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                      <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Copier URL</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {searchError && (
+        <p className="text-xs text-red-500 mb-2">⚠ {searchError} — vérifiez que le serveur images est lancé (port 8002).</p>
+      )}
+      {isSearching && stockImages.length === 0 ? (
+        <div className="flex justify-center py-8">
+          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : stockImages.length === 0 && !isSearching ? (
+        <p className="text-xs text-muted-foreground text-center py-6">Aucune image trouvée.</p>
+      ) : (
+        <>
+          <div className={`grid grid-cols-2 gap-1.5 transition-opacity ${isSearching ? 'opacity-50' : 'opacity-100'}`}>
+            {stockImages.slice(0, displayCount).map((img) => (
+              <div
+                key={img.id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('stockImageUrl', img.url);
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                className="relative group rounded-lg overflow-hidden border border-border cursor-grab active:cursor-grabbing hover:border-ring transition-all aspect-4/3"
+                onClick={() => handleCopyUrl(img)}
+                title={img.description ?? img.tags.join(', ')}
+              >
+                <img
+                  src={img.url}
+                  alt={img.tags[0] ?? 'stock'}
+                  className="w-full h-full object-cover pointer-events-none"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col items-center justify-center gap-1">
+                  {copiedId === img.id ? (
+                    <span className="text-white text-[10px] font-medium bg-green-600 px-2 py-0.5 rounded">Copié ✓</span>
+                  ) : (
+                    <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Glisser ou cliquer</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {displayCount < stockImages.length && (
+            <button
+              onClick={() => setDisplayCount(c => c + PAGE_SIZE)}
+              className="w-full mt-2 py-1.5 text-xs text-muted-foreground border border-border rounded-lg hover:bg-accent transition-all"
+            >
+              Voir plus ({stockImages.length - displayCount} restantes)
+            </button>
+          )}
+        </>
       )}
     </div>
   );
