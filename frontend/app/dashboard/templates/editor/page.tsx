@@ -453,10 +453,12 @@ function EditorContent() {
           <div className="shrink-0">
             <PropertiesPanel
               selectedBlock={editorState.getSelectedBlock()}
+              selectedRow={editorState.template.rows.find((r) => r.id === editorState.selectedRowId) ?? null}
               globalStyles={editorState.template.globalStyles}
               onUpdateBlock={editorState.updateBlock}
               onRemoveBlock={editorState.removeBlock}
               onUpdateGlobalStyles={editorState.updateGlobalStyles}
+              onUpdateRowStyles={editorState.updateRowStyles}
               onDeselectBlock={() => editorState.setSelectedBlockId(null)}
             />
           </div>

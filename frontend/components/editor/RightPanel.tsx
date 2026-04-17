@@ -29,10 +29,12 @@ interface LeftPanelProps {
 
 interface PropertiesPanelProps {
   selectedBlock: BlockData | null;
+  selectedRow: Row | null;
   globalStyles: GlobalStyles;
   onUpdateBlock: (blockId: string, updates: Partial<BlockData>) => void;
   onRemoveBlock: (blockId: string) => void;
   onUpdateGlobalStyles: (styles: Partial<GlobalStyles>) => void;
+  onUpdateRowStyles: (rowId: string, styles: Record<string, string>) => void;
   onDeselectBlock: () => void;
 }
 
@@ -131,10 +133,12 @@ export function LeftPanel({
 
 export function PropertiesPanel({
   selectedBlock,
+  selectedRow,
   globalStyles,
   onUpdateBlock,
   onRemoveBlock,
   onUpdateGlobalStyles,
+  onUpdateRowStyles,
   onDeselectBlock,
 }: PropertiesPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -184,6 +188,11 @@ export function PropertiesPanel({
                   </Button>
                 </div>
               </>
+            ) : selectedRow ? (
+              <SectionProperties
+                row={selectedRow}
+                onUpdateStyles={(styles) => onUpdateRowStyles(selectedRow.id, styles)}
+              />
             ) : (
               <CorpsPanel
                 globalStyles={globalStyles}
@@ -528,6 +537,26 @@ function AccordionSection({
         <span className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {isOpen && <div className="pb-3 space-y-3">{children}</div>}
+    </div>
+  );
+}
+
+// ─── Section Properties ───
+function SectionProperties({
+  row,
+  onUpdateStyles,
+}: {
+  row: Row;
+  onUpdateStyles: (styles: Record<string, string>) => void;
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-foreground mb-4">Section — Propriétés</h3>
+      <ColorPicker
+        label="Couleur de fond"
+        value={row.styles.backgroundColor || 'transparent'}
+        onChange={(color) => onUpdateStyles({ backgroundColor: color })}
+      />
     </div>
   );
 }

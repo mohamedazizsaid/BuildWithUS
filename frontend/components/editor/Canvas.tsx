@@ -355,12 +355,22 @@ function CanvasRow({
 }) {
   return (
     <div
-      className={`group relative ${
-        isSelected ? 'ring-1 ring-blue-400' : ''
+      className={`group relative outline outline-2 outline-offset-[-2px] transition-[outline-color] cursor-pointer ${
+        isSelected
+          ? 'outline-blue-500'
+          : 'outline-transparent hover:outline-blue-300 hover:outline-dashed'
       }`}
       style={{ backgroundColor: row.styles.backgroundColor === 'transparent' ? 'transparent' : row.styles.backgroundColor, padding: row.styles.padding }}
       onClick={onSelectRow}
     >
+      {/* Section label tab — visible on hover or when selected */}
+      <div className={`absolute -top-5 left-0 h-5 px-2 flex items-center gap-1 text-[10px] font-medium rounded-t transition-opacity select-none pointer-events-none ${
+        isSelected ? 'bg-blue-500 text-white opacity-100' : 'bg-blue-300 text-white opacity-0 group-hover:opacity-100'
+      }`}>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect x="0" y="0" width="10" height="3" rx="1"/><rect x="0" y="5" width="10" height="3" rx="1"/></svg>
+        Section
+      </div>
+
       <div className={`absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1 transition-opacity ${
         isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
       }`}>
