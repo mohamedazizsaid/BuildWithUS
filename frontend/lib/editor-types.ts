@@ -1,4 +1,4 @@
-export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature';
+export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature' | 'social';
 
 export type RowLayout =
   | '100'
@@ -119,6 +119,13 @@ export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, 
   signature: {
     content: { name: '', title: '' },
     styles: { fontSize: '', color: '', padding: '20px 10px' },
+  },
+  social: {
+    content: {
+      links: [['facebook', ''], ['twitter', ''], ['linkedin', '']] as string[][],
+      align: 'center',
+    },
+    styles: { padding: '10px', iconSize: '32px', iconPadding: '4px' },
   },
 };
 

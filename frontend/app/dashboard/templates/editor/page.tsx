@@ -18,6 +18,7 @@ import {
   Row,
   Column,
 } from "@/lib/editor-types";
+import { SOCIAL_COLORS, socialIconSvgString } from "@/lib/social-icons";
 import { v4 as uuid } from "uuid";
 import Editor from "@monaco-editor/react";
 
@@ -31,6 +32,8 @@ function EditorContent() {
   // Create mode: ?name=xxx&type=1 creates a new one
   const editId = searchParams.get("id");
   const isEditMode = !!editId;
+  // Tracks the saved template ID — starts from URL param, updated after first silent save
+  const [savedId, setSavedId] = useState<string | null>(editId);
 
   const [templateName, setTemplateName] = useState(searchParams.get("name") || "Sans titre");
   const [templateType, setTemplateType] = useState(parseInt(searchParams.get("type") || "1"));
@@ -184,7 +187,34 @@ function EditorContent() {
   );
 
   const handleSave = async () => {
-    toast.success("Brouillon enregistré !");
+    if (editorState.template.rows.length === 0) {
+      toast.error("Ajoutez au moins une ligne à votre modèle");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const mjml = generateMjml();
+      const body = {
+        name: templateName,
+        description: templateDescription,
+        type: templateType,
+        subject: templateSubject,
+        content: mjml,
+      };
+      if (savedId) {
+        await templates.update(savedId, body);
+        toast.success("Brouillon enregistré !");
+      } else {
+        const created = await templates.create(body);
+        setSavedId(created.id ?? created.template?.id ?? null);
+        toast.success("Brouillon enregistré !");
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Échec de l'enregistrement";
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const [isSendingTest, setIsSendingTest] = useState(false);
@@ -580,6 +610,29 @@ function blockToMjml(block: BlockData, g: GlobalStyles) {
       }
       return '';
     }
+    case "social": {
+      const links = (block.content.links || []) as string[][];
+      const align = (block.content.align as string) || 'center';
+      const iconSize = block.styles.iconSize || '32px';
+      const pad = block.styles.padding || '10px';
+      // MJML built-in social icons
+      const MJML_SUPPORTED = ['facebook', 'twitter', 'google', 'pinterest', 'linkedin', 'tumblr', 'xing'];
+      let out = `        <mj-social align="${align}" padding="${pad}" icon-size="${iconSize}" font-size="0">\n`;
+      for (const [platform, url] of links) {
+        if (!platform) continue;
+        const href = (url || '#').replace(/&/g, '&amp;');
+        if (MJML_SUPPORTED.includes(platform)) {
+          out += `          <mj-social-element name="${platform}" href="${href}" />\n`;
+        } else {
+          // Fallback: colored square icon using mj-social-element with custom background
+          const color = SOCIAL_COLORS[platform] || '#888888';
+          const abbr = { instagram: 'Ig', youtube: 'Yt', tiktok: 'Tk', github: 'Gh', whatsapp: 'W' }[platform] ?? platform[0].toUpperCase();
+          out += `          <mj-social-element name="facebook" href="${href}" background-color="${color}" css-class="social-${platform}">${abbr}</mj-social-element>\n`;
+        }
+      }
+      out += `        </mj-social>\n`;
+      return out;
+    }
     case "signature": {
       const sigLineColor = block.styles.lineColor || '#000000';
       const sigLineWidth = block.styles.lineWidth || '200px';
@@ -692,6 +745,21 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
     }
     case "signature":
       return `<div style="padding:${block.styles.padding};font-size:${block.styles.fontSize};color:${block.styles.color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></div>`;
+    case "social": {
+      const links = (block.content.links || []) as string[][];
+      const align = (block.content.align as string) || 'center';
+      const size = parseInt(block.styles.iconSize || '32') || 32;
+      const pad = block.styles.padding || '10px';
+      const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' };
+      const iconSize = Math.round(size * 0.55);
+      const icons = links.map(([platform, url]) => {
+        const bg = SOCIAL_COLORS[platform] || '#888';
+        const href = url || '#';
+        const svg = socialIconSvgString(platform, iconSize);
+        return `<a href="${href}" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:8px;background-color:${bg};text-decoration:none;flex-shrink:0">${svg}</a>`;
+      }).join('');
+      return `<div style="padding:${pad};display:flex;justify-content:${justifyMap[align] || 'center'};flex-wrap:wrap;gap:8px">${icons}</div>`;
+    }
     default:
       return "";
   }

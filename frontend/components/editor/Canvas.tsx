@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, GripVertical, Copy } from 'lucide-react';
 import { TemplateData, BlockData, Row, Column, RowLayout, LAYOUT_OPTIONS, GlobalStyles } from '@/lib/editor-types';
+import { SOCIAL_COLORS, getSvgPaths } from '@/lib/social-icons';
 import CollabCursors from './CollabCursors';
 import { CollabUser } from '@/hooks/use-collaboration';
 
@@ -1233,6 +1234,51 @@ function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
             ))}
           </tbody>
         </table>
+      );
+    }
+    case 'social': {
+      const links = (block.content.links || []) as string[][];
+      const align = (block.content.align as string) || 'center';
+      const size = parseInt(block.styles.iconSize || '32') || 32;
+      const pad = block.styles.padding || '10px';
+      const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' };
+
+      return (
+        <div style={{ padding: pad, display: 'flex', justifyContent: justifyMap[align] || 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {links.length === 0 ? (
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Aucun réseau — cliquez pour en ajouter</span>
+          ) : (
+            links.map(([platform], i) => {
+              const paths = getSvgPaths(platform);
+              const iconSize = Math.round(size * 0.55);
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: size, height: size, borderRadius: '8px',
+                    backgroundColor: SOCIAL_COLORS[platform] || '#888',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {paths ? (
+                    <svg
+                      width={iconSize} height={iconSize}
+                      viewBox="0 0 24 24"
+                      fill="white"
+                      stroke="none"
+                      dangerouslySetInnerHTML={{ __html: paths }}
+                    />
+                  ) : (
+                    <span style={{ color: '#fff', fontSize: Math.round(size * 0.35), fontWeight: 700 }}>
+                      {platform[0].toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       );
     }
     case 'signature': {
