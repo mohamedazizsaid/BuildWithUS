@@ -10,57 +10,64 @@ logging.basicConfig(level=logging.INFO)
 
 IMAGE_SEARCH_API = os.getenv("IMAGE_SEARCH_API", "http://localhost:8002")
 
+_GENERIC_ALT_WORDS = {"image", "photo", "picture", "placeholder", "avatar"}
+
+def _fix_image_tag_width(tag_match: re.Match) -> str:
+    """Convert non-100% percentage widths inside an mj-image tag to px."""
+    def _replace(m: re.Match) -> str:
+        val = float(m.group(1))
+        if val == 100:
+            return m.group(0)
+        return f'width="{max(50, int(val * 6))}px"'
+    return re.sub(r'\bwidth="(\d+(?:\.\d+)?)%"', _replace, tag_match.group(0))
+
+
 class AiService:
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
             raise ValueError("OPENROUTER_API_KEY is not set in environment variables")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
+        self.model = os.getenv("AI_MODEL", "deepseek/deepseek-v3.2")
 
-    async def generate_template(self, prompt: str, tenant_id: str, user_id: str, examples: list = []):
-        """
-        Generate valid MJML email template using AI
-        """
-        logger.info("Starting AI template generation")
+    async def generate_template(self, prompt: str, **_kwargs):
+        logger.info(f"[AI] Generating template — type detection running for: '{prompt[:80]}'")
 
-        # Add strict MJML rules to prevent invalid output
-        ai_prompt_rules = """
-        Generate a valid MJML email template. Rules:
-        - Only use <mjml>, <mj-body>, <mj-section>, <mj-column>, <mj-text>, <mj-button>, <mj-image>.
-        - Inside <mj-text>, use ONLY plain text, <br />, <strong>, <em>, or <span> with inline styles.
-        - Widths for <mj-column> and <mj-image> must be in px, never %.
-        - Do NOT include <div>, <p>, <h1-h6>, or nested block tags inside <mj-text>.
-        - Output only valid MJML, no HTML.
-        """
+        messages_payload = build_prompt(prompt)
+        messages = [
+            {"role": "system", "content": messages_payload["system"]},
+            {"role": "user",   "content": messages_payload["user"]},
+        ]
 
-        full_prompt = build_prompt(f"{ai_prompt_rules}\n{prompt}", tenant_id, examples)
-        messages = [{"role": "user", "content": full_prompt}]
         payload = {
-            "model": "deepseek/deepseek-v3.2",
+            "model": self.model,
             "messages": messages,
             "max_tokens": 4096,
+            "temperature": 0.4,   # low enough for consistent structure, enough for variety
         }
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=90.0) as client:
                 response = await client.post(
                     self.url,
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
                     },
-                    content=json.dumps(payload)
+                    content=json.dumps(payload),
                 )
-
-                logger.info(f"OpenRouter status: {response.status_code}")
+                logger.info(f"[AI] OpenRouter status: {response.status_code}")
 
                 try:
                     data = response.json()
                 except json.JSONDecodeError:
-                    logger.error("OpenRouter API did not return JSON")
+                    logger.error("[AI] OpenRouter returned non-JSON")
                     return {"error": "OpenRouter API returned invalid response", "body": response.text}
 
-                mjml = ""
+                if "error" in data:
+                    logger.error(f"[AI] OpenRouter error: {data['error']}")
+                    return {"error": data["error"].get("message", str(data["error"]))}
+
                 try:
                     mjml = "".join(
                         choice["message"]["content"]
@@ -68,91 +75,171 @@ class AiService:
                         if choice.get("message") and choice["message"].get("content")
                     )
                 except Exception as e:
-                    logger.error(f"Error parsing OpenRouter response: {e}")
+                    logger.error(f"[AI] Failed to parse choices: {e}")
                     return {"error": "Failed to parse OpenRouter response", "body": data}
 
         except Exception as e:
-            logger.exception("Error calling OpenRouter API")
+            logger.exception("[AI] HTTP error calling OpenRouter")
             return {"error": str(e)}
 
-        # Sanitize MJML: remove invalid tags, replace % widths with px
-        sanitized_mjml = self.sanitize_mjml(mjml)
+        if not mjml.strip():
+            return {"error": "AI returned empty response"}
 
-        # Inject real stock images from MinIO (replaces AI placeholder URLs)
-        final_mjml = await self.inject_stock_images(sanitized_mjml, prompt)
+        # Extract just the <mjml>...</mjml> block (strip any surrounding text / markdown)
+        mjml_match = re.search(r"<mjml[\s\S]*?</mjml>", mjml, re.IGNORECASE)
+        if mjml_match:
+            mjml = mjml_match.group(0)
+        else:
+            logger.warning("[AI] Could not find <mjml> block in response — using raw output")
 
-        return {"mjml": final_mjml}
+        # Clean up common AI output issues
+        mjml = self._sanitize_mjml(mjml)
+
+        # Inject inline styles into bare <th>/<td> inside mj-table, add css-class
+        mjml = self._style_tables(mjml)
+
+        # Replace placeholder image URLs with real Pexels photos
+        mjml = await self._inject_stock_images(mjml, prompt)
+
+        logger.info("[AI] Template generation complete")
+        return {"mjml": mjml}
+
+    # ── Sanitizer ────────────────────────────────────────────────────────────
 
     @staticmethod
-    def sanitize_mjml(mjml: str) -> str:
+    def _sanitize_mjml(mjml: str) -> str:
         """
-        Clean AI-generated MJML to ensure it validates correctly
+        Fix common AI output issues without breaking valid MJML structure.
         """
-        import re
+        # Strip markdown code fences if the model wrapped the output
+        mjml = re.sub(r"```(?:mjml|xml|html)?\s*", "", mjml)
+        mjml = mjml.replace("```", "")
 
-        # Remove block HTML tags
-        for tag in ["div", "p"]:
-            mjml = re.sub(fr"</?{tag}.*?>", "", mjml, flags=re.IGNORECASE)
+        # Fix self-closing tags that the model sometimes forgets
+        mjml = re.sub(r"<mj-image([^>]*[^/])>", r"<mj-image\1 />", mjml)
+        mjml = re.sub(r"<mj-divider([^>]*[^/])>", r"<mj-divider\1 />", mjml)
 
-        # Replace h1-h6 with strong + br
-        for i in range(1, 7):
-            mjml = re.sub(fr"<h{i}.*?>", "<strong>", mjml, flags=re.IGNORECASE)
-            mjml = re.sub(fr"</h{i}>", "</strong><br />", mjml, flags=re.IGNORECASE)
+        # Fix "/ />" typo
+        mjml = mjml.replace("/ />", "/>")
 
-        # Replace percentage widths with px (approximate)
-        def width_px(match):
-            val = int(match.group(1))
-            px = max(1, int(val * 6))  # 1% ~ 6px for 600px container
-            return f'width="{px}px"'
-
-        mjml = re.sub(r'width="(\d+)%?"', width_px, mjml)
-
-        # Remove trailing solidus issues on mj-image (self-close properly)
-        mjml = re.sub(r'<mj-image([^>]*)\/?>', r'<mj-image\1 />', mjml)
+        # Only fix non-100% % widths inside mj-image tags (columns need % widths — don't touch them)
+        mjml = re.sub(r"<mj-image\b[^>]*/?>", _fix_image_tag_width, mjml, flags=re.IGNORECASE)
 
         return mjml
 
-    async def inject_stock_images(self, mjml: str, prompt: str) -> str:
-        """
-        Replace placeholder mj-image src values with real stock images
-        fetched from the image search API based on the user's prompt.
-        Falls back gracefully if the search API is unavailable.
-        """
-        # Find all src attributes in mj-image tags
-        src_pattern = re.compile(r'(<mj-image\b[^>]*?\bsrc=")([^"]*?)(")', re.IGNORECASE)
-        matches = src_pattern.findall(mjml)
+    # ── Table styler ─────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _style_tables(mjml: str) -> str:
+        """
+        Post-process mj-table blocks:
+        - Ensure css-class="tb:#dddddd:#f1f5f9" is present
+        - Inject border/padding inline styles into bare <th> and <td> tags
+        - Remove empty <tr></tr> placeholders the model sometimes emits
+        """
+        BORDER   = "1px solid #dddddd"
+        HDR_BG   = "#f1f5f9"
+        CELL_PAD = "padding:8px"
+
+        TH_STYLE = f'style="border:{BORDER};{CELL_PAD};background:{HDR_BG};font-weight:bold;text-align:left"'
+        TD_STYLE = f'style="border:{BORDER};{CELL_PAD};text-align:left"'
+
+        def process_table(m: re.Match) -> str:
+            open_tag: str = m.group(1)
+            body: str     = m.group(2)
+
+            # Add / normalise css-class attribute (insert before the closing >)
+            if 'css-class=' not in open_tag:
+                open_tag = open_tag.rstrip().rstrip('>').rstrip() + ' css-class="tb:#dddddd:#f1f5f9">'
+            else:
+                open_tag = re.sub(
+                    r'css-class="[^"]*"',
+                    'css-class="tb:#dddddd:#f1f5f9"',
+                    open_tag,
+                )
+
+            # Remove purely empty rows: <tr></tr> or <tr>   </tr>
+            body = re.sub(r'<tr>\s*</tr>', '', body, flags=re.IGNORECASE)
+
+            # Inject style into <th> tags that don't already have one
+            body = re.sub(
+                r'<th(?!\s[^>]*style=)([^>]*)>',
+                lambda mm: f'<th {TH_STYLE}{mm.group(1)}>',
+                body,
+                flags=re.IGNORECASE,
+            )
+
+            # Inject style into <td> tags that don't already have one
+            body = re.sub(
+                r'<td(?!\s[^>]*style=)([^>]*)>',
+                lambda mm: f'<td {TD_STYLE}{mm.group(1)}>',
+                body,
+                flags=re.IGNORECASE,
+            )
+
+            return f'{open_tag}{body}</mj-table>'
+
+        return re.sub(
+            r'(<mj-table\b[^>]*>)([\s\S]*?)</mj-table>',
+            process_table,
+            mjml,
+            flags=re.IGNORECASE,
+        )
+
+    # ── Image injection ───────────────────────────────────────────────────────
+
+    async def _inject_stock_images(self, mjml: str, prompt: str) -> str:
+        """Replace placeholder src values with real Pexels photos."""
+        src_pattern = re.compile(
+            r'(<mj-image\b[^>]*?\bsrc=")([^"]*?)("[^>]*/?>)',
+            re.IGNORECASE | re.DOTALL,
+        )
+        matches = list(src_pattern.finditer(mjml))
         if not matches:
             return mjml
 
-        num_images = len(matches)
-        logger.info(f"[Images] Found {num_images} mj-image tags — searching stock images for: '{prompt[:60]}'")
+        queries = [self._query_for_match(m, prompt) for m in matches]
+        image_map = await self._fetch_images(queries)
+        if not image_map:
+            return mjml
 
+        return self._replace_srcs(mjml, matches, queries, image_map)
+
+    @staticmethod
+    def _query_for_match(m: re.Match, fallback: str) -> str:
+        alt_match = re.search(r'\balt="([^"]*)"', m.group(0), re.IGNORECASE)
+        q = (alt_match.group(1).strip() if alt_match else "").lower()
+        return fallback if (not q or q in _GENERIC_ALT_WORDS) else q
+
+    @staticmethod
+    async def _fetch_images(queries: list) -> dict:
+        image_map: dict[str, str] = {}
+        unique = list(dict.fromkeys(queries))
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                resp = await client.get(
-                    f"{IMAGE_SEARCH_API}/search",
-                    params={"q": prompt, "limit": num_images}
-                )
-                resp.raise_for_status()
-                stock_images = resp.json()
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                for q in unique:
+                    try:
+                        resp = await client.get(
+                            f"{IMAGE_SEARCH_API}/search",
+                            params={"q": q, "limit": 3},
+                        )
+                        resp.raise_for_status()
+                        results = resp.json()
+                        if results:
+                            image_map[q] = results[0]["url"]
+                    except Exception as e:
+                        logger.warning(f"[Images] Search failed for '{q[:40]}': {e}")
         except Exception as e:
-            logger.warning(f"[Images] Stock image search unavailable ({e}) — keeping placeholder URLs")
-            return mjml
+            logger.warning(f"[Images] Image API unavailable: {e}")
+        return image_map
 
-        if not stock_images:
-            logger.warning("[Images] Search returned 0 results — keeping placeholder URLs")
-            return mjml
-
-        logger.info(f"[Images] Got {len(stock_images)} stock images, injecting into MJML")
-
-        # Replace each placeholder src with a real stock image URL (cycle if needed)
-        img_index = 0
-
-        def replace_src(match):
-            nonlocal img_index
-            stock = stock_images[img_index % len(stock_images)]
-            img_index += 1
-            return f'{match.group(1)}{stock["url"]}{match.group(3)}'
-
-        return src_pattern.sub(replace_src, mjml)
+    @staticmethod
+    def _replace_srcs(mjml: str, matches: list, queries: list, image_map: dict) -> str:
+        result = mjml
+        for m, q in zip(matches, queries):
+            url = image_map.get(q)
+            if not url:
+                continue
+            safe_url = url.replace("&", "&amp;")
+            result = result.replace(m.group(0), m.group(1) + safe_url + m.group(3), 1)
+        return result

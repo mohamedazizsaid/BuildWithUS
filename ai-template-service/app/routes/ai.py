@@ -14,12 +14,7 @@ class GenerateRequest(BaseModel):
 @router.post("/generate")
 async def generate(request: GenerateRequest):
     try:
-        result = await ai_service.generate_template(
-            prompt=request.prompt,
-            tenant_id=request.tenant_id,
-            user_id=request.user_id,
-            examples=request.examples
-        )
+        result = await ai_service.generate_template(prompt=request.prompt)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

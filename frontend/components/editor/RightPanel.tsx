@@ -1893,14 +1893,12 @@ function TableBlockProperties({
   const setRows = (r: string[][]) => onUpdate({ content: { ...block.content, rows: r } });
 
   const addColumn = () => {
-    setHeaders([...headers, `Col ${headers.length + 1}`]);
-    setRows(rows.map(r => [...r, '']));
+    onUpdate({ content: { ...block.content, headers: [...headers, `Col ${headers.length + 1}`], rows: rows.map(r => [...r, '']) } });
   };
 
   const removeColumn = (idx: number) => {
     if (headers.length <= 1) return;
-    setHeaders(headers.filter((_, i) => i !== idx));
-    setRows(rows.map(r => r.filter((_, i) => i !== idx)));
+    onUpdate({ content: { ...block.content, headers: headers.filter((_, i) => i !== idx), rows: rows.map(r => r.filter((_, i) => i !== idx)) } });
   };
 
   const addRow = () => {
