@@ -99,8 +99,8 @@ export class AuthGrpcController {
         },
         tenant_name: tenant?.getName() || '',
       };
-    } catch (error) {
-      throw new Error(`Invalid token: ${error.message}`);
+    } catch (error: any) {
+      throw new Error(`Invalid token: ${error?.message ?? error}`);
     }
   }
 

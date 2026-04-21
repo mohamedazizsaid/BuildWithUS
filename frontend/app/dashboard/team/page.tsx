@@ -5,7 +5,9 @@ import { motion } from 'framer-motion';
 import { Users, Mail, Shield, Pencil, Eye } from 'lucide-react';
 import { auth } from '@/lib/api';
 import { useAuth } from '@/context/auth';
+import { useSearch } from '@/context/search';
 import toast from 'react-hot-toast';
+
 
 interface Member {
   id: string;
@@ -14,6 +16,7 @@ interface Member {
   last_name: string;
   role: string;
 }
+
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof Shield }> = {
   admin:  { label: 'Admin',    color: 'text-purple-700', bg: 'bg-purple-50',  icon: Shield },
@@ -42,6 +45,7 @@ function avatarColor(id: string) {
 
 export default function TeamPage() {
   const { user } = useAuth();
+  const { query } = useSearch();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +55,18 @@ export default function TeamPage() {
       .catch(() => toast.error('Échec du chargement des membres'))
       .finally(() => setLoading(false));
   }, []);
+
+  const filteredMembers = query.trim()
+    ? members.filter((m) => {
+        const q = query.toLowerCase();
+        return (
+          m.first_name?.toLowerCase().includes(q) ||
+          m.last_name?.toLowerCase().includes(q) ||
+          m.email?.toLowerCase().includes(q) ||
+          m.role?.toLowerCase().includes(q)
+        );
+      })
+    : members;
 
   if (loading) {
     return (
@@ -74,23 +90,28 @@ export default function TeamPage() {
           Membres de l&apos;équipe
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          {members.length} membre{members.length !== 1 ? 's' : ''} dans <span className="font-medium text-foreground">{user?.tenant_name}</span>
+          {filteredMembers.length} membre{filteredMembers.length !== 1 ? 's' : ''}{' '}
+          {query.trim()
+            ? `pour "${query}"`
+            : <><span>dans </span><span className="font-medium text-foreground">{user?.tenant_name}</span></>}
         </p>
       </motion.div>
 
       {/* Members list */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        {members.length === 0 ? (
+        {filteredMembers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center mb-3">
               <Users size={24} className="text-slate-400" />
             </div>
-            <p className="font-medium text-slate-700">Aucun membre</p>
-            <p className="text-sm text-slate-400 mt-1">Invitez des membres depuis le menu d&apos;administration</p>
+            <p className="font-medium text-slate-700">{query.trim() ? 'Aucun résultat' : 'Aucun membre'}</p>
+            <p className="text-sm text-slate-400 mt-1">
+              {query.trim() ? `Aucun membre ne correspond à "${query}"` : "Invitez des membres depuis le menu d'administration"}
+            </p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {members.map((member, i) => {
+            {filteredMembers.map((member, i) => {
               const role = getRoleConfig(member.role);
               const RoleIcon = role.icon;
               const isMe = member.id === user?.id;

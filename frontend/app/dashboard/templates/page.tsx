@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Mail, FileText, ScrollText, Pencil, Trash2, Copy, Eye, X, Clock, Star } from 'lucide-react';
 import { templates } from '@/lib/api';
 import { useAuth } from '@/context/auth';
+import { useSearch } from '@/context/search';
 import toast from 'react-hot-toast';
 
 interface Template {
@@ -351,6 +352,18 @@ export default function TemplatesPage() {
   const [previewTarget, setPreviewTarget] = useState<Template | null>(null);
 
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
+  const { query } = useSearch();
+  const filteredTemplates = query.trim()
+    ? templateList.filter((t) => {
+        const q = query.toLowerCase();
+        return (
+          t.name?.toLowerCase().includes(q) ||
+          t.description?.toLowerCase().includes(q) ||
+          t.subject?.toLowerCase().includes(q) ||
+          t.type?.toLowerCase().includes(q)
+        );
+      })
+    : templateList;
 
   useEffect(() => {
     loadTemplates();
@@ -419,7 +432,7 @@ export default function TemplatesPage() {
         <div>
           <h1 className="text-2xl font-bold">Modèles</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {templateList.length} modèle{templateList.length !== 1 ? 's' : ''}
+            {filteredTemplates.length} modèle{filteredTemplates.length !== 1 ? 's' : ''}{query.trim() ? ` pour "${query}"` : ''}
           </p>
         </div>
         {canEdit && (
@@ -434,7 +447,7 @@ export default function TemplatesPage() {
       </div>
 
       {/* Empty State */}
-      {templateList.length === 0 ? (
+      {filteredTemplates.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -443,22 +456,24 @@ export default function TemplatesPage() {
           <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
             <Mail size={24} className="text-muted-foreground" />
           </div>
-          <p className="font-medium mb-1">Aucun modèle</p>
-          <p className="text-muted-foreground text-sm mb-6">Créez votre premier modèle pour commencer</p>
-          {canEdit && (
-            <button
-              onClick={() => router.push('/dashboard/templates/new')}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-xl hover:bg-primary/90 shadow-sm"
-            >
-              <Plus size={16} />
-              Créer un modèle
-            </button>
+          <p className="font-medium mb-1">{query.trim() ? 'Aucun résultat' : 'Aucun modèle'}</p>
+          <p className="text-muted-foreground text-sm mb-6">
+            {query.trim() ? `Aucun modèle ne correspond à "${query}"` : 'Créez votre premier modèle pour commencer'}
+          </p>
+          {!query.trim() && canEdit && (
+              <button
+                onClick={() => router.push('/dashboard/templates/new')}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-xl hover:bg-primary/90 shadow-sm"
+              >
+                <Plus size={16} />
+                Créer un modèle
+              </button>
           )}
         </motion.div>
       ) : (
         /* Template Cards Grid */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {templateList.map((tmpl, i) => {
+          {filteredTemplates.map((tmpl, i) => {
             const config = getTypeConfig(tmpl.type);
             const Icon = config.icon;
 
