@@ -85,6 +85,7 @@ function InvoicePreview({ data }: { data: InvoiceData }) {
 
   return (
     <div
+      id="invoice-preview"
       className="bg-white shadow-sm mx-auto print:shadow-none print:mx-0"
       style={{ width: '210mm', minHeight: '297mm', padding: '20mm', fontFamily: 'Arial, sans-serif', fontSize: '10pt', color: '#1a1a1a' }}
     >
@@ -254,6 +255,30 @@ function InvoiceEditorContent() {
 
   const currentTypeConfig = INVOICE_TYPES.find((t) => t.value === data.invoiceType) ?? INVOICE_TYPES[0];
 
+  const handleExportPDF = () => {
+    const previewEl = document.getElementById('invoice-preview');
+    if (!previewEl) return;
+    const printWindow = globalThis.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) { toast.error('Autorisez les popups pour exporter en PDF'); return; }
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${name}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    table { border-collapse: collapse; }
+  </style>
+</head>
+<body>${previewEl.outerHTML}</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 400);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* ── Toolbar ── */}
@@ -276,7 +301,7 @@ function InvoiceEditorContent() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => window.print()}
+            onClick={handleExportPDF}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-accent transition-colors"
           >
             <Download size={13} />
