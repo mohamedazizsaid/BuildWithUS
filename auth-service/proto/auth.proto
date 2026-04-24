@@ -11,6 +11,9 @@ service AuthService{
     rpc GetMe (GetMeRequest) returns (GetMeResponse);
     rpc ListMembers (ListMembersRequest) returns (ListMembersResponse);
     rpc UpdateProfile (UpdateProfileRequest) returns (UpdateProfileResponse);
+    rpc GenerateApiClient (GenerateApiClientRequest) returns (GenerateApiClientResponse);
+    rpc IssueClientToken (IssueClientTokenRequest) returns (IssueClientTokenResponse);
+    rpc RegisterApiClient (RegisterApiClientRequest) returns (RegisterApiClientResponse);
 }
 
 message RegisterRequest {
@@ -51,7 +54,10 @@ message AuthResponse {
 
 message ValidateTokenResponse{
     bool valid = 1;
-    UserInfo user =2;
+    UserInfo user = 2;
+    string token_type = 3;
+    string organisation_id = 4;
+    repeated string scopes = 5;
 }
 
 message InviteUserResponse {
@@ -99,4 +105,40 @@ message UserInfo {
     string first_name = 4;
     string last_name = 5;
     string role = 6;
+}
+
+message GenerateApiClientRequest {
+    string tenant_id = 1;
+    string scopes = 2;
+}
+
+message GenerateApiClientResponse {
+    string client_id = 1;
+    string client_secret = 2;
+}
+
+message IssueClientTokenRequest {
+    string client_id = 1;
+    string client_secret = 2;
+    string user_id = 3;
+    string organisation_id = 4;
+}
+
+message IssueClientTokenResponse {
+    string access_token = 1;
+    string token_type = 2;
+    int32 expires_in = 3;
+}
+
+message RegisterApiClientRequest {
+    string app_name = 1;
+    string contact_email = 2;
+    string scopes = 3;
+}
+
+message RegisterApiClientResponse {
+    string tenant_id = 1;
+    string client_id = 2;
+    string client_secret = 3;
+    string scopes = 4;
 }

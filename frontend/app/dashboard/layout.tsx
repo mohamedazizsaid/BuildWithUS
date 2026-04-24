@@ -14,7 +14,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
 
-  const isEditorPage = pathname?.startsWith('/dashboard/templates/editor');
+  const isEditorPage =
+    pathname?.startsWith('/dashboard/templates/editor') ||
+    pathname?.startsWith('/dashboard/templates/contract-editor') ||
+    pathname?.startsWith('/dashboard/templates/invoice-editor');
 
   useEffect(() => {
     if (!loading && !user) {

@@ -16,6 +16,13 @@ export interface InviteTokenPayload {
   role: string;
 }
 
+export interface M2MTokenPayload {
+  tenantId: string;
+  userId?: string;
+  organisationId?: string;
+  scopes: string[];
+}
+
 @Injectable()
 export class JwtService {
   private readonly secret: string;
@@ -34,7 +41,7 @@ export class JwtService {
 
 
   verify(token: string): JwtPayload {
-    return jwt.verify(token, this.secret) as JwtPayload;
+    return jwt.verify(token, this.secret) as unknown as JwtPayload;
   }
 
   signInvite(payload: InviteTokenPayload): string {
@@ -49,5 +56,27 @@ export class JwtService {
       throw new Error('Invalid token type');
     }
     return decoded as InviteTokenPayload;
+  }
+
+  signM2M(payload: M2MTokenPayload): string {
+    return jwt.sign(
+      {
+        sub: payload.tenantId,
+        user_id: payload.userId,
+        organisation_id: payload.organisationId,
+        scopes: payload.scopes,
+        type: 'm2m',
+      },
+      this.secret,
+      { expiresIn: 3600 } as jwt.SignOptions,
+    );
+  }
+
+  verifyM2M(token: string): M2MTokenPayload & { sub: string; type: string } {
+    const decoded = jwt.verify(token, this.secret) as any;
+    if (decoded.type !== 'm2m') {
+      throw new Error('Invalid token type');
+    }
+    return decoded;
   }
 }

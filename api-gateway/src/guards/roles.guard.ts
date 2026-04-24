@@ -26,6 +26,11 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('No user found');
     }
 
+    // M2M tokens bypass role checks — scope enforcement is handled by ScopesGuard
+    if (user.role === 'm2m') {
+      return true;
+    }
+
     if (!requiredRoles.includes(user.role)) {
       throw new ForbiddenException('You do not have permission to access this resource');
     }

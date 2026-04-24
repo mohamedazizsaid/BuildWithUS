@@ -1,6 +1,5 @@
 fastapi
 uvicorn
 httpx
-python-mjml
 pydantic
 python-dotenv

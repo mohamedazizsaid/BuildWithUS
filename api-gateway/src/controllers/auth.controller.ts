@@ -9,6 +9,7 @@ import {
   Inject,
   OnModuleInit,
   UseGuards,
+  HttpCode,
 } from "@nestjs/common";
 import { ClientGrpc } from "@nestjs/microservices";
 import { firstValueFrom } from "rxjs";
@@ -115,7 +116,19 @@ export class AuthController implements OnModuleInit {
   @Get("me")
   @UseGuards(AuthGuard)
   async getMe(@Req() req: any) {
-    // req.token was attached by AuthGuard after validating the JWT
+    if (req.user.role === "m2m") {
+      return {
+        user: {
+          id: req.user.id,
+          tenant_id: req.user.tenant_id,
+          role: "m2m",
+          is_machine: true,
+        },
+        tenant_name: "",
+        is_machine: true,
+      };
+    }
+
     const result = await firstValueFrom(
       this.authService.GetMe({ token: req.token }),
     );
@@ -231,5 +244,53 @@ export class AuthController implements OnModuleInit {
       this.authService.ListMembers({ token: req.token }),
     );
     return result;
+  }
+}
+
+@Controller()
+export class OAuthController implements OnModuleInit {
+  private authService: any;
+
+  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
+
+  onModuleInit() {
+    this.authService = this.client.getService("AuthService");
+  }
+
+  @Post("oauth/token")
+  @HttpCode(200)
+  async issueToken(@Body() body: any) {
+    return firstValueFrom(
+      this.authService.IssueClientToken({
+        client_id: body.client_id,
+        client_secret: body.client_secret,
+        user_id: body.user_id || "",
+        organisation_id: body.organisation_id || "",
+      }),
+    );
+  }
+
+  @Post("admin/api-clients")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("admin")
+  async generateApiClient(@Body() body: any) {
+    return firstValueFrom(
+      this.authService.GenerateApiClient({
+        tenant_id: body.tenant_id,
+        scopes: body.scopes || "",
+      }),
+    );
+  }
+
+  @Post("oauth/register")
+  @HttpCode(201)
+  async registerApiClient(@Body() body: any) {
+    return firstValueFrom(
+      this.authService.RegisterApiClient({
+        app_name: body.app_name,
+        contact_email: body.contact_email || "",
+        scopes: body.scopes || "",
+      }),
+    );
   }
 }

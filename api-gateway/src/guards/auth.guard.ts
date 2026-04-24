@@ -38,19 +38,18 @@ export class AuthGuard implements CanActivate, OnModuleInit {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
-    // Try to get token from cookie first, then from Authorization header
-    // Cookie: set by login/register (browser sends it automatically)
-    // Header: used by Postman or mobile apps (Authorization: Bearer <token>)
+    // Authorization header takes priority over cookie
+    // Header: machines/APIs always send Bearer token explicitly
+    // Cookie: browser users — fallback when no header present
     const token =
-      request.cookies?.token ||
-      request.headers.authorization?.replace("Bearer ", "");
+      request.headers.authorization?.replace("Bearer ", "") ||
+      request.cookies?.token;
 
     if (!token) {
       throw new UnauthorizedException("No token provided");
     }
 
     try {
-      // Call auth-service to verify the token is valid and not expired
       const result: any = await firstValueFrom(
         this.authService.ValidateToken({ token }),
       );
@@ -59,11 +58,18 @@ export class AuthGuard implements CanActivate, OnModuleInit {
         throw new UnauthorizedException("Invalid token");
       }
 
-      // Attach user info to the request — controllers can access it via req.user
-      // This contains: { id, tenant_id, email, role }
-      request.user = result.user;
+      if (result.token_type === "m2m") {
+        request.user = {
+          id: result.user?.id || "",
+          tenant_id: result.user?.tenant_id || "",
+          organisation_id: result.organisation_id || "",
+          scopes: result.scopes || [],
+          role: "m2m",
+        };
+      } else {
+        request.user = result.user;
+      }
 
-      // Also attach the raw token — some endpoints need it (GetMe, UpdateProfile)
       request.token = token;
       return true;
     } catch (error) {

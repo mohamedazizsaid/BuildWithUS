@@ -54,7 +54,14 @@ export default function NewTemplatePage() {
       description,
       subject,
     });
-    router.push(`/dashboard/templates/editor?${params.toString()}`);
+
+    if (selectedType === 2) {
+      router.push(`/dashboard/templates/invoice-editor?${params.toString()}`);
+    } else if (selectedType === 3) {
+      router.push(`/dashboard/templates/contract-editor?${params.toString()}`);
+    } else {
+      router.push(`/dashboard/templates/editor?${params.toString()}`);
+    }
   };
 
   return (

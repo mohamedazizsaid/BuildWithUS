@@ -3,6 +3,7 @@ import { ClientGrpc } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { AuthGuard } from '../guards/auth.guard';
 import { Roles, RolesGuard } from '../guards/roles.guard';
+import { Scopes, ScopesGuard } from '../guards/scopes.guard';
 
 /**
  * TemplateController — handles all /templates/* REST routes.
@@ -16,7 +17,7 @@ import { Roles, RolesGuard } from '../guards/roles.guard';
  * - TEMPLATE_QUERY_SERVICE   → read operations (list, get, render)
  */
 @Controller('templates')
-@UseGuards(AuthGuard, RolesGuard) // Every route in this controller requires a valid JWT
+@UseGuards(AuthGuard, RolesGuard, ScopesGuard)
 export class TemplateController implements OnModuleInit {
   private commandService: any; // gRPC client for write operations
   private queryService: any;   // gRPC client for read operations
@@ -39,6 +40,7 @@ export class TemplateController implements OnModuleInit {
    */
   @Post()
   @Roles('admin', 'editor')
+  @Scopes('templates:write')
   async create(@Req() req: any, @Body() body: any) {
     const result = await firstValueFrom(this.commandService.CreateTemplate({
       user_id: req.user.id,           // from JWT — who is creating
@@ -61,6 +63,7 @@ export class TemplateController implements OnModuleInit {
    * Templates are filtered by tenant_id — users only see their org's templates.
    */
   @Get()
+  @Scopes('templates:read')
   async list(@Req() req: any, @Query() query: any) {
     const result = await firstValueFrom(this.queryService.ListTemplates({
       user_id: req.user.id,
@@ -81,6 +84,7 @@ export class TemplateController implements OnModuleInit {
    * Only returns the template if it belongs to the user's organization.
    */
   @Get(':id')
+  @Scopes('templates:read')
   async get(@Req() req: any, @Param('id') id: string) {
     const result = await firstValueFrom(this.queryService.GetTemplate({
       id,                              // template ID from URL
@@ -96,6 +100,7 @@ export class TemplateController implements OnModuleInit {
    */
   @Put(':id')
   @Roles('admin', 'editor')
+  @Scopes('templates:write')
   async update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     const result = await firstValueFrom(this.commandService.UpdateTemplate({
       id,
@@ -117,6 +122,7 @@ export class TemplateController implements OnModuleInit {
    */
   @Delete(':id')
   @Roles('admin', 'editor')
+  @Scopes('templates:write')
   async delete(@Req() req: any, @Param('id') id: string) {
     const result = await firstValueFrom(this.commandService.DeleteTemplate({
       id,
@@ -132,6 +138,7 @@ export class TemplateController implements OnModuleInit {
    */
   @Put(':id/favorite')
   @Roles('admin', 'editor')
+  @Scopes('templates:write')
   async toggleFavorite(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     const result = await firstValueFrom(this.commandService.ToggleFavorite({
       id,
@@ -148,6 +155,7 @@ export class TemplateController implements OnModuleInit {
    */
   @Post(':id/duplicate')
   @Roles('admin', 'editor')
+  @Scopes('templates:write')
   async duplicate(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     const result = await firstValueFrom(this.commandService.DuplicateTemplate({
       id,                              // ID of template to clone
@@ -167,6 +175,7 @@ export class TemplateController implements OnModuleInit {
    * Rendered: "Hello Ahmed from Winaity"
    */
   @Post(':id/render')
+  @Scopes('templates:read')
   async render(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     const result = await firstValueFrom(this.queryService.RenderTemplate({
       id,

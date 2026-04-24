@@ -5,6 +5,9 @@ import { RegisterCommand } from '../../application/commands/register.command';
 import { LoginCommand } from '../../application/commands/login.comand';
 import { InviteUserCommand } from '../../application/commands/invite-user.command';
 import { AcceptInviteCommand } from '../../application/commands/accept-invite.command';
+import { GenerateApiClientCommand } from '../../application/commands/generate-api-client.command';
+import { IssueClientTokenCommand } from '../../application/commands/issue-client-token.command';
+import { RegisterApiClientCommand } from '../../application/commands/register-api-client.command';
 import { JwtService } from '../../application/services/jwt.service';
 import { UserRepository } from '../../domain/repositories/user.repository';
 import { TenantRepository } from '../../domain/repositories/tenant.repository';
@@ -48,18 +51,35 @@ export class AuthGrpcController {
   @GrpcMethod('AuthService', 'ValidateToken')
   async validateToken(request: { token: string }) {
     try {
+      // Try M2M token first (type: "m2m")
+      try {
+        const m2m = this.jwtService.verifyM2M(request.token);
+        return {
+          valid: true,
+          token_type: 'm2m',
+          user: { id: m2m.userId || '', tenant_id: m2m.sub, email: '', role: '' },
+          organisation_id: m2m.organisationId || '',
+          scopes: m2m.scopes,
+        };
+      } catch {
+        // Not a M2M token — fall through to user token verification
+      }
+
       const payload = this.jwtService.verify(request.token);
       return {
         valid: true,
+        token_type: 'user',
         user: {
           id: payload.userId,
           tenant_id: payload.tenantId,
           email: payload.email,
           role: payload.role,
         },
+        organisation_id: '',
+        scopes: [],
       };
     } catch {
-      return { valid: false, user: null };
+      return { valid: false, token_type: '', user: null, organisation_id: '', scopes: [] };
     }
   }
 
@@ -162,6 +182,31 @@ export class AuthGrpcController {
       lastName,
     );
 
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'GenerateApiClient')
+  async generateApiClient(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const command = new GenerateApiClientCommand(tenantId, request.scopes || '');
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'IssueClientToken')
+  async issueClientToken(request: any) {
+    const clientId = request.clientId || request.client_id;
+    const clientSecret = request.clientSecret || request.client_secret;
+    const userId = request.userId || request.user_id;
+    const organisationId = request.organisationId || request.organisation_id;
+    const command = new IssueClientTokenCommand(clientId, clientSecret, userId, organisationId);
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'RegisterApiClient')
+  async registerApiClient(request: any) {
+    const appName = request.appName || request.app_name;
+    const contactEmail = request.contactEmail || request.contact_email;
+    const command = new RegisterApiClientCommand(appName, contactEmail, request.scopes || '');
     return this.commandBus.execute(command);
   }
 }
