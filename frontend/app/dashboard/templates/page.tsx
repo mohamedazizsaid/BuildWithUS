@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Mail, FileText, ScrollText, Pencil, Trash2, Copy, Eye, X, Clock, Star } from 'lucide-react';
+import { Plus, Mail, FileText, ScrollText, Pencil, Trash2, Copy, Eye, X, Clock, Star, Receipt } from 'lucide-react';
 import { templates } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { useSearch } from '@/context/search';
 import toast from 'react-hot-toast';
+
+type TabType = 'email' | 'contrat' | 'facture';
 
 interface Template {
   id: string;
@@ -181,6 +183,118 @@ function mjmlToPreviewHtml(mjml: string): string {
   }
 }
 
+// ─── Contract card preview ───
+function ContractPreview({ content }: { content: string }) {
+  try {
+    const data = JSON.parse(content);
+    const blocks: { type: string; content: string }[] = data.blocks || [];
+    const heading = blocks.find((b) => b.type === 'contract_header' || b.type === 'heading');
+    const articles = blocks.filter((b) => b.type === 'article' || b.type === 'legal_article').slice(0, 3);
+    const contractType = data.contractType || 'b2c';
+    const typeLabels: Record<string, string> = { b2c: 'B2C', b2b: 'B2B', web: 'Web', aop: 'AOP', abonnement: 'Abonnement' };
+
+    const title = heading?.content
+      ?.split('\n')[0]
+      ?.replaceAll(/\{\{[\w]+\}\}/g, '...')
+      ?.substring(0, 40) || 'Contrat';
+
+    return (
+      <div className="w-full h-[180px] bg-[#0f172a] relative overflow-hidden flex flex-col p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Document légal</span>
+          <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+            {typeLabels[contractType] || contractType.toUpperCase()}
+          </span>
+        </div>
+        <div className="text-white text-[11px] font-bold leading-tight mb-3 line-clamp-2">{title}</div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          {articles.map((a, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-sm bg-white/10 flex items-center justify-center shrink-0">
+                <span className="text-[7px] text-white/40 font-bold">{i + 1}</span>
+              </div>
+              <div className="h-1.5 bg-white/10 rounded-full flex-1" style={{ width: `${60 + i * 10}%` }} />
+            </div>
+          ))}
+          {articles.length === 0 && (
+            <div className="flex flex-col gap-1.5">
+              {[80, 65, 75, 55].map((w, i) => (
+                <div key={i} className="h-1.5 bg-white/10 rounded-full" style={{ width: `${w}%` }} />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#0f172a] to-transparent" />
+      </div>
+    );
+  } catch {
+    return (
+      <div className="w-full h-[180px] bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center">
+        <ScrollText size={32} className="text-amber-400 opacity-40" />
+      </div>
+    );
+  }
+}
+
+// ─── Invoice card preview ───
+function InvoicePreview({ content }: { content: string }) {
+  try {
+    const data = JSON.parse(content);
+    const typeLabels: Record<string, string> = {
+      standard: 'Standard', 'pro-forma': 'Pro-forma',
+      acompte: 'Acompte', solde: 'Solde', avoir: 'Avoir', recurrente: 'Récurrente',
+    };
+    const lines: { description: string; quantity: number; unitPrice: number }[] = data.lines || [];
+    const subtotalHT = lines.reduce((s, l) => s + (l.quantity || 1) * (l.unitPrice || 0), 0);
+    const tva = subtotalHT * ((data.tvaRate || 20) / 100);
+    const ttc = subtotalHT + tva;
+    const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    return (
+      <div className="w-full h-[180px] bg-white relative overflow-hidden p-4">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <div className="text-[13px] font-black text-slate-900">FACTURE</div>
+            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+              {typeLabels[data.invoiceType] || 'Standard'}
+            </span>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] font-bold text-slate-700">{data.invoiceNumber || 'F2026-001'}</div>
+            <div className="text-[9px] text-slate-400">{data.issueDate || ''}</div>
+          </div>
+        </div>
+        <div className="h-px bg-slate-900 mb-2" />
+        {data.clientName && (
+          <div className="text-[9px] text-slate-500 mb-2 truncate">
+            <span className="font-semibold text-slate-700">{data.clientName}</span>
+          </div>
+        )}
+        <div className="flex flex-col gap-1 mb-2">
+          {lines.slice(0, 2).map((l, i) => (
+            <div key={i} className="flex justify-between text-[9px]">
+              <span className="text-slate-500 truncate flex-1">{l.description || '—'}</span>
+              <span className="text-slate-700 font-medium ml-2">{fmt(l.quantity * l.unitPrice)} €</span>
+            </div>
+          ))}
+        </div>
+        {ttc > 0 && (
+          <div className="absolute bottom-3 right-3 bg-slate-900 text-white px-2 py-1 rounded-md text-[10px] font-bold">
+            {fmt(ttc)} € TTC
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent" />
+      </div>
+    );
+  } catch {
+    return (
+      <div className="w-full h-[180px] bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
+        <FileText size={32} className="text-emerald-400 opacity-40" />
+      </div>
+    );
+  }
+}
+
 // ─── Template Preview (mini render) ───
 function TemplatePreview({ content, type }: { content: string; type: string }) {
   const config = getTypeConfig(type);
@@ -341,20 +455,37 @@ function PreviewModal({
   );
 }
 
+// ─── Tab config ───
+const TABS: { key: TabType; label: string; icon: typeof Mail; newRoute: string }[] = [
+  { key: 'email',   label: 'Emails',   icon: Mail,       newRoute: '/dashboard/templates/new?preselect=email'   },
+  { key: 'contrat', label: 'Contrats', icon: ScrollText, newRoute: '/dashboard/templates/new?preselect=contrat' },
+  { key: 'facture', label: 'Factures', icon: Receipt,    newRoute: '/dashboard/templates/new?preselect=facture' },
+];
+
+const TAB_TYPES: Record<TabType, string[]> = {
+  email:   ['email', 'EMAIL'],
+  contrat: ['contrat', 'CONTRAT'],
+  facture: ['facture', 'FACTURE'],
+};
+
 // ─── Main Page ───
 export default function TemplatesPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [templateList, setTemplateList] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('email');
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [previewTarget, setPreviewTarget] = useState<Template | null>(null);
 
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
   const { query } = useSearch();
+
+  // Filter by tab first, then by search query
+  const tabFiltered = templateList.filter((t) => TAB_TYPES[activeTab].includes(t.type));
   const filteredTemplates = query.trim()
-    ? templateList.filter((t) => {
+    ? tabFiltered.filter((t) => {
         const q = query.toLowerCase();
         return (
           t.name?.toLowerCase().includes(q) ||
@@ -363,7 +494,14 @@ export default function TemplatesPage() {
           t.type?.toLowerCase().includes(q)
         );
       })
-    : templateList;
+    : tabFiltered;
+
+  // Counts per tab for badges
+  const counts: Record<TabType, number> = {
+    email:   templateList.filter((t) => TAB_TYPES.email.includes(t.type)).length,
+    contrat: templateList.filter((t) => TAB_TYPES.contrat.includes(t.type)).length,
+    facture: templateList.filter((t) => TAB_TYPES.facture.includes(t.type)).length,
+  };
 
   useEffect(() => {
     loadTemplates();
@@ -371,7 +509,7 @@ export default function TemplatesPage() {
 
   const loadTemplates = async () => {
     try {
-      const data = await templates.list({ page: 1, limit: 50 });
+      const data = await templates.list({ page: 1, limit: 100 });
       setTemplateList(data.templates || []);
     } catch {
       toast.error('Échec du chargement des modèles');
@@ -380,8 +518,16 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleEdit = (id: string) => {
-    router.push(`/dashboard/templates/editor?id=${id}`);
+  const handleEdit = (tmpl: Template) => {
+    const type = tmpl.type?.toLowerCase();
+    const params = new URLSearchParams({ id: tmpl.id, name: tmpl.name, description: tmpl.description || '' });
+    if (type === 'contrat') {
+      router.push(`/dashboard/templates/contract-editor?${params.toString()}&type=3`);
+    } else if (type === 'facture') {
+      router.push(`/dashboard/templates/invoice-editor?${params.toString()}&type=2`);
+    } else {
+      router.push(`/dashboard/templates/editor?id=${tmpl.id}`);
+    }
   };
 
   const handleDelete = async () => {
@@ -425,10 +571,13 @@ export default function TemplatesPage() {
     );
   }
 
+  const activeTabCfg = TABS.find((t) => t.key === activeTab)!;
+  const TabIcon = activeTabCfg.icon;
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Modèles</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -446,6 +595,31 @@ export default function TemplatesPage() {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-6 bg-slate-100 rounded-xl p-1 w-fit">
+        {TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === key
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Icon size={14} />
+            {label}
+            {counts[key] > 0 && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                activeTab === key ? 'bg-slate-100 text-slate-600' : 'bg-slate-200 text-slate-500'
+              }`}>
+                {counts[key]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Empty State */}
       {filteredTemplates.length === 0 ? (
         <motion.div
@@ -454,120 +628,138 @@ export default function TemplatesPage() {
           className="flex flex-col items-center justify-center py-24 text-center"
         >
           <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-            <Mail size={24} className="text-muted-foreground" />
+            <TabIcon size={24} className="text-muted-foreground" />
           </div>
-          <p className="font-medium mb-1">{query.trim() ? 'Aucun résultat' : 'Aucun modèle'}</p>
+          <p className="font-medium mb-1">{query.trim() ? 'Aucun résultat' : `Aucun ${activeTabCfg.label.toLowerCase().slice(0, -1)}`}</p>
           <p className="text-muted-foreground text-sm mb-6">
-            {query.trim() ? `Aucun modèle ne correspond à "${query}"` : 'Créez votre premier modèle pour commencer'}
+            {query.trim()
+              ? `Aucun modèle ne correspond à "${query}"`
+              : `Créez votre premier modèle ${activeTabCfg.label.toLowerCase().slice(0, -1)} pour commencer`}
           </p>
           {!query.trim() && canEdit && (
-              <button
-                onClick={() => router.push('/dashboard/templates/new')}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-xl hover:bg-primary/90 shadow-sm"
-              >
-                <Plus size={16} />
-                Créer un modèle
-              </button>
+            <button
+              onClick={() => router.push('/dashboard/templates/new')}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-xl hover:bg-primary/90 shadow-sm"
+            >
+              <Plus size={16} />
+              Créer un modèle
+            </button>
           )}
         </motion.div>
       ) : (
-        /* Template Cards Grid */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filteredTemplates.map((tmpl, i) => {
-            const config = getTypeConfig(tmpl.type);
-            const Icon = config.icon;
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+          >
+            {filteredTemplates.map((tmpl, i) => {
+              const config = getTypeConfig(tmpl.type);
+              const Icon = config.icon;
+              const isContract = tmpl.type?.toLowerCase() === 'contrat';
+              const isInvoice = tmpl.type?.toLowerCase() === 'facture';
 
-            return (
-              <motion.div
-                key={tmpl.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.3 }}
-                className="group relative bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
-              >
-                {/* Preview Area */}
-                <div className="relative">
-                  <TemplatePreview content={tmpl.content} type={tmpl.type} />
+              return (
+                <motion.div
+                  key={tmpl.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.3 }}
+                  className="group relative bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  {/* Preview Area */}
+                  <div className="relative">
+                    {isContract ? (
+                      <ContractPreview content={tmpl.content} />
+                    ) : isInvoice ? (
+                      <InvoicePreview content={tmpl.content} />
+                    ) : (
+                      <TemplatePreview content={tmpl.content} type={tmpl.type} />
+                    )}
 
-                  {/* Subtle hover overlay + preview pill */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 flex items-center justify-center">
+                    {/* Hover overlay + preview pill */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 flex items-center justify-center">
+                      <button
+                        onClick={() => setPreviewTarget(tmpl)}
+                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full text-xs font-medium text-slate-700 shadow-md hover:bg-slate-50 transition-all duration-150 hover:scale-105"
+                      >
+                        <Eye size={13} />
+                        Aperçu
+                      </button>
+                    </div>
+
+                    {/* Type badge */}
+                    <div className="absolute top-2.5 left-2.5">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${config.bg} ${config.color}`}>
+                        <Icon size={9} />
+                        {config.label}
+                      </span>
+                    </div>
+
+                    {/* Star */}
                     <button
-                      onClick={() => setPreviewTarget(tmpl)}
-                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full text-xs font-medium text-slate-700 shadow-md hover:bg-slate-50 transition-all duration-150 hover:scale-105"
+                      onClick={(e) => { e.stopPropagation(); handleToggleFavorite(tmpl); }}
+                      className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+                      title={tmpl.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                     >
-                      <Eye size={13} />
-                      Aperçu
+                      <Star
+                        size={13}
+                        className={tmpl.is_favorite ? 'text-amber-400' : 'text-slate-300'}
+                        fill={tmpl.is_favorite ? 'currentColor' : 'none'}
+                      />
                     </button>
                   </div>
 
-                  {/* Type badge */}
-                  <div className="absolute top-2.5 left-2.5">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${config.bg} ${config.color}`}>
-                      <Icon size={9} />
-                      {config.label}
-                    </span>
-                  </div>
+                  {/* Colored accent line */}
+                  <div className={`h-[2px] bg-gradient-to-r ${config.gradient}`} />
 
-                  {/* Star */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleToggleFavorite(tmpl); }}
-                    className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
-                    title={tmpl.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                  >
-                    <Star
-                      size={13}
-                      className={tmpl.is_favorite ? 'text-amber-400' : 'text-slate-300'}
-                      fill={tmpl.is_favorite ? 'currentColor' : 'none'}
-                    />
-                  </button>
-                </div>
-
-                {/* Colored accent line */}
-                <div className={`h-[2px] bg-gradient-to-r ${config.gradient}`} />
-
-                {/* Card Info */}
-                <div className="p-3.5">
-                  <h3 className="text-sm font-semibold truncate text-foreground">{tmpl.name}</h3>
-                  {tmpl.description && (
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">{tmpl.description}</p>
-                  )}
-
-                  <div className="flex items-center justify-between mt-2.5">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Clock size={10} />
-                      <span className="text-[10px]">{relativeTime(tmpl.updated_at || tmpl.created_at)}</span>
-                    </div>
-
-                    {canEdit && (
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEdit(tmpl.id)}
-                          className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-accent transition-colors"
-                          title="Modifier"
-                        >
-                          <Pencil size={12} className="text-muted-foreground" />
-                        </button>
-                        <button
-                          className="w-6 h-6 rounded-md flex items-center justify-center opacity-30 cursor-not-allowed"
-                          title="Bientôt disponible"
-                        >
-                          <Copy size={12} className="text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(tmpl)}
-                          className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-red-50 transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 size={12} className="text-red-400" />
-                        </button>
-                      </div>
+                  {/* Card Info */}
+                  <div className="p-3.5">
+                    <h3 className="text-sm font-semibold truncate text-foreground">{tmpl.name}</h3>
+                    {tmpl.description && (
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">{tmpl.description}</p>
                     )}
+
+                    <div className="flex items-center justify-between mt-2.5">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock size={10} />
+                        <span className="text-[10px]">{relativeTime(tmpl.updated_at || tmpl.created_at)}</span>
+                      </div>
+
+                      {canEdit && (
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleEdit(tmpl)}
+                            className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-accent transition-colors"
+                            title="Modifier"
+                          >
+                            <Pencil size={12} className="text-muted-foreground" />
+                          </button>
+                          <button
+                            className="w-6 h-6 rounded-md flex items-center justify-center opacity-30 cursor-not-allowed"
+                            title="Bientôt disponible"
+                          >
+                            <Copy size={12} className="text-muted-foreground" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(tmpl)}
+                            className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-red-50 transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={12} className="text-red-400" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </AnimatePresence>
       )}
 
       {/* Delete Modal */}
@@ -589,8 +781,9 @@ export default function TemplatesPage() {
             template={previewTarget}
             onClose={() => setPreviewTarget(null)}
             onEdit={() => {
+              const t = previewTarget;
               setPreviewTarget(null);
-              handleEdit(previewTarget.id);
+              if (t) handleEdit(t);
             }}
           />
         )}

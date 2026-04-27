@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Inject, OnModuleInit, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, Inject, OnModuleInit, UseGuards } from '@nestjs/common';
 import { ClientGrpc } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
+import { Response } from 'express';
 import { AuthGuard } from '../guards/auth.guard';
 import { Roles, RolesGuard } from '../guards/roles.guard';
+import { PdfService } from '../services/pdf.service';
 import { Scopes, ScopesGuard } from '../guards/scopes.guard';
 
 /**
@@ -25,12 +27,31 @@ export class TemplateController implements OnModuleInit {
   constructor(
     @Inject('TEMPLATE_COMMAND_SERVICE') private readonly commandClient: ClientGrpc,
     @Inject('TEMPLATE_QUERY_SERVICE') private readonly queryClient: ClientGrpc,
+    private readonly pdfService: PdfService,
   ) {}
 
   // Get references to the gRPC services when the module starts
   onModuleInit() {
     this.commandService = this.commandClient.getService('TemplateCommandService');
     this.queryService = this.queryClient.getService('TemplateQueryService');
+  }
+
+  /**
+   * POST /templates/render-pdf
+   * Receives rendered HTML, returns a proper A4 PDF binary via Playwright.
+   */
+  @Post('render-pdf')
+  @Roles('admin', 'editor', 'viewer')
+  async renderPdf(
+    @Body() body: { html: string; name?: string },
+    @Res() res: Response,
+  ) {
+    const pdf = await this.pdfService.generatePdf(body.html, body.name ?? 'document');
+    const filename = encodeURIComponent((body.name ?? 'document').replaceAll(/\s+/g, '_'));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+    res.setHeader('Content-Length', pdf.length);
+    res.send(pdf);
   }
 
   /**

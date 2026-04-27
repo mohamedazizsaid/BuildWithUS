@@ -8,6 +8,7 @@ import { AuthGuard } from '../src/guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { ScopesGuard } from './guards/scopes.guard';
 import { Reflector } from '@nestjs/core';
+import { PdfService } from './services/pdf.service';
 
 /**
  * AppModule — the main module of the API Gateway.
@@ -84,6 +85,6 @@ import { Reflector } from '@nestjs/core';
     ]),
   ],
   controllers: [AuthController, OAuthController, TemplateController, MediaController], // REST controllers that handle HTTP requests
-  providers: [AuthGuard, RolesGuard, ScopesGuard, Reflector],
+  providers: [AuthGuard, RolesGuard, ScopesGuard, Reflector, PdfService],
 })
 export class AppModule {}

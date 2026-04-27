@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useCallback } from 'react';
+import { Suspense, useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, Download, Plus, Trash2 } from 'lucide-react';
 import { templates } from '@/lib/api';
@@ -190,8 +190,10 @@ function InvoiceEditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const templateId = searchParams.get('id') || null;
   const name = searchParams.get('name') || 'Nouvelle facture';
   const description = searchParams.get('description') || '';
+  const isEditMode = !!templateId;
 
   const [isSaving, setIsSaving] = useState(false);
   const [data, setData] = useState<InvoiceData>({
@@ -208,6 +210,19 @@ function InvoiceEditorContent() {
     notes: '',
     paymentTerms: '30 jours',
   });
+
+  // Load existing template when editing
+  useEffect(() => {
+    if (!templateId) return;
+    import('@/lib/api').then(({ templates: api }) => {
+      api.get(templateId).then((t: { content: string }) => {
+        try {
+          const parsed = JSON.parse(t.content);
+          if (parsed.invoiceType) setData(parsed);
+        } catch { /* not JSON — keep defaults */ }
+      }).catch(() => {});
+    });
+  }, [templateId]);
 
   const set = useCallback(<K extends keyof InvoiceData>(key: K, value: InvoiceData[K]) => {
     setData((prev) => ({ ...prev, [key]: value }));
@@ -233,14 +248,15 @@ function InvoiceEditorContent() {
 
   const handleSave = async () => {
     setIsSaving(true);
+    const content = JSON.stringify(data);
     try {
-      await templates.create({
-        name,
-        description,
-        type: 2,
-        content: JSON.stringify(data),
-      });
-      toast.success('Facture enregistrée');
+      if (isEditMode && templateId) {
+        await templates.update(templateId, { name, description, type: 2, content });
+        toast.success('Facture mise à jour');
+      } else {
+        await templates.create({ name, description, type: 2, content });
+        toast.success('Facture enregistrée');
+      }
       router.push('/dashboard/templates');
     } catch {
       toast.error("Échec de l'enregistrement");
@@ -255,12 +271,11 @@ function InvoiceEditorContent() {
 
   const currentTypeConfig = INVOICE_TYPES.find((t) => t.value === data.invoiceType) ?? INVOICE_TYPES[0];
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     const previewEl = document.getElementById('invoice-preview');
     if (!previewEl) return;
-    const printWindow = globalThis.open('', '_blank', 'width=900,height=700');
-    if (!printWindow) { toast.error('Autorisez les popups pour exporter en PDF'); return; }
-    printWindow.document.write(`<!DOCTYPE html>
+
+    const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8"/>
@@ -273,10 +288,28 @@ function InvoiceEditorContent() {
   </style>
 </head>
 <body>${previewEl.outerHTML}</body>
-</html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); }, 400);
+</html>`;
+
+    const toastId = toast.loading('Génération du PDF...');
+    try {
+      const res = await fetch('http://localhost:3000/templates/render-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ html, name }),
+      });
+      if (!res.ok) throw new Error('PDF generation failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('PDF téléchargé', { id: toastId });
+    } catch {
+      toast.error('Erreur lors de la génération du PDF', { id: toastId });
+    }
   };
 
   return (
@@ -313,7 +346,7 @@ function InvoiceEditorContent() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
           >
             <Save size={13} />
-            {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+            {isSaving ? 'Enregistrement...' : isEditMode ? 'Mettre à jour' : 'Enregistrer'}
           </button>
         </div>
       </div>
