@@ -1426,18 +1426,18 @@ function ContractEditorContent() {
   // Load existing template when editing
   useEffect(() => {
     if (!templateId) return;
-    import('@/lib/api').then(({ templates }) => {
-      templates.get(templateId).then((data: { content: string }) => {
+    templates.get(templateId)
+      .then((data: { content: string }) => {
         try {
           const parsed = JSON.parse(data.content);
           if (parsed.contractType && CONTRACT_TYPES[parsed.contractType as ContractType]) {
-            setContractType(parsed.contractType);
+            setContractType(parsed.contractType as ContractType);
           }
-          if (parsed.blocks?.length) setBlocks(parsed.blocks);
+          if (Array.isArray(parsed.blocks) && parsed.blocks.length > 0) setBlocks(parsed.blocks);
           if (parsed.version) setVersion(parsed.version);
         } catch { /* not JSON — keep defaults */ }
-      }).catch(() => { /* template not found */ });
-    });
+      })
+      .catch(() => { /* template not found */ });
   }, [templateId]);
 
   const typeConfig = CONTRACT_TYPES[contractType];

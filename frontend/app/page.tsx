@@ -103,7 +103,7 @@ function HeroSection() {
           className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-8"
         >
           <Sparkles size={13} className="text-indigo-400" />
-          <span className="text-white/80 text-xs font-medium">Génération de documents propulsée par IA</span>
+          <span className="text-white/80 text-xs font-medium">Génération des propulsée par IA</span>
         </motion.div>
 
         {/* Main headline */}
@@ -116,7 +116,7 @@ function HeroSection() {
           >
             Templates qui
             <br />
-            <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
               font la différence.
             </span>
           </motion.h1>
@@ -196,14 +196,14 @@ function DashboardMockup() {
         <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
         <div className="w-3 h-3 rounded-full bg-green-500/70" />
         <div className="flex-1 mx-4 bg-white/5 rounded-md h-5 text-white/20 text-[9px] flex items-center px-2">
-          app.wintemplate.com/dashboard
+          app.wintaity-template-builder/dashboard
         </div>
       </div>
       {/* Content */}
-      <div className="flex h-48">
+      <div className="flex h-44">
         {/* Sidebar */}
         <div className="w-44 border-r border-white/5 p-3 flex flex-col gap-1">
-          {['Tableau de bord', 'Modèles', 'Contrats', 'Factures', 'Équipe'].map((item, i) => (
+          {['Template Builder', 'Modèles', 'Créer un modèle', 'Favoris','Administration'].map((item, i) => (
             <div key={item} className={`px-2 py-1.5 rounded-md text-[10px] font-medium ${i === 1 ? 'bg-indigo-600/30 text-indigo-300' : 'text-white/30'}`}>
               {item}
             </div>
@@ -214,8 +214,8 @@ function DashboardMockup() {
           <div className="text-white/60 text-[10px] font-semibold mb-3">Modèles récents</div>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: 'Email Bienvenue', color: 'from-blue-500/20 to-indigo-500/20', dot: 'bg-blue-400' },
-              { label: 'Contrat B2C', color: 'from-amber-500/20 to-orange-500/20', dot: 'bg-amber-400' },
+              { label: 'Email Template', color: 'from-blue-500/20 to-indigo-500/20', dot: 'bg-blue-400' },
+              { label: 'Contrat B2C,B2B,WEB / E-commerce,,,', color: 'from-amber-500/20 to-orange-500/20', dot: 'bg-amber-400' },
               { label: 'Facture Pro', color: 'from-emerald-500/20 to-teal-500/20', dot: 'bg-emerald-400' },
             ].map((item) => (
               <div key={item.label} className={`bg-gradient-to-br ${item.color} border border-white/5 rounded-lg p-2.5`}>
@@ -235,14 +235,14 @@ function DashboardMockup() {
 // ─── STATS ────────────────────────────────────────────────────────────────────
 function StatsSection() {
   const stats = [
-    { value: '50K+', label: 'Templates créés' },
-    { value: '2K+', label: 'Entreprises actives' },
-    { value: '99.9%', label: 'Disponibilité' },
-    { value: '4.9★', label: 'Note moyenne' },
+    { value: 'Bêta', label: 'Version actuelle' },
+{ value: '10+ types', label: 'Blocs de contrats disponibles' },
+{ value: 'API', label: 'Intégration OAuth 2.1' },
+{ value: 'Multi-tenant', label: 'Architecture supportée' },
   ];
   return (
     <section className="bg-black border-t border-white/5 py-16">
-      <div className="max-w-5xl mx-auto px-6">
+      <div className="max-w-5xl mx-auto px-2">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map((s, i) => (
             <Reveal key={s.label} delay={i * 0.08}>
@@ -503,7 +503,7 @@ function HowItWorksSection() {
         <Reveal>
           <div className="text-center mb-20">
             <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full bg-white/10 text-white/60 mb-5">
-              Simple comme bonjour
+              Simple comme Bonjour
             </div>
             <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
               En 3 étapes,<br />

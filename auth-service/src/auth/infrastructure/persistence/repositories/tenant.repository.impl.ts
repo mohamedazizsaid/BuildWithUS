@@ -35,6 +35,11 @@ export class TenantRepositoryImpl extends TenantRepository {
         await this.repo.delete(id);
     }
 
+    async findAll(): Promise<Tenant[]> {
+        const entities = await this.repo.find({ order: { createdAt: 'DESC' } });
+        return entities.map((e) => this.toAggregate(e));
+    }
+
     private toAggregate(entity: TenantOrmEntity): Tenant {
         return Tenant.reconstitute(
             entity.id,

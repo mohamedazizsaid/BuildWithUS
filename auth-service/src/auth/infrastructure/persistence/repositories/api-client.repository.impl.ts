@@ -27,6 +27,23 @@ export class ApiClientRepositoryImpl extends ApiClientRepository {
     };
   }
 
+  async findByTenantId(tenantId: string): Promise<ApiClient[]> {
+    const entities = await this.repo.find({ where: { tenantId }, order: { createdAt: 'DESC' } });
+    return entities.map((e) => ({
+      id: e.id,
+      tenantId: e.tenantId,
+      clientId: e.clientId,
+      clientSecretHash: e.clientSecretHash,
+      scopes: e.scopes,
+      expiresAt: e.expiresAt,
+      createdAt: e.createdAt,
+    }));
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await this.repo.delete(id);
+  }
+
   async save(client: ApiClient): Promise<void> {
     await this.repo.save({
       id: client.id,

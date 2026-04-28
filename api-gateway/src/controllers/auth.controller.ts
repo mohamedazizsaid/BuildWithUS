@@ -3,7 +3,9 @@ import {
   Post,
   Get,
   Put,
+  Delete,
   Body,
+  Param,
   Req,
   Res,
   Inject,
@@ -245,6 +247,44 @@ export class AuthController implements OnModuleInit {
     );
     return result;
   }
+
+  // ── Super Admin endpoints (prefix: /auth) ────────────────────────────────
+
+  @Get("admin/tenants")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("super_admin")
+  async listAllTenants() {
+    return firstValueFrom(this.authService.ListAllTenants({}));
+  }
+
+  @Get("admin/tenants/:tenantId/api-clients")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("super_admin")
+  async listApiClients(@Param("tenantId") tenantId: string) {
+    return firstValueFrom(this.authService.ListApiClients({ tenant_id: tenantId }));
+  }
+
+  @Post("admin/tenants/:tenantId/api-clients")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("super_admin")
+  async generateApiClientForTenant(
+    @Param("tenantId") tenantId: string,
+    @Body() body: { scopes?: string },
+  ) {
+    return firstValueFrom(
+      this.authService.GenerateApiClient({
+        tenant_id: tenantId,
+        scopes: body.scopes || "templates:read templates:write",
+      }),
+    );
+  }
+
+  @Delete("admin/api-clients/:id")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("super_admin")
+  async revokeApiClient(@Param("id") id: string) {
+    return firstValueFrom(this.authService.RevokeApiClient({ id }));
+  }
 }
 
 @Controller()
@@ -266,18 +306,6 @@ export class OAuthController implements OnModuleInit {
         client_secret: body.client_secret,
         user_id: body.user_id || "",
         organisation_id: body.organisation_id || "",
-      }),
-    );
-  }
-
-  @Post("admin/api-clients")
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles("admin")
-  async generateApiClient(@Body() body: any) {
-    return firstValueFrom(
-      this.authService.GenerateApiClient({
-        tenant_id: body.tenant_id,
-        scopes: body.scopes || "",
       }),
     );
   }

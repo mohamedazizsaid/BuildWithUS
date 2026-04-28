@@ -14,6 +14,9 @@ service AuthService{
     rpc GenerateApiClient (GenerateApiClientRequest) returns (GenerateApiClientResponse);
     rpc IssueClientToken (IssueClientTokenRequest) returns (IssueClientTokenResponse);
     rpc RegisterApiClient (RegisterApiClientRequest) returns (RegisterApiClientResponse);
+    rpc ListAllTenants (ListAllTenantsRequest) returns (ListAllTenantsResponse);
+    rpc ListApiClients (ListApiClientsRequest) returns (ListApiClientsResponse);
+    rpc RevokeApiClient (RevokeApiClientRequest) returns (RevokeApiClientResponse);
 }
 
 message RegisterRequest {
@@ -141,4 +144,41 @@ message RegisterApiClientResponse {
     string client_id = 2;
     string client_secret = 3;
     string scopes = 4;
+}
+
+message TenantInfo {
+    string id = 1;
+    string name = 2;
+    string plan = 3;
+    string created_at = 4;
+}
+
+message ListAllTenantsRequest {}
+
+message ListAllTenantsResponse {
+    repeated TenantInfo tenants = 1;
+}
+
+message ApiClientInfo {
+    string id = 1;
+    string tenant_id = 2;
+    string client_id = 3;
+    string scopes = 4;
+    string created_at = 5;
+}
+
+message ListApiClientsRequest {
+    string tenant_id = 1;
+}
+
+message ListApiClientsResponse {
+    repeated ApiClientInfo clients = 1;
+}
+
+message RevokeApiClientRequest {
+    string id = 1;
+}
+
+message RevokeApiClientResponse {
+    bool success = 1;
 }

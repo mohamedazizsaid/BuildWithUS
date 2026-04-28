@@ -9,7 +9,7 @@ import AppSidebar from '@/components/dashboard/Sidebar';
 import Navbar from '@/components/dashboard/Navbar';
 import { SearchProvider } from '@/context/search';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { readonly children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -17,7 +17,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isEditorPage =
     pathname?.startsWith('/dashboard/templates/editor') ||
     pathname?.startsWith('/dashboard/templates/contract-editor') ||
-    pathname?.startsWith('/dashboard/templates/invoice-editor');
+    pathname?.startsWith('/dashboard/templates/invoice-editor') ||
+    pathname?.startsWith('/dashboard/templates/generate');
 
   useEffect(() => {
     if (!loading && !user) {

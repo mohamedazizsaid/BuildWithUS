@@ -5,4 +5,5 @@ export abstract class TenantRepository {
     abstract save(tenant: Tenant): Promise<void>;
     abstract findByName(name: string): Promise<Tenant | null>;
     abstract delete(id: string): Promise<void>;
+    abstract findAll(): Promise<Tenant[]>;
 }

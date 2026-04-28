@@ -1,4 +1,4 @@
-import { Controller, Logger } from '@nestjs/common';
+import { Controller, Inject, Logger } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { GrpcMethod } from '@nestjs/microservices';
 import { RegisterCommand } from '../../application/commands/register.command';
@@ -11,6 +11,7 @@ import { RegisterApiClientCommand } from '../../application/commands/register-ap
 import { JwtService } from '../../application/services/jwt.service';
 import { UserRepository } from '../../domain/repositories/user.repository';
 import { TenantRepository } from '../../domain/repositories/tenant.repository';
+import { ApiClientRepository } from '../../domain/repositories/api-client.repository';
 
 @Controller()
 export class AuthGrpcController {
@@ -21,6 +22,8 @@ export class AuthGrpcController {
     private readonly jwtService: JwtService,
     private readonly userRepository: UserRepository,
     private readonly tenantRepository: TenantRepository,
+    @Inject('API_CLIENT_REPOSITORY')
+    private readonly apiClientRepository: ApiClientRepository,
   ) {}
 
   @GrpcMethod('AuthService', 'Register')
@@ -208,5 +211,42 @@ export class AuthGrpcController {
     const contactEmail = request.contactEmail || request.contact_email;
     const command = new RegisterApiClientCommand(appName, contactEmail, request.scopes || '');
     return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'ListAllTenants')
+  async listAllTenants() {
+    const tenants = await this.tenantRepository.findAll();
+    return {
+      tenants: tenants.map((t) => {
+        const p = t.toPrimitives();
+        return {
+          id: p.id,
+          name: p.name,
+          plan: p.plan,
+          created_at: p.createdAt?.toISOString?.() ?? '',
+        };
+      }),
+    };
+  }
+
+  @GrpcMethod('AuthService', 'ListApiClients')
+  async listApiClients(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const clients = await this.apiClientRepository.findByTenantId(tenantId);
+    return {
+      clients: clients.map((c) => ({
+        id: c.id,
+        tenant_id: c.tenantId,
+        client_id: c.clientId,
+        scopes: c.scopes,
+        created_at: c.createdAt?.toISOString?.() ?? '',
+      })),
+    };
+  }
+
+  @GrpcMethod('AuthService', 'RevokeApiClient')
+  async revokeApiClient(request: any) {
+    await this.apiClientRepository.deleteById(request.id);
+    return { success: true };
   }
 }

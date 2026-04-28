@@ -5,6 +5,7 @@ import { Response } from 'express';
 import { AuthGuard } from '../guards/auth.guard';
 import { Roles, RolesGuard } from '../guards/roles.guard';
 import { PdfService } from '../services/pdf.service';
+import { TemplateRendererService } from '../services/template-renderer.service';
 import { Scopes, ScopesGuard } from '../guards/scopes.guard';
 
 /**
@@ -28,6 +29,7 @@ export class TemplateController implements OnModuleInit {
     @Inject('TEMPLATE_COMMAND_SERVICE') private readonly commandClient: ClientGrpc,
     @Inject('TEMPLATE_QUERY_SERVICE') private readonly queryClient: ClientGrpc,
     private readonly pdfService: PdfService,
+    private readonly renderer: TemplateRendererService,
   ) {}
 
   // Get references to the gRPC services when the module starts
@@ -48,6 +50,68 @@ export class TemplateController implements OnModuleInit {
   ) {
     const pdf = await this.pdfService.generatePdf(body.html, body.name ?? 'document');
     const filename = encodeURIComponent((body.name ?? 'document').replaceAll(/\s+/g, '_'));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+    res.setHeader('Content-Length', pdf.length);
+    res.send(pdf);
+  }
+
+  /**
+   * GET /templates/:id/schema
+   * Returns the list of required {{variables}} for a given template.
+   * Used by external tools (CRM, Winlead...) to know what data to send.
+   *
+   * Example response:
+   * {
+   *   "template_id": "abc-123",
+   *   "template_name": "Contrat B2C",
+   *   "required_variables": ["client_nom", "client_email", "montant_ttc", ...]
+   * }
+   */
+  @Get(':id/schema')
+  @Roles('admin', 'editor', 'viewer')
+  @Scopes('templates:read')
+  async getSchema(@Param('id') id: string, @Req() req: any) {
+    const result = await firstValueFrom(
+      this.queryService.GetTemplate({ id, tenant_id: req.user.tenant_id }),
+    ) as any;
+    const variables = this.renderer.extractVariables(result.content ?? '');
+    return {
+      template_id: result.id,
+      template_name: result.name,
+      template_type: result.type,
+      required_variables: variables,
+    };
+  }
+
+  /**
+   * POST /templates/:id/generate
+   * Full generation pipeline: load template → inject variables → render HTML → PDF.
+   * This is the endpoint external tools (CRM, Winlead...) call to generate a document.
+   *
+   * Request body:
+   * { "variables": { "client_nom": "Jean Dupont", "montant_ttc": "3000" } }
+   *
+   * Returns: PDF binary (application/pdf)
+   */
+  @Post(':id/generate')
+  @Roles('admin', 'editor', 'viewer')
+  @Scopes('templates:read')
+  async generateDocument(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: { variables?: Record<string, string> },
+    @Res() res: Response,
+  ) {
+    const result = await firstValueFrom(
+      this.queryService.GetTemplate({ id, tenant_id: req.user.tenant_id }),
+    ) as any;
+
+    const variables = body.variables ?? {};
+    const html = this.renderer.renderContractToHtml(result.content, variables);
+    const pdf = await this.pdfService.generatePdf(html, result.name);
+
+    const filename = encodeURIComponent((result.name as string).replaceAll(/\s+/g, '_'));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
     res.setHeader('Content-Length', pdf.length);

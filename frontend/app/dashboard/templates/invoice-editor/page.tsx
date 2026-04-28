@@ -214,14 +214,14 @@ function InvoiceEditorContent() {
   // Load existing template when editing
   useEffect(() => {
     if (!templateId) return;
-    import('@/lib/api').then(({ templates: api }) => {
-      api.get(templateId).then((t: { content: string }) => {
+    templates.get(templateId)
+      .then((t: { content: string }) => {
         try {
           const parsed = JSON.parse(t.content);
           if (parsed.invoiceType) setData(parsed);
         } catch { /* not JSON — keep defaults */ }
-      }).catch(() => {});
-    });
+      })
+      .catch(() => {});
   }, [templateId]);
 
   const set = useCallback(<K extends keyof InvoiceData>(key: K, value: InvoiceData[K]) => {
