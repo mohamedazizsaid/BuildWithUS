@@ -215,9 +215,10 @@ function InvoiceEditorContent() {
   useEffect(() => {
     if (!templateId) return;
     templates.get(templateId)
-      .then((t: { content: string }) => {
+      .then((result: any) => {
+        const t = result?.template ?? result;
         try {
-          const parsed = JSON.parse(t.content);
+          const parsed = JSON.parse(t?.content ?? '');
           if (parsed.invoiceType) setData(parsed);
         } catch { /* not JSON — keep defaults */ }
       })

@@ -219,6 +219,7 @@ export class TemplateRendererService {
   // ─── Render all blocks to full A4 HTML document ───────────────────────────
   renderContractToHtml(content: string, variables: Record<string, string>): string {
     const parsed = JSON.parse(content);
+    
     const blocks: Block[] = parsed.blocks || [];
 
     const body = blocks

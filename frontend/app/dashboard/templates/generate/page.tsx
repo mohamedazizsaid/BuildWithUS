@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Download, RefreshCw, FileText } from 'lucide-react';
 import { templates } from '@/lib/api';
-import { renderBlock, injectVariables } from '@/lib/contract-renderer';
+import { renderBlock, injectVariables, extractVariables } from '@/lib/contract-renderer';
 import toast from 'react-hot-toast';
+
+
 
 // ─── Variable grouping ────────────────────────────────────────────────────────
 
@@ -20,6 +22,8 @@ const GROUPS: { label: string; match: (k: string) => boolean; color: string }[] 
   { label: 'Autres',           match: () => true,                                                                       color: 'text-slate-400' },
 ];
 
+
+
 function groupVariables(vars: string[]): { label: string; color: string; keys: string[] }[] {
   const used = new Set<string>();
   return GROUPS.map(({ label, match, color }) => {
@@ -32,7 +36,7 @@ function groupVariables(vars: string[]): { label: string; color: string; keys: s
 function labelFor(key: string): string {
   return key
     .replaceAll('_', ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .replaceAll(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ─── Main content ─────────────────────────────────────────────────────────────
@@ -49,18 +53,17 @@ function GenerateContent() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  // Load schema + template content
+  // Load template then extract variables directly from content (no /schema dependency)
   useEffect(() => {
     if (!templateId) return;
-    Promise.all([
-      fetch(`http://localhost:3000/templates/${templateId}/schema`, { credentials: 'include' }).then((r) => r.json()),
-      templates.get(templateId),
-    ])
-      .then(([schema, tmpl]) => {
-        const vars: string[] = schema.required_variables ?? [];
+    templates.get(templateId)
+      .then((result: any) => {
+        // API returns { template: { content, name, ... } } from gRPC
+        const tmpl = result?.template ?? result;
+        const content: string = tmpl?.content ?? '';
+        setTemplateContent(content);
+        const vars = extractVariables(content);
         setSchemaVars(vars);
-        setTemplateContent(tmpl.content ?? '');
-        // Pre-fill empty values
         const init: Record<string, string> = {};
         vars.forEach((k) => { init[k] = ''; });
         setValues(init);
@@ -96,14 +99,18 @@ function GenerateContent() {
         credentials: 'include',
         body: JSON.stringify({ variables: values }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error('PDF generation failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${templateName}.pdf`;
       a.click();
+
       URL.revokeObjectURL(url);
+
+      router.push('/dashboard/templates');
+
       toast.success('PDF généré et téléchargé', { id: toastId });
     } catch {
       toast.error('Erreur lors de la génération', { id: toastId });
@@ -152,7 +159,7 @@ function GenerateContent() {
           </div>
           <button
             onClick={handleGenerate}
-            disabled={generating || filledCount === 0}
+            disabled={generating || filledCount < 1}
             className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-40"
           >
             {generating

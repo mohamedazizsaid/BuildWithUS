@@ -1,5 +1,19 @@
 // Shared contract block renderer — used by contract-editor preview AND generate page
 
+export function extractVariables(content: string): string[] {
+  const set = new Set<string>();
+  try {
+    const parsed = JSON.parse(content);
+    const text: string = parsed.blocks
+      ? (parsed.blocks as Block[]).map((b) => b.content).join('\n')
+      : content;
+    for (const m of text.matchAll(/\{\{(\w+)\}\}/g)) set.add(m[1]);
+  } catch {
+    for (const m of content.matchAll(/\{\{(\w+)\}\}/g)) set.add(m[1]);
+  }
+  return [...set].sort();
+}
+
 export interface Block {
   type: string;
   content: string;
