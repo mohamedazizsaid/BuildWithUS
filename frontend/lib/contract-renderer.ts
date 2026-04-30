@@ -1,9 +1,24 @@
 // Shared contract block renderer — used by contract-editor preview AND generate page
 
+function walkTiptapVars(node: Record<string, unknown>, set: Set<string>) {
+  if (node.type === 'variable' && node.attrs && typeof node.attrs === 'object') {
+    const name = (node.attrs as Record<string, unknown>).name;
+    if (typeof name === 'string') set.add(name);
+  }
+  const content = node.content;
+  if (Array.isArray(content)) (content as Record<string, unknown>[]).forEach((c) => walkTiptapVars(c, set));
+}
+
 export function extractVariables(content: string): string[] {
   const set = new Set<string>();
   try {
     const parsed = JSON.parse(content);
+    // Tiptap format: { contractType, version, doc: { type: 'doc', ... } }
+    if (parsed.doc?.type === 'doc') {
+      walkTiptapVars(parsed.doc, set);
+      return [...set].sort();
+    }
+    // Legacy block format
     const text: string = parsed.blocks
       ? (parsed.blocks as Block[]).map((b) => b.content).join('\n')
       : content;

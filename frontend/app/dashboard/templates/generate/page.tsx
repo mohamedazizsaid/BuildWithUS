@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Download, RefreshCw, FileText } from 'lucide-react';
 import { templates } from '@/lib/api';
 import { renderBlock, injectVariables, extractVariables } from '@/lib/contract-renderer';
+import { renderTiptapToHtml } from '@/lib/tiptap/variable-node';
 import toast from 'react-hot-toast';
 
 
@@ -79,12 +80,19 @@ function GenerateContent() {
     if (!templateContent) return '';
     try {
       const parsed = JSON.parse(templateContent);
+      // Tiptap format
+      if (parsed.doc?.type === 'doc') {
+        const full = renderTiptapToHtml(parsed.doc, values);
+        // extract just the body content for inline preview
+        const match = full.match(/<body>([\s\S]*)<\/body>/);
+        return match ? match[1] : full;
+      }
+      // Legacy block format
       const blocks: { type: string; content: string }[] = parsed.blocks ?? [];
       return blocks
         .map((b) => `<div style="page-break-inside:avoid;">${renderBlock(b, values)}</div>`)
         .join('');
     } catch {
-      // Plain text fallback (email/other)
       return `<pre style="font-size:10pt;white-space:pre-wrap;">${injectVariables(templateContent, values)}</pre>`;
     }
   }, [templateContent, values]);
