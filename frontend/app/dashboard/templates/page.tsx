@@ -5,9 +5,44 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Mail, FileText, ScrollText, Pencil, Trash2, Copy, Eye, X, Clock, Star, Receipt, Play } from 'lucide-react';
 import { templates } from '@/lib/api';
+import { renderTiptapToHtml } from '@/lib/tiptap/variable-node';
 import { useAuth } from '@/context/auth';
 import { useSearch } from '@/context/search';
 import toast from 'react-hot-toast';
+
+// ─── Render a contract Tiptap doc to inline HTML, with styled {{var}} chips ──
+function tiptapDocToPreviewHtml(doc: unknown): string {
+  try {
+    const full = renderTiptapToHtml(doc as Record<string, unknown>, {});
+    const m = full.match(/<body>([\s\S]*)<\/body>/);
+    const body = m ? m[1] : full;
+    // Style remaining {{var}} placeholders so they pop visually in previews
+    return body.replaceAll(
+      /\{\{(\w+)\}\}/g,
+      '<span style="display:inline-block;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:0 5px;font-size:0.82em;font-weight:600;font-family:monospace;">{{$1}}</span>',
+    );
+  } catch {
+    return '';
+  }
+}
+
+// ─── Find the title of a Tiptap contract doc (text inside contractHeader) ────
+function findContractTitle(doc: unknown): string {
+  try {
+    const stack: unknown[] = [doc];
+    while (stack.length) {
+      const node = stack.pop() as Record<string, unknown> | undefined;
+      if (!node) continue;
+      if (node.type === 'contractHeader') {
+        const c = (node.content as Record<string, unknown>[] | undefined) ?? [];
+        const text = c.map((x) => (typeof x.text === 'string' ? x.text : '')).join('');
+        if (text) return text.replaceAll(/\{\{[\w]+\}\}/g, '…').substring(0, 60);
+      }
+      if (Array.isArray(node.content)) stack.push(...(node.content as unknown[]));
+    }
+  } catch { /* fallthrough */ }
+  return '';
+}
 
 type TabType = 'email' | 'contrat' | 'facture';
 
@@ -185,13 +220,49 @@ function mjmlToPreviewHtml(mjml: string): string {
 
 // ─── Contract card preview ───
 function ContractPreview({ content }: { content: string }) {
+  const typeLabels: Record<string, string> = { b2c: 'B2C', b2b: 'B2B', web: 'Web', aop: 'AOP', abonnement: 'Abonnement' };
+
   try {
     const data = JSON.parse(content);
+    const contractType = data.contractType || 'b2c';
+
+    // ── New Tiptap format: render an actual scaled-down preview of the document
+    if (data.doc?.type === 'doc') {
+      const html = tiptapDocToPreviewHtml(data.doc);
+      if (html) {
+        return (
+          <div className="w-full h-[180px] overflow-hidden bg-white relative">
+            <div
+              className="origin-top-left absolute top-0 left-0"
+              style={{
+                transform: 'scale(0.32)',
+                width: '313%',
+                height: '313%',
+                pointerEvents: 'none',
+                padding: '8mm 12mm 0',
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '10pt',
+                color: '#1a1a1a',
+                lineHeight: 1.6,
+                background: 'white',
+              }}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-white via-white/70 to-transparent pointer-events-none" />
+            <div className="absolute top-2.5 right-2.5 z-10">
+              <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shadow-sm">
+                {typeLabels[contractType] || contractType.toUpperCase()}
+              </span>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    // ── Legacy block-array format (older contracts) ───────────────────────────
     const blocks: { type: string; content: string }[] = data.blocks || [];
     const heading = blocks.find((b) => b.type === 'contract_header' || b.type === 'heading');
     const articles = blocks.filter((b) => b.type === 'article' || b.type === 'legal_article').slice(0, 3);
-    const contractType = data.contractType || 'b2c';
-    const typeLabels: Record<string, string> = { b2c: 'B2C', b2b: 'B2B', web: 'Web', aop: 'AOP', abonnement: 'Abonnement' };
 
     const title = heading?.content
       ?.split('\n')[0]
@@ -397,11 +468,35 @@ function ModalContractInvoicePreview({ template }: { template: Template }) {
   if (type === 'contrat') {
     try {
       const data = JSON.parse(template.content);
-      const blocks: { type: string; content: string }[] = data.blocks || [];
       const contractLabels: Record<string, string> = {
         b2c: 'B2C — Particulier', b2b: 'B2B — Entreprise',
         web: 'Web / E-commerce', aop: "Appel d'Offre Public", abonnement: 'Abonnement',
       };
+
+      // ── New Tiptap format — render the real document with styled var chips ──
+      if (data.doc?.type === 'doc') {
+        const html = tiptapDocToPreviewHtml(data.doc);
+        const title = findContractTitle(data.doc);
+        return (
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">{contractLabels[data.contractType] || 'Contrat'}</span>
+                {title && <span className="text-[11px] text-slate-400">— {title}</span>}
+              </div>
+              <span className="text-[10px] text-slate-400">v{data.version || 1}</span>
+            </div>
+            <div
+              className="px-10 py-8"
+              style={{ fontFamily: 'Arial, sans-serif', fontSize: '10pt', color: '#1a1a1a', lineHeight: 1.7 }}
+              dangerouslySetInnerHTML={{ __html: html || '<div style="text-align:center;color:#94a3b8;padding:40px;">Aucun contenu</div>' }}
+            />
+          </div>
+        );
+      }
+
+      // ── Legacy block-array format (older contracts) ─────────────────────────
+      const blocks: { type: string; content: string }[] = data.blocks || [];
 
       const renderBlock = (block: { type: string; content: string }, idx: number) => {
         const text = block.content.replaceAll(/\{\{[\w]+\}\}/g, '...').substring(0, 300);

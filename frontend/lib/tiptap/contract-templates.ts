@@ -36,6 +36,87 @@ function ul(...items: JSONContent[]): JSONContent {
   return { type: 'bulletList', content: items }
 }
 
+// Professional contract header — 3-column layout with logo, company info,
+// contract number/version/date, and the document title below.
+function header(title: string, opts: Partial<{
+  companyVar: string; addressVar: string; siretVar: string; tvaVar: string;
+  numberVar: string; versionVar: string; dateVar: string; logoUrl: string;
+}> = {}): JSONContent {
+  return {
+    type: 'contractHeader',
+    attrs: {
+      logoUrl:    opts.logoUrl    ?? '',
+      companyVar: opts.companyVar ?? 'prestataire_nom',
+      addressVar: opts.addressVar ?? 'prestataire_adresse',
+      siretVar:   opts.siretVar   ?? 'prestataire_siret',
+      tvaVar:     opts.tvaVar     ?? 'prestataire_tva',
+      numberVar:  opts.numberVar  ?? 'numero_contrat',
+      versionVar: opts.versionVar ?? 'version_contrat',
+      dateVar:    opts.dateVar    ?? 'date_contrat',
+    },
+    content: [{ type: 'text', text: title }],
+  }
+}
+
+// ─── Contract block helpers ──────────────────────────────────────────────────
+
+function financialBlock(): JSONContent {
+  return {
+    type: 'financialBlock',
+    attrs: {
+      title: 'RÉCAPITULATIF FINANCIER',
+      descriptionVar: 'description_prestation',
+      htVar: 'montant_ht', rateVar: 'taux_tva',
+      tvaVar: 'montant_tva', ttcVar: 'montant_ttc',
+    },
+  }
+}
+
+function definitions(...items: { term: string; def: string }[]): JSONContent {
+  return {
+    type: 'definitionsBlock',
+    attrs: { title: 'DÉFINITIONS' },
+    content: items.map(({ term, def }) => p(t(term + ' : ', true), t(def))),
+  }
+}
+
+function infoBox(variant: 'info' | 'warning' | 'success' | 'note', title: string, ...content: JSONContent[]): JSONContent {
+  return {
+    type: 'infoBox',
+    attrs: { variant, title },
+    content: content.length > 0 ? content : [p()],
+  }
+}
+
+function partiesBox(...content: JSONContent[]): JSONContent {
+  return { type: 'partiesBlock', content }
+}
+
+function signatureBlock(columns = 'Prestataire,Client'): JSONContent {
+  return {
+    type: 'signatureBlock',
+    attrs: { cityVar: 'ville_signature', dateVar: 'date_signature', columns },
+  }
+}
+
+function sepaBlock(ics = ''): JSONContent {
+  return {
+    type: 'sepaBlock',
+    attrs: { creditorVar: 'prestataire_nom', addressVar: 'prestataire_adresse', ics },
+  }
+}
+
+function retractBlock(): JSONContent {
+  return {
+    type: 'retractBlock',
+    attrs: {
+      firstNameVar: 'client_prenom', lastNameVar: 'client_nom',
+      creditorVar: 'prestataire_nom', addressVar: 'prestataire_adresse',
+      dateVar: 'date_contrat', numberVar: 'numero_contrat',
+    },
+  }
+}
+
 // ─── Shared party blocks ──────────────────────────────────────────────────────
 
 const PRESTATAIRE_BLOCK: JSONContent = p(
@@ -96,14 +177,8 @@ const SIGNATAIRES_BLOCK: JSONContent[] = [
 export const TEMPLATE_B2C: JSONContent = {
   type: 'doc',
   content: [
-    h1([t("CONTRAT DE PRESTATION DE SERVICES")], true),
-    pc(t("Contrat conclu entre un professionnel et un consommateur (B2C)")),
-    hr(),
-    p(
-      t("N° "), v('numero_contrat'),
-      t(" — Version "), v('version_contrat'),
-      t(" — Date : "), v('date_contrat'),
-    ),
+    header("CONTRAT DE PRESTATION DE SERVICES"),
+    pc(t("Contrat conclu entre un professionnel et un consommateur (B2C)", true)),
     hr(),
 
     h2([t("ENTRE LES SOUSSIGNES")]),
@@ -209,6 +284,10 @@ export const TEMPLATE_B2C: JSONContent = {
     hr(),
 
     ...SIGNATAIRES_BLOCK,
+
+    financialBlock(),
+    signatureBlock('Prestataire,Client'),
+    retractBlock(),
   ],
 }
 
@@ -217,14 +296,8 @@ export const TEMPLATE_B2C: JSONContent = {
 export const TEMPLATE_B2B: JSONContent = {
   type: 'doc',
   content: [
-    h1([t("CONTRAT DE PRESTATION DE SERVICES")], true),
-    pc(t("Contrat conclu entre professionnels (B2B)")),
-    hr(),
-    p(
-      t("N° "), v('numero_contrat'),
-      t(" — Version "), v('version_contrat'),
-      t(" — Date : "), v('date_contrat'),
-    ),
+    header("CONTRAT DE PRESTATION DE SERVICES"),
+    pc(t("Contrat conclu entre professionnels (B2B)", true)),
     hr(),
 
     h2([t("ENTRE LES SOUSSIGNES")]),
@@ -326,6 +399,9 @@ export const TEMPLATE_B2B: JSONContent = {
     hr(),
 
     ...SIGNATAIRES_BLOCK,
+
+    financialBlock(),
+    signatureBlock('Prestataire,Client'),
   ],
 }
 
@@ -334,14 +410,8 @@ export const TEMPLATE_B2B: JSONContent = {
 export const TEMPLATE_WEB: JSONContent = {
   type: 'doc',
   content: [
-    h1([t("CONTRAT DE CREATION DE SITE WEB")], true),
-    pc(t("Prestation de services numeriques — Creation et developpement web")),
-    hr(),
-    p(
-      t("N° "), v('numero_contrat'),
-      t(" — Version "), v('version_contrat'),
-      t(" — Date : "), v('date_contrat'),
-    ),
+    header("CONTRAT DE CREATION DE SITE WEB"),
+    pc(t("Prestation de services numeriques — Creation et developpement web", true)),
     hr(),
 
     h2([t("ENTRE LES SOUSSIGNES")]),
@@ -423,6 +493,9 @@ export const TEMPLATE_WEB: JSONContent = {
     hr(),
 
     ...SIGNATAIRES_BLOCK,
+
+    financialBlock(),
+    signatureBlock('Prestataire,Client'),
   ],
 }
 
@@ -431,13 +504,8 @@ export const TEMPLATE_WEB: JSONContent = {
 export const TEMPLATE_ABONNEMENT: JSONContent = {
   type: 'doc',
   content: [
-    h1([t("CONTRAT D'ABONNEMENT DE SERVICES")], true),
-    pc(t("Contrat d'abonnement a duree determinee avec tacite reconduction")),
-    hr(),
-    p(
-      t("N° "), v('numero_contrat'),
-      t(" — Date de souscription : "), v('date_contrat'),
-    ),
+    header("CONTRAT D'ABONNEMENT — FORFAIT ILLIMITE"),
+    pc(t("Contrat d'abonnement a duree determinee avec tacite reconduction", true)),
     hr(),
 
     h2([t("ENTRE LES SOUSSIGNES")]),
@@ -529,7 +597,17 @@ export const TEMPLATE_ABONNEMENT: JSONContent = {
     p(t("Le present contrat est soumis au droit francais. En cas de litige, l'Abonne consommateur peut saisir la juridiction de son lieu de domicile. L'Abonne professionnel devra saisir le Tribunal de Commerce competent dans le ressort du siege social de l'Operateur.")),
     hr(),
 
-    ...SIGNATAIRES_BLOCK,
+    financialBlock(),
+
+    signatureBlock('Operateur,Abonne,Conseiller'),
+
+    sepaBlock('FR24ZZZ870ADF'),
+
+    retractBlock(),
+
+    infoBox('warning', '',
+      p(t("Opposez-vous au demarchage telephonique sur "), t("www.bloctel.gouv.fr", true)),
+    ),
   ],
 }
 
@@ -538,13 +616,8 @@ export const TEMPLATE_ABONNEMENT: JSONContent = {
 export const TEMPLATE_AOP: JSONContent = {
   type: 'doc',
   content: [
-    h1([t("MARCHE PUBLIC DE PRESTATIONS INTELLECTUELLES")], true),
-    pc(t("Marche a procedure adaptee (MAPA) — Code de la Commande Publique")),
-    hr(),
-    p(
-      t("Reference marche : "), v('reference_marche'),
-      t(" — Date de notification : "), v('date_contrat'),
-    ),
+    header("MARCHE PUBLIC DE PRESTATIONS INTELLECTUELLES", { numberVar: 'reference_marche' }),
+    pc(t("Marche a procedure adaptee (MAPA) — Code de la Commande Publique", true)),
     hr(),
 
     h2([t("POUVOIR ADJUDICATEUR")]),

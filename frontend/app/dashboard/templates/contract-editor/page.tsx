@@ -11,9 +11,12 @@ import {
   ArrowLeft, Save, Download, RefreshCw, ChevronDown,
   Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Minus, Undo, Redo, FileText, X, CheckCircle2,
+  GripVertical, Copy, Trash2 as TrashIcon,
 } from 'lucide-react';
 import { templates } from '@/lib/api';
 import { VariableNode, extractVariablesFromTiptap, renderTiptapToHtml } from '@/lib/tiptap/variable-node';
+import { ContractHeader } from '@/lib/tiptap/contract-header';
+import { ALL_CONTRACT_BLOCKS } from '@/lib/tiptap/contract-blocks';
 import { CONTRACT_TEMPLATES, VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
 import toast from 'react-hot-toast';
 import type { JSONContent, Editor } from '@tiptap/react';
@@ -32,7 +35,99 @@ const CONTRACT_TYPES: Record<ContractType, { label: string; color: string }> = {
 
 // ─── Variable Palette ─────────────────────────────────────────────────────────
 
+// Block library — predefined contract block types insertable at the cursor.
+const BLOCK_LIBRARY: { type: string; label: string; description: string; color: string; build: () => Record<string, unknown> }[] = [
+  {
+    type: 'financialBlock', label: 'Récapitulatif financier',
+    description: 'Tableau HT / TVA / TTC',
+    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    build: () => ({ type: 'financialBlock' }),
+  },
+  {
+    type: 'definitionsBlock', label: 'Définitions',
+    description: 'Liste de termes contractuels',
+    color: 'bg-slate-100 text-slate-700 border-slate-300',
+    build: () => ({
+      type: 'definitionsBlock',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Service : prestation décrite à l\'article 1.' }] }],
+    }),
+  },
+  {
+    type: 'partiesBlock', label: 'Parties',
+    description: 'Bloc d\'introduction des parties',
+    color: 'bg-amber-50 text-amber-700 border-amber-200',
+    build: () => ({
+      type: 'partiesBlock',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Entre les soussignés…' }] }],
+    }),
+  },
+  {
+    type: 'infoBox', label: 'Encadré info',
+    description: 'Préambule, mention légale',
+    color: 'bg-blue-50 text-blue-700 border-blue-200',
+    build: () => ({
+      type: 'infoBox',
+      attrs: { variant: 'info', title: 'PRÉAMBULE' },
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Texte d\'introduction…' }] }],
+    }),
+  },
+  {
+    type: 'infoBox', label: 'Avertissement',
+    description: 'Encadré jaune (warning)',
+    color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    build: () => ({
+      type: 'infoBox',
+      attrs: { variant: 'warning', title: '' },
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: '⚠️ Information importante…' }] }],
+    }),
+  },
+  {
+    type: 'formFieldsBlock', label: 'Formulaire',
+    description: 'Champs à remplir manuellement',
+    color: 'bg-orange-50 text-orange-700 border-orange-200',
+    build: () => ({
+      type: 'formFieldsBlock',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Nom : ___' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Prénom : ___' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Email : ___' }] },
+      ],
+    }),
+  },
+  {
+    type: 'checkboxBlock', label: 'Cases à cocher',
+    description: 'Liste d\'options sélectionnables',
+    color: 'bg-green-50 text-green-700 border-green-200',
+    build: () => ({
+      type: 'checkboxBlock',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: '☐ Option 1' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: '☐ Option 2' }] },
+      ],
+    }),
+  },
+  {
+    type: 'signatureBlock', label: 'Signatures',
+    description: 'Lignes de signature',
+    color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    build: () => ({ type: 'signatureBlock' }),
+  },
+  {
+    type: 'sepaBlock', label: 'Mandat SEPA',
+    description: 'Autorisation de prélèvement',
+    color: 'bg-violet-50 text-violet-700 border-violet-200',
+    build: () => ({ type: 'sepaBlock' }),
+  },
+  {
+    type: 'retractBlock', label: 'Rétractation',
+    description: 'Formulaire 14 jours',
+    color: 'bg-rose-50 text-rose-700 border-rose-200',
+    build: () => ({ type: 'retractBlock' }),
+  },
+];
+
 function VariablePalette({ editor }: { readonly editor: Editor | null }) {
+  const [tab, setTab] = useState<'vars' | 'blocs'>('vars');
   const [open, setOpen] = useState<string | null>('Prestataire');
 
   const insertVariable = useCallback((name: string) => {
@@ -40,48 +135,97 @@ function VariablePalette({ editor }: { readonly editor: Editor | null }) {
     editor.chain().focus().insertContent({ type: 'variable', attrs: { name } }).run();
   }, [editor]);
 
+  const insertBlock = useCallback((build: () => Record<string, unknown>) => {
+    if (!editor) return;
+    editor.chain().focus().insertContent(build()).run();
+  }, [editor]);
+
   return (
-    <div className="w-52 border-r border-border bg-slate-50 flex flex-col overflow-hidden shrink-0">
-      <div className="px-3 py-2.5 border-b border-border">
-        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Variables</p>
-        <p className="text-[10px] text-slate-400 mt-0.5">Glissez ou cliquez</p>
+    <div className="w-56 border-r border-border bg-slate-50 flex flex-col overflow-hidden shrink-0">
+      {/* Tabs */}
+      <div className="flex border-b border-border bg-white">
+        <button
+          onClick={() => setTab('vars')}
+          className={`flex-1 px-3 py-2.5 text-[11px] font-semibold transition-colors ${
+            tab === 'vars' ? 'text-slate-900 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Variables
+        </button>
+        <button
+          onClick={() => setTab('blocs')}
+          className={`flex-1 px-3 py-2.5 text-[11px] font-semibold transition-colors ${
+            tab === 'blocs' ? 'text-slate-900 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Blocs
+        </button>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-        {VARIABLE_PALETTE.map((cat) => (
-          <div key={cat.label}>
-            <button
-              onClick={() => setOpen(open === cat.label ? null : cat.label)}
-              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              <span className="text-[11px] font-semibold text-slate-500">{cat.label}</span>
-              <ChevronDown size={11} className={`text-slate-400 transition-transform ${open === cat.label ? 'rotate-180' : ''}`} />
-            </button>
-            {open === cat.label && (
-              <div className="space-y-0.5 pl-1 mb-1">
-                {cat.vars.map((v) => (
-                  <div
-                    key={v.name}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('variable-name', v.name);
-                      e.dataTransfer.effectAllowed = 'copy';
-                    }}
-                    onClick={() => insertVariable(v.name)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-grab group"
-                  >
-                    <span
-                      className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono shrink-0"
-                      style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}` }}
-                    >
-                      {'{{' + v.name + '}}'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+
+      {/* Tab content */}
+      {tab === 'vars' && (
+        <>
+          <div className="px-3 py-2 border-b border-border">
+            <p className="text-[10px] text-slate-400">Glissez ou cliquez pour insérer</p>
           </div>
-        ))}
-      </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+            {VARIABLE_PALETTE.map((cat) => (
+              <div key={cat.label}>
+                <button
+                  onClick={() => setOpen(open === cat.label ? null : cat.label)}
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  <span className="text-[11px] font-semibold text-slate-500">{cat.label}</span>
+                  <ChevronDown size={11} className={`text-slate-400 transition-transform ${open === cat.label ? 'rotate-180' : ''}`} />
+                </button>
+                {open === cat.label && (
+                  <div className="space-y-0.5 pl-1 mb-1">
+                    {cat.vars.map((v) => (
+                      <div
+                        key={v.name}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('variable-name', v.name);
+                          e.dataTransfer.effectAllowed = 'copy';
+                        }}
+                        onClick={() => insertVariable(v.name)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-grab group"
+                      >
+                        <span
+                          className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono shrink-0"
+                          style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}` }}
+                        >
+                          {'{{' + v.name + '}}'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === 'blocs' && (
+        <>
+          <div className="px-3 py-2 border-b border-border">
+            <p className="text-[10px] text-slate-400">Cliquez pour insérer un bloc</p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {BLOCK_LIBRARY.map((b, i) => (
+              <button
+                key={`${b.type}-${i}`}
+                onClick={() => insertBlock(b.build)}
+                className={`w-full text-left p-2.5 rounded-lg border transition-all hover:shadow-sm ${b.color}`}
+              >
+                <div className="text-[11px] font-semibold">{b.label}</div>
+                <div className="text-[10px] opacity-70 mt-0.5">{b.description}</div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -139,34 +283,224 @@ function EditorToolbar({ editor }: { readonly editor: Editor | null }) {
   );
 }
 
+// ─── Block labels ─────────────────────────────────────────────────────────────
+
+const BLOCK_LABELS: Record<string, string> = {
+  contractHeader:   'En-tête',
+  paragraph:        'Paragraphe',
+  heading:          'Titre',
+  bulletList:       'Liste',
+  orderedList:      'Liste numérotée',
+  blockquote:       'Citation',
+  horizontalRule:   'Séparateur',
+  financialBlock:   'Récapitulatif financier',
+  definitionsBlock: 'Définitions',
+  infoBox:          'Encadré',
+  partiesBlock:     'Parties',
+  formFieldsBlock:  'Formulaire',
+  checkboxBlock:    'Cases à cocher',
+  signatureBlock:   'Signatures',
+  sepaBlock:        'Mandat SEPA',
+  retractBlock:     'Rétractation',
+}
+
+interface BlockMeta {
+  label: string; nodeType: string;
+  from: number;  to: number;
+  top: number;   height: number;
+}
+
+function resolveBlock(editor: Editor, clientX: number, clientY: number, canvas: HTMLDivElement): BlockMeta | null {
+  try {
+    // elementFromPoint works for every DOM element, including contentEditable=false
+    // NodeViews (financialBlock, signatureBlock, sepaBlock, etc.) where posAtCoords fails.
+    const target = document.elementFromPoint(clientX, clientY);
+    if (!target || !canvas.contains(target)) return null;
+
+    // Walk up to the direct child of the Tiptap root (.tiptap)
+    let blockEl: Element | null = target;
+    while (blockEl && blockEl.parentElement && !blockEl.parentElement.classList.contains('tiptap')) {
+      blockEl = blockEl.parentElement;
+    }
+    if (!blockEl || !blockEl.parentElement) return null;
+
+    // posAtDOM(parent, childIndex) = document position BEFORE that child — works for
+    // all node types: text, headings, custom NodeViews, atoms.
+    const tiptap     = blockEl.parentElement;
+    const childIndex = Array.from(tiptap.children).indexOf(blockEl as HTMLElement);
+    if (childIndex < 0) return null;
+
+    const from = editor.view.posAtDOM(tiptap, childIndex);
+    if (from < 0 || from >= editor.state.doc.content.size) return null;
+
+    const node = editor.state.doc.nodeAt(from);
+    if (!node) return null;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const elRect     = blockEl.getBoundingClientRect();
+    return {
+      label:    BLOCK_LABELS[node.type.name] ?? 'Bloc',
+      nodeType: node.type.name,
+      from,
+      to:     from + node.nodeSize,  // always fresh from current node size
+      top:    elRect.top - canvasRect.top,
+      height: elRect.height,
+    };
+  } catch { return null; }
+}
+
 // ─── A4 Canvas ────────────────────────────────────────────────────────────────
 
 function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const canvasRef  = useRef<HTMLDivElement>(null);
+  const scrollRef  = useRef<HTMLDivElement>(null);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const varName = e.dataTransfer.getData('variable-name');
-    if (!varName || !editor) return;
-    const view = editor.view;
-    const pos = view.posAtCoords({ left: e.clientX, top: e.clientY });
-    if (!pos) return;
-    const node = view.state.schema.nodes.variable?.create({ name: varName });
-    if (!node) return;
-    const tr = view.state.tr.insert(pos.pos, node);
-    view.dispatch(tr);
+  // Hovered block (dashed outline) — cleared on scroll
+  const [hovered,  setHovered]  = useState<BlockMeta | null>(null);
+  // Selected block (solid outline + controls) — set on click
+  const [selected, setSelected] = useState<BlockMeta | null>(null);
+  const draggingRef = useRef<{ from: number; to: number } | null>(null);
+
+  // Clear hovered on scroll so the dashed ring doesn't "stick"
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const clear = () => setHovered(null);
+    el.addEventListener('scroll', clear, { passive: true });
+    return () => el.removeEventListener('scroll', clear);
+  }, []);
+
+  // Re-measure the selected block's DOM rect after any editor update so the
+  // blue ring tracks the block even as its content grows / shrinks.
+  useEffect(() => {
+    if (!editor || !selected || !canvasRef.current) return;
+    const update = () => {
+      if (!canvasRef.current) return;
+      const node = editor.state.doc.nodeAt(selected.from);
+      if (!node) { setSelected(null); return; }
+      // Use posAtDOM-safe lookup: domAtPos works for both text and atom nodes
+      try {
+        const domResult = editor.view.domAtPos(selected.from);
+        let el: Element | null = domResult.node instanceof Element
+          ? domResult.node : (domResult.node.parentElement ?? null);
+        while (el && el.parentElement && !el.parentElement.classList.contains('tiptap')) {
+          el = el.parentElement;
+        }
+        if (!el || !canvasRef.current) return;
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        const elRect     = el.getBoundingClientRect();
+        setSelected((prev) => prev ? { ...prev, top: elRect.top - canvasRect.top, height: elRect.height } : null);
+      } catch { /* ignore if position no longer exists */ }
+    };
+    editor.on('update', update);
+    return () => { editor.off('update', update); };
+  }, [editor, selected]);
+
+  const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!editor || !canvasRef.current) return;
+    setHovered(resolveBlock(editor, e.clientX, e.clientY, canvasRef.current));
   }, [editor]);
+
+  const onClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!editor || !canvasRef.current) return;
+    const meta = resolveBlock(editor, e.clientX, e.clientY, canvasRef.current);
+    setSelected(meta);
+  }, [editor]);
+
+  const clearSelection = useCallback(() => setSelected(null), []);
+
+  const handleDelete = useCallback(() => {
+    if (!editor || !selected) return;
+    // Always recompute `to` from the live document — selected.to can become stale
+    const node = editor.state.doc.nodeAt(selected.from);
+    if (!node) { setSelected(null); return; }
+    const to = selected.from + node.nodeSize;
+    editor.chain().focus().deleteRange({ from: selected.from, to }).run();
+    setSelected(null);
+  }, [editor, selected]);
+
+  const handleDuplicate = useCallback(() => {
+    if (!editor || !selected) return;
+    const node = editor.state.doc.nodeAt(selected.from);
+    if (!node) return;
+    // Insert right after the block using the live node size (not the stale to)
+    const insertAt = selected.from + node.nodeSize;
+    if (insertAt > editor.state.doc.content.size) return;
+    try { editor.chain().focus().insertContentAt(insertAt, node.toJSON()).run(); }
+    catch { /* ignore non-duplicable nodes */ }
+  }, [editor, selected]);
+
+  const onGripDragStart = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!selected) return;
+    draggingRef.current = { from: selected.from, to: selected.to };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('block-reorder', '1');
+  }, [selected]);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+
+    // Block reorder
+    if (e.dataTransfer.getData('block-reorder') && draggingRef.current && editor) {
+      const { from } = draggingRef.current;
+      draggingRef.current = null;
+      const node = editor.state.doc.nodeAt(from);
+      if (!node) return;
+      const nodeSize = node.nodeSize; // live size, not stale
+
+      const dropRes = editor.view.posAtCoords({ left: e.clientX, top: e.clientY });
+      if (!dropRes) return;
+      const $drop = editor.state.doc.resolve(dropRes.pos);
+      if ($drop.depth < 1) return;
+      const dropTarget = $drop.before(1);
+      if (dropTarget === from) return;
+
+      let { tr } = editor.state;
+      const moved = editor.state.schema.nodeFromJSON(node.toJSON());
+      if (dropTarget < from) {
+        tr = tr.insert(dropTarget, moved);
+        tr = tr.delete(from + nodeSize, from + nodeSize + nodeSize);
+      } else {
+        tr = tr.delete(from, from + nodeSize);
+        tr = tr.insert(dropTarget - nodeSize, moved);
+      }
+      editor.view.dispatch(tr);
+      setSelected(null);
+      return;
+    }
+
+    // Variable drop
+    const varName = e.dataTransfer.getData('variable-name');
+    if (varName && editor) {
+      const view = editor.view;
+      const pos  = view.posAtCoords({ left: e.clientX, top: e.clientY });
+      if (!pos) return;
+      const vNode = view.state.schema.nodes.variable?.create({ name: varName });
+      if (!vNode) return;
+      view.dispatch(view.state.tr.insert(pos.pos, vNode));
+    }
+  }, [editor]);
+
+  const active = selected ?? hovered;
+  const isSelected = !!selected;
 
   return (
     <div
+      ref={scrollRef}
       className="flex-1 overflow-y-auto bg-slate-100 p-8"
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
+      // Clear selection when clicking the gray background outside the canvas
+      onClick={(e) => { if (e.target === scrollRef.current) clearSelection(); }}
     >
       <div
         ref={canvasRef}
+        onMouseMove={onMouseMove}
+        onMouseLeave={() => setHovered(null)}
+        onClick={onClick}
         className="bg-white shadow-sm mx-auto contract-canvas"
         style={{
+          position: 'relative',
           width: '210mm',
           minHeight: '297mm',
           padding: '18mm 22mm',
@@ -177,6 +511,117 @@ function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
         }}
       >
         {editor && <EditorContent editor={editor} />}
+
+        {/* ── Block overlay: outline + label tab + controls ── */}
+        {active && (
+          <div
+            style={{
+              position:      'absolute',
+              top:           active.top,
+              left:          0,
+              right:         0,
+              height:        active.height,
+              pointerEvents: 'none',
+              zIndex:        40,
+            }}
+          >
+            {/* Outline ring — dashed on hover, solid on select */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              outline:  isSelected ? '2px solid #3b82f6' : '2px dashed #93c5fd',
+              outlineOffset: '-2px',
+              borderRadius: 2,
+              transition: 'outline 80ms',
+            }} />
+
+            {/* Label tab at top-left (like email editor "Section" tab) */}
+            <div
+              style={{
+                position:   'absolute',
+                top:        -20,
+                left:       0,
+                height:     20,
+                display:    'flex',
+                alignItems: 'center',
+                gap:        4,
+                padding:    '0 8px',
+                background: isSelected ? '#3b82f6' : '#93c5fd',
+                color:      'white',
+                fontSize:   '10px',
+                fontWeight: 600,
+                borderRadius: '4px 4px 0 0',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                transition: 'background 80ms',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {active.label}
+            </div>
+
+            {/* Controls: grip + duplicate + delete — left side, pointer-events on */}
+            {isSelected && (
+              <div
+                style={{
+                  position:      'absolute',
+                  top:           '50%',
+                  left:          -36,
+                  transform:     'translateY(-50%)',
+                  display:       'flex',
+                  flexDirection: 'column',
+                  gap:           4,
+                  pointerEvents: 'auto',
+                }}
+              >
+                {/* Drag grip */}
+                <div
+                  draggable
+                  onDragStart={onGripDragStart}
+                  title="Glisser pour réordonner"
+                  style={{
+                    width: 28, height: 28, background: 'white',
+                    border: '1px solid #e2e8f0', borderRadius: 6,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'grab', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
+                  }}
+                  className="hover:border-blue-300 hover:text-blue-500 transition-colors"
+                >
+                  <GripVertical size={13} className="text-slate-400" />
+                </div>
+
+                {/* Duplicate */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDuplicate(); }}
+                  title="Dupliquer"
+                  style={{
+                    width: 28, height: 28, background: 'white',
+                    border: '1px solid #e2e8f0', borderRadius: 6,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
+                  }}
+                  className="hover:border-indigo-300 hover:text-indigo-500 transition-colors"
+                >
+                  <Copy size={12} className="text-slate-400" />
+                </button>
+
+                {/* Delete */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                  title="Supprimer"
+                  style={{
+                    width: 28, height: 28, background: 'white',
+                    border: '1px solid #e2e8f0', borderRadius: 6,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
+                  }}
+                  className="hover:border-red-300 hover:text-red-500 transition-colors"
+                >
+                  <TrashIcon size={12} className="text-slate-400" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -528,6 +973,8 @@ function ContractEditorContent() {
     extensions: [
       StarterKit,
       VariableNode,
+      ContractHeader,
+      ...ALL_CONTRACT_BLOCKS,
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder: 'Commencez à rédiger votre contrat…' }),
@@ -542,9 +989,14 @@ function ContractEditorContent() {
     },
   });
 
-  // Load existing template
+  // Load existing template — fires once per templateId, after the editor mounts.
+  // With immediatelyRender:false the editor is null on first render, so we must
+  // include `editor` in deps; a ref guard prevents reload on later editor swaps.
+  const loadedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!templateId || !editor) return;
+    if (loadedFor.current === templateId) return;
+    loadedFor.current = templateId;
     templates.get(templateId)
       .then((result: any) => {
         const tmpl = result?.template ?? result;
@@ -556,8 +1008,7 @@ function ContractEditorContent() {
         } catch { /* keep defaults */ }
       })
       .catch(() => toast.error('Erreur chargement du template'));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateId]);
+  }, [templateId, editor]);
 
   const loadTemplate = useCallback((type: ContractType) => {
     if (!editor) return;
@@ -590,16 +1041,15 @@ function ContractEditorContent() {
     }
   }, [editor, contractType, loadTemplate]);
 
-  // ── Save ──
+  // ── Save the TEMPLATE (no filled values — variables stay as {{name}} tokens) ──
 
-  const handleSave = async () => {
-    if (!editor) return;
-    setIsSaving(true);
+  const persistTemplate = useCallback(async (): Promise<boolean> => {
+    if (!editor) return false;
     const newVersion = version + 1;
     const content = JSON.stringify({
       contractType,
       version: newVersion,
-      doc: editor.getJSON(),
+      doc: editor.getJSON(), // template — variable nodes preserved, not substituted
     });
     try {
       if (isEditMode && templateId) {
@@ -608,12 +1058,21 @@ function ContractEditorContent() {
         await templates.create({ name, description, type: 3, content });
       }
       setVersion(newVersion);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [editor, version, contractType, isEditMode, templateId, name, description]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    const ok = await persistTemplate();
+    setIsSaving(false);
+    if (ok) {
       toast.success(isEditMode ? 'Contrat mis à jour' : 'Contrat enregistré');
       router.push('/dashboard/templates');
-    } catch {
+    } else {
       toast.error("Échec de l'enregistrement");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -626,7 +1085,10 @@ function ContractEditorContent() {
     setShowFillModal(true);
   }, [editor]);
 
-  // ── Generate PDF — step 2: export with filled values ──
+  // ── Generate PDF — step 2: export PDF with filled values, then save the
+  //    template (with placeholders, NOT the filled values) and redirect.
+  //    The filled values are only used for the PDF output; the saved template
+  //    keeps {{variable}} tokens so it can be reused with different values.
 
   const confirmGenerate = useCallback(async (values: Record<string, string>) => {
     if (!editor) return;
@@ -647,13 +1109,23 @@ function ContractEditorContent() {
       a.href = url; a.download = `${name}.pdf`; a.click();
       URL.revokeObjectURL(url);
       toast.success('PDF téléchargé', { id: toastId });
-      setShowFillModal(false);
+
+      // Save the template with placeholders (filled values are discarded).
+      toast.loading('Enregistrement du template…', { id: toastId });
+      const saved = await persistTemplate();
+      if (saved) {
+        toast.success(isEditMode ? 'Template mis à jour' : 'Template enregistré', { id: toastId });
+        setShowFillModal(false);
+        router.push('/dashboard/templates');
+      } else {
+        toast.error("PDF généré, mais l'enregistrement du template a échoué", { id: toastId });
+      }
     } catch {
       toast.error('Erreur génération PDF', { id: toastId });
     } finally {
       setIsGenerating(false);
     }
-  }, [editor, name]);
+  }, [editor, name, persistTemplate, isEditMode, router]);
 
   const typeConfig = CONTRACT_TYPES[contractType];
 

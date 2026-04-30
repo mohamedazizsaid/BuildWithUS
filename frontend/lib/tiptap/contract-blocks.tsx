@@ -1,0 +1,502 @@
+'use client'
+
+import { Node, mergeAttributes } from '@tiptap/core'
+import { NodeViewWrapper, NodeViewContent, ReactNodeViewRenderer } from '@tiptap/react'
+import type { NodeViewProps } from '@tiptap/react'
+
+// ─── Inline variable chip (used by atom NodeViews) ───────────────────────────
+
+function VarChip({ name, small }: { name: string; small?: boolean }) {
+  if (!name) return null
+  return (
+    <span
+      contentEditable={false}
+      style={{
+        display: 'inline-block',
+        background: '#dbeafe',
+        color: '#1d4ed8',
+        border: '1px solid #bfdbfe',
+        borderRadius: '4px',
+        padding: small ? '0 4px' : '0 5px',
+        fontSize: small ? '0.78em' : '0.82em',
+        fontWeight: 600,
+        fontFamily: 'monospace',
+        userSelect: 'none',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {'{{' + name + '}}'}
+    </span>
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 1. FINANCIAL BLOCK — green-themed récapitulatif financier
+// ═════════════════════════════════════════════════════════════════════════════
+
+function FinancialView({ node }: NodeViewProps) {
+  const a = node.attrs as Record<string, string>
+  return (
+    <NodeViewWrapper>
+      <div style={{ margin: '14px 0', border: '1px solid #d1fae5', borderRadius: '6px', overflow: 'hidden' }}>
+        <div style={{ background: '#059669', color: 'white', padding: '7px 14px', fontSize: '9pt', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {a.title || 'RÉCAPITULATIF FINANCIER'}
+        </div>
+        <div style={{ padding: '12px 14px', background: '#f0fdf4' }} contentEditable={false}>
+          {a.descriptionVar && (
+            <div style={{ fontSize: '9.5pt', color: '#065f46', marginBottom: '10px', fontWeight: 500 }}>
+              Prestation : <VarChip name={a.descriptionVar} small />
+            </div>
+          )}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt' }}>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid #d1fae5' }}>
+                <td style={{ padding: '5px 0', color: '#475569' }}>Montant HT</td>
+                <td style={{ textAlign: 'right', fontWeight: 500 }}><VarChip name={a.htVar} small /> €</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #d1fae5' }}>
+                <td style={{ padding: '5px 0', color: '#475569' }}>TVA (<VarChip name={a.rateVar} small />%)</td>
+                <td style={{ textAlign: 'right', fontWeight: 500 }}><VarChip name={a.tvaVar} small /> €</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '8px 0', fontSize: '11pt', fontWeight: 800 }}>Total TTC</td>
+                <td style={{ textAlign: 'right', fontSize: '11pt', fontWeight: 800, color: '#059669' }}>
+                  <VarChip name={a.ttcVar} /> €
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ fontSize: '8pt', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' }}>
+            Prix TTC — TVA incluse — Conformément à l&apos;article 289 du CGI
+          </div>
+        </div>
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const FinancialBlock = Node.create({
+  name: 'financialBlock',
+  group: 'block',
+  atom: true,
+  draggable: true,
+  selectable: true,
+  addAttributes() {
+    return {
+      title:           { default: 'RÉCAPITULATIF FINANCIER' },
+      descriptionVar:  { default: 'description_prestation' },
+      htVar:           { default: 'montant_ht' },
+      rateVar:         { default: 'taux_tva' },
+      tvaVar:          { default: 'montant_tva' },
+      ttcVar:          { default: 'montant_ttc' },
+    }
+  },
+  parseHTML() { return [{ tag: 'div[data-financial-block]' }] },
+  renderHTML({ node, HTMLAttributes }) {
+    const a = node.attrs
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-financial-block': '',
+      'data-title':           a.title,
+      'data-description-var': a.descriptionVar,
+      'data-ht-var':          a.htVar,
+      'data-rate-var':        a.rateVar,
+      'data-tva-var':         a.tvaVar,
+      'data-ttc-var':         a.ttcVar,
+    })]
+  },
+  addNodeView() { return ReactNodeViewRenderer(FinancialView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 2. DEFINITIONS BLOCK — dark-headed term/definition list (editable content)
+// ═════════════════════════════════════════════════════════════════════════════
+
+function DefinitionsView({ node }: NodeViewProps) {
+  const a = node.attrs as Record<string, string>
+  return (
+    <NodeViewWrapper>
+      <div style={{ margin: '14px 0', border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+        <div contentEditable={false} style={{ background: '#0f172a', color: 'white', padding: '8px 14px', fontSize: '9pt', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {a.title || 'DÉFINITIONS'}
+        </div>
+        <NodeViewContent style={{ padding: '10px 14px', background: '#f8fafc', fontSize: '9.5pt', color: '#334155', minHeight: '50px' }} />
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const DefinitionsBlock = Node.create({
+  name: 'definitionsBlock',
+  group: 'block',
+  content: 'paragraph+',
+  defining: true,
+  addAttributes() {
+    return { title: { default: 'DÉFINITIONS' } }
+  },
+  parseHTML() { return [{ tag: 'div[data-definitions-block]' }] },
+  renderHTML({ node, HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-definitions-block': '',
+      'data-title': node.attrs.title,
+    }), 0]
+  },
+  addNodeView() { return ReactNodeViewRenderer(DefinitionsView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 3. INFO BOX — colored callout (preamble, warning, success, note)
+// ═════════════════════════════════════════════════════════════════════════════
+
+const INFO_VARIANTS: Record<string, { bg: string; border: string; titleColor: string; textColor: string }> = {
+  info:    { bg: '#eff6ff', border: '#93c5fd', titleColor: '#1e40af', textColor: '#1e3a8a' },
+  warning: { bg: '#fffbeb', border: '#fcd34d', titleColor: '#92400e', textColor: '#78350f' },
+  success: { bg: '#f0fdf4', border: '#86efac', titleColor: '#166534', textColor: '#14532d' },
+  note:    { bg: '#f8fafc', border: '#cbd5e1', titleColor: '#475569', textColor: '#1e293b' },
+}
+
+function InfoBoxView({ node }: NodeViewProps) {
+  const a = node.attrs as Record<string, string>
+  const variant = INFO_VARIANTS[a.variant] ?? INFO_VARIANTS.info
+  return (
+    <NodeViewWrapper>
+      <div style={{ margin: '12px 0', padding: '12px 16px', background: variant.bg, border: `1px solid ${variant.border}`, borderRadius: '4px' }}>
+        {a.title && (
+          <div contentEditable={false} style={{ fontSize: '9pt', fontWeight: 700, color: variant.titleColor, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+            {a.title}
+          </div>
+        )}
+        <NodeViewContent style={{ fontSize: '9.5pt', lineHeight: 1.65, color: variant.textColor }} />
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const InfoBox = Node.create({
+  name: 'infoBox',
+  group: 'block',
+  content: 'paragraph+',
+  defining: true,
+  addAttributes() {
+    return {
+      title:   { default: '' },
+      variant: { default: 'info' },
+    }
+  },
+  parseHTML() { return [{ tag: 'div[data-info-box]' }] },
+  renderHTML({ node, HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-info-box': '',
+      'data-variant': node.attrs.variant,
+      'data-title':   node.attrs.title,
+    }), 0]
+  },
+  addNodeView() { return ReactNodeViewRenderer(InfoBoxView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 4. PARTIES BLOCK — gray blockquote with party introductions (editable content)
+// ═════════════════════════════════════════════════════════════════════════════
+
+function PartiesView() {
+  return (
+    <NodeViewWrapper>
+      <div style={{ margin: '14px 0', padding: '12px 18px', background: '#f8fafc', borderLeft: '4px solid #0f172a', borderRadius: '0 4px 4px 0' }}>
+        <NodeViewContent style={{ fontSize: '10pt', lineHeight: 1.75, color: '#1e293b' }} />
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const PartiesBlock = Node.create({
+  name: 'partiesBlock',
+  group: 'block',
+  content: 'paragraph+',
+  defining: true,
+  parseHTML() { return [{ tag: 'div[data-parties-block]' }] },
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-parties-block': '' }), 0]
+  },
+  addNodeView() { return ReactNodeViewRenderer(PartiesView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 5. FORM FIELDS BLOCK — bordered box with underlined label rows (editable)
+// ═════════════════════════════════════════════════════════════════════════════
+
+function FormFieldsView({ node }: NodeViewProps) {
+  const a = node.attrs as Record<string, string>
+  return (
+    <NodeViewWrapper>
+      <div style={{ margin: '12px 0', padding: '14px', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+        <div contentEditable={false} style={{ fontSize: '9pt', fontWeight: 700, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0f172a' }}>
+          {a.title || 'COORDONNÉES DU CLIENT'}
+        </div>
+        <NodeViewContent
+          className="form-fields-body"
+          style={{ fontSize: '10pt', lineHeight: 2 }}
+        />
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const FormFieldsBlock = Node.create({
+  name: 'formFieldsBlock',
+  group: 'block',
+  content: 'paragraph+',
+  defining: true,
+  addAttributes() {
+    return { title: { default: 'COORDONNÉES DU CLIENT' } }
+  },
+  parseHTML() { return [{ tag: 'div[data-form-fields-block]' }] },
+  renderHTML({ node, HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-form-fields-block': '',
+      'data-title': node.attrs.title,
+    }), 0]
+  },
+  addNodeView() { return ReactNodeViewRenderer(FormFieldsView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 6. CHECKBOX BLOCK — bordered box with checkbox option list (editable)
+// ═════════════════════════════════════════════════════════════════════════════
+
+function CheckboxView({ node }: NodeViewProps) {
+  const a = node.attrs as Record<string, string>
+  return (
+    <NodeViewWrapper>
+      <div style={{ margin: '12px 0', padding: '14px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+        <div contentEditable={false} style={{ fontSize: '9pt', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0f172a' }}>
+          {a.title || 'OPTIONS'}
+        </div>
+        <NodeViewContent
+          className="checkbox-body"
+          style={{ fontSize: '10pt', lineHeight: 1.9 }}
+        />
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const CheckboxBlock = Node.create({
+  name: 'checkboxBlock',
+  group: 'block',
+  content: 'paragraph+',
+  defining: true,
+  addAttributes() {
+    return { title: { default: 'OPTIONS' } }
+  },
+  parseHTML() { return [{ tag: 'div[data-checkbox-block]' }] },
+  renderHTML({ node, HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-checkbox-block': '',
+      'data-title': node.attrs.title,
+    }), 0]
+  },
+  addNodeView() { return ReactNodeViewRenderer(CheckboxView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 7. SIGNATURE BLOCK — N-column signature lines
+// ═════════════════════════════════════════════════════════════════════════════
+
+function SignatureView({ node }: NodeViewProps) {
+  const a = node.attrs as Record<string, string>
+  const labels = (a.columns || 'Prestataire,Client').split(',').map((s) => s.trim()).filter(Boolean)
+  return (
+    <NodeViewWrapper>
+      <div contentEditable={false} style={{ margin: '20px 0' }}>
+        <div style={{ fontSize: '10pt', color: '#475569', marginBottom: '20px' }}>
+          Fait à <VarChip name={a.cityVar} small />, le <VarChip name={a.dateVar} small />.
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          {labels.map((label) => (
+            <div key={label} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ height: '50px', borderBottom: '1px solid #1e293b', marginBottom: '6px' }} />
+              <div style={{ fontSize: '8.5pt', color: '#475569', fontWeight: 600 }}>Signature du {label}</div>
+              <div style={{ fontSize: '8pt', color: '#94a3b8', marginTop: '4px' }}>Nom : ____________</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const SignatureBlock = Node.create({
+  name: 'signatureBlock',
+  group: 'block',
+  atom: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      cityVar: { default: 'ville_signature' },
+      dateVar: { default: 'date_signature' },
+      columns: { default: 'Prestataire,Client' },
+    }
+  },
+  parseHTML() { return [{ tag: 'div[data-signature-block]' }] },
+  renderHTML({ node, HTMLAttributes }) {
+    const a = node.attrs
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-signature-block': '',
+      'data-city-var': a.cityVar,
+      'data-date-var': a.dateVar,
+      'data-columns':  a.columns,
+    })]
+  },
+  addNodeView() { return ReactNodeViewRenderer(SignatureView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 8. SEPA MANDATE BLOCK — dark-headed mandate with IBAN/BIC fields
+// ═════════════════════════════════════════════════════════════════════════════
+
+function SepaView({ node }: NodeViewProps) {
+  const a = node.attrs as Record<string, string>
+  return (
+    <NodeViewWrapper>
+      <div contentEditable={false} style={{ margin: '14px 0', border: '2px solid #0f172a', borderRadius: '4px', overflow: 'hidden' }}>
+        <div style={{ background: '#0f172a', color: 'white', textAlign: 'center', padding: '8px', fontSize: '11pt', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Mandat de prélèvement SEPA
+        </div>
+        <div style={{ padding: '12px', fontSize: '9.5pt', color: '#1e293b' }}>
+          <p style={{ margin: '0 0 10px' }}>
+            En signant ce formulaire, vous autorisez <VarChip name={a.creditorVar} small /> à envoyer des instructions à votre banque pour débiter votre compte.
+          </p>
+          <div style={{ marginBottom: '6px' }}>
+            <strong>Créancier :</strong> <VarChip name={a.creditorVar} small />
+            <span style={{ marginLeft: '20px' }}><strong>ICS :</strong> {a.ics || '___________'}</span>
+          </div>
+          <div style={{ marginBottom: '10px' }}>
+            <strong>Adresse :</strong> <VarChip name={a.addressVar} small />
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1, border: '1px solid #cbd5e1', padding: '6px 8px', borderRadius: '4px' }}>
+              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a' }}>IBAN</div>
+              <div style={{ fontSize: '9pt', letterSpacing: '2px', color: '#94a3b8' }}>__ __ __ __ __ __ __ __ __ __ __ __ __ __</div>
+            </div>
+            <div style={{ flex: 0.6, border: '1px solid #cbd5e1', padding: '6px 8px', borderRadius: '4px' }}>
+              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a' }}>BIC</div>
+              <div style={{ fontSize: '9pt', letterSpacing: '2px', color: '#94a3b8' }}>__ __ __ __ __ __ __ __</div>
+            </div>
+          </div>
+          <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '8.5pt' }}>
+            <span><strong>Type :</strong> Récurrent / répétitif</span>
+            <span style={{ borderBottom: '1px solid #1e293b', minWidth: '120px', textAlign: 'right' }}>Signature</span>
+          </div>
+        </div>
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const SepaBlock = Node.create({
+  name: 'sepaBlock',
+  group: 'block',
+  atom: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      creditorVar: { default: 'prestataire_nom' },
+      addressVar:  { default: 'prestataire_adresse' },
+      ics:         { default: '' },
+    }
+  },
+  parseHTML() { return [{ tag: 'div[data-sepa-block]' }] },
+  renderHTML({ node, HTMLAttributes }) {
+    const a = node.attrs
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-sepa-block': '',
+      'data-creditor-var': a.creditorVar,
+      'data-address-var':  a.addressVar,
+      'data-ics':          a.ics,
+    })]
+  },
+  addNodeView() { return ReactNodeViewRenderer(SepaView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 9. RETRACTATION FORM BLOCK — light-gray formal form
+// ═════════════════════════════════════════════════════════════════════════════
+
+function RetractView({ node }: NodeViewProps) {
+  const a = node.attrs as Record<string, string>
+  return (
+    <NodeViewWrapper>
+      <div contentEditable={false} style={{ margin: '14px 0', padding: '14px', border: '1px solid #e2e8f0', borderRadius: '4px', background: '#fafafa' }}>
+        <div style={{ textAlign: 'center', fontSize: '9pt', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0f172a' }}>
+          Formulaire de rétractation
+        </div>
+        <p style={{ fontSize: '9pt', lineHeight: 1.7, color: '#475569', margin: '0 0 8px' }}>
+          Je soussigné(e) <VarChip name={a.firstNameVar} small /> <VarChip name={a.lastNameVar} small />, déclare renoncer au contrat conclu auprès de <VarChip name={a.creditorVar} small /> le <VarChip name={a.dateVar} small /> (N° contrat : <VarChip name={a.numberVar} small />).
+        </p>
+        <p style={{ fontSize: '8.5pt', color: '#94a3b8', margin: '0 0 8px' }}>
+          À renvoyer dans un délai de 14 jours par lettre recommandée avec AR à : <VarChip name={a.creditorVar} small /> — Service Rétractation — <VarChip name={a.addressVar} small />.
+        </p>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '10px', fontSize: '9pt' }}>
+          <span>Adresse : ____________</span>
+          <span>Ville : ____________</span>
+          <span style={{ marginLeft: 'auto', borderBottom: '1px solid #1e293b', minWidth: '120px', textAlign: 'right' }}>Signature</span>
+        </div>
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+export const RetractBlock = Node.create({
+  name: 'retractBlock',
+  group: 'block',
+  atom: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      firstNameVar: { default: 'client_prenom' },
+      lastNameVar:  { default: 'client_nom' },
+      creditorVar:  { default: 'prestataire_nom' },
+      addressVar:   { default: 'prestataire_adresse' },
+      dateVar:      { default: 'date_contrat' },
+      numberVar:    { default: 'numero_contrat' },
+    }
+  },
+  parseHTML() { return [{ tag: 'div[data-retract-block]' }] },
+  renderHTML({ node, HTMLAttributes }) {
+    const a = node.attrs
+    return ['div', mergeAttributes(HTMLAttributes, {
+      'data-retract-block': '',
+      'data-first-name-var': a.firstNameVar,
+      'data-last-name-var':  a.lastNameVar,
+      'data-creditor-var':   a.creditorVar,
+      'data-address-var':    a.addressVar,
+      'data-date-var':       a.dateVar,
+      'data-number-var':     a.numberVar,
+    })]
+  },
+  addNodeView() { return ReactNodeViewRenderer(RetractView) },
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Exports
+// ═════════════════════════════════════════════════════════════════════════════
+
+export const ALL_CONTRACT_BLOCKS = [
+  FinancialBlock,
+  DefinitionsBlock,
+  InfoBox,
+  PartiesBlock,
+  FormFieldsBlock,
+  CheckboxBlock,
+  SignatureBlock,
+  SepaBlock,
+  RetractBlock,
+]
+
+// Variable-attribute keys per block type — used by extractor in variable-node.ts
+export const BLOCK_VAR_KEYS: Record<string, string[]> = {
+  contractHeader:  ['companyVar', 'addressVar', 'siretVar', 'tvaVar', 'numberVar', 'versionVar', 'dateVar'],
+  financialBlock:  ['descriptionVar', 'htVar', 'rateVar', 'tvaVar', 'ttcVar'],
+  signatureBlock:  ['cityVar', 'dateVar'],
+  sepaBlock:       ['creditorVar', 'addressVar'],
+  retractBlock:    ['firstNameVar', 'lastNameVar', 'creditorVar', 'addressVar', 'dateVar', 'numberVar'],
+}
