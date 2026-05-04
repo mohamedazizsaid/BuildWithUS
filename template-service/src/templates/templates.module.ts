@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { JetStreamModule, TEMPLATES_STREAM } from '@winaity/shared-kernel';
 
 // ORM Entities
-import { TemplateOrmEntity } from './infrastructure/persistence/entities/index.js';
+import { TemplateOrmEntity, TenantVariablesOrmEntity } from './infrastructure/persistence/entities/index.js';
 
 // Repository Implementations
 import { TemplateRepositoryImpl } from './infrastructure/persistence/repositories/index.js';
@@ -17,6 +17,8 @@ import {
   DeleteTemplateHandler,
   DuplicateTemplateHandler,
   ToggleFavoriteHandler,
+  UpdateTenantVariablesHandler,
+  AddTenantVariableHandler,
 } from './application/commands/handlers/index.js';
 
 // Query Handlers
@@ -26,6 +28,7 @@ import {
   ListTemplatesHandler,
   GetPopularTemplatesHandler,
   RenderTemplateHandler,
+  GetTenantVariablesHandler,
 } from './application/queries/handlers/index.js';
 
 // Event Handlers
@@ -49,6 +52,8 @@ const CommandHandlers = [
   DeleteTemplateHandler,
   DuplicateTemplateHandler,
   ToggleFavoriteHandler,
+  UpdateTenantVariablesHandler,
+  AddTenantVariableHandler,
 ];
 
 // Query Handlers array
@@ -58,6 +63,7 @@ const QueryHandlers = [
   ListTemplatesHandler,
   GetPopularTemplatesHandler,
   RenderTemplateHandler,
+  GetTenantVariablesHandler,
 ];
 
 // Event Handlers array
@@ -76,7 +82,7 @@ const GrpcControllers = [
 @Module({
   imports: [
     CqrsModule,
-    TypeOrmModule.forFeature([TemplateOrmEntity]),
+    TypeOrmModule.forFeature([TemplateOrmEntity, TenantVariablesOrmEntity]),
     JetStreamModule.forRoot({
       servers: process.env.NATS_URL?.split(',') || ['nats://localhost:4222'],
       streams: [TEMPLATES_STREAM],

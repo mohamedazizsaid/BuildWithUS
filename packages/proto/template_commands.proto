@@ -109,6 +109,25 @@ message ToggleFavoriteResponse {
   TemplateDTO template = 3;
 }
 
+message UpdateTenantVariablesRequest {
+  string tenant_id = 1;
+  string custom_variables_json = 2;
+}
+
+message UpdateTenantVariablesResponse {
+  string custom_variables_json = 1;
+}
+
+message AddTenantVariableRequest {
+  string tenant_id = 1;
+  string category = 2;
+  string name = 3;
+}
+
+message AddTenantVariableResponse {
+  bool success = 1;
+}
+
 // Template Command Service - Write operations (CQRS)
 service TemplateCommandService {
   rpc CreateTemplate (CreateTemplateRequest) returns (CreateTemplateResponse);
@@ -116,4 +135,6 @@ service TemplateCommandService {
   rpc DeleteTemplate (DeleteTemplateRequest) returns (DeleteTemplateResponse);
   rpc DuplicateTemplate (DuplicateTemplateRequest) returns (DuplicateTemplateResponse);
   rpc ToggleFavorite (ToggleFavoriteRequest) returns (ToggleFavoriteResponse);
+  rpc UpdateTenantVariables (UpdateTenantVariablesRequest) returns (UpdateTenantVariablesResponse);
+  rpc AddTenantVariable (AddTenantVariableRequest) returns (AddTenantVariableResponse);
 }

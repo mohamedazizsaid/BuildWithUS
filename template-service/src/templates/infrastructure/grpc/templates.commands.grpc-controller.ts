@@ -11,6 +11,10 @@ import {
   UpdateTemplateResponse,
   DeleteTemplateRequest,
   DeleteTemplateResponse,
+  UpdateTenantVariablesRequest,
+  UpdateTenantVariablesResponse,
+  AddTenantVariableRequest,
+  AddTenantVariableResponse,
 } from 'proto/generated/template_commands';
 import {
   CreateTemplateCommand,
@@ -19,6 +23,8 @@ import {
   DuplicateTemplateCommand,
   ToggleFavoriteCommand,
 } from '../../application/commands/index.js';
+import { UpdateTenantVariablesCommand } from '../../application/commands/update-tenant-variables.command.js';
+import { AddTenantVariableCommand } from '../../application/commands/add-tenant-variable.command.js';
 import { Template } from '../../domain/entities/template.aggregate.js';
 import { TemplateGrpcMapper } from './template.grpc-mapper.js';
 
@@ -124,6 +130,28 @@ export class TemplatesCommandsGrpcController implements TemplateCommandServiceCo
       message: 'Template duplicated successfully',
       template: TemplateGrpcMapper.toDto(template),
     };
+  }
+
+  /**
+   * Add a single tenant custom variable
+   */
+  async addTenantVariable(request: AddTenantVariableRequest): Promise<AddTenantVariableResponse> {
+    const tenantId = (request as any).tenantId || (request as any).tenant_id || '';
+    const category = (request as any).category || '';
+    const name = (request as any).name || '';
+    const command = new AddTenantVariableCommand(tenantId, category, name);
+    return this.commandBus.execute<AddTenantVariableCommand, AddTenantVariableResponse>(command);
+  }
+
+  /**
+   * Update tenant custom variables
+   */
+  async updateTenantVariables(request: UpdateTenantVariablesRequest): Promise<UpdateTenantVariablesResponse> {
+    const tenantId = (request as any).tenantId || (request as any).tenant_id || '';
+    const json = (request as any).customVariablesJson || (request as any).custom_variables_json || '{}';
+    const customVariables = JSON.parse(json);
+    const command = new UpdateTenantVariablesCommand(tenantId, customVariables);
+    return this.commandBus.execute<UpdateTenantVariablesCommand, UpdateTenantVariablesResponse>(command);
   }
 
   /**

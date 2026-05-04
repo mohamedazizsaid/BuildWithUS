@@ -325,6 +325,29 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
     return result;
   }
 
+  @Get("settings/custom-variables")
+  @Roles("admin", "editor", "viewer", "super_admin")
+  async getCustomVariables(@Req() req: any) {
+    const result: any = await firstValueFrom(
+      this.queryService.GetTenantVariables({ tenant_id: req.user.tenant_id }),
+    );
+    const json = result?.custom_variables_json || result?.customVariablesJson || '{}';
+    try { return JSON.parse(json); } catch { return {}; }
+  }
+
+  @Post("settings/custom-variables")
+  @Roles("admin", "editor", "super_admin")
+  async addCustomVariable(@Req() req: any, @Body() body: { category: string; name: string }) {
+    await firstValueFrom(
+      this.commandService.AddTenantVariable({
+        tenant_id: req.user.tenant_id,
+        category: body.category,
+        name: body.name,
+      }),
+    );
+    return { success: true };
+  }
+
   /**
    * POST /templates/test-email — Send a test email with MJML content via MailHog.
    * Does NOT require a saved template — sends raw MJML/HTML content directly.

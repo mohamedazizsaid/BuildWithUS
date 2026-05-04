@@ -102,6 +102,14 @@ export interface PaginationInfo {
   hasPrevious: boolean;
 }
 
+export interface GetTenantVariablesRequest {
+  tenantId: string;
+}
+
+export interface TenantVariablesResponse {
+  customVariablesJson: string;
+}
+
 export const TEMPLATES_QUERIES_PACKAGE_NAME = "templates.queries";
 
 function createBaseGetTemplateRequest(): GetTemplateRequest {
@@ -727,6 +735,10 @@ export interface TemplateQueryServiceClient {
   /** Render a template with variable substitution */
 
   renderTemplate(request: RenderTemplateRequest, metadata: Metadata, ...rest: any): Observable<RenderTemplateResponse>;
+
+  /** Get tenant custom variables */
+
+  getTenantVariables(request: GetTenantVariablesRequest, metadata: Metadata, ...rest: any): Observable<TenantVariablesResponse>;
 }
 
 /**
@@ -775,6 +787,14 @@ export interface TemplateQueryServiceController {
     metadata: Metadata,
     ...rest: any
   ): Promise<RenderTemplateResponse> | Observable<RenderTemplateResponse> | RenderTemplateResponse;
+
+  /** Get tenant custom variables */
+
+  getTenantVariables(
+    request: GetTenantVariablesRequest,
+    metadata: Metadata,
+    ...rest: any
+  ): Promise<TenantVariablesResponse> | Observable<TenantVariablesResponse> | TenantVariablesResponse;
 }
 
 export function TemplateQueryServiceControllerMethods() {
@@ -785,6 +805,7 @@ export function TemplateQueryServiceControllerMethods() {
       "listTemplates",
       "getPopularTemplates",
       "renderTemplate",
+      "getTenantVariables",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
@@ -797,6 +818,68 @@ export function TemplateQueryServiceControllerMethods() {
     }
   };
 }
+
+function createBaseGetTenantVariablesRequest(): GetTenantVariablesRequest {
+  return { tenantId: "" };
+}
+
+export const GetTenantVariablesRequest: MessageFns<GetTenantVariablesRequest> = {
+  encode(message: GetTenantVariablesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.tenantId !== "") {
+      writer.uint32(10).string(message.tenantId);
+    }
+    return writer;
+  },
+  decode(input: BinaryReader | Uint8Array, length?: number): GetTenantVariablesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetTenantVariablesRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) { break; }
+          message.tenantId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) { break; }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+};
+
+function createBaseTenantVariablesResponse(): TenantVariablesResponse {
+  return { customVariablesJson: "" };
+}
+
+export const TenantVariablesResponse: MessageFns<TenantVariablesResponse> = {
+  encode(message: TenantVariablesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.customVariablesJson !== "") {
+      writer.uint32(10).string(message.customVariablesJson);
+    }
+    return writer;
+  },
+  decode(input: BinaryReader | Uint8Array, length?: number): TenantVariablesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseTenantVariablesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) { break; }
+          message.customVariablesJson = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) { break; }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+};
 
 export const TEMPLATE_QUERY_SERVICE_NAME = "TemplateQueryService";
 
@@ -862,6 +945,18 @@ export const TemplateQueryServiceService = {
       Buffer.from(RenderTemplateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): RenderTemplateResponse => RenderTemplateResponse.decode(value),
   },
+  /** Get tenant custom variables */
+  getTenantVariables: {
+    path: "/templates.queries.TemplateQueryService/GetTenantVariables",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: GetTenantVariablesRequest): Buffer =>
+      Buffer.from(GetTenantVariablesRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): GetTenantVariablesRequest => GetTenantVariablesRequest.decode(value),
+    responseSerialize: (value: TenantVariablesResponse): Buffer =>
+      Buffer.from(TenantVariablesResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): TenantVariablesResponse => TenantVariablesResponse.decode(value),
+  },
 } as const;
 
 export interface TemplateQueryServiceServer extends UntypedServiceImplementation {
@@ -875,6 +970,8 @@ export interface TemplateQueryServiceServer extends UntypedServiceImplementation
   getPopularTemplates: handleUnaryCall<GetPopularTemplatesRequest, GetPopularTemplatesResponse>;
   /** Render a template with variable substitution */
   renderTemplate: handleUnaryCall<RenderTemplateRequest, RenderTemplateResponse>;
+  /** Get tenant custom variables */
+  getTenantVariables: handleUnaryCall<GetTenantVariablesRequest, TenantVariablesResponse>;
 }
 
 export interface MessageFns<T> {

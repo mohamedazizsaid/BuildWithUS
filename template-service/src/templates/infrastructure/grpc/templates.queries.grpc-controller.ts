@@ -12,6 +12,8 @@ import {
   GetPopularTemplatesResponse,
   RenderTemplateRequest,
   RenderTemplateResponse,
+  GetTenantVariablesRequest,
+  TenantVariablesResponse,
 } from 'proto/generated/template_queries';
 import { HealthCheckRequest, HealthCheckResponse } from 'proto/generated/common';
 import {
@@ -21,6 +23,7 @@ import {
   GetPopularTemplatesQuery,
   RenderTemplateQuery,
 } from '../../application/queries/index.js';
+import { GetTenantVariablesQuery } from '../../application/queries/get-tenant-variables.query.js';
 import { Template } from '../../domain/entities/template.aggregate.js';
 import { TemplateGrpcMapper } from './template.grpc-mapper.js';
 
@@ -90,5 +93,14 @@ export class TemplatesQueriesGrpcController implements TemplateQueryServiceContr
   async renderTemplate(request: RenderTemplateRequest): Promise<RenderTemplateResponse> {
     const query = new RenderTemplateQuery(request.id, request.variables, request.userId);
     return this.queryBus.execute<RenderTemplateQuery, RenderTemplateResponse>(query);
+  }
+
+  /**
+   * Get tenant custom variables
+   */
+  async getTenantVariables(request: GetTenantVariablesRequest): Promise<TenantVariablesResponse> {
+    const tenantId = (request as any).tenantId || (request as any).tenant_id || '';
+    const query = new GetTenantVariablesQuery(tenantId);
+    return this.queryBus.execute<GetTenantVariablesQuery, TenantVariablesResponse>(query);
   }
 }

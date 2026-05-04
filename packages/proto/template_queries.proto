@@ -63,6 +63,14 @@ message PaginationInfo {
   bool has_previous = 6;
 }
 
+message GetTenantVariablesRequest {
+  string tenant_id = 1;
+}
+
+message TenantVariablesResponse {
+  string custom_variables_json = 1;
+}
+
 // Template Query Service - Read operations (CQRS)
 service TemplateQueryService {
   rpc HealthCheck (common.HealthCheckRequest) returns (common.HealthCheckResponse);
@@ -70,4 +78,5 @@ service TemplateQueryService {
   rpc ListTemplates (ListTemplatesRequest) returns (ListTemplatesResponse);
   rpc GetPopularTemplates (GetPopularTemplatesRequest) returns (GetPopularTemplatesResponse);
   rpc RenderTemplate (RenderTemplateRequest) returns (RenderTemplateResponse);
+  rpc GetTenantVariables (GetTenantVariablesRequest) returns (TenantVariablesResponse);
 }

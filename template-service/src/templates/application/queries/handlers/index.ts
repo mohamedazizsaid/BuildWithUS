@@ -1,4 +1,5 @@
 export { HealthCheckHandler } from './health-check.handler.js';
+export { GetTenantVariablesHandler } from './get-tenant-variables.handler.js';
 export { GetTemplateHandler } from './get-template.handler.js';
 export { ListTemplatesHandler } from './list-templates.handler.js';
 export { GetPopularTemplatesHandler } from './get-popular-templates.handler.js';

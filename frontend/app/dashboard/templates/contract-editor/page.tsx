@@ -8,12 +8,13 @@ import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
-  ArrowLeft, Save, Download, RefreshCw, ChevronDown,
+  ArrowLeft, Save, Download, RefreshCw, ChevronDown, Plus,
   Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Minus, Undo, Redo, FileText, X, CheckCircle2,
   GripVertical, Copy, Trash2 as TrashIcon,
 } from 'lucide-react';
-import { templates } from '@/lib/api';
+import { templates, contractVariables } from '@/lib/api';
+import { useAuth } from '@/context/auth';
 import { VariableNode, extractVariablesFromTiptap, renderTiptapToHtml } from '@/lib/tiptap/variable-node';
 import { ContractHeader } from '@/lib/tiptap/contract-header';
 import { ALL_CONTRACT_BLOCKS } from '@/lib/tiptap/contract-blocks';
@@ -126,9 +127,40 @@ const BLOCK_LIBRARY: { type: string; label: string; description: string; color: 
   },
 ];
 
-function VariablePalette({ editor }: { readonly editor: Editor | null }) {
+function VariablePalette({ editor, tenantId }: { readonly editor: Editor | null; readonly tenantId: string }) {
   const [tab, setTab] = useState<'vars' | 'blocs'>('vars');
   const [open, setOpen] = useState<string | null>('Prestataire');
+  // allVars: ALL vars from DB (predefined + custom), grouped by category
+  const [allVars, setAllVars] = useState<Record<string, string[]>>({});
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [newVarName, setNewVarName] = useState('');
+  const newVarInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    contractVariables.get()
+      .then((data) => {
+        // If API returns empty (backend not ready yet), fall back to VARIABLE_PALETTE
+        if (!data || Object.keys(data).length === 0) {
+          const fallback: Record<string, string[]> = {};
+          VARIABLE_PALETTE.forEach(cat => { fallback[cat.label] = cat.vars.map(v => v.name); });
+          setAllVars(fallback);
+        } else {
+          setAllVars(data);
+        }
+      })
+      .catch((err) => {
+        console.error('[VariablePalette] Failed to load variables:', err);
+        // Fall back to hardcoded palette so the UI is never empty
+        const fallback: Record<string, string[]> = {};
+        VARIABLE_PALETTE.forEach(cat => { fallback[cat.label] = cat.vars.map(v => v.name); });
+        setAllVars(fallback);
+      });
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (addingTo) newVarInputRef.current?.focus();
+  }, [addingTo]);
 
   const insertVariable = useCallback((name: string) => {
     if (!editor) return;
@@ -139,6 +171,29 @@ function VariablePalette({ editor }: { readonly editor: Editor | null }) {
     if (!editor) return;
     editor.chain().focus().insertContent(build()).run();
   }, [editor]);
+
+const commitNewVar = useCallback((catLabel: string) => {
+    const name = newVarName.trim().replace(/\s+/g, '_');
+    if (!name) { setAddingTo(null); setNewVarName(''); return; }
+    contractVariables.add({ category: catLabel, name })
+      .catch((err) => console.error('[VariablePalette] Failed to add variable:', err));
+    setAllVars((prev) => ({ ...prev, [catLabel]: [...(prev[catLabel] ?? []), name] }));
+    setOpen(catLabel);
+    setAddingTo(null);
+    setNewVarName('');
+  }, [newVarName]);
+
+  // Build display categories: use allVars for var names + VARIABLE_PALETTE for styling
+  const displayCategories = Object.keys(allVars).map((label) => {
+    const palette = VARIABLE_PALETTE.find(c => c.label === label);
+    return {
+      label,
+      bg: palette?.bg ?? '#f1f5f9',
+      color: palette?.color ?? '#334155',
+      border: palette?.border ?? '#e2e8f0',
+      vars: allVars[label] ?? [],
+    };
+  });
 
   return (
     <div className="w-56 border-r border-border bg-slate-50 flex flex-col overflow-hidden shrink-0">
@@ -169,36 +224,61 @@ function VariablePalette({ editor }: { readonly editor: Editor | null }) {
             <p className="text-[10px] text-slate-400">Glissez ou cliquez pour insérer</p>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-            {VARIABLE_PALETTE.map((cat) => (
+            {displayCategories.map((cat) => (
               <div key={cat.label}>
-                <button
-                  onClick={() => setOpen(open === cat.label ? null : cat.label)}
-                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  <span className="text-[11px] font-semibold text-slate-500">{cat.label}</span>
-                  <ChevronDown size={11} className={`text-slate-400 transition-transform ${open === cat.label ? 'rotate-180' : ''}`} />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setOpen(open === cat.label ? null : cat.label)}
+                    className="flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                  >
+                    <span className="text-[11px] font-semibold text-slate-500">{cat.label}</span>
+                    <ChevronDown size={11} className={`text-slate-400 transition-transform ${open === cat.label ? 'rotate-180' : ''}`} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setAddingTo(cat.label); setOpen(cat.label); }}
+                    className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    title="Ajouter une variable"
+                  >
+                    <Plus size={11} />
+                  </button>
+                </div>
                 {open === cat.label && (
                   <div className="space-y-0.5 pl-1 mb-1">
-                    {cat.vars.map((v) => (
+                    {cat.vars.map((name) => (
                       <div
-                        key={v.name}
+                        key={name}
                         draggable
                         onDragStart={(e) => {
-                          e.dataTransfer.setData('variable-name', v.name);
+                          e.dataTransfer.setData('variable-name', name);
                           e.dataTransfer.effectAllowed = 'copy';
                         }}
-                        onClick={() => insertVariable(v.name)}
+                        onClick={() => insertVariable(name)}
                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-grab group"
                       >
                         <span
                           className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono shrink-0"
                           style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}` }}
                         >
-                          {'{{' + v.name + '}}'}
+                          {'{{' + name + '}}'}
                         </span>
                       </div>
                     ))}
+                    {addingTo === cat.label && (
+                      <div className="px-2 py-1">
+                        <input
+                          ref={newVarInputRef}
+                          value={newVarName}
+                          onChange={(e) => setNewVarName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') commitNewVar(cat.label);
+                            if (e.key === 'Escape') { setAddingTo(null); setNewVarName(''); }
+                          }}
+                          onBlur={() => commitNewVar(cat.label)}
+                          placeholder="nom_variable"
+                          className="w-full px-2 py-1 text-[10px] font-mono border border-indigo-300 rounded-md bg-white outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -955,6 +1035,7 @@ function FillVariablesModal({
 function ContractEditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const templateId = searchParams.get('id') || null;
   const name = searchParams.get('name') || 'Nouveau contrat';
   const description = searchParams.get('description') || '';
@@ -1181,7 +1262,7 @@ function ContractEditorContent() {
 
       {/* ── 3-panel body ── */}
       <div className="flex flex-1 overflow-hidden">
-        <VariablePalette editor={editor} />
+        <VariablePalette editor={editor} tenantId={user?.tenant_id ?? ''} />
         <ContractCanvas editor={editor} />
         <RightPanel
           contractType={contractType}

@@ -143,6 +143,15 @@ export interface TemplateDTO_VariantsEntry {
   value: string;
 }
 
+export interface UpdateTenantVariablesRequest {
+  tenantId: string;
+  customVariablesJson: string;
+}
+
+export interface UpdateTenantVariablesResponse {
+  customVariablesJson: string;
+}
+
 export const TEMPLATES_COMMANDS_PACKAGE_NAME = "templates.commands";
 
 function createBaseChannelContent(): ChannelContent {
@@ -974,6 +983,70 @@ export const TemplateDTO_VariantsEntry: MessageFns<TemplateDTO_VariantsEntry> = 
   },
 };
 
+export interface AddTenantVariableRequest {
+  tenantId: string;
+  category: string;
+  name: string;
+}
+
+export interface AddTenantVariableResponse {
+  success: boolean;
+}
+
+function createBaseAddTenantVariableRequest(): AddTenantVariableRequest {
+  return { tenantId: "", category: "", name: "" };
+}
+
+export const AddTenantVariableRequest: MessageFns<AddTenantVariableRequest> = {
+  encode(message: AddTenantVariableRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.tenantId !== "") { writer.uint32(10).string(message.tenantId); }
+    if (message.category !== "") { writer.uint32(18).string(message.category); }
+    if (message.name !== "") { writer.uint32(26).string(message.name); }
+    return writer;
+  },
+  decode(input: BinaryReader | Uint8Array, length?: number): AddTenantVariableRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAddTenantVariableRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: { if (tag !== 10) { break; } message.tenantId = reader.string(); continue; }
+        case 2: { if (tag !== 18) { break; } message.category = reader.string(); continue; }
+        case 3: { if (tag !== 26) { break; } message.name = reader.string(); continue; }
+      }
+      if ((tag & 7) === 4 || tag === 0) { break; }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+};
+
+function createBaseAddTenantVariableResponse(): AddTenantVariableResponse {
+  return { success: false };
+}
+
+export const AddTenantVariableResponse: MessageFns<AddTenantVariableResponse> = {
+  encode(message: AddTenantVariableResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.success !== false) { writer.uint32(8).bool(message.success); }
+    return writer;
+  },
+  decode(input: BinaryReader | Uint8Array, length?: number): AddTenantVariableResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAddTenantVariableResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: { if (tag !== 8) { break; } message.success = reader.bool(); continue; }
+      }
+      if ((tag & 7) === 4 || tag === 0) { break; }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+};
+
 /**
  * Template Command Service - Write operations (CQRS)
  *
@@ -992,6 +1065,14 @@ export interface TemplateCommandServiceClient {
   /** Delete a template (soft delete) */
 
   deleteTemplate(request: DeleteTemplateRequest, metadata: Metadata, ...rest: any): Observable<DeleteTemplateResponse>;
+
+  /** Update tenant custom variables */
+
+  updateTenantVariables(request: UpdateTenantVariablesRequest, metadata: Metadata, ...rest: any): Observable<UpdateTenantVariablesResponse>;
+
+  /** Add a single tenant custom variable */
+
+  addTenantVariable(request: AddTenantVariableRequest, metadata: Metadata, ...rest: any): Observable<AddTenantVariableResponse>;
 }
 
 /**
@@ -1024,11 +1105,27 @@ export interface TemplateCommandServiceController {
     metadata: Metadata,
     ...rest: any
   ): Promise<DeleteTemplateResponse> | Observable<DeleteTemplateResponse> | DeleteTemplateResponse;
+
+  /** Update tenant custom variables */
+
+  updateTenantVariables(
+    request: UpdateTenantVariablesRequest,
+    metadata: Metadata,
+    ...rest: any
+  ): Promise<UpdateTenantVariablesResponse> | Observable<UpdateTenantVariablesResponse> | UpdateTenantVariablesResponse;
+
+  /** Add a single tenant custom variable */
+
+  addTenantVariable(
+    request: AddTenantVariableRequest,
+    metadata: Metadata,
+    ...rest: any
+  ): Promise<AddTenantVariableResponse> | Observable<AddTenantVariableResponse> | AddTenantVariableResponse;
 }
 
 export function TemplateCommandServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["createTemplate", "updateTemplate", "deleteTemplate"];
+    const grpcMethods: string[] = ["createTemplate", "updateTemplate", "deleteTemplate", "updateTenantVariables", "addTenantVariable"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("TemplateCommandService", method)(constructor.prototype[method], method, descriptor);
@@ -1040,6 +1137,76 @@ export function TemplateCommandServiceControllerMethods() {
     }
   };
 }
+
+function createBaseUpdateTenantVariablesRequest(): UpdateTenantVariablesRequest {
+  return { tenantId: "", customVariablesJson: "" };
+}
+
+export const UpdateTenantVariablesRequest: MessageFns<UpdateTenantVariablesRequest> = {
+  encode(message: UpdateTenantVariablesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.tenantId !== "") {
+      writer.uint32(10).string(message.tenantId);
+    }
+    if (message.customVariablesJson !== "") {
+      writer.uint32(18).string(message.customVariablesJson);
+    }
+    return writer;
+  },
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdateTenantVariablesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdateTenantVariablesRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) { break; }
+          message.tenantId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) { break; }
+          message.customVariablesJson = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) { break; }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+};
+
+function createBaseUpdateTenantVariablesResponse(): UpdateTenantVariablesResponse {
+  return { customVariablesJson: "" };
+}
+
+export const UpdateTenantVariablesResponse: MessageFns<UpdateTenantVariablesResponse> = {
+  encode(message: UpdateTenantVariablesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.customVariablesJson !== "") {
+      writer.uint32(10).string(message.customVariablesJson);
+    }
+    return writer;
+  },
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdateTenantVariablesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdateTenantVariablesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) { break; }
+          message.customVariablesJson = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) { break; }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+};
 
 export const TEMPLATE_COMMAND_SERVICE_NAME = "TemplateCommandService";
 
@@ -1086,6 +1253,30 @@ export const TemplateCommandServiceService = {
       Buffer.from(DeleteTemplateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): DeleteTemplateResponse => DeleteTemplateResponse.decode(value),
   },
+  /** Update tenant custom variables */
+  updateTenantVariables: {
+    path: "/templates.commands.TemplateCommandService/UpdateTenantVariables",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: UpdateTenantVariablesRequest): Buffer =>
+      Buffer.from(UpdateTenantVariablesRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): UpdateTenantVariablesRequest => UpdateTenantVariablesRequest.decode(value),
+    responseSerialize: (value: UpdateTenantVariablesResponse): Buffer =>
+      Buffer.from(UpdateTenantVariablesResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): UpdateTenantVariablesResponse => UpdateTenantVariablesResponse.decode(value),
+  },
+  /** Add a single tenant custom variable */
+  addTenantVariable: {
+    path: "/templates.commands.TemplateCommandService/AddTenantVariable",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: AddTenantVariableRequest): Buffer =>
+      Buffer.from(AddTenantVariableRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): AddTenantVariableRequest => AddTenantVariableRequest.decode(value),
+    responseSerialize: (value: AddTenantVariableResponse): Buffer =>
+      Buffer.from(AddTenantVariableResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): AddTenantVariableResponse => AddTenantVariableResponse.decode(value),
+  },
 } as const;
 
 export interface TemplateCommandServiceServer extends UntypedServiceImplementation {
@@ -1095,6 +1286,10 @@ export interface TemplateCommandServiceServer extends UntypedServiceImplementati
   updateTemplate: handleUnaryCall<UpdateTemplateRequest, UpdateTemplateResponse>;
   /** Delete a template (soft delete) */
   deleteTemplate: handleUnaryCall<DeleteTemplateRequest, DeleteTemplateResponse>;
+  /** Update tenant custom variables */
+  updateTenantVariables: handleUnaryCall<UpdateTenantVariablesRequest, UpdateTenantVariablesResponse>;
+  /** Add a single tenant custom variable */
+  addTenantVariable: handleUnaryCall<AddTenantVariableRequest, AddTenantVariableResponse>;
 }
 
 function longToNumber(int64: { toString(): string }): number {

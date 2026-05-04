@@ -82,6 +82,15 @@ export const templates = {
         request('/templates/test-email', { method: 'POST', body: JSON.stringify(body) }),
 };
 
+// ─── Tenant Custom Variables ───
+export const contractVariables = {
+    get: (): Promise<Record<string, string[]>> =>
+        request('/templates/settings/custom-variables'),
+
+    add: (variable: { category: string; name: string }): Promise<{ success: boolean }> =>
+        request('/templates/settings/custom-variables', { method: 'POST', body: JSON.stringify(variable) }),
+};
+
 // ─── Media ───
 const API_URL_RAW = 'http://localhost:3000';
 
