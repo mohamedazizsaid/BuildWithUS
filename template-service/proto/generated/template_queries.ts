@@ -108,6 +108,7 @@ export interface GetTenantVariablesRequest {
 
 export interface TenantVariablesResponse {
   customVariablesJson: string;
+  customNamesJson: string;
 }
 
 export const TEMPLATES_QUERIES_PACKAGE_NAME = "templates.queries";
@@ -851,13 +852,16 @@ export const GetTenantVariablesRequest: MessageFns<GetTenantVariablesRequest> = 
 };
 
 function createBaseTenantVariablesResponse(): TenantVariablesResponse {
-  return { customVariablesJson: "" };
+  return { customVariablesJson: "", customNamesJson: "" };
 }
 
 export const TenantVariablesResponse: MessageFns<TenantVariablesResponse> = {
   encode(message: TenantVariablesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.customVariablesJson !== "") {
       writer.uint32(10).string(message.customVariablesJson);
+    }
+    if (message.customNamesJson !== "") {
+      writer.uint32(18).string(message.customNamesJson);
     }
     return writer;
   },
@@ -871,6 +875,11 @@ export const TenantVariablesResponse: MessageFns<TenantVariablesResponse> = {
         case 1: {
           if (tag !== 10) { break; }
           message.customVariablesJson = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) { break; }
+          message.customNamesJson = reader.string();
           continue;
         }
       }

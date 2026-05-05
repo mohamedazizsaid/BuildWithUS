@@ -132,6 +132,7 @@ function VariablePalette({ editor, tenantId }: { readonly editor: Editor | null;
   const [open, setOpen] = useState<string | null>('Prestataire');
   // allVars: ALL vars from DB (predefined + custom), grouped by category
   const [allVars, setAllVars] = useState<Record<string, string[]>>({});
+  const [customVarNames, setCustomVarNames] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [newVarName, setNewVarName] = useState('');
   const newVarInputRef = useRef<HTMLInputElement>(null);
@@ -140,21 +141,22 @@ function VariablePalette({ editor, tenantId }: { readonly editor: Editor | null;
     if (!tenantId) return;
     contractVariables.get()
       .then((data) => {
-        // If API returns empty (backend not ready yet), fall back to VARIABLE_PALETTE
-        if (!data || Object.keys(data).length === 0) {
+        if (!data?.variables || Object.keys(data.variables).length === 0) {
           const fallback: Record<string, string[]> = {};
           VARIABLE_PALETTE.forEach(cat => { fallback[cat.label] = cat.vars.map(v => v.name); });
           setAllVars(fallback);
+          setCustomVarNames(new Set());
         } else {
-          setAllVars(data);
+          setAllVars(data.variables);
+          setCustomVarNames(new Set(data.customNames ?? []));
         }
       })
       .catch((err) => {
         console.error('[VariablePalette] Failed to load variables:', err);
-        // Fall back to hardcoded palette so the UI is never empty
         const fallback: Record<string, string[]> = {};
         VARIABLE_PALETTE.forEach(cat => { fallback[cat.label] = cat.vars.map(v => v.name); });
         setAllVars(fallback);
+        setCustomVarNames(new Set());
       });
   }, [tenantId]);
 
@@ -178,10 +180,18 @@ const commitNewVar = useCallback((catLabel: string) => {
     contractVariables.add({ category: catLabel, name })
       .catch((err) => console.error('[VariablePalette] Failed to add variable:', err));
     setAllVars((prev) => ({ ...prev, [catLabel]: [...(prev[catLabel] ?? []), name] }));
+    setCustomVarNames((prev) => new Set([...prev, name]));
     setOpen(catLabel);
     setAddingTo(null);
     setNewVarName('');
   }, [newVarName]);
+
+  const deleteVariable = useCallback((catLabel: string, name: string) => {
+    contractVariables.remove(name)
+      .catch((err) => console.error('[VariablePalette] Failed to delete variable:', err));
+    setAllVars((prev) => ({ ...prev, [catLabel]: (prev[catLabel] ?? []).filter(n => n !== name) }));
+    setCustomVarNames((prev) => { const next = new Set(prev); next.delete(name); return next; });
+  }, []);
 
   // Build display categories: use allVars for var names + VARIABLE_PALETTE for styling
   const displayCategories = Object.keys(allVars).map((label) => {
@@ -261,6 +271,15 @@ const commitNewVar = useCallback((catLabel: string) => {
                         >
                           {'{{' + name + '}}'}
                         </span>
+                        {customVarNames.has(name) && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteVariable(cat.label, name); }}
+                            className="ml-auto opacity-0 group-hover:opacity-100 p-0.5 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
+                            title="Supprimer"
+                          >
+                            <Minus size={9} />
+                          </button>
+                        )}
                       </div>
                     ))}
                     {addingTo === cat.label && (

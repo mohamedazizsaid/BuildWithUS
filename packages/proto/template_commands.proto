@@ -128,6 +128,15 @@ message AddTenantVariableResponse {
   bool success = 1;
 }
 
+message DeleteTenantVariableRequest {
+  string tenant_id = 1;
+  string name = 2;
+}
+
+message DeleteTenantVariableResponse {
+  bool success = 1;
+}
+
 // Template Command Service - Write operations (CQRS)
 service TemplateCommandService {
   rpc CreateTemplate (CreateTemplateRequest) returns (CreateTemplateResponse);
@@ -137,4 +146,5 @@ service TemplateCommandService {
   rpc ToggleFavorite (ToggleFavoriteRequest) returns (ToggleFavoriteResponse);
   rpc UpdateTenantVariables (UpdateTenantVariablesRequest) returns (UpdateTenantVariablesResponse);
   rpc AddTenantVariable (AddTenantVariableRequest) returns (AddTenantVariableResponse);
+  rpc DeleteTenantVariable (DeleteTenantVariableRequest) returns (DeleteTenantVariableResponse);
 }

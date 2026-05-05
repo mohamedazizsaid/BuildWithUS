@@ -69,6 +69,7 @@ message GetTenantVariablesRequest {
 
 message TenantVariablesResponse {
   string custom_variables_json = 1;
+  string custom_names_json = 2;
 }
 
 // Template Query Service - Read operations (CQRS)

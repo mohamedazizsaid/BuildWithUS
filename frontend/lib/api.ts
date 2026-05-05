@@ -84,11 +84,14 @@ export const templates = {
 
 // ─── Tenant Custom Variables ───
 export const contractVariables = {
-    get: (): Promise<Record<string, string[]>> =>
+    get: (): Promise<{ variables: Record<string, string[]>; customNames: string[] }> =>
         request('/templates/settings/custom-variables'),
 
     add: (variable: { category: string; name: string }): Promise<{ success: boolean }> =>
         request('/templates/settings/custom-variables', { method: 'POST', body: JSON.stringify(variable) }),
+
+    remove: (name: string): Promise<{ success: boolean }> =>
+        request(`/templates/settings/custom-variables/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
 // ─── Media ───

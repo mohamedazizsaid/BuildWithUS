@@ -19,6 +19,7 @@ import {
   ToggleFavoriteHandler,
   UpdateTenantVariablesHandler,
   AddTenantVariableHandler,
+  DeleteTenantVariableHandler,
 } from './application/commands/handlers/index.js';
 
 // Query Handlers
@@ -54,6 +55,7 @@ const CommandHandlers = [
   ToggleFavoriteHandler,
   UpdateTenantVariablesHandler,
   AddTenantVariableHandler,
+  DeleteTenantVariableHandler,
 ];
 
 // Query Handlers array

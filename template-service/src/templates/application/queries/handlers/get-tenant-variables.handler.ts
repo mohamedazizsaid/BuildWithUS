@@ -34,6 +34,11 @@ export class GetTenantVariablesHandler implements IQueryHandler<GetTenantVariabl
       grouped[row.category].push(row.name);
     }
 
-    return { custom_variables_json: JSON.stringify(grouped) } as any;
+    const customNames = rows.filter(r => r.isCustom).map(r => r.name);
+
+    return {
+      custom_variables_json: JSON.stringify(grouped),
+      custom_names_json: JSON.stringify(customNames),
+    } as any;
   }
 }

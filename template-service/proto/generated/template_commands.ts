@@ -993,6 +993,15 @@ export interface AddTenantVariableResponse {
   success: boolean;
 }
 
+export interface DeleteTenantVariableRequest {
+  tenantId: string;
+  name: string;
+}
+
+export interface DeleteTenantVariableResponse {
+  success: boolean;
+}
+
 function createBaseAddTenantVariableRequest(): AddTenantVariableRequest {
   return { tenantId: "", category: "", name: "" };
 }
@@ -1047,6 +1056,58 @@ export const AddTenantVariableResponse: MessageFns<AddTenantVariableResponse> = 
   },
 };
 
+function createBaseDeleteTenantVariableRequest(): DeleteTenantVariableRequest {
+  return { tenantId: "", name: "" };
+}
+
+export const DeleteTenantVariableRequest: MessageFns<DeleteTenantVariableRequest> = {
+  encode(message: DeleteTenantVariableRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.tenantId !== "") { writer.uint32(10).string(message.tenantId); }
+    if (message.name !== "") { writer.uint32(18).string(message.name); }
+    return writer;
+  },
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteTenantVariableRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteTenantVariableRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: { if (tag !== 10) { break; } message.tenantId = reader.string(); continue; }
+        case 2: { if (tag !== 18) { break; } message.name = reader.string(); continue; }
+      }
+      if ((tag & 7) === 4 || tag === 0) { break; }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+};
+
+function createBaseDeleteTenantVariableResponse(): DeleteTenantVariableResponse {
+  return { success: false };
+}
+
+export const DeleteTenantVariableResponse: MessageFns<DeleteTenantVariableResponse> = {
+  encode(message: DeleteTenantVariableResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.success !== false) { writer.uint32(8).bool(message.success); }
+    return writer;
+  },
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteTenantVariableResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteTenantVariableResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: { if (tag !== 8) { break; } message.success = reader.bool(); continue; }
+      }
+      if ((tag & 7) === 4 || tag === 0) { break; }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+};
+
 /**
  * Template Command Service - Write operations (CQRS)
  *
@@ -1073,6 +1134,10 @@ export interface TemplateCommandServiceClient {
   /** Add a single tenant custom variable */
 
   addTenantVariable(request: AddTenantVariableRequest, metadata: Metadata, ...rest: any): Observable<AddTenantVariableResponse>;
+
+  /** Delete a single tenant custom variable */
+
+  deleteTenantVariable(request: DeleteTenantVariableRequest, metadata: Metadata, ...rest: any): Observable<DeleteTenantVariableResponse>;
 }
 
 /**
@@ -1121,11 +1186,19 @@ export interface TemplateCommandServiceController {
     metadata: Metadata,
     ...rest: any
   ): Promise<AddTenantVariableResponse> | Observable<AddTenantVariableResponse> | AddTenantVariableResponse;
+
+  /** Delete a single tenant custom variable */
+
+  deleteTenantVariable(
+    request: DeleteTenantVariableRequest,
+    metadata: Metadata,
+    ...rest: any
+  ): Promise<DeleteTenantVariableResponse> | Observable<DeleteTenantVariableResponse> | DeleteTenantVariableResponse;
 }
 
 export function TemplateCommandServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["createTemplate", "updateTemplate", "deleteTemplate", "updateTenantVariables", "addTenantVariable"];
+    const grpcMethods: string[] = ["createTemplate", "updateTemplate", "deleteTemplate", "updateTenantVariables", "addTenantVariable", "deleteTenantVariable"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("TemplateCommandService", method)(constructor.prototype[method], method, descriptor);
@@ -1277,6 +1350,18 @@ export const TemplateCommandServiceService = {
       Buffer.from(AddTenantVariableResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): AddTenantVariableResponse => AddTenantVariableResponse.decode(value),
   },
+  /** Delete a single tenant custom variable */
+  deleteTenantVariable: {
+    path: "/templates.commands.TemplateCommandService/DeleteTenantVariable",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: DeleteTenantVariableRequest): Buffer =>
+      Buffer.from(DeleteTenantVariableRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): DeleteTenantVariableRequest => DeleteTenantVariableRequest.decode(value),
+    responseSerialize: (value: DeleteTenantVariableResponse): Buffer =>
+      Buffer.from(DeleteTenantVariableResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): DeleteTenantVariableResponse => DeleteTenantVariableResponse.decode(value),
+  },
 } as const;
 
 export interface TemplateCommandServiceServer extends UntypedServiceImplementation {
@@ -1290,6 +1375,8 @@ export interface TemplateCommandServiceServer extends UntypedServiceImplementati
   updateTenantVariables: handleUnaryCall<UpdateTenantVariablesRequest, UpdateTenantVariablesResponse>;
   /** Add a single tenant custom variable */
   addTenantVariable: handleUnaryCall<AddTenantVariableRequest, AddTenantVariableResponse>;
+  /** Delete a single tenant custom variable */
+  deleteTenantVariable: handleUnaryCall<DeleteTenantVariableRequest, DeleteTenantVariableResponse>;
 }
 
 function longToNumber(int64: { toString(): string }): number {

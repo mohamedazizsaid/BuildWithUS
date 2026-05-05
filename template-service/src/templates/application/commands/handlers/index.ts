@@ -5,3 +5,4 @@ export { DeleteTemplateHandler } from './delete-template.handler.js';
 export { DuplicateTemplateHandler } from './duplicate-template.handler.js';
 export { ToggleFavoriteHandler } from './toggle-favorite.handler.js';
 export { AddTenantVariableHandler } from './add-tenant-variable.handler.js';
+export { DeleteTenantVariableHandler } from './delete-tenant-variable.handler.js';

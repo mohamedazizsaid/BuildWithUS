@@ -332,7 +332,12 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
       this.queryService.GetTenantVariables({ tenant_id: req.user.tenant_id }),
     );
     const json = result?.custom_variables_json || result?.customVariablesJson || '{}';
-    try { return JSON.parse(json); } catch { return {}; }
+    const namesJson = result?.custom_names_json || result?.customNamesJson || '[]';
+    try {
+      return { variables: JSON.parse(json), customNames: JSON.parse(namesJson) };
+    } catch {
+      return { variables: {}, customNames: [] };
+    }
   }
 
   @Post("settings/custom-variables")
@@ -343,6 +348,18 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
         tenant_id: req.user.tenant_id,
         category: body.category,
         name: body.name,
+      }),
+    );
+    return { success: true };
+  }
+
+  @Delete("settings/custom-variables/:name")
+  @Roles("admin", "editor", "super_admin")
+  async deleteCustomVariable(@Req() req: any, @Param("name") name: string) {
+    await firstValueFrom(
+      this.commandService.DeleteTenantVariable({
+        tenant_id: req.user.tenant_id,
+        name,
       }),
     );
     return { success: true };

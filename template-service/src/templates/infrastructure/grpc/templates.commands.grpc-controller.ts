@@ -15,6 +15,8 @@ import {
   UpdateTenantVariablesResponse,
   AddTenantVariableRequest,
   AddTenantVariableResponse,
+  DeleteTenantVariableRequest,
+  DeleteTenantVariableResponse,
 } from 'proto/generated/template_commands';
 import {
   CreateTemplateCommand,
@@ -25,6 +27,7 @@ import {
 } from '../../application/commands/index.js';
 import { UpdateTenantVariablesCommand } from '../../application/commands/update-tenant-variables.command.js';
 import { AddTenantVariableCommand } from '../../application/commands/add-tenant-variable.command.js';
+import { DeleteTenantVariableCommand } from '../../application/commands/delete-tenant-variable.command.js';
 import { Template } from '../../domain/entities/template.aggregate.js';
 import { TemplateGrpcMapper } from './template.grpc-mapper.js';
 
@@ -141,6 +144,16 @@ export class TemplatesCommandsGrpcController implements TemplateCommandServiceCo
     const name = (request as any).name || '';
     const command = new AddTenantVariableCommand(tenantId, category, name);
     return this.commandBus.execute<AddTenantVariableCommand, AddTenantVariableResponse>(command);
+  }
+
+  /**
+   * Delete a single tenant custom variable
+   */
+  async deleteTenantVariable(request: DeleteTenantVariableRequest): Promise<DeleteTenantVariableResponse> {
+    const tenantId = (request as any).tenantId || (request as any).tenant_id || '';
+    const name = (request as any).name || '';
+    const command = new DeleteTenantVariableCommand(tenantId, name);
+    return this.commandBus.execute<DeleteTenantVariableCommand, DeleteTenantVariableResponse>(command);
   }
 
   /**
