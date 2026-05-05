@@ -4,29 +4,102 @@ import { useRef, useState } from 'react'
 import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewWrapper, NodeViewContent, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
+import { useVarLabels } from './var-labels-context'
 
 // ─── Inline variable chip used inside the header ─────────────────────────────
 
-function VarChip({ name, small }: { name: string; small?: boolean }) {
-  if (!name) return null
+function VarChip({
+  name,
+  attrKey,
+  onClear,
+  small,
+}: {
+  name: string
+  attrKey?: string
+  onClear?: () => void
+  small?: boolean
+}) {
+  const varLabels = useVarLabels()
+
+  if (!name) {
+    return (
+      <span
+        data-empty-slot={attrKey}
+        contentEditable={false}
+        title="Glissez une variable ici depuis le panneau"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          background: '#f8fafc',
+          color: '#94a3b8',
+          border: '1.5px dashed #cbd5e1',
+          borderRadius: '4px',
+          padding: small ? '0 6px' : '1px 8px',
+          fontSize: small ? '0.76em' : '0.80em',
+          fontStyle: 'italic',
+          userSelect: 'none',
+          whiteSpace: 'nowrap',
+          minWidth: '52px',
+          cursor: 'copy',
+        }}
+      >
+        + var.
+      </span>
+    )
+  }
+
+  const label =
+    varLabels[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
   return (
     <span
+      data-variable={name}
       contentEditable={false}
+      title={`{{${name}}} — déposez pour remplacer`}
       style={{
-        display: 'inline-block',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '2px',
         background: '#dbeafe',
         color: '#1d4ed8',
         border: '1px solid #bfdbfe',
         borderRadius: '4px',
-        padding: small ? '0 4px' : '0 5px',
-        fontSize: small ? '0.78em' : '0.82em',
+        padding: small ? '0 3px 0 5px' : '1px 3px 1px 6px',
+        fontSize: small ? '0.78em' : '0.80em',
         fontWeight: 600,
-        fontFamily: 'monospace',
         userSelect: 'none',
         whiteSpace: 'nowrap',
+        cursor: 'copy',
+        lineHeight: '1.6',
       }}
     >
-      {'{{' + name + '}}'}
+      {label}
+      {onClear && (
+        <button
+          contentEditable={false}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClear() }}
+          title="Retirer cette variable"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            background: 'rgba(29, 78, 216, 0.18)',
+            color: '#1d4ed8',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            fontSize: '9px',
+            fontWeight: 800,
+            lineHeight: 1,
+            flexShrink: 0,
+          }}
+        >
+          ×
+        </button>
+      )}
     </span>
   )
 }
@@ -156,15 +229,15 @@ function HeaderView({ node, updateAttributes }: Readonly<NodeViewProps>) {
         {/* Company info */}
         <div>
           <div style={{ fontSize: '13pt', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
-            <VarChip name={a.companyVar} />
+            <VarChip name={a.companyVar} attrKey="companyVar" onClear={() => updateAttributes({ companyVar: '' })} />
           </div>
           <div style={{ fontSize: '10pt', color: '#334155', marginTop: '4px' }}>
-            <VarChip name={a.addressVar} />
+            <VarChip name={a.addressVar} attrKey="addressVar" onClear={() => updateAttributes({ addressVar: '' })} />
           </div>
           <div style={{ fontSize: '8.5pt', color: '#94a3b8', marginTop: '4px' }}>
-            SIRET <VarChip name={a.siretVar} small />
+            SIRET <VarChip name={a.siretVar} attrKey="siretVar" small onClear={() => updateAttributes({ siretVar: '' })} />
             <span style={{ margin: '0 6px', color: '#cbd5e1' }}>|</span>
-            TVA <VarChip name={a.tvaVar} small />
+            TVA <VarChip name={a.tvaVar} attrKey="tvaVar" small onClear={() => updateAttributes({ tvaVar: '' })} />
           </div>
         </div>
 
@@ -179,12 +252,12 @@ function HeaderView({ node, updateAttributes }: Readonly<NodeViewProps>) {
           }}
         >
           <div style={{ fontSize: '9pt', fontWeight: 700, color: '#0f172a' }}>
-            N° <VarChip name={a.numberVar} small />
+            N° <VarChip name={a.numberVar} attrKey="numberVar" small onClear={() => updateAttributes({ numberVar: '' })} />
           </div>
           <div style={{ fontSize: '8.5pt', color: '#475569', marginTop: '4px' }}>
-            v<VarChip name={a.versionVar} small />
+            v<VarChip name={a.versionVar} attrKey="versionVar" small onClear={() => updateAttributes({ versionVar: '' })} />
             <span style={{ margin: '0 4px' }}>–</span>
-            <VarChip name={a.dateVar} small />
+            <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} />
           </div>
         </div>
       </div>

@@ -1,4 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core'
+import { ReactNodeViewRenderer } from '@tiptap/react'
+import { VariableNodeView } from './variable-node-view'
 
 export const VariableNode = Node.create({
   name: 'variable',
@@ -23,6 +25,10 @@ export const VariableNode = Node.create({
 
   parseHTML() {
     return [{ tag: 'span[data-variable]' }]
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(VariableNodeView)
   },
 
   renderHTML({ node, HTMLAttributes }) {

@@ -16,6 +16,7 @@ import {
 import { templates, contractVariables } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { VariableNode, extractVariablesFromTiptap, renderTiptapToHtml } from '@/lib/tiptap/variable-node';
+import { VarLabelsContext } from '@/lib/tiptap/var-labels-context';
 import { ContractHeader } from '@/lib/tiptap/contract-header';
 import { ALL_CONTRACT_BLOCKS } from '@/lib/tiptap/contract-blocks';
 import { CONTRACT_TEMPLATES, VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
@@ -287,7 +288,9 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, onAddVar,
                           e.dataTransfer.setData('variable-name', name);
                           e.dataTransfer.setData('variable-label', varLabels[name] ?? '');
                           e.dataTransfer.effectAllowed = 'copy';
+                          document.body.classList.add('dragging-variable');
                         }}
+                        onDragEnd={() => document.body.classList.remove('dragging-variable')}
                         onClick={() => insertVariable(name)}
                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-grab group"
                       >
@@ -476,6 +479,62 @@ function resolveBlock(editor: Editor, clientX: number, clientY: number, canvas: 
   } catch { return null; }
 }
 
+// ─── Replace-all variable mapping helper ─────────────────────────────────────
+
+function replaceAllVariableNodes(
+  editor: Editor,
+  oldName: string,
+  newName: string,
+  newLabel: string | null,
+) {
+  const { state } = editor;
+  const varType = state.schema.nodes.variable;
+  if (!varType) return 0;
+
+  // Collect inline variable node positions
+  const varPositions: Array<{ from: number; to: number }> = [];
+  // Collect block nodes whose attributes reference oldName
+  const attrUpdates: Array<{ pos: number; newAttrs: Record<string, unknown> }> = [];
+
+  state.doc.descendants((node, pos) => {
+    if (node.type === varType && node.attrs.name === oldName) {
+      varPositions.push({ from: pos, to: pos + node.nodeSize });
+      return false; // no children in atom nodes
+    }
+    // Check every string attribute for oldName
+    const attrs = node.attrs as Record<string, unknown>;
+    const updated: Record<string, unknown> = {};
+    let changed = false;
+    for (const [key, val] of Object.entries(attrs)) {
+      if (typeof val === 'string' && val === oldName) {
+        updated[key] = newName;
+        changed = true;
+      }
+    }
+    if (changed) attrUpdates.push({ pos, newAttrs: { ...attrs, ...updated } });
+  });
+
+  const total = varPositions.length + attrUpdates.length;
+  if (total === 0) return 0;
+
+  let tr = state.tr;
+
+  // Attribute updates first — no position shifts, safe in any order
+  for (const { pos, newAttrs } of attrUpdates) {
+    tr = tr.setNodeMarkup(pos, undefined, newAttrs);
+  }
+
+  // Variable node replacements in reverse so upstream positions stay valid
+  for (const { from, to } of [...varPositions].reverse()) {
+    const mFrom = tr.mapping.map(from);
+    const mTo   = tr.mapping.map(to);
+    tr = tr.replaceWith(mFrom, mTo, varType.create({ name: newName, label: newLabel }));
+  }
+
+  editor.view.dispatch(tr);
+  return total;
+}
+
 // ─── A4 Canvas ────────────────────────────────────────────────────────────────
 
 function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
@@ -600,6 +659,48 @@ function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
     const varName = e.dataTransfer.getData('variable-name');
     if (varName && editor) {
       const varLabel = e.dataTransfer.getData('variable-label') || null;
+
+      // ── Empty slot drop: fill a cleared block attribute ──────────────────
+      const emptySlotEl = (e.target as HTMLElement).closest('[data-empty-slot]') as HTMLElement | null;
+      if (emptySlotEl) {
+        const attrKey = emptySlotEl.getAttribute('data-empty-slot');
+        if (attrKey) {
+          const coordsPos = editor.view.posAtCoords({ left: e.clientX, top: e.clientY });
+          if (coordsPos) {
+            try {
+              const $pos = editor.state.doc.resolve(coordsPos.pos);
+              for (let d = $pos.depth; d >= 0; d--) {
+                const nodePos = d > 0 ? $pos.before(d) : 0;
+                const blockNode = editor.state.doc.nodeAt(nodePos);
+                if (blockNode?.attrs && attrKey in blockNode.attrs) {
+                  editor.view.dispatch(
+                    editor.state.tr.setNodeMarkup(nodePos, undefined, { ...blockNode.attrs, [attrKey]: varName }),
+                  );
+                  toast.success(`Variable "${varLabel ?? varName}" assignée`);
+                  break;
+                }
+              }
+            } catch { /* ignore */ }
+          }
+          return;
+        }
+      }
+
+      // Check if dropped ON an existing variable pill → replace-all mapping
+      const targetEl = (e.target as HTMLElement).closest('[data-variable]') as HTMLElement | null;
+      const targetVarName = targetEl?.getAttribute('data-variable') ?? null;
+
+      if (targetVarName && targetVarName !== varName) {
+        const count = replaceAllVariableNodes(editor, targetVarName, varName, varLabel);
+        if (count > 0) {
+          toast.success(
+            `"{{${targetVarName}}}" → "${varLabel ?? varName}" (${count} occurrence${count > 1 ? 's' : ''})`,
+          );
+        }
+        return;
+      }
+
+      // Normal drop: insert at cursor position
       const view = editor.view;
       const pos  = view.posAtCoords({ left: e.clientX, top: e.clientY });
       if (!pos) return;
@@ -1567,6 +1668,7 @@ function ContractEditorContent() {
       <EditorToolbar editor={editor} />
 
       {/* ── 3-panel body ── */}
+      <VarLabelsContext.Provider value={varLabels}>
       <div className="flex flex-1 overflow-hidden" onClick={() => setSlashMenu(null)}>
         <VariablePalette
           editor={editor}
@@ -1585,6 +1687,7 @@ function ContractEditorContent() {
           editor={editor}
         />
       </div>
+      </VarLabelsContext.Provider>
 
       {/* ── Slash command menu ── */}
       {slashMenu && (
@@ -1655,6 +1758,17 @@ function ContractEditorContent() {
         .contract-canvas .tiptap p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left; color: #adb5bd; pointer-events: none; height: 0;
+        }
+        /* Highlight variable pills as drop targets while dragging from sidebar */
+        .dragging-variable .contract-canvas [data-variable] {
+          outline: 2px dashed #f59e0b;
+          outline-offset: 2px;
+          cursor: copy;
+        }
+        .dragging-variable .contract-canvas [data-variable]:hover {
+          outline: 2px solid #f59e0b;
+          background: #fef3c7 !important;
+          color: #92400e !important;
         }
       `}</style>
     </div>

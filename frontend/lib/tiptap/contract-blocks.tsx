@@ -3,29 +3,102 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewWrapper, NodeViewContent, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
+import { useVarLabels } from './var-labels-context'
 
 // ─── Inline variable chip (used by atom NodeViews) ───────────────────────────
 
-function VarChip({ name, small }: { name: string; small?: boolean }) {
-  if (!name) return null
+function VarChip({
+  name,
+  attrKey,
+  onClear,
+  small,
+}: {
+  name: string
+  attrKey?: string
+  onClear?: () => void
+  small?: boolean
+}) {
+  const varLabels = useVarLabels()
+
+  if (!name) {
+    return (
+      <span
+        data-empty-slot={attrKey}
+        contentEditable={false}
+        title="Glissez une variable ici depuis le panneau"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          background: '#f8fafc',
+          color: '#94a3b8',
+          border: '1.5px dashed #cbd5e1',
+          borderRadius: '4px',
+          padding: small ? '0 6px' : '1px 8px',
+          fontSize: small ? '0.76em' : '0.80em',
+          fontStyle: 'italic',
+          userSelect: 'none',
+          whiteSpace: 'nowrap',
+          minWidth: '52px',
+          cursor: 'copy',
+        }}
+      >
+        + var.
+      </span>
+    )
+  }
+
+  const label =
+    varLabels[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
   return (
     <span
+      data-variable={name}
       contentEditable={false}
+      title={`{{${name}}} — déposez pour remplacer`}
       style={{
-        display: 'inline-block',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '2px',
         background: '#dbeafe',
         color: '#1d4ed8',
         border: '1px solid #bfdbfe',
         borderRadius: '4px',
-        padding: small ? '0 4px' : '0 5px',
-        fontSize: small ? '0.78em' : '0.82em',
+        padding: small ? '0 3px 0 5px' : '1px 3px 1px 6px',
+        fontSize: small ? '0.78em' : '0.80em',
         fontWeight: 600,
-        fontFamily: 'monospace',
         userSelect: 'none',
         whiteSpace: 'nowrap',
+        cursor: 'copy',
+        lineHeight: '1.6',
       }}
     >
-      {'{{' + name + '}}'}
+      {label}
+      {onClear && (
+        <button
+          contentEditable={false}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClear() }}
+          title="Retirer cette variable"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            background: 'rgba(29, 78, 216, 0.18)',
+            color: '#1d4ed8',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            fontSize: '9px',
+            fontWeight: 800,
+            lineHeight: 1,
+            flexShrink: 0,
+          }}
+        >
+          ×
+        </button>
+      )}
     </span>
   )
 }
@@ -34,7 +107,7 @@ function VarChip({ name, small }: { name: string; small?: boolean }) {
 // 1. FINANCIAL BLOCK — green-themed récapitulatif financier
 // ═════════════════════════════════════════════════════════════════════════════
 
-function FinancialView({ node }: NodeViewProps) {
+function FinancialView({ node, updateAttributes }: NodeViewProps) {
   const a = node.attrs as Record<string, string>
   return (
     <NodeViewWrapper>
@@ -43,25 +116,23 @@ function FinancialView({ node }: NodeViewProps) {
           {a.title || 'RÉCAPITULATIF FINANCIER'}
         </div>
         <div style={{ padding: '12px 14px', background: '#f0fdf4' }} contentEditable={false}>
-          {a.descriptionVar && (
-            <div style={{ fontSize: '9.5pt', color: '#065f46', marginBottom: '10px', fontWeight: 500 }}>
-              Prestation : <VarChip name={a.descriptionVar} small />
-            </div>
-          )}
+          <div style={{ fontSize: '9.5pt', color: '#065f46', marginBottom: '10px', fontWeight: 500 }}>
+            Prestation : <VarChip name={a.descriptionVar} attrKey="descriptionVar" small onClear={() => updateAttributes({ descriptionVar: '' })} />
+          </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt' }}>
             <tbody>
               <tr style={{ borderBottom: '1px solid #d1fae5' }}>
                 <td style={{ padding: '5px 0', color: '#475569' }}>Montant HT</td>
-                <td style={{ textAlign: 'right', fontWeight: 500 }}><VarChip name={a.htVar} small /> €</td>
+                <td style={{ textAlign: 'right', fontWeight: 500 }}><VarChip name={a.htVar} attrKey="htVar" small onClear={() => updateAttributes({ htVar: '' })} /> €</td>
               </tr>
               <tr style={{ borderBottom: '1px solid #d1fae5' }}>
-                <td style={{ padding: '5px 0', color: '#475569' }}>TVA (<VarChip name={a.rateVar} small />%)</td>
-                <td style={{ textAlign: 'right', fontWeight: 500 }}><VarChip name={a.tvaVar} small /> €</td>
+                <td style={{ padding: '5px 0', color: '#475569' }}>TVA (<VarChip name={a.rateVar} attrKey="rateVar" small onClear={() => updateAttributes({ rateVar: '' })} />%)</td>
+                <td style={{ textAlign: 'right', fontWeight: 500 }}><VarChip name={a.tvaVar} attrKey="tvaVar" small onClear={() => updateAttributes({ tvaVar: '' })} /> €</td>
               </tr>
               <tr>
                 <td style={{ padding: '8px 0', fontSize: '11pt', fontWeight: 800 }}>Total TTC</td>
                 <td style={{ textAlign: 'right', fontSize: '11pt', fontWeight: 800, color: '#059669' }}>
-                  <VarChip name={a.ttcVar} /> €
+                  <VarChip name={a.ttcVar} attrKey="ttcVar" onClear={() => updateAttributes({ ttcVar: '' })} /> €
                 </td>
               </tr>
             </tbody>
@@ -301,14 +372,14 @@ export const CheckboxBlock = Node.create({
 // 7. SIGNATURE BLOCK — N-column signature lines
 // ═════════════════════════════════════════════════════════════════════════════
 
-function SignatureView({ node }: NodeViewProps) {
+function SignatureView({ node, updateAttributes }: NodeViewProps) {
   const a = node.attrs as Record<string, string>
   const labels = (a.columns || 'Prestataire,Client').split(',').map((s) => s.trim()).filter(Boolean)
   return (
     <NodeViewWrapper>
       <div contentEditable={false} style={{ margin: '20px 0' }}>
         <div style={{ fontSize: '10pt', color: '#475569', marginBottom: '20px' }}>
-          Fait à <VarChip name={a.cityVar} small />, le <VarChip name={a.dateVar} small />.
+          Fait à <VarChip name={a.cityVar} attrKey="cityVar" small onClear={() => updateAttributes({ cityVar: '' })} />, le <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} />.
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           {labels.map((label) => (
@@ -353,7 +424,7 @@ export const SignatureBlock = Node.create({
 // 8. SEPA MANDATE BLOCK — dark-headed mandate with IBAN/BIC fields
 // ═════════════════════════════════════════════════════════════════════════════
 
-function SepaView({ node }: NodeViewProps) {
+function SepaView({ node, updateAttributes }: NodeViewProps) {
   const a = node.attrs as Record<string, string>
   return (
     <NodeViewWrapper>
@@ -363,14 +434,14 @@ function SepaView({ node }: NodeViewProps) {
         </div>
         <div style={{ padding: '12px', fontSize: '9.5pt', color: '#1e293b' }}>
           <p style={{ margin: '0 0 10px' }}>
-            En signant ce formulaire, vous autorisez <VarChip name={a.creditorVar} small /> à envoyer des instructions à votre banque pour débiter votre compte.
+            En signant ce formulaire, vous autorisez <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} /> à envoyer des instructions à votre banque pour débiter votre compte.
           </p>
           <div style={{ marginBottom: '6px' }}>
-            <strong>Créancier :</strong> <VarChip name={a.creditorVar} small />
+            <strong>Créancier :</strong> <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} />
             <span style={{ marginLeft: '20px' }}><strong>ICS :</strong> {a.ics || '___________'}</span>
           </div>
           <div style={{ marginBottom: '10px' }}>
-            <strong>Adresse :</strong> <VarChip name={a.addressVar} small />
+            <strong>Adresse :</strong> <VarChip name={a.addressVar} attrKey="addressVar" small onClear={() => updateAttributes({ addressVar: '' })} />
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <div style={{ flex: 1, border: '1px solid #cbd5e1', padding: '6px 8px', borderRadius: '4px' }}>
@@ -421,7 +492,7 @@ export const SepaBlock = Node.create({
 // 9. RETRACTATION FORM BLOCK — light-gray formal form
 // ═════════════════════════════════════════════════════════════════════════════
 
-function RetractView({ node }: NodeViewProps) {
+function RetractView({ node, updateAttributes }: NodeViewProps) {
   const a = node.attrs as Record<string, string>
   return (
     <NodeViewWrapper>
@@ -430,10 +501,10 @@ function RetractView({ node }: NodeViewProps) {
           Formulaire de rétractation
         </div>
         <p style={{ fontSize: '9pt', lineHeight: 1.7, color: '#475569', margin: '0 0 8px' }}>
-          Je soussigné(e) <VarChip name={a.firstNameVar} small /> <VarChip name={a.lastNameVar} small />, déclare renoncer au contrat conclu auprès de <VarChip name={a.creditorVar} small /> le <VarChip name={a.dateVar} small /> (N° contrat : <VarChip name={a.numberVar} small />).
+          Je soussigné(e) <VarChip name={a.firstNameVar} attrKey="firstNameVar" small onClear={() => updateAttributes({ firstNameVar: '' })} /> <VarChip name={a.lastNameVar} attrKey="lastNameVar" small onClear={() => updateAttributes({ lastNameVar: '' })} />, déclare renoncer au contrat conclu auprès de <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} /> le <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} /> (N° contrat : <VarChip name={a.numberVar} attrKey="numberVar" small onClear={() => updateAttributes({ numberVar: '' })} />).
         </p>
         <p style={{ fontSize: '8.5pt', color: '#94a3b8', margin: '0 0 8px' }}>
-          À renvoyer dans un délai de 14 jours par lettre recommandée avec AR à : <VarChip name={a.creditorVar} small /> — Service Rétractation — <VarChip name={a.addressVar} small />.
+          À renvoyer dans un délai de 14 jours par lettre recommandée avec AR à : <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} /> — Service Rétractation — <VarChip name={a.addressVar} attrKey="addressVar" small onClear={() => updateAttributes({ addressVar: '' })} />.
         </p>
         <div style={{ display: 'flex', gap: '12px', marginTop: '10px', fontSize: '9pt' }}>
           <span>Adresse : ____________</span>
