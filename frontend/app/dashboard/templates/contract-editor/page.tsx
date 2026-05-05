@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useCallback, useEffect, useRef } from 'react';
+import { Suspense, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -11,7 +11,7 @@ import {
   ArrowLeft, Save, Download, RefreshCw, ChevronDown, Plus,
   Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Minus, Undo, Redo, FileText, X, CheckCircle2,
-  GripVertical, Copy, Trash2 as TrashIcon,
+  GripVertical, Copy, Trash2 as TrashIcon, Upload, AlertTriangle,
 } from 'lucide-react';
 import { templates, contractVariables } from '@/lib/api';
 import { useAuth } from '@/context/auth';
@@ -33,6 +33,26 @@ const CONTRACT_TYPES: Record<ContractType, { label: string; color: string }> = {
   aop:        { label: "Appel d'Offre Public", color: 'bg-amber-50 text-amber-700 border-amber-200' },
   abonnement: { label: 'Abonnement / Télécom', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+type SlashMenuItem =
+  | { type: 'variable'; key: string; name: string; label: string; category: string }
+  | { type: 'block'; key: string; label: string; description: string; color: string; build: () => Record<string, unknown> };
+
+function parseCsvHeaders(text: string): string[] {
+  const line = text.split(/\r?\n/)[0] ?? '';
+  const headers: string[] = [];
+  let cur = '';
+  let inQ = false;
+  for (const ch of line) {
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { headers.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
+  }
+  if (cur.trim()) headers.push(cur.trim());
+  return headers.filter(Boolean);
+}
 
 // ─── Variable Palette ─────────────────────────────────────────────────────────
 
@@ -127,38 +147,23 @@ const BLOCK_LIBRARY: { type: string; label: string; description: string; color: 
   },
 ];
 
-function VariablePalette({ editor, tenantId }: { readonly editor: Editor | null; readonly tenantId: string }) {
+interface VariablePaletteProps {
+  editor: Editor | null;
+  allVars: Record<string, string[]>;
+  customVarNames: Set<string>;
+  varLabels: Record<string, string>;
+  onAddVar: (category: string, name: string) => void;
+  onDeleteVar: (category: string, name: string) => void;
+  onImportCsv: (headers: string[]) => void;
+}
+
+function VariablePalette({ editor, allVars, customVarNames, varLabels, onAddVar, onDeleteVar, onImportCsv }: VariablePaletteProps) {
   const [tab, setTab] = useState<'vars' | 'blocs'>('vars');
   const [open, setOpen] = useState<string | null>('Prestataire');
-  // allVars: ALL vars from DB (predefined + custom), grouped by category
-  const [allVars, setAllVars] = useState<Record<string, string[]>>({});
-  const [customVarNames, setCustomVarNames] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [newVarName, setNewVarName] = useState('');
   const newVarInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!tenantId) return;
-    contractVariables.get()
-      .then((data) => {
-        if (!data?.variables || Object.keys(data.variables).length === 0) {
-          const fallback: Record<string, string[]> = {};
-          VARIABLE_PALETTE.forEach(cat => { fallback[cat.label] = cat.vars.map(v => v.name); });
-          setAllVars(fallback);
-          setCustomVarNames(new Set());
-        } else {
-          setAllVars(data.variables);
-          setCustomVarNames(new Set(data.customNames ?? []));
-        }
-      })
-      .catch((err) => {
-        console.error('[VariablePalette] Failed to load variables:', err);
-        const fallback: Record<string, string[]> = {};
-        VARIABLE_PALETTE.forEach(cat => { fallback[cat.label] = cat.vars.map(v => v.name); });
-        setAllVars(fallback);
-        setCustomVarNames(new Set());
-      });
-  }, [tenantId]);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (addingTo) newVarInputRef.current?.focus();
@@ -166,32 +171,42 @@ function VariablePalette({ editor, tenantId }: { readonly editor: Editor | null;
 
   const insertVariable = useCallback((name: string) => {
     if (!editor) return;
-    editor.chain().focus().insertContent({ type: 'variable', attrs: { name } }).run();
-  }, [editor]);
+    editor.chain().focus().insertContent({
+      type: 'variable',
+      attrs: { name, label: varLabels[name] ?? null },
+    }).run();
+  }, [editor, varLabels]);
 
   const insertBlock = useCallback((build: () => Record<string, unknown>) => {
     if (!editor) return;
     editor.chain().focus().insertContent(build()).run();
   }, [editor]);
 
-const commitNewVar = useCallback((catLabel: string) => {
+  const commitNewVar = useCallback((catLabel: string) => {
     const name = newVarName.trim().replace(/\s+/g, '_');
     if (!name) { setAddingTo(null); setNewVarName(''); return; }
-    contractVariables.add({ category: catLabel, name })
-      .catch((err) => console.error('[VariablePalette] Failed to add variable:', err));
-    setAllVars((prev) => ({ ...prev, [catLabel]: [...(prev[catLabel] ?? []), name] }));
-    setCustomVarNames((prev) => new Set([...prev, name]));
+    onAddVar(catLabel, name);
     setOpen(catLabel);
     setAddingTo(null);
     setNewVarName('');
-  }, [newVarName]);
+  }, [newVarName, onAddVar]);
 
   const deleteVariable = useCallback((catLabel: string, name: string) => {
-    contractVariables.remove(name)
-      .catch((err) => console.error('[VariablePalette] Failed to delete variable:', err));
-    setAllVars((prev) => ({ ...prev, [catLabel]: (prev[catLabel] ?? []).filter(n => n !== name) }));
-    setCustomVarNames((prev) => { const next = new Set(prev); next.delete(name); return next; });
-  }, []);
+    onDeleteVar(catLabel, name);
+  }, [onDeleteVar]);
+
+  const handleCsvFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const headers = parseCsvHeaders(text);
+      if (headers.length > 0) onImportCsv(headers);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }, [onImportCsv]);
 
   // Build display categories: use allVars for var names + VARIABLE_PALETTE for styling
   const displayCategories = Object.keys(allVars).map((label) => {
@@ -227,11 +242,21 @@ const commitNewVar = useCallback((catLabel: string) => {
         </button>
       </div>
 
+      {/* CSV hidden input */}
+      <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleCsvFile} />
+
       {/* Tab content */}
       {tab === 'vars' && (
         <>
-          <div className="px-3 py-2 border-b border-border">
+          <div className="px-3 py-2 border-b border-border flex items-center justify-between gap-1">
             <p className="text-[10px] text-slate-400">Glissez ou cliquez pour insérer</p>
+            <button
+              onClick={() => csvInputRef.current?.click()}
+              title="Importer depuis CSV"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 transition-colors"
+            >
+              <Upload size={9} /> CSV
+            </button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
             {displayCategories.map((cat) => (
@@ -260,21 +285,24 @@ const commitNewVar = useCallback((catLabel: string) => {
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData('variable-name', name);
+                          e.dataTransfer.setData('variable-label', varLabels[name] ?? '');
                           e.dataTransfer.effectAllowed = 'copy';
                         }}
                         onClick={() => insertVariable(name)}
                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-grab group"
                       >
-                        <span
-                          className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono shrink-0"
-                          style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}` }}
-                        >
-                          {'{{' + name + '}}'}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span
+                            className="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0"
+                            style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}` }}
+                          >
+                            {varLabels[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                          </span>
+                        </div>
                         {customVarNames.has(name) && (
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteVariable(cat.label, name); }}
-                            className="ml-auto opacity-0 group-hover:opacity-100 p-0.5 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
                             title="Supprimer"
                           >
                             <Minus size={9} />
@@ -571,10 +599,11 @@ function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
     // Variable drop
     const varName = e.dataTransfer.getData('variable-name');
     if (varName && editor) {
+      const varLabel = e.dataTransfer.getData('variable-label') || null;
       const view = editor.view;
       const pos  = view.posAtCoords({ left: e.clientX, top: e.clientY });
       if (!pos) return;
-      const vNode = view.state.schema.nodes.variable?.create({ name: varName });
+      const vNode = view.state.schema.nodes.variable?.create({ name: varName, label: varLabel });
       if (!vNode) return;
       view.dispatch(view.state.tr.insert(pos.pos, vNode));
     }
@@ -1049,6 +1078,142 @@ function FillVariablesModal({
   );
 }
 
+// ─── Slash command menu ───────────────────────────────────────────────────────
+
+function SlashMenu({
+  query,
+  coords,
+  allVars,
+  varLabels,
+  onSelect,
+  onClose,
+}: {
+  query: string;
+  coords: { top: number; left: number };
+  allVars: Record<string, string[]>;
+  varLabels: Record<string, string>;
+  onSelect: (item: SlashMenuItem) => void;
+  onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(0);
+
+  const items = useMemo<SlashMenuItem[]>(() => {
+    const q = query.toLowerCase();
+    const varItems: SlashMenuItem[] = Object.entries(allVars)
+      .flatMap(([cat, names]) =>
+        names
+          .filter((n) => !q || n.includes(q) || (varLabels[n] ?? '').toLowerCase().includes(q) || cat.toLowerCase().includes(q))
+          .slice(0, 4)
+          .map((n) => ({
+            type: 'variable' as const,
+            key: `v:${n}`,
+            name: n,
+            label: varLabels[n] ?? n.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+            category: cat,
+          }))
+      )
+      .slice(0, 8);
+
+    const blockItems: SlashMenuItem[] = BLOCK_LIBRARY
+      .filter((b) => !q || b.label.toLowerCase().includes(q) || b.type.toLowerCase().includes(q))
+      .slice(0, 4)
+      .map((b) => ({
+        type: 'block' as const,
+        key: `b:${b.label}`,
+        label: b.label,
+        description: b.description,
+        color: b.color,
+        build: b.build,
+      }));
+
+    return [...varItems, ...blockItems];
+  }, [query, allVars, varLabels]);
+
+  useEffect(() => setIdx(0), [items]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setIdx((i) => Math.min(i + 1, items.length - 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (items[idx]) onSelect(items[idx]); }
+      else if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    };
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
+  }, [items, idx, onSelect, onClose]);
+
+  if (items.length === 0) return null;
+
+  const varSectionItems = items.filter((i) => i.type === 'variable');
+  const blockSectionItems = items.filter((i) => i.type === 'block');
+
+  return (
+    <div
+      style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 9999 }}
+      className="w-72 bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden"
+    >
+      <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold text-slate-500">Insérer…</span>
+        <span className="text-[10px] text-slate-400 ml-auto">↑↓ Naviguer · ↵ Insérer · Esc Fermer</span>
+      </div>
+      <div className="max-h-72 overflow-y-auto">
+        {varSectionItems.length > 0 && (
+          <>
+            <div className="px-3 py-1 bg-slate-50 border-b border-slate-100">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Variables</span>
+            </div>
+            {varSectionItems.map((item) => {
+              if (item.type !== 'variable') return null;
+              const cat = VARIABLE_PALETTE.find((c) => c.label === item.category);
+              const bg = cat?.bg ?? '#f1f5f9';
+              const color = cat?.color ?? '#334155';
+              const globalIdx = items.indexOf(item);
+              return (
+                <button
+                  key={item.key}
+                  onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
+                  onMouseEnter={() => setIdx(globalIdx)}
+                  className={`w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors ${globalIdx === idx ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
+                >
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: bg, color }}>
+                    {item.label}
+                  </span>
+                  <span className="text-[10px] text-slate-400">{item.category}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
+        {blockSectionItems.length > 0 && (
+          <>
+            <div className="px-3 py-1 bg-slate-50 border-b border-slate-100">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Blocs</span>
+            </div>
+            {blockSectionItems.map((item) => {
+              if (item.type !== 'block') return null;
+              const globalIdx = items.indexOf(item);
+              return (
+                <button
+                  key={item.key}
+                  onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
+                  onMouseEnter={() => setIdx(globalIdx)}
+                  className={`w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors ${globalIdx === idx ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
+                >
+                  <div className={`w-5 h-5 rounded shrink-0 ${item.color.split(' ')[0]}`} />
+                  <div>
+                    <div className="text-[11px] font-medium text-slate-800">{item.label}</div>
+                    <div className="text-[9px] text-slate-400">{item.description}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main editor ──────────────────────────────────────────────────────────────
 
 function ContractEditorContent() {
@@ -1068,6 +1233,73 @@ function ContractEditorContent() {
   const [showFillModal, setShowFillModal] = useState(false);
   const [modalVars, setModalVars] = useState<string[]>([]);
   const [pendingSwitch, setPendingSwitch] = useState<ContractType | null>(null);
+
+  // ── Variable data (lifted from VariablePalette) ──
+  const [allVars, setAllVars] = useState<Record<string, string[]>>({});
+  const [customVarNames, setCustomVarNames] = useState<Set<string>>(new Set());
+
+  const varLabels = useMemo<Record<string, string>>(() => {
+    const labels: Record<string, string> = {};
+    for (const cat of VARIABLE_PALETTE) {
+      for (const v of cat.vars) labels[v.name] = v.label;
+    }
+    for (const names of Object.values(allVars)) {
+      for (const name of names) {
+        if (!labels[name]) labels[name] = name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+    }
+    return labels;
+  }, [allVars]);
+
+  useEffect(() => {
+    if (!user?.tenant_id) return;
+    contractVariables.get()
+      .then((data) => {
+        if (!data?.variables || Object.keys(data.variables).length === 0) {
+          const fb: Record<string, string[]> = {};
+          VARIABLE_PALETTE.forEach((c) => { fb[c.label] = c.vars.map((v) => v.name); });
+          setAllVars(fb);
+          setCustomVarNames(new Set());
+        } else {
+          setAllVars(data.variables);
+          setCustomVarNames(new Set(data.customNames ?? []));
+        }
+      })
+      .catch(() => {
+        const fb: Record<string, string[]> = {};
+        VARIABLE_PALETTE.forEach((c) => { fb[c.label] = c.vars.map((v) => v.name); });
+        setAllVars(fb);
+        setCustomVarNames(new Set());
+      });
+  }, [user?.tenant_id]);
+
+  const handleAddVar = useCallback((catLabel: string, name: string) => {
+    contractVariables.add({ category: catLabel, name }).catch(console.error);
+    setAllVars((prev) => ({ ...prev, [catLabel]: [...(prev[catLabel] ?? []), name] }));
+    setCustomVarNames((prev) => new Set([...prev, name]));
+  }, []);
+
+  const handleDeleteVar = useCallback((catLabel: string, name: string) => {
+    contractVariables.remove(name).catch(console.error);
+    setAllVars((prev) => ({ ...prev, [catLabel]: (prev[catLabel] ?? []).filter((n) => n !== name) }));
+    setCustomVarNames((prev) => { const s = new Set(prev); s.delete(name); return s; });
+  }, []);
+
+  const handleImportCsv = useCallback((headers: string[]) => {
+    const category = 'Données CSV';
+    const names = headers.map((h) => h.trim().replace(/\s+/g, '_').toLowerCase()).filter(Boolean);
+    const unique = [...new Set(names)];
+    setAllVars((prev) => ({ ...prev, [category]: [...new Set([...(prev[category] ?? []), ...unique])] }));
+    setCustomVarNames((prev) => new Set([...prev, ...unique]));
+    unique.forEach((name) => contractVariables.add({ category, name }).catch(console.error));
+    toast.success(`${unique.length} variable(s) importée(s) depuis CSV`);
+  }, []);
+
+  // ── Slash + validation state (no editor dep yet — declared here so hooks order is stable) ──
+  const [slashMenu, setSlashMenu] = useState<{
+    query: string; from: number; coords: { top: number; left: number };
+  } | null>(null);
+  const [usedVars, setUsedVars] = useState<string[]>([]);
 
   const editor = useEditor({
     extensions: [
@@ -1117,6 +1349,52 @@ function ContractEditorContent() {
     editor.commands.setContent(tpl);
     setContractType(type);
   }, [editor]);
+
+  // ── Slash command detection (after editor is declared) ──
+  useEffect(() => {
+    if (!editor) return;
+    const detect = () => {
+      const { $from } = editor.state.selection;
+      const text = $from.parent.textBetween(0, $from.parentOffset);
+      const match = text.match(/\/([^/\n]*)$/);
+      if (match) {
+        const from = $from.pos - match[0].length;
+        try {
+          const c = editor.view.coordsAtPos($from.pos);
+          setSlashMenu({ query: match[1].toLowerCase(), from, coords: { top: c.bottom + 4, left: c.left } });
+        } catch { setSlashMenu(null); }
+      } else {
+        setSlashMenu(null);
+      }
+    };
+    editor.on('update', detect);
+    editor.on('selectionUpdate', detect);
+    return () => { editor.off('update', detect); editor.off('selectionUpdate', detect); };
+  }, [editor]);
+
+  const executeSlashItem = useCallback((item: SlashMenuItem) => {
+    if (!editor || !slashMenu) return;
+    const to = editor.state.selection.from;
+    editor.chain().focus().deleteRange({ from: slashMenu.from, to }).run();
+    if (item.type === 'variable') {
+      editor.chain().focus().insertContent({ type: 'variable', attrs: { name: item.name, label: varLabels[item.name] ?? null } }).run();
+    } else {
+      editor.chain().focus().insertContent(item.build()).run();
+    }
+    setSlashMenu(null);
+  }, [editor, slashMenu, varLabels]);
+
+  // ── Variable validation (after editor is declared) ──
+  useEffect(() => {
+    if (!editor) return;
+    const update = () => setUsedVars(extractVariablesFromTiptap(editor.getJSON() as Record<string, unknown>));
+    editor.on('update', update);
+    update();
+    return () => editor.off('update', update);
+  }, [editor]);
+
+  const allKnownVarNames = useMemo(() => new Set(Object.values(allVars).flat()), [allVars]);
+  const undefinedVars = useMemo(() => usedVars.filter((v) => !allKnownVarNames.has(v)), [usedVars, allKnownVarNames]);
 
   // Request type change — opens confirmation modal
   const requestSwitch = useCallback((type: ContractType) => {
@@ -1263,6 +1541,15 @@ function ContractEditorContent() {
         <span className="text-sm font-medium text-foreground/80 truncate max-w-xs">{name}</span>
 
         <div className="flex items-center gap-2">
+          {undefinedVars.length > 0 && (
+            <div
+              title={`Variables inconnues : ${undefinedVars.join(', ')}`}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-medium cursor-default"
+            >
+              <AlertTriangle size={11} />
+              <span>⚠ {undefinedVars.length} variable{undefinedVars.length > 1 ? 's' : ''} non définie{undefinedVars.length > 1 ? 's' : ''}</span>
+            </div>
+          )}
           <button onClick={handleSave} disabled={isSaving}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50">
             <Save size={13} /> {isSaving ? 'Enregistrement…' : isEditMode ? 'Mettre à jour' : 'Enregistrer'}
@@ -1280,8 +1567,16 @@ function ContractEditorContent() {
       <EditorToolbar editor={editor} />
 
       {/* ── 3-panel body ── */}
-      <div className="flex flex-1 overflow-hidden">
-        <VariablePalette editor={editor} tenantId={user?.tenant_id ?? ''} />
+      <div className="flex flex-1 overflow-hidden" onClick={() => setSlashMenu(null)}>
+        <VariablePalette
+          editor={editor}
+          allVars={allVars}
+          customVarNames={customVarNames}
+          varLabels={varLabels}
+          onAddVar={handleAddVar}
+          onDeleteVar={handleDeleteVar}
+          onImportCsv={handleImportCsv}
+        />
         <ContractCanvas editor={editor} />
         <RightPanel
           contractType={contractType}
@@ -1290,6 +1585,18 @@ function ContractEditorContent() {
           editor={editor}
         />
       </div>
+
+      {/* ── Slash command menu ── */}
+      {slashMenu && (
+        <SlashMenu
+          query={slashMenu.query}
+          coords={slashMenu.coords}
+          allVars={allVars}
+          varLabels={varLabels}
+          onSelect={executeSlashItem}
+          onClose={() => setSlashMenu(null)}
+        />
+      )}
 
       {/* ── Switch type confirmation modal ── */}
       {pendingSwitch && (

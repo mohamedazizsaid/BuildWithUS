@@ -13,6 +13,11 @@ export const VariableNode = Node.create({
         parseHTML: (el) => el.getAttribute('data-variable'),
         renderHTML: (attrs) => ({ 'data-variable': attrs.name }),
       },
+      label: {
+        default: null,
+        parseHTML: (el) => el.getAttribute('data-label') || null,
+        renderHTML: (attrs) => (attrs.label ? { 'data-label': attrs.label } : {}),
+      },
     }
   },
 
@@ -21,19 +26,24 @@ export const VariableNode = Node.create({
   },
 
   renderHTML({ node, HTMLAttributes }) {
+    const raw: string = node.attrs.name ?? ''
+    const display: string =
+      node.attrs.label ??
+      raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
     return [
       'span',
       mergeAttributes(HTMLAttributes, {
         style: [
-          'display:inline-block',
+          'display:inline-flex',
+          'align-items:center',
+          'gap:3px',
           'background:#dbeafe',
           'color:#1d4ed8',
           'border:1px solid #bfdbfe',
           'border-radius:4px',
-          'padding:0 5px',
-          'font-size:0.82em',
+          'padding:1px 6px',
+          'font-size:0.80em',
           'font-weight:600',
-          'font-family:monospace',
           'cursor:default',
           'user-select:none',
           'white-space:nowrap',
@@ -41,8 +51,9 @@ export const VariableNode = Node.create({
           '-webkit-user-select:none',
         ].join(';'),
         contenteditable: 'false',
+        title: `{{${raw}}}`,
       }),
-      `{{${node.attrs.name}}}`,
+      display,
     ]
   },
 })
