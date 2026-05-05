@@ -28,7 +28,7 @@ export const VariableNode = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(VariableNodeView)
+    return ReactNodeViewRenderer(VariableNodeView, { as: 'span' })
   },
 
   renderHTML({ node, HTMLAttributes }) {

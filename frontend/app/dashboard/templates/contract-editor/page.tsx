@@ -11,7 +11,7 @@ import {
   ArrowLeft, Save, Download, RefreshCw, ChevronDown, Plus,
   Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Minus, Undo, Redo, FileText, X, CheckCircle2,
-  GripVertical, Copy, Trash2 as TrashIcon, Upload, AlertTriangle,
+  GripVertical, Copy, Trash2 as TrashIcon, Upload, AlertTriangle, FileDown,
 } from 'lucide-react';
 import { templates, contractVariables } from '@/lib/api';
 import { useAuth } from '@/context/auth';
@@ -41,18 +41,62 @@ type SlashMenuItem =
   | { type: 'variable'; key: string; name: string; label: string; category: string }
   | { type: 'block'; key: string; label: string; description: string; color: string; build: () => Record<string, unknown> };
 
-function parseCsvHeaders(text: string): string[] {
-  const line = text.split(/\r?\n/)[0] ?? '';
-  const headers: string[] = [];
-  let cur = '';
-  let inQ = false;
-  for (const ch of line) {
-    if (ch === '"') { inQ = !inQ; }
-    else if (ch === ',' && !inQ) { headers.push(cur.trim()); cur = ''; }
-    else { cur += ch; }
-  }
-  if (cur.trim()) headers.push(cur.trim());
-  return headers.filter(Boolean);
+interface CsvDataset {
+  filename: string;
+  headers: string[];                   // slugified column names used as variable names
+  rows: Record<string, string>[];      // full data — one object per CSV row
+}
+
+function slugifyHeader(h: string): string {
+  return h
+    .replace(/^﻿/, '').replace(/^ï»¿/, '') // strip BOM if on a single header
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '') // remove any non-alphanumeric chars
+    .replace(/^_+|_+$/g, '');   // trim leading/trailing underscores
+}
+
+function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
+  // Strip UTF-8 BOM — appears as ﻿ (UTF-8) or ï»¿ (BOM mis-decoded as Latin-1)
+  const raw = text.replace(/^﻿/, '').replace(/^ï»¿/, '');
+  const lines = raw.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length === 0) return { headers: [], rows: [] };
+
+  // Auto-detect delimiter: pick the one that produces the most columns in the header row
+  const firstLine = lines[0];
+  const delimiters = [';', ',', '\t', '|'];
+  const delimiter = delimiters.reduce((best, d) =>
+    firstLine.split(d).length > firstLine.split(best).length ? d : best,
+    ','
+  );
+
+  const splitLine = (line: string): string[] => {
+    const result: string[] = [];
+    let cur = '';
+    let inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === delimiter && !inQ) { result.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    result.push(cur.trim());
+    return result;
+  };
+
+  const headers = splitLine(lines[0]).map(slugifyHeader).filter(Boolean);
+  if (headers.length === 0) return { headers: [], rows: [] };
+
+  const rows = lines.slice(1)
+    .map((line) => {
+      const values = splitLine(line);
+      const row: Record<string, string> = {};
+      headers.forEach((h, i) => { row[h] = values[i]?.trim() ?? ''; });
+      return row;
+    })
+    .filter((row) => Object.values(row).some((v) => v)); // skip fully empty rows
+
+  return { headers, rows };
 }
 
 // ─── Variable Palette ─────────────────────────────────────────────────────────
@@ -153,13 +197,15 @@ interface VariablePaletteProps {
   allVars: Record<string, string[]>;
   customVarNames: Set<string>;
   varLabels: Record<string, string>;
+  csvDatasets: CsvDataset[];
   onAddVar: (category: string, name: string) => void;
   onDeleteVar: (category: string, name: string) => void;
-  onImportCsv: (headers: string[]) => void;
+  onImportCsv: (filename: string, headers: string[], rows: Record<string, string>[]) => void;
+  onRemoveCsv: (filename: string) => void;
 }
 
-function VariablePalette({ editor, allVars, customVarNames, varLabels, onAddVar, onDeleteVar, onImportCsv }: VariablePaletteProps) {
-  const [tab, setTab] = useState<'vars' | 'blocs'>('vars');
+function VariablePalette({ editor, allVars, customVarNames, varLabels, csvDatasets, onAddVar, onDeleteVar, onImportCsv, onRemoveCsv }: VariablePaletteProps) {
+  const [tab, setTab] = useState<'vars' | 'blocs' | 'csv'>('vars');
   const [open, setOpen] = useState<string | null>('Prestataire');
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [newVarName, setNewVarName] = useState('');
@@ -199,13 +245,44 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, onAddVar,
   const handleCsvFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const headers = parseCsvHeaders(text);
-      if (headers.length > 0) onImportCsv(headers);
-    };
-    reader.readAsText(file);
+    const filename = file.name;
+    const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+    const isSpreadsheet = ['xlsx', 'xls', 'ods'].includes(ext);
+
+    if (isSpreadsheet) {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const XLSX = await import('xlsx');
+          const buffer = ev.target?.result as ArrayBuffer;
+          const wb = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const data = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1, defval: '' });
+          if (!data.length) return;
+          const rawHeaders = (data[0] as (string | number)[]).map(String);
+          const headers = rawHeaders.map(slugifyHeader).filter(Boolean);
+          const rows = data.slice(1).map((row) => {
+            const r: Record<string, string> = {};
+            headers.forEach((h, i) => { r[h] = String((row as (string | number)[])[i] ?? '').trim(); });
+            return r;
+          }).filter((row) => Object.values(row).some((v) => v));
+          if (headers.length > 0) { onImportCsv(filename, headers, rows); setTab('csv'); }
+        } catch (err) {
+          console.error('[CSV import] Failed to parse spreadsheet:', err);
+          toast.error('Erreur lecture fichier — vérifiez le format');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        const { headers, rows } = parseCsv(text);
+        if (headers.length > 0) { onImportCsv(filename, headers, rows); setTab('csv'); }
+        else { toast.error('Aucune colonne détectée — vérifiez le séparateur'); }
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
     e.target.value = '';
   }, [onImportCsv]);
 
@@ -224,40 +301,31 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, onAddVar,
   return (
     <div className="w-56 border-r border-border bg-slate-50 flex flex-col overflow-hidden shrink-0">
       {/* Tabs */}
-      <div className="flex border-b border-border bg-white">
-        <button
-          onClick={() => setTab('vars')}
-          className={`flex-1 px-3 py-2.5 text-[11px] font-semibold transition-colors ${
-            tab === 'vars' ? 'text-slate-900 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
+      <div className="flex border-b border-border bg-white shrink-0">
+        <button onClick={() => setTab('vars')} className={`flex-1 px-2 py-2.5 text-[10px] font-semibold transition-colors ${tab === 'vars' ? 'text-slate-900 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-600'}`}>
           Variables
         </button>
-        <button
-          onClick={() => setTab('blocs')}
-          className={`flex-1 px-3 py-2.5 text-[11px] font-semibold transition-colors ${
-            tab === 'blocs' ? 'text-slate-900 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
+        <button onClick={() => setTab('blocs')} className={`flex-1 px-2 py-2.5 text-[10px] font-semibold transition-colors ${tab === 'blocs' ? 'text-slate-900 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-600'}`}>
           Blocs
+        </button>
+        <button onClick={() => setTab('csv')} className={`flex-1 px-2 py-2.5 text-[10px] font-semibold transition-colors relative ${tab === 'csv' ? 'text-slate-900 border-b-2 border-emerald-500' : 'text-slate-400 hover:text-slate-600'}`}>
+          CSV
+          {csvDatasets.length > 0 && (
+            <span className="absolute top-1.5 right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white text-[8px] font-bold flex items-center justify-center">
+              {csvDatasets.length}
+            </span>
+          )}
         </button>
       </div>
 
       {/* CSV hidden input */}
-      <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleCsvFile} />
+      <input ref={csvInputRef} type="file" accept=".csv,.xlsx,.xls,.ods,.tsv,.txt" className="hidden" onChange={handleCsvFile} />
 
-      {/* Tab content */}
+      {/* ── Variables tab ── */}
       {tab === 'vars' && (
         <>
-          <div className="px-3 py-2 border-b border-border flex items-center justify-between gap-1">
+          <div className="px-3 py-2 border-b border-border">
             <p className="text-[10px] text-slate-400">Glissez ou cliquez pour insérer</p>
-            <button
-              onClick={() => csvInputRef.current?.click()}
-              title="Importer depuis CSV"
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 transition-colors"
-            >
-              <Upload size={9} /> CSV
-            </button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
             {displayCategories.map((cat) => (
@@ -295,10 +363,7 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, onAddVar,
                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-grab group"
                       >
                         <div className="flex-1 min-w-0">
-                          <span
-                            className="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0"
-                            style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}` }}
-                          >
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0" style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}` }}>
                             {varLabels[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                           </span>
                         </div>
@@ -337,6 +402,7 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, onAddVar,
         </>
       )}
 
+      {/* ── Blocs tab ── */}
       {tab === 'blocs' && (
         <>
           <div className="px-3 py-2 border-b border-border">
@@ -344,15 +410,80 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, onAddVar,
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {BLOCK_LIBRARY.map((b, i) => (
-              <button
-                key={`${b.type}-${i}`}
-                onClick={() => insertBlock(b.build)}
-                className={`w-full text-left p-2.5 rounded-lg border transition-all hover:shadow-sm ${b.color}`}
-              >
+              <button key={`${b.type}-${i}`} onClick={() => insertBlock(b.build)} className={`w-full text-left p-2.5 rounded-lg border transition-all hover:shadow-sm ${b.color}`}>
                 <div className="text-[11px] font-semibold">{b.label}</div>
                 <div className="text-[10px] opacity-70 mt-0.5">{b.description}</div>
               </button>
             ))}
+          </div>
+        </>
+      )}
+
+      {/* ── CSV tab ── */}
+      {tab === 'csv' && (
+        <>
+          <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+            <p className="text-[10px] text-slate-400">{csvDatasets.length === 0 ? 'Aucun CSV importé' : `${csvDatasets.length} fichier(s)`}</p>
+            <button
+              onClick={() => csvInputRef.current?.click()}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border border-emerald-200 transition-colors"
+            >
+              <Upload size={9} /> Importer
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-3">
+            {csvDatasets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                <Upload size={20} className="text-slate-300" />
+                <p className="text-[10px] text-slate-400">Importez un fichier CSV<br />pour voir ses colonnes ici</p>
+                <button
+                  onClick={() => csvInputRef.current?.click()}
+                  className="mt-1 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold hover:bg-emerald-100 transition-colors"
+                >
+                  Choisir un CSV
+                </button>
+              </div>
+            ) : (
+              csvDatasets.map((ds) => (
+                <div key={ds.filename} className="rounded-lg border border-emerald-200 bg-white overflow-hidden">
+                  <div className="px-2.5 py-2 bg-emerald-50 border-b border-emerald-200 flex items-center gap-1.5">
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded shrink-0">CSV</span>
+                    <span className="text-[10px] font-semibold text-emerald-800 truncate flex-1" title={ds.filename}>
+                      {ds.filename.replace(/\.csv$/i, '')}
+                    </span>
+                    <span className="text-[9px] text-emerald-500 shrink-0">{ds.rows.length} lignes</span>
+                    <button
+                      onClick={() => onRemoveCsv(ds.filename)}
+                      title={`Supprimer "${ds.filename}" et retirer ses variables du document`}
+                      className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-emerald-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                  <div className="p-1.5 space-y-0.5">
+                    {ds.headers.map((name) => (
+                      <div
+                        key={name}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('variable-name', name);
+                          e.dataTransfer.setData('variable-label', varLabels[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+                          e.dataTransfer.effectAllowed = 'copy';
+                          document.body.classList.add('dragging-variable');
+                        }}
+                        onDragEnd={() => document.body.classList.remove('dragging-variable')}
+                        onClick={() => insertVariable(name)}
+                        className="w-full flex items-center px-2 py-1.5 rounded-md hover:bg-emerald-50 transition-all cursor-grab"
+                      >
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          {name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </>
       )}
@@ -1338,6 +1469,7 @@ function ContractEditorContent() {
   // ── Variable data (lifted from VariablePalette) ──
   const [allVars, setAllVars] = useState<Record<string, string[]>>({});
   const [customVarNames, setCustomVarNames] = useState<Set<string>>(new Set());
+  const [csvDatasets, setCsvDatasets] = useState<CsvDataset[]>([]);
 
   const varLabels = useMemo<Record<string, string>>(() => {
     const labels: Record<string, string> = {};
@@ -1349,8 +1481,13 @@ function ContractEditorContent() {
         if (!labels[name]) labels[name] = name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
       }
     }
+    for (const ds of csvDatasets) {
+      for (const name of ds.headers) {
+        if (!labels[name]) labels[name] = name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+    }
     return labels;
-  }, [allVars]);
+  }, [allVars, csvDatasets]);
 
   useEffect(() => {
     if (!user?.tenant_id) return;
@@ -1386,14 +1523,12 @@ function ContractEditorContent() {
     setCustomVarNames((prev) => { const s = new Set(prev); s.delete(name); return s; });
   }, []);
 
-  const handleImportCsv = useCallback((headers: string[]) => {
-    const category = 'Données CSV';
-    const names = headers.map((h) => h.trim().replace(/\s+/g, '_').toLowerCase()).filter(Boolean);
-    const unique = [...new Set(names)];
-    setAllVars((prev) => ({ ...prev, [category]: [...new Set([...(prev[category] ?? []), ...unique])] }));
-    setCustomVarNames((prev) => new Set([...prev, ...unique]));
-    unique.forEach((name) => contractVariables.add({ category, name }).catch(console.error));
-    toast.success(`${unique.length} variable(s) importée(s) depuis CSV`);
+  const handleImportCsv = useCallback((filename: string, headers: string[], rows: Record<string, string>[]) => {
+    setCsvDatasets((prev) => {
+      const filtered = prev.filter((d) => d.filename !== filename);
+      return [...filtered, { filename, headers, rows }];
+    });
+    toast.success(`"${filename}" importé : ${headers.length} colonne(s), ${rows.length} ligne(s)`);
   }, []);
 
   // ── Slash + validation state (no editor dep yet — declared here so hooks order is stable) ──
@@ -1451,6 +1586,52 @@ function ContractEditorContent() {
     setContractType(type);
   }, [editor]);
 
+  const handleRemoveCsv = useCallback((filename: string) => {
+    const ds = csvDatasets.find((d) => d.filename === filename);
+    if (!ds) return;
+
+    const headerSet = new Set(ds.headers);
+
+    if (editor) {
+      const { state } = editor;
+      const varType = state.schema.nodes.variable;
+      const toDelete: Array<{ from: number; to: number }> = [];
+      const attrsToClear: Array<{ pos: number; newAttrs: Record<string, unknown> }> = [];
+
+      state.doc.descendants((node, pos) => {
+        if (varType && node.type === varType && headerSet.has(node.attrs.name)) {
+          toDelete.push({ from: pos, to: pos + node.nodeSize });
+          return false;
+        }
+        const attrs = node.attrs as Record<string, unknown>;
+        const updated: Record<string, unknown> = {};
+        let changed = false;
+        for (const [key, val] of Object.entries(attrs)) {
+          if (typeof val === 'string' && headerSet.has(val)) { updated[key] = ''; changed = true; }
+        }
+        if (changed) attrsToClear.push({ pos, newAttrs: { ...attrs, ...updated } });
+      });
+
+      if (toDelete.length > 0 || attrsToClear.length > 0) {
+        let tr = state.tr;
+        for (const { pos, newAttrs } of attrsToClear) {
+          tr = tr.setNodeMarkup(pos, undefined, newAttrs);
+        }
+        for (const { from, to } of [...toDelete].reverse()) {
+          tr = tr.delete(tr.mapping.map(from), tr.mapping.map(to));
+        }
+        editor.view.dispatch(tr);
+        toast.success(`"${filename}" supprimé — ${toDelete.length + attrsToClear.length} variable(s) retirée(s) du document`);
+      } else {
+        toast.success(`"${filename}" supprimé`);
+      }
+    } else {
+      toast.success(`"${filename}" supprimé`);
+    }
+
+    setCsvDatasets((prev) => prev.filter((d) => d.filename !== filename));
+  }, [csvDatasets, editor]);
+
   // ── Slash command detection (after editor is declared) ──
   useEffect(() => {
     if (!editor) return;
@@ -1494,7 +1675,11 @@ function ContractEditorContent() {
     return () => editor.off('update', update);
   }, [editor]);
 
-  const allKnownVarNames = useMemo(() => new Set(Object.values(allVars).flat()), [allVars]);
+  const allKnownVarNames = useMemo(() => {
+    const s = new Set(Object.values(allVars).flat());
+    csvDatasets.forEach((d) => d.headers.forEach((h) => s.add(h)));
+    return s;
+  }, [allVars, csvDatasets]);
   const undefinedVars = useMemo(() => usedVars.filter((v) => !allKnownVarNames.has(v)), [usedVars, allKnownVarNames]);
 
   // Request type change — opens confirmation modal
@@ -1606,6 +1791,54 @@ function ContractEditorContent() {
     }
   }, [editor, name, persistTemplate, isEditMode, router]);
 
+  // ── Batch CSV → PDFs (one PDF per CSV row) ──
+  const handleBatchCsvPdf = useCallback(async () => {
+    if (!editor || csvDatasets.length === 0) {
+      toast.error('Importez d\'abord un CSV depuis le panneau de gauche');
+      return;
+    }
+    const dataset = csvDatasets[csvDatasets.length - 1]; // most recently imported
+    const { rows, filename } = dataset;
+    if (rows.length === 0) { toast.error('Le CSV ne contient aucune ligne de données'); return; }
+
+    const baseName = filename.replace(/\.csv$/i, '');
+    setIsGenerating(true);
+    const toastId = toast.loading(`Génération de ${rows.length} PDF(s)…`);
+    const docJson = editor.getJSON() as Record<string, unknown>;
+
+    let success = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const html = renderTiptapToHtml(docJson, rows[i]);
+      try {
+        const res = await fetch('http://localhost:3000/templates/render-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ html, name: `${baseName}_${i + 1}` }),
+        });
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${baseName}_${i + 1}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        success++;
+        toast.loading(`Génération… ${i + 1}/${rows.length}`, { id: toastId });
+        // Small pause so the browser doesn't block multiple downloads
+        if (i < rows.length - 1) await new Promise((r) => setTimeout(r, 250));
+      } catch { /* skip failed row */ }
+    }
+
+    setIsGenerating(false);
+    if (success === rows.length) {
+      toast.success(`${success} PDF(s) générés depuis "${filename}"`, { id: toastId });
+    } else {
+      toast.error(`${success}/${rows.length} PDF(s) générés (échecs sur certaines lignes)`, { id: toastId });
+    }
+  }, [editor, csvDatasets]);
+
   const typeConfig = CONTRACT_TYPES[contractType];
 
   return (
@@ -1655,6 +1888,19 @@ function ContractEditorContent() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50">
             <Save size={13} /> {isSaving ? 'Enregistrement…' : isEditMode ? 'Mettre à jour' : 'Enregistrer'}
           </button>
+          {csvDatasets.length > 0 && (
+            <button
+              onClick={handleBatchCsvPdf}
+              disabled={isGenerating}
+              title={`Générer un PDF par ligne de ${csvDatasets[csvDatasets.length - 1].filename} (${csvDatasets[csvDatasets.length - 1].rows.length} lignes)`}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-40"
+            >
+              <FileDown size={13} /> CSV → PDF
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-700/40 text-[10px]">
+                {csvDatasets[csvDatasets.length - 1].rows.length}
+              </span>
+            </button>
+          )}
           <button onClick={handleGenerate} disabled={isGenerating}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-40">
             {isGenerating
@@ -1675,9 +1921,11 @@ function ContractEditorContent() {
           allVars={allVars}
           customVarNames={customVarNames}
           varLabels={varLabels}
+          csvDatasets={csvDatasets}
           onAddVar={handleAddVar}
           onDeleteVar={handleDeleteVar}
           onImportCsv={handleImportCsv}
+          onRemoveCsv={handleRemoveCsv}
         />
         <ContractCanvas editor={editor} />
         <RightPanel
