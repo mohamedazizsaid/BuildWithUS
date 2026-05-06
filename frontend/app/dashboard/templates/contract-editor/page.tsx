@@ -25,7 +25,7 @@ import type { JSONContent, Editor } from '@tiptap/react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ContractType = 'b2c' | 'b2b' | 'web' | 'abonnement' | 'aop';
+type ContractType = 'b2c' | 'b2b' | 'web' | 'abonnement' | 'aop' | 'blank';
 
 const CONTRACT_TYPES: Record<ContractType, { label: string; color: string }> = {
   b2c:        { label: 'B2C — Particulier',    color: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -33,6 +33,7 @@ const CONTRACT_TYPES: Record<ContractType, { label: string; color: string }> = {
   web:        { label: 'Web / E-commerce',     color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   aop:        { label: "Appel d'Offre Public", color: 'bg-amber-50 text-amber-700 border-amber-200' },
   abonnement: { label: 'Abonnement / Télécom', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+  blank:      { label: 'Page blanche',         color: 'bg-slate-50 text-slate-600 border-slate-200' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -103,6 +104,20 @@ function parseCsv(text: string): { headers: string[]; rows: Record<string, strin
 
 // Block library — predefined contract block types insertable at the cursor.
 const BLOCK_LIBRARY: { type: string; label: string; description: string; color: string; build: () => Record<string, unknown> }[] = [
+  {
+    type: 'contractHeader', label: 'En-tête contrat',
+    description: 'Logo, société, référence, titre',
+    color: 'bg-slate-800 text-slate-100 border-slate-600',
+    build: () => ({
+      type: 'contractHeader',
+      attrs: {
+        logoUrl: '', companyVar: 'prestataire_nom', addressVar: 'prestataire_adresse',
+        siretVar: 'prestataire_siret', tvaVar: 'prestataire_tva',
+        numberVar: 'numero_contrat', versionVar: 'version_contrat', dateVar: 'date_contrat',
+      },
+      content: [{ type: 'text', text: 'CONTRAT DE PRESTATION DE SERVICES' }],
+    }),
+  },
   {
     type: 'financialBlock', label: 'Récapitulatif financier',
     description: 'Tableau HT / TVA / TTC',
@@ -569,6 +584,7 @@ interface BlockMeta {
   label: string; nodeType: string;
   from: number;  to: number;
   top: number;   height: number;
+  left: number;  right: number;
 }
 
 function resolveBlock(editor: Editor, clientX: number, clientY: number, canvas: HTMLDivElement): BlockMeta | null {
@@ -592,9 +608,18 @@ function resolveBlock(editor: Editor, clientX: number, clientY: number, canvas: 
     if (childIndex < 0) return null;
 
     const from = editor.view.posAtDOM(tiptap, childIndex);
-    if (from < 0 || from >= editor.state.doc.content.size) return null;
+    if (from < 0) return null;
 
-    const node = editor.state.doc.nodeAt(from);
+    // nodeAt(from) can be null for atom/leaf block nodes (e.g. horizontalRule)
+    // when `from` lands inside the node rather than at its start. Resolve via
+    // the document tree to get the actual top-level node position.
+    let node = editor.state.doc.nodeAt(from);
+    let nodeFrom = from;
+    if (!node) {
+      const $pos = editor.state.doc.resolve(Math.min(from, editor.state.doc.content.size));
+      nodeFrom = $pos.before(1);
+      node = editor.state.doc.nodeAt(nodeFrom);
+    }
     if (!node) return null;
 
     const canvasRect = canvas.getBoundingClientRect();
@@ -602,10 +627,12 @@ function resolveBlock(editor: Editor, clientX: number, clientY: number, canvas: 
     return {
       label:    BLOCK_LABELS[node.type.name] ?? 'Bloc',
       nodeType: node.type.name,
-      from,
-      to:     from + node.nodeSize,  // always fresh from current node size
-      top:    elRect.top - canvasRect.top,
+      from:   nodeFrom,
+      to:     nodeFrom + node.nodeSize,
+      top:    elRect.top   - canvasRect.top,
       height: elRect.height,
+      left:   elRect.left  - canvasRect.left,
+      right:  canvasRect.right - elRect.right,
     };
   } catch { return null; }
 }
@@ -706,7 +733,13 @@ function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
         if (!el || !canvasRef.current) return;
         const canvasRect = canvasRef.current.getBoundingClientRect();
         const elRect     = el.getBoundingClientRect();
-        setSelected((prev) => prev ? { ...prev, top: elRect.top - canvasRect.top, height: elRect.height } : null);
+        setSelected((prev) => prev ? {
+          ...prev,
+          top:    elRect.top   - canvasRect.top,
+          height: elRect.height,
+          left:   elRect.left  - canvasRect.left,
+          right:  canvasRect.right - elRect.right,
+        } : null);
       } catch { /* ignore if position no longer exists */ }
     };
     editor.on('update', update);
@@ -740,11 +773,11 @@ function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
     if (!editor || !selected) return;
     const node = editor.state.doc.nodeAt(selected.from);
     if (!node) return;
-    // Insert right after the block using the live node size (not the stale to)
     const insertAt = selected.from + node.nodeSize;
     if (insertAt > editor.state.doc.content.size) return;
     try { editor.chain().focus().insertContentAt(insertAt, node.toJSON()).run(); }
     catch { /* ignore non-duplicable nodes */ }
+    setSelected(null);
   }, [editor, selected]);
 
   const onGripDragStart = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -850,7 +883,6 @@ function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
       className="flex-1 overflow-y-auto bg-slate-100 p-8"
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
-      // Clear selection when clicking the gray background outside the canvas
       onClick={(e) => { if (e.target === scrollRef.current) clearSelection(); }}
     >
       <div
@@ -860,130 +892,125 @@ function ContractCanvas({ editor }: { readonly editor: Editor | null }) {
         onClick={onClick}
         className="bg-white shadow-sm mx-auto contract-canvas"
         style={{
-          position: 'relative',
-          width: '210mm',
-          minHeight: '297mm',
-          padding: '18mm 22mm',
+          position:   'relative',
+          width:      '210mm',
+          minHeight:  '297mm',
+          padding:    '18mm 22mm',
           fontFamily: 'Arial, sans-serif',
-          color: '#1a1a1a',
-          fontSize: '10pt',
+          color:      '#1a1a1a',
+          fontSize:   '10pt',
           lineHeight: '1.75',
         }}
       >
         {editor && <EditorContent editor={editor} />}
 
         {/* ── Block overlay: outline + label tab + controls ── */}
-        {active && (
-          <div
-            style={{
-              position:      'absolute',
-              top:           active.top,
-              left:          0,
-              right:         0,
-              height:        active.height,
-              pointerEvents: 'none',
-              zIndex:        40,
-            }}
-          >
-            {/* Outline ring — dashed on hover, solid on select */}
-            <div style={{
-              position: 'absolute', inset: 0,
-              outline:  isSelected ? '2px solid #3b82f6' : '2px dashed #93c5fd',
-              outlineOffset: '-2px',
-              borderRadius: 2,
-              transition: 'outline 80ms',
-            }} />
-
-            {/* Label tab at top-left (like email editor "Section" tab) */}
+          {active && (
             <div
               style={{
-                position:   'absolute',
-                top:        -20,
-                left:       0,
-                height:     20,
-                display:    'flex',
-                alignItems: 'center',
-                gap:        4,
-                padding:    '0 8px',
-                background: isSelected ? '#3b82f6' : '#93c5fd',
-                color:      'white',
-                fontSize:   '10px',
-                fontWeight: 600,
-                borderRadius: '4px 4px 0 0',
+                position:      'absolute',
+                top:           active.top,
+                left:          active.left,
+                right:         active.right,
+                height:        active.height,
                 pointerEvents: 'none',
-                userSelect: 'none',
-                transition: 'background 80ms',
-                whiteSpace: 'nowrap',
+                zIndex:        40,
               }}
             >
-              {active.label}
-            </div>
+              {/* Outline ring */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                outline:  isSelected ? '2px solid #3b82f6' : '2px dashed #93c5fd',
+                outlineOffset: '-2px',
+                borderRadius: 2,
+                transition: 'outline 80ms',
+              }} />
 
-            {/* Controls: grip + duplicate + delete — left side, pointer-events on */}
-            {isSelected && (
+              {/* Label tab */}
               <div
                 style={{
-                  position:      'absolute',
-                  top:           '50%',
-                  left:          -36,
-                  transform:     'translateY(-50%)',
-                  display:       'flex',
-                  flexDirection: 'column',
-                  gap:           4,
-                  pointerEvents: 'auto',
+                  position:   'absolute',
+                  top:        -20,
+                  left:       0,
+                  height:     20,
+                  display:    'flex',
+                  alignItems: 'center',
+                  gap:        4,
+                  padding:    '0 8px',
+                  background: isSelected ? '#3b82f6' : '#93c5fd',
+                  color:      'white',
+                  fontSize:   '10px',
+                  fontWeight: 600,
+                  borderRadius: '4px 4px 0 0',
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                  transition: 'background 80ms',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {/* Drag grip */}
-                <div
-                  draggable
-                  onDragStart={onGripDragStart}
-                  title="Glisser pour réordonner"
-                  style={{
-                    width: 28, height: 28, background: 'white',
-                    border: '1px solid #e2e8f0', borderRadius: 6,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'grab', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
-                  }}
-                  className="hover:border-blue-300 hover:text-blue-500 transition-colors"
-                >
-                  <GripVertical size={13} className="text-slate-400" />
-                </div>
-
-                {/* Duplicate */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDuplicate(); }}
-                  title="Dupliquer"
-                  style={{
-                    width: 28, height: 28, background: 'white',
-                    border: '1px solid #e2e8f0', borderRadius: 6,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
-                  }}
-                  className="hover:border-indigo-300 hover:text-indigo-500 transition-colors"
-                >
-                  <Copy size={12} className="text-slate-400" />
-                </button>
-
-                {/* Delete */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-                  title="Supprimer"
-                  style={{
-                    width: 28, height: 28, background: 'white',
-                    border: '1px solid #e2e8f0', borderRadius: 6,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
-                  }}
-                  className="hover:border-red-300 hover:text-red-500 transition-colors"
-                >
-                  <TrashIcon size={12} className="text-slate-400" />
-                </button>
+                {active.label}
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Controls: grip + duplicate + delete */}
+              {isSelected && (
+                <div
+                  style={{
+                    position:      'absolute',
+                    top:           '50%',
+                    left:          -36,
+                    transform:     'translateY(-50%)',
+                    display:       'flex',
+                    flexDirection: 'column',
+                    gap:           4,
+                    pointerEvents: 'auto',
+                  }}
+                >
+                  <div
+                    draggable
+                    onDragStart={onGripDragStart}
+                    title="Glisser pour réordonner"
+                    style={{
+                      width: 28, height: 28, background: 'white',
+                      border: '1px solid #e2e8f0', borderRadius: 6,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'grab', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
+                    }}
+                    className="hover:border-blue-300 hover:text-blue-500 transition-colors"
+                  >
+                    <GripVertical size={13} className="text-slate-400" />
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDuplicate(); }}
+                    title="Dupliquer"
+                    style={{
+                      width: 28, height: 28, background: 'white',
+                      border: '1px solid #e2e8f0', borderRadius: 6,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
+                    }}
+                    className="hover:border-indigo-300 hover:text-indigo-500 transition-colors"
+                  >
+                    <Copy size={12} className="text-slate-400" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                    title="Supprimer"
+                    style={{
+                      width: 28, height: 28, background: 'white',
+                      border: '1px solid #e2e8f0', borderRadius: 6,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.08)',
+                    }}
+                    className="hover:border-red-300 hover:text-red-500 transition-colors"
+                  >
+                    <TrashIcon size={12} className="text-slate-400" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
   );
 }
 
@@ -1321,7 +1348,7 @@ function SlashMenu({
   onClose,
 }: {
   query: string;
-  coords: { top: number; left: number };
+  coords: { top: number; bottom: number; left: number };
   allVars: Record<string, string[]>;
   varLabels: Record<string, string>;
   onSelect: (item: SlashMenuItem) => void;
@@ -1363,6 +1390,13 @@ function SlashMenu({
 
   useEffect(() => setIdx(0), [items]);
 
+  // Scroll the active item into view when navigating by keyboard
+  useEffect(() => {
+    if (!menuRef.current) return;
+    const active = menuRef.current.querySelector<HTMLElement>('[data-active="true"]');
+    active?.scrollIntoView({ block: 'nearest' });
+  }, [idx]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') { e.preventDefault(); setIdx((i) => Math.min(i + 1, items.length - 1)); }
@@ -1374,6 +1408,33 @@ function SlashMenu({
     return () => window.removeEventListener('keydown', handler, { capture: true });
   }, [items, idx, onSelect, onClose]);
 
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<{ top: number; left: number } | null>(null);
+
+  // Measure the menu's actual rendered height and pick the best position.
+  // useLayoutEffect runs synchronously after DOM paint so there's no visible flash,
+  // and the stable dependency array prevents an infinite setState loop.
+  useEffect(() => {
+    if (!menuRef.current) return;
+    const { offsetHeight, offsetWidth } = menuRef.current;
+    const spaceBelow = window.innerHeight - coords.bottom - 8;
+    const spaceAbove = coords.top - 8;
+    const top = spaceBelow >= offsetHeight
+      ? coords.bottom + 4
+      : spaceAbove >= offsetHeight
+        ? coords.top - offsetHeight - 4
+        : spaceBelow >= spaceAbove
+          ? coords.bottom + 4
+          : coords.top - offsetHeight - 4;
+    const left = Math.min(coords.left, window.innerWidth - offsetWidth - 8);
+    setPlacement((prev) => {
+      const next = { top: Math.max(8, top), left: Math.max(8, left) };
+      if (prev && prev.top === next.top && prev.left === next.left) return prev;
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coords.top, coords.bottom, coords.left, items]);
+
   if (items.length === 0) return null;
 
   const varSectionItems = items.filter((i) => i.type === 'variable');
@@ -1381,7 +1442,15 @@ function SlashMenu({
 
   return (
     <div
-      style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 9999 }}
+      ref={menuRef}
+      style={{
+        position: 'fixed',
+        top: placement ? placement.top : coords.bottom + 4,
+        left: placement ? placement.left : coords.left,
+        zIndex: 9999,
+        // Keep invisible until placement is computed to avoid a flash
+        visibility: placement ? 'visible' : 'hidden',
+      }}
       className="w-72 bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden"
     >
       <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center gap-1.5">
@@ -1403,6 +1472,7 @@ function SlashMenu({
               return (
                 <button
                   key={item.key}
+                  data-active={globalIdx === idx ? 'true' : undefined}
                   onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
                   onMouseEnter={() => setIdx(globalIdx)}
                   className={`w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors ${globalIdx === idx ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
@@ -1427,6 +1497,7 @@ function SlashMenu({
               return (
                 <button
                   key={item.key}
+                  data-active={globalIdx === idx ? 'true' : undefined}
                   onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
                   onMouseEnter={() => setIdx(globalIdx)}
                   className={`w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors ${globalIdx === idx ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
@@ -1533,7 +1604,7 @@ function ContractEditorContent() {
 
   // ── Slash + validation state (no editor dep yet — declared here so hooks order is stable) ──
   const [slashMenu, setSlashMenu] = useState<{
-    query: string; from: number; coords: { top: number; left: number };
+    query: string; from: number; coords: { top: number; bottom: number; left: number };
   } | null>(null);
   const [usedVars, setUsedVars] = useState<string[]>([]);
 
@@ -1580,6 +1651,11 @@ function ContractEditorContent() {
 
   const loadTemplate = useCallback((type: ContractType) => {
     if (!editor) return;
+    if (type === 'blank') {
+      editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] });
+      setContractType(type);
+      return;
+    }
     const tpl = CONTRACT_TEMPLATES[type];
     if (!tpl) return;
     editor.commands.setContent(tpl);
@@ -1643,7 +1719,7 @@ function ContractEditorContent() {
         const from = $from.pos - match[0].length;
         try {
           const c = editor.view.coordsAtPos($from.pos);
-          setSlashMenu({ query: match[1].toLowerCase(), from, coords: { top: c.bottom + 4, left: c.left } });
+          setSlashMenu({ query: match[1].toLowerCase(), from, coords: { top: c.top, bottom: c.bottom, left: c.left } });
         } catch { setSlashMenu(null); }
       } else {
         setSlashMenu(null);
@@ -2001,7 +2077,8 @@ function ContractEditorContent() {
           margin: 10px 0; background: #f8fafc;
         }
         .contract-canvas .tiptap hr {
-          border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;
+          border: none; margin: 4px 0; height: 13px; display: block;
+          background: linear-gradient(to bottom, transparent 46%, #e2e8f0 46%, #e2e8f0 54%, transparent 54%);
         }
         .contract-canvas .tiptap p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);

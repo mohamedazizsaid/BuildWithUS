@@ -141,141 +141,151 @@ function HeaderView({ node, updateAttributes }: Readonly<NodeViewProps>) {
 
   return (
     <NodeViewWrapper>
+      {/* ── Outer card ── */}
       <div
         contentEditable={false}
         style={{
-          display: 'grid',
-          gridTemplateColumns: '64px 1fr auto',
-          gap: '14px',
-          alignItems: 'flex-start',
-          marginBottom: '14px',
-          paddingBottom: '14px',
-          borderBottom: '3px solid #0f172a',
+          borderRadius: '6px',
+          overflow: 'hidden',
+          border: '1px solid #e2e8f0',
+          marginBottom: '22px',
+          boxShadow: '0 1px 4px rgba(15,23,42,0.08)',
         }}
       >
-        {/* Logo — clickable upload zone */}
+        {/* Top accent stripe */}
+        <div style={{ height: '5px', background: 'linear-gradient(90deg, #0f172a 0%, #1e40af 60%, #3b82f6 100%)' }} />
+
+        {/* Main info row */}
         <div
-          onClick={openPicker}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-          title={a.logoUrl ? 'Cliquez pour changer le logo' : 'Cliquez pour importer un logo'}
           style={{
-            position: 'relative',
-            border: a.logoUrl ? '1px solid #e2e8f0' : '1px dashed #cbd5e1',
-            borderRadius: '4px',
-            height: '60px',
-            display: 'flex',
+            display: 'grid',
+            gridTemplateColumns: '72px 1fr auto',
+            gap: '16px',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '8.5pt',
-            color: '#94a3b8',
-            background: hover && !a.logoUrl ? '#f1f5f9' : '#fafafa',
-            cursor: 'pointer',
-            overflow: 'hidden',
-            transition: 'background 120ms, border-color 120ms',
+            padding: '14px 16px',
+            background: '#f8fafc',
           }}
         >
-          {a.logoUrl ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={a.logoUrl}
-                alt="Logo"
-                style={{ maxWidth: '60px', maxHeight: '60px', objectFit: 'contain' }}
-              />
-              {hover && (
-                <button
-                  onClick={removeLogo}
-                  title="Retirer le logo"
-                  style={{
-                    position: 'absolute',
-                    top: '-6px',
-                    right: '-6px',
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '50%',
-                    border: '1px solid #cbd5e1',
-                    background: 'white',
-                    color: '#475569',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                    padding: 0,
-                  }}
-                >
-                  ×
-                </button>
-              )}
-            </>
-          ) : (
-            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', lineHeight: 1 }}>
-              <span style={{ fontSize: '14px', color: hover ? '#6366f1' : '#cbd5e1', fontWeight: 600 }}>+</span>
-              <span style={{ fontSize: '7.5pt', color: hover ? '#6366f1' : '#94a3b8' }}>Logo</span>
-            </span>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFile}
-            style={{ display: 'none' }}
+          {/* Logo */}
+          <div
+            onClick={openPicker}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            title={a.logoUrl ? 'Cliquez pour changer le logo' : 'Cliquez pour importer un logo'}
+            style={{
+              position: 'relative',
+              border: a.logoUrl ? '1px solid #e2e8f0' : '2px dashed #cbd5e1',
+              borderRadius: '6px',
+              height: '64px',
+              width: '72px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: hover && !a.logoUrl ? '#eff6ff' : 'white',
+              cursor: 'pointer',
+              overflow: 'hidden',
+              transition: 'background 120ms, border-color 120ms',
+              flexShrink: 0,
+            }}
+          >
+            {a.logoUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.logoUrl} alt="Logo" style={{ maxWidth: '68px', maxHeight: '60px', objectFit: 'contain' }} />
+                {hover && (
+                  <button
+                    onClick={removeLogo}
+                    title="Retirer le logo"
+                    style={{
+                      position: 'absolute', top: '2px', right: '2px',
+                      width: '16px', height: '16px', borderRadius: '50%',
+                      border: '1px solid #cbd5e1', background: 'white',
+                      color: '#475569', fontSize: '10px', fontWeight: 700,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', padding: 0,
+                    }}
+                  >×</button>
+                )}
+              </>
+            ) : (
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', lineHeight: 1 }}>
+                <span style={{ fontSize: '16px', color: hover ? '#3b82f6' : '#cbd5e1', fontWeight: 700 }}>+</span>
+                <span style={{ fontSize: '7pt', color: hover ? '#3b82f6' : '#94a3b8', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Logo</span>
+              </span>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
+          </div>
+
+          {/* Company block */}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '12.5pt', fontWeight: 800, color: '#0f172a', lineHeight: 1.25, marginBottom: '3px' }}>
+              <VarChip name={a.companyVar} attrKey="companyVar" onClear={() => updateAttributes({ companyVar: '' })} />
+            </div>
+            <div style={{ fontSize: '9pt', color: '#475569', marginBottom: '4px' }}>
+              <VarChip name={a.addressVar} attrKey="addressVar" onClear={() => updateAttributes({ addressVar: '' })} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                background: '#f1f5f9', border: '1px solid #e2e8f0',
+                borderRadius: '4px', padding: '1px 7px', fontSize: '7.5pt', color: '#64748b',
+              }}>
+                <span style={{ fontWeight: 700, color: '#94a3b8', letterSpacing: '0.3px' }}>SIRET</span>
+                <VarChip name={a.siretVar} attrKey="siretVar" small onClear={() => updateAttributes({ siretVar: '' })} />
+              </span>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                background: '#f1f5f9', border: '1px solid #e2e8f0',
+                borderRadius: '4px', padding: '1px 7px', fontSize: '7.5pt', color: '#64748b',
+              }}>
+                <span style={{ fontWeight: 700, color: '#94a3b8', letterSpacing: '0.3px' }}>TVA</span>
+                <VarChip name={a.tvaVar} attrKey="tvaVar" small onClear={() => updateAttributes({ tvaVar: '' })} />
+              </span>
+            </div>
+          </div>
+
+          {/* Contract reference badge — dark */}
+          <div
+            style={{
+              background: '#0f172a',
+              borderRadius: '6px',
+              padding: '10px 14px',
+              textAlign: 'right',
+              minWidth: '172px',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: '7pt', fontWeight: 700, color: '#64748b', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '5px' }}>
+              Référence contrat
+            </div>
+            <div style={{ fontSize: '9.5pt', fontWeight: 800, color: '#f8fafc', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+              <span style={{ color: '#64748b', fontWeight: 500 }}>N°</span>
+              <VarChip name={a.numberVar} attrKey="numberVar" small onClear={() => updateAttributes({ numberVar: '' })} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', fontSize: '8pt', color: '#94a3b8' }}>
+              <VarChip name={a.versionVar} attrKey="versionVar" small onClear={() => updateAttributes({ versionVar: '' })} />
+              <span style={{ color: '#334155' }}>·</span>
+              <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} />
+            </div>
+          </div>
+        </div>
+
+        {/* Title band */}
+        <div style={{ background: 'white', borderTop: '1px solid #e2e8f0', padding: '10px 16px' }}>
+          <NodeViewContent
+            style={{
+              display: 'block',
+              textAlign: 'center',
+              fontSize: '12.5pt',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              color: '#0f172a',
+              outline: 'none',
+            }}
           />
         </div>
-
-        {/* Company info */}
-        <div>
-          <div style={{ fontSize: '13pt', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
-            <VarChip name={a.companyVar} attrKey="companyVar" onClear={() => updateAttributes({ companyVar: '' })} />
-          </div>
-          <div style={{ fontSize: '10pt', color: '#334155', marginTop: '4px' }}>
-            <VarChip name={a.addressVar} attrKey="addressVar" onClear={() => updateAttributes({ addressVar: '' })} />
-          </div>
-          <div style={{ fontSize: '8.5pt', color: '#94a3b8', marginTop: '4px' }}>
-            SIRET <VarChip name={a.siretVar} attrKey="siretVar" small onClear={() => updateAttributes({ siretVar: '' })} />
-            <span style={{ margin: '0 6px', color: '#cbd5e1' }}>|</span>
-            TVA <VarChip name={a.tvaVar} attrKey="tvaVar" small onClear={() => updateAttributes({ tvaVar: '' })} />
-          </div>
-        </div>
-
-        {/* Contract metadata box */}
-        <div
-          style={{
-            background: '#f1f5f9',
-            padding: '8px 12px',
-            borderRadius: '4px',
-            textAlign: 'right',
-            minWidth: '160px',
-          }}
-        >
-          <div style={{ fontSize: '9pt', fontWeight: 700, color: '#0f172a' }}>
-            N° <VarChip name={a.numberVar} attrKey="numberVar" small onClear={() => updateAttributes({ numberVar: '' })} />
-          </div>
-          <div style={{ fontSize: '8.5pt', color: '#475569', marginTop: '4px' }}>
-            v<VarChip name={a.versionVar} attrKey="versionVar" small onClear={() => updateAttributes({ versionVar: '' })} />
-            <span style={{ margin: '0 4px' }}>–</span>
-            <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} />
-          </div>
-        </div>
       </div>
-
-      {/* Title — editable inline */}
-      <NodeViewContent
-        style={{
-          display: 'block',
-          textAlign: 'center',
-          fontSize: '14pt',
-          fontWeight: 800,
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          color: '#0f172a',
-          margin: '0 0 18px',
-          outline: 'none',
-        }}
-      />
     </NodeViewWrapper>
   )
 }
