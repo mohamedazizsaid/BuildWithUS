@@ -301,17 +301,20 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, csvDatase
     e.target.value = '';
   }, [onImportCsv]);
 
-  // Build display categories: use allVars for var names + VARIABLE_PALETTE for styling
-  const displayCategories = Object.keys(allVars).map((label) => {
-    const palette = VARIABLE_PALETTE.find(c => c.label === label);
-    return {
-      label,
-      bg: palette?.bg ?? '#f1f5f9',
-      color: palette?.color ?? '#334155',
-      border: palette?.border ?? '#e2e8f0',
-      vars: allVars[label] ?? [],
-    };
-  });
+  // Build display categories: use allVars for var names + VARIABLE_PALETTE for styling.
+  // The "Données CSV" category is hidden from the Variables tab (CSV columns live in the CSV tab).
+  const displayCategories = Object.keys(allVars)
+    .filter((label) => label.toLowerCase() !== 'données csv' && label.toLowerCase() !== 'donnees csv')
+    .map((label) => {
+      const palette = VARIABLE_PALETTE.find(c => c.label === label);
+      return {
+        label,
+        bg: palette?.bg ?? '#f1f5f9',
+        color: palette?.color ?? '#334155',
+        border: palette?.border ?? '#e2e8f0',
+        vars: allVars[label] ?? [],
+      };
+    });
 
   return (
     <div className="w-56 border-r border-border bg-slate-50 flex flex-col overflow-hidden shrink-0">
@@ -1051,12 +1054,10 @@ function ExtractedVars({ editor }: { readonly editor: Editor | null }) {
 // ─── Right panel ──────────────────────────────────────────────────────────────
 
 function RightPanel({
-  contractType, onSwitchType, onReloadTemplate, editor,
+  contractType, onSwitchType,
 }: {
   readonly contractType: ContractType;
   readonly onSwitchType: (t: ContractType) => void;
-  readonly onReloadTemplate: () => void;
-  readonly editor: Editor | null;
 }) {
   return (
     <div className="w-56 border-l border-border bg-white flex flex-col overflow-hidden shrink-0">
@@ -1085,23 +1086,6 @@ function RightPanel({
           <p className="text-[10px] text-slate-400 mt-2 italic">
             Changer de type remplace le contenu par le modèle correspondant.
           </p>
-        </div>
-
-        {/* Reload current template */}
-        <div>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Modèle</p>
-          <button
-            onClick={onReloadTemplate}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-slate-300 text-[11px] text-slate-500 hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600 transition-all"
-          >
-            <FileText size={12} /> Réinitialiser ce contrat
-          </button>
-        </div>
-
-        {/* Extracted variables */}
-        <div>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Variables détectées</p>
-          <ExtractedVars editor={editor} />
         </div>
       </div>
     </div>
@@ -2007,8 +1991,6 @@ function ContractEditorContent() {
         <RightPanel
           contractType={contractType}
           onSwitchType={requestSwitch}
-          onReloadTemplate={reloadCurrent}
-          editor={editor}
         />
       </div>
       </VarLabelsContext.Provider>
