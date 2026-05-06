@@ -153,7 +153,9 @@ function HeaderView({ node, updateAttributes }: Readonly<NodeViewProps>) {
         }}
       >
         {/* Top accent stripe */}
-        <div style={{ height: '5px', background: 'linear-gradient(90deg, #0f172a 0%, #1e40af 60%, #3b82f6 100%)' }} />
+        <div style={{ height: '5px', background: a.blockAccent
+          ? a.blockAccent
+          : 'linear-gradient(90deg, #0f172a 0%, #1e40af 60%, #3b82f6 100%)' }} />
 
         {/* Main info row */}
         <div
@@ -163,7 +165,7 @@ function HeaderView({ node, updateAttributes }: Readonly<NodeViewProps>) {
             gap: '16px',
             alignItems: 'center',
             padding: '14px 16px',
-            background: '#f8fafc',
+            background: a.blockBg || '#f8fafc',
           }}
         >
           {/* Logo */}
@@ -244,10 +246,10 @@ function HeaderView({ node, updateAttributes }: Readonly<NodeViewProps>) {
             </div>
           </div>
 
-          {/* Contract reference badge — dark */}
+          {/* Contract reference badge */}
           <div
             style={{
-              background: '#0f172a',
+              background: a.blockAccent || '#0f172a',
               borderRadius: '6px',
               padding: '10px 14px',
               textAlign: 'right',
@@ -302,14 +304,16 @@ export const ContractHeader = Node.create({
 
   addAttributes() {
     return {
-      logoUrl:    { default: '' },
-      companyVar: { default: 'prestataire_nom' },
-      addressVar: { default: 'prestataire_adresse' },
-      siretVar:   { default: 'prestataire_siret' },
-      tvaVar:     { default: 'prestataire_tva' },
-      numberVar:  { default: 'numero_contrat' },
-      versionVar: { default: 'version_contrat' },
-      dateVar:    { default: 'date_contrat' },
+      logoUrl:     { default: '' },
+      companyVar:  { default: 'prestataire_nom' },
+      addressVar:  { default: 'prestataire_adresse' },
+      siretVar:    { default: 'prestataire_siret' },
+      tvaVar:      { default: 'prestataire_tva' },
+      numberVar:   { default: 'numero_contrat' },
+      versionVar:  { default: 'version_contrat' },
+      dateVar:     { default: 'date_contrat' },
+      blockBg:     { default: '' },
+      blockAccent: { default: '' },
     }
   },
 
@@ -323,14 +327,16 @@ export const ContractHeader = Node.create({
       'div',
       mergeAttributes(HTMLAttributes, {
         'data-contract-header': '',
-        'data-logo-url':    a.logoUrl,
-        'data-company-var': a.companyVar,
-        'data-address-var': a.addressVar,
-        'data-siret-var':   a.siretVar,
-        'data-tva-var':     a.tvaVar,
-        'data-number-var':  a.numberVar,
-        'data-version-var': a.versionVar,
-        'data-date-var':    a.dateVar,
+        'data-logo-url':     a.logoUrl,
+        'data-company-var':  a.companyVar,
+        'data-address-var':  a.addressVar,
+        'data-siret-var':    a.siretVar,
+        'data-tva-var':      a.tvaVar,
+        'data-number-var':   a.numberVar,
+        'data-version-var':  a.versionVar,
+        'data-date-var':     a.dateVar,
+        'data-block-bg':     a.blockBg,
+        'data-block-accent': a.blockAccent,
       }),
       ['h1', {}, 0],
     ]
