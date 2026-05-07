@@ -505,19 +505,19 @@ function SepaView({ node, updateAttributes }: NodeViewProps) {
           </p>
           <div style={{ marginBottom: '6px' }}>
             <strong>Créancier :</strong> <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} />
-            <span style={{ marginLeft: '20px' }}><strong>ICS :</strong> {a.ics || '___________'}</span>
+            <span style={{ marginLeft: '20px' }}><strong>ICS :</strong> <VarChip name={a.icsVar} attrKey="icsVar" small onClear={() => updateAttributes({ icsVar: '' })} /></span>
           </div>
           <div style={{ marginBottom: '10px' }}>
             <strong>Adresse :</strong> <VarChip name={a.addressVar} attrKey="addressVar" small onClear={() => updateAttributes({ addressVar: '' })} />
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <div style={{ flex: 1, border: '1px solid #cbd5e1', padding: '6px 8px', borderRadius: '4px' }}>
-              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a' }}>IBAN</div>
-              <div style={{ fontSize: '9pt', letterSpacing: '2px', color: '#94a3b8' }}>__ __ __ __ __ __ __ __ __ __ __ __ __ __</div>
+              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a', marginBottom: '4px' }}>IBAN</div>
+              <VarChip name={a.ibanVar} attrKey="ibanVar" small onClear={() => updateAttributes({ ibanVar: '' })} />
             </div>
             <div style={{ flex: 0.6, border: '1px solid #cbd5e1', padding: '6px 8px', borderRadius: '4px' }}>
-              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a' }}>BIC</div>
-              <div style={{ fontSize: '9pt', letterSpacing: '2px', color: '#94a3b8' }}>__ __ __ __ __ __ __ __</div>
+              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a', marginBottom: '4px' }}>BIC</div>
+              <VarChip name={a.bicVar} attrKey="bicVar" small onClear={() => updateAttributes({ bicVar: '' })} />
             </div>
           </div>
           <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '8.5pt' }}>
@@ -539,7 +539,9 @@ export const SepaBlock = Node.create({
     return {
       creditorVar: { default: 'prestataire_nom' },
       addressVar:  { default: 'prestataire_adresse' },
-      ics:         { default: '' },
+      icsVar:      { default: 'ics_creancier' },
+      ibanVar:     { default: 'iban_client' },
+      bicVar:      { default: 'bic_client' },
       blockBg:     { default: '' },
       blockAccent: { default: '' },
     }
@@ -551,7 +553,9 @@ export const SepaBlock = Node.create({
       'data-sepa-block':    '',
       'data-creditor-var':  a.creditorVar,
       'data-address-var':   a.addressVar,
-      'data-ics':           a.ics,
+      'data-ics-var':       a.icsVar,
+      'data-iban-var':      a.ibanVar,
+      'data-bic-var':       a.bicVar,
       'data-block-bg':      a.blockBg,
       'data-block-accent':  a.blockAccent,
     })]
@@ -649,6 +653,6 @@ export const BLOCK_VAR_KEYS: Record<string, string[]> = {
   contractHeader:  ['companyVar', 'addressVar', 'siretVar', 'tvaVar', 'numberVar', 'versionVar', 'dateVar'],
   financialBlock:  ['descriptionVar', 'htVar', 'rateVar', 'tvaVar', 'ttcVar'],
   signatureBlock:  ['cityVar', 'dateVar', 'nameVar0', 'nameVar1', 'nameVar2'],
-  sepaBlock:       ['creditorVar', 'addressVar'],
+  sepaBlock:       ['creditorVar', 'addressVar', 'icsVar', 'ibanVar', 'bicVar'],
   retractBlock:    ['firstNameVar', 'lastNameVar', 'creditorVar', 'addressVar', 'dateVar', 'numberVar', 'signAddressVar', 'signCityVar'],
 }

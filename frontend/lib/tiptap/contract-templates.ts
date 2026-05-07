@@ -99,10 +99,16 @@ function signatureBlock(columns = 'Prestataire,Client'): JSONContent {
   }
 }
 
-function sepaBlock(ics = ''): JSONContent {
+function sepaBlock(): JSONContent {
   return {
     type: 'sepaBlock',
-    attrs: { creditorVar: 'prestataire_nom', addressVar: 'prestataire_adresse', ics },
+    attrs: {
+      creditorVar: 'prestataire_nom',
+      addressVar:  'prestataire_adresse',
+      icsVar:      'ics_creancier',
+      ibanVar:     'iban_client',
+      bicVar:      'bic_client',
+    },
   }
 }
 
@@ -161,13 +167,13 @@ const SIGNATAIRES_BLOCK: JSONContent[] = [
   p(br()),
   p(
     t("Pour le Prestataire", true), br(),
-    t("Nom et qualite du signataire : ___________________________"), br(),
+    t("Nom et qualite du signataire : "), v('prestataire_nom'), t(" — "), v('prestataire_qualite'), br(),
     t("Signature et cachet :"),
   ),
   p(br()),
   p(
     t("Pour le Client", true), br(),
-    t("Nom et qualite du signataire : ___________________________"), br(),
+    t("Nom et qualite du signataire : "), v('client_nom'), t(" — "), v('client_qualite'), br(),
     t("Signature : (preceder de la mention « Lu et approuve »)"),
   ),
 ]
@@ -278,9 +284,15 @@ export const TEMPLATE_B2C: JSONContent = {
     p(t("11.2 Le Client dispose d'un droit d'acces, de rectification, d'effacement, de limitation, de portabilite et d'opposition concernant ses donnees personnelles. Il peut exercer ces droits en contactant le Prestataire a l'adresse figurant dans les mentions legales.")),
     hr(),
 
-    h2([t("ARTICLE 12 — LOI APPLICABLE ET ATTRIBUTION DE JURIDICTION")]),
-    p(t("12.1 Le present contrat est regi exclusivement par le droit francais.")),
-    p(t("12.2 En cas de litige relatif a la validite, l'interpretation ou l'execution du present contrat, les parties s'engagent a rechercher une solution amiable dans un delai de trente (30) jours a compter de la notification du differend. A defaut d'accord amiable, le differend sera soumis a la juridiction competente du lieu de residence du Client consommateur, conformement aux regles du Code de la consommation.")),
+    h2([t("ARTICLE 12 — MEDIATION DE LA CONSOMMATION")]),
+    p(t("12.1 Conformement aux articles L. 612-1 et suivants du Code de la consommation, le Client consommateur a le droit de recourir gratuitement a un mediateur de la consommation en vue de la resolution amiable du litige qui l'oppose au Prestataire.")),
+    p(t("12.2 En cas de litige non resolu a la suite d'une reclamation adressee prealablement au Prestataire, le Client peut saisir le mediateur competent dont les coordonnees sont disponibles sur simple demande aupres du Prestataire et sur son site internet.")),
+    p(t("12.3 Le recours a la mediation est facultatif. Les parties restent libres d'accepter ou de refuser la mediation et, en cas de mediation, de n'accepter aucune solution proposee. Ce dispositif ne prive pas le Client de son droit d'agir en justice.")),
+    hr(),
+
+    h2([t("ARTICLE 13 — LOI APPLICABLE ET ATTRIBUTION DE JURIDICTION")]),
+    p(t("13.1 Le present contrat est regi exclusivement par le droit francais.")),
+    p(t("13.2 En cas de litige relatif a la validite, l'interpretation ou l'execution du present contrat, les parties s'engagent a rechercher une solution amiable dans un delai de trente (30) jours a compter de la notification du differend. A defaut d'accord amiable, le differend sera soumis a la juridiction competente du lieu de residence du Client consommateur, conformement aux regles du Code de la consommation.")),
     hr(),
 
     ...SIGNATAIRES_BLOCK,
@@ -488,8 +500,33 @@ export const TEMPLATE_WEB: JSONContent = {
     p(t("8.2 Le Prestataire ne peut etre tenu responsable de toute perte de donnees, interruption de service, attaque informatique ou incompatibilite survenant apres la mise en production et imputable a l'environnement technique du Client ou a des evolutions de tiers (navigateurs, OS, CMS).")),
     hr(),
 
-    h2([t("ARTICLE 9 — LOI APPLICABLE ET JURIDICTION")]),
-    p(t("Le present contrat est regi par le droit francais. En cas de litige non resolu amiablement, les parties conviennent de la competence exclusive du Tribunal de Commerce competent dans le ressort du siege social du Prestataire.")),
+    h2([t("ARTICLE 9 — FORCE MAJEURE")]),
+    p(t("9.1 Aucune des parties ne sera tenue responsable de l'inexecution partielle ou totale de ses obligations contractuelles causee par un evenement de force majeure au sens de l'article 1218 du Code civil, c'est-a-dire un evenement imprevisible, irresistible et exterieur a la volonte de la partie concernee (intemperie exceptionnelle, cyberattaque etatique, pandemie, greve generale, etc.)."
+    )),
+    p(t("9.2 La partie concernee devra notifier l'autre partie dans les quarante-huit (48) heures suivant la survenance de l'evenement. Si l'evenement de force majeure perdure au-dela de trente (30) jours, chaque partie pourra resilier le contrat de plein droit sans indemnite, sous reserve d'un preavis de quinze (15) jours.")),
+    hr(),
+
+    h2([t("ARTICLE 10 — PROTECTION DES DONNEES PERSONNELLES (RGPD)")]),
+    p(t("10.1 Les donnees a caractere personnel collectees dans le cadre du present contrat (nom, prenom, coordonnees, donnees de connexion) sont traitees par le Prestataire en qualite de responsable de traitement, conformement au Reglement (UE) 2016/679 du 27 avril 2016 (RGPD) et a la loi n° 78-17 du 6 janvier 1978 modifiee."
+    )),
+    p(t("10.2 Le Client dispose d'un droit d'acces, de rectification, d'effacement, de limitation, de portabilite et d'opposition concernant ses donnees personnelles. Ces droits s'exercent par courrier ou email aupres du Prestataire. Le Client peut egalement introduire une reclamation aupres de la CNIL (www.cnil.fr)."
+    )),
+    p(t("10.3 Les donnees sont conservees pendant la duree necessaire a l'execution du contrat et aux obligations legales de conservation (cinq ans pour les documents contractuels, dix ans pour les documents comptables)."
+    )),
+    hr(),
+
+    h2([t("ARTICLE 11 — MEDIATION")]),
+    p(t("11.1 En cas de litige relatif a l'execution du present contrat, les parties s'engagent a rechercher une solution amiable avant tout recours judiciaire."
+    )),
+    p(t("11.2 Si le Client est un consommateur au sens du Code de la consommation, il peut recourir gratuitement a un mediateur de la consommation conformement aux articles L. 612-1 et suivants dudit Code. Les coordonnees du mediateur competent sont disponibles sur simple demande aupres du Prestataire."
+    )),
+    hr(),
+
+    h2([t("ARTICLE 12 — LOI APPLICABLE ET JURIDICTION")]),
+    p(t("12.1 Le present contrat est regi par le droit francais."
+    )),
+    p(t("12.2 En cas de litige ne pouvant etre resolu amiablement dans un delai de trente (30) jours, les parties attribuent competence exclusive au Tribunal de Commerce competent dans le ressort du siege social du Prestataire pour les clients professionnels, et au tribunal du lieu de residence du Client pour les clients consommateurs."
+    )),
     hr(),
 
     ...SIGNATAIRES_BLOCK,
@@ -601,7 +638,7 @@ export const TEMPLATE_ABONNEMENT: JSONContent = {
 
     signatureBlock('Operateur,Abonne,Conseiller'),
 
-    sepaBlock('FR24ZZZ870ADF'),
+    sepaBlock(),
 
     retractBlock(),
 
@@ -713,13 +750,13 @@ export const TEMPLATE_AOP: JSONContent = {
     p(br()),
     p(
       t("Pour le Pouvoir Adjudicateur", true), br(),
-      t("Nom et qualite : ___________________________"), br(),
+      t("Nom et qualite : "), v('pouvoir_adjudicateur'), br(),
       t("Cachet et signature :"),
     ),
     p(br()),
     p(
       t("Pour le Titulaire", true), br(),
-      t("Nom et qualite : ___________________________"), br(),
+      t("Nom et qualite : "), v('prestataire_nom'), t(" — "), v('prestataire_qualite'), br(),
       t("Cachet et signature :"),
     ),
   ],
@@ -746,6 +783,7 @@ export const VARIABLE_PALETTE = [
       { name: 'prestataire_adresse', label: 'Adresse' },
       { name: 'prestataire_siret', label: 'SIRET' },
       { name: 'prestataire_tva', label: 'N° TVA' },
+      { name: 'prestataire_qualite', label: 'Qualité du signataire' },
     ],
   },
   {
@@ -824,6 +862,15 @@ export const VARIABLE_PALETTE = [
     vars: [
       { name: 'ville_signature', label: 'Ville de signature' },
       { name: 'date_signature', label: 'Date de signature' },
+    ],
+  },
+  {
+    label: 'Bancaire / SEPA',
+    bg: '#ede9fe', color: '#5b21b6', border: '#ddd6fe',
+    vars: [
+      { name: 'ics_creancier', label: 'ICS Créancier' },
+      { name: 'iban_client', label: 'IBAN Client' },
+      { name: 'bic_client', label: 'BIC Client' },
     ],
   },
 ]

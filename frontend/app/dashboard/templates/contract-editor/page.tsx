@@ -1750,22 +1750,43 @@ function ContractEditorContent() {
 
   useEffect(() => {
     if (!user?.tenant_id) return;
+
+    // Build palette defaults — always the source of truth for built-in categories.
+    const paletteDefaults = (): Record<string, string[]> => {
+      const fb: Record<string, string[]> = {};
+      VARIABLE_PALETTE.forEach((c) => { fb[c.label] = c.vars.map((v) => v.name); });
+      return fb;
+    };
+
+    // Merge saved variables with palette defaults so that:
+    // • new palette categories (e.g. "Bancaire / SEPA") always appear, and
+    // • custom variables added by the user are preserved.
+    const merge = (saved: Record<string, string[]>): Record<string, string[]> => {
+      const result = paletteDefaults();
+      for (const [cat, names] of Object.entries(saved)) {
+        if (result[cat]) {
+          const existing = new Set(result[cat]);
+          const extras = (names as string[]).filter((n) => !existing.has(n));
+          if (extras.length) result[cat] = [...result[cat], ...extras];
+        } else {
+          result[cat] = names as string[];
+        }
+      }
+      return result;
+    };
+
     contractVariables.get()
       .then((data) => {
         if (!data?.variables || Object.keys(data.variables).length === 0) {
-          const fb: Record<string, string[]> = {};
-          VARIABLE_PALETTE.forEach((c) => { fb[c.label] = c.vars.map((v) => v.name); });
-          setAllVars(fb);
+          setAllVars(paletteDefaults());
           setCustomVarNames(new Set());
         } else {
-          setAllVars(data.variables);
+          setAllVars(merge(data.variables));
           setCustomVarNames(new Set(data.customNames ?? []));
         }
       })
       .catch(() => {
-        const fb: Record<string, string[]> = {};
-        VARIABLE_PALETTE.forEach((c) => { fb[c.label] = c.vars.map((v) => v.name); });
-        setAllVars(fb);
+        setAllVars(paletteDefaults());
         setCustomVarNames(new Set());
       });
   }, [user?.tenant_id]);
@@ -1997,12 +2018,40 @@ function ContractEditorContent() {
     const ok = await persistTemplate();
     setIsSaving(false);
     if (ok) {
-      toast.success(isEditMode ? 'Contrat mis à jour' : 'Contrat enregistré');
+      toast.success('Template enregistré');
       router.push('/dashboard/templates');
     } else {
       toast.error("Échec de l'enregistrement");
     }
   };
+
+  // ── Download template as PDF — variables stay as {{name}} tokens ──
+  const handleDownloadTemplatePdf = useCallback(async () => {
+    if (!editor) return;
+    setIsGenerating(true);
+    const toastId = toast.loading('Génération du PDF…');
+    // Pass empty values so renderTiptapToHtml falls back to {{name}} for every variable
+    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {});
+    try {
+      const res = await fetch('http://localhost:3000/templates/render-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ html, name }),
+      });
+      if (!res.ok) throw new Error('PDF failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${name}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Template téléchargé en PDF', { id: toastId });
+    } catch {
+      toast.error('Erreur génération PDF', { id: toastId });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [editor, name]);
 
   // ── Generate PDF — step 1: open fill modal ──
 
@@ -2150,7 +2199,7 @@ function ContractEditorContent() {
           )}
           <button onClick={handleSave} disabled={isSaving}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50">
-            <Save size={13} /> {isSaving ? 'Enregistrement…' : isEditMode ? 'Mettre à jour' : 'Enregistrer'}
+            <Save size={13} /> {isSaving ? 'Enregistrement…' : 'Enregistrer template'}
           </button>
           {csvDatasets.length > 0 && (
             <button
@@ -2165,11 +2214,11 @@ function ContractEditorContent() {
               </span>
             </button>
           )}
-          <button onClick={handleGenerate} disabled={isGenerating}
+          <button onClick={handleDownloadTemplatePdf} disabled={isGenerating}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-40">
             {isGenerating
               ? <><RefreshCw size={13} className="animate-spin" /> Génération…</>
-              : <><Download size={13} /> Générer PDF</>}
+              : <><Download size={13} /> Télécharger template en PDF</>}
           </button>
         </div>
       </div>

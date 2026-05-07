@@ -268,11 +268,14 @@ export function renderTiptapToHtml(
       case 'signatureBlock': {
         const a = attrs
         const labels = (a.columns || 'Prestataire,Client').split(',').map((s) => s.trim()).filter(Boolean)
-        const cols = labels.map((label) => `<td style="text-align:center;padding:0 8px;vertical-align:top;">
-          <div style="height:50px;border-bottom:1px solid #1e293b;margin-bottom:6px;"></div>
-          <div style="font-size:8.5pt;color:#475569;font-weight:600;">Signature du ${escape(label)}</div>
-          <div style="font-size:8pt;color:#94a3b8;margin-top:4px;">Nom : ____________</div>
-        </td>`).join('')
+        const cols = labels.map((label, i) => {
+          const nameVal = val((a as Record<string, string>)[`nameVar${i}`] ?? '')
+          return `<td style="text-align:center;padding:0 8px;vertical-align:top;">
+            <div style="height:50px;border-bottom:1px solid #1e293b;margin-bottom:6px;"></div>
+            <div style="font-size:8.5pt;color:#475569;font-weight:600;">Signature du ${escape(label)}</div>
+            <div style="font-size:8pt;color:#94a3b8;margin-top:4px;">Nom : ${nameVal}</div>
+          </td>`
+        }).join('')
         return `<div style="margin:24px 0 16px;page-break-inside:avoid;">
           <div style="font-size:10pt;color:#475569;margin-bottom:18px;">Fait à ${val(a.cityVar ?? '')}, le ${val(a.dateVar ?? '')}.</div>
           <table style="width:100%;border-collapse:separate;border-spacing:0;"><tr>${cols}</tr></table>
@@ -281,21 +284,20 @@ export function renderTiptapToHtml(
 
       case 'sepaBlock': {
         const a = attrs
-        const ics = a.ics ? escape(a.ics) : '___________'
         return `<div style="margin:14px 0;border:2px solid #0f172a;border-radius:4px;overflow:hidden;font-size:9.5pt;color:#1e293b;page-break-inside:avoid;">
           <div style="background:#0f172a;color:white;text-align:center;padding:8px;font-size:11pt;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Mandat de prélèvement SEPA</div>
           <div style="padding:12px;">
             <p style="margin:0 0 10px;">En signant ce formulaire, vous autorisez ${val(a.creditorVar ?? '')} à envoyer des instructions à votre banque pour débiter votre compte.</p>
-            <div style="margin-bottom:6px;"><strong>Créancier :</strong> ${val(a.creditorVar ?? '')} &nbsp; <strong>ICS :</strong> ${ics}</div>
+            <div style="margin-bottom:6px;"><strong>Créancier :</strong> ${val(a.creditorVar ?? '')} &nbsp; <strong>ICS :</strong> ${val(a.icsVar ?? '')}</div>
             <div style="margin-bottom:10px;"><strong>Adresse :</strong> ${val(a.addressVar ?? '')}</div>
             <table style="width:100%;border-collapse:separate;border-spacing:8px 0;"><tr>
               <td style="border:1px solid #cbd5e1;padding:6px 8px;border-radius:4px;width:65%;">
-                <div style="font-weight:700;font-size:8pt;">IBAN</div>
-                <div style="font-size:9pt;letter-spacing:2px;color:#94a3b8;">__ __ __ __ __ __ __ __ __ __ __ __ __ __</div>
+                <div style="font-weight:700;font-size:8pt;margin-bottom:4px;">IBAN</div>
+                <div style="font-size:9pt;">${val(a.ibanVar ?? '')}</div>
               </td>
               <td style="border:1px solid #cbd5e1;padding:6px 8px;border-radius:4px;">
-                <div style="font-weight:700;font-size:8pt;">BIC</div>
-                <div style="font-size:9pt;letter-spacing:2px;color:#94a3b8;">__ __ __ __ __ __ __ __</div>
+                <div style="font-weight:700;font-size:8pt;margin-bottom:4px;">BIC</div>
+                <div style="font-size:9pt;">${val(a.bicVar ?? '')}</div>
               </td>
             </tr></table>
             <div style="margin-top:10px;display:flex;justify-content:space-between;font-size:8.5pt;"><span><strong>Type :</strong> Récurrent / répétitif</span><span style="border-bottom:1px solid #1e293b;min-width:120px;text-align:right;">Signature</span></div>
@@ -309,7 +311,7 @@ export function renderTiptapToHtml(
           <div style="text-align:center;font-size:9pt;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;color:#0f172a;">Formulaire de rétractation</div>
           <p style="margin:0 0 8px;">Je soussigné(e) ${val(a.firstNameVar ?? '')} ${val(a.lastNameVar ?? '')}, déclare renoncer au contrat conclu auprès de ${val(a.creditorVar ?? '')} le ${val(a.dateVar ?? '')} (N° contrat : ${val(a.numberVar ?? '')}).</p>
           <p style="font-size:8.5pt;color:#94a3b8;margin:0 0 8px;">À renvoyer dans un délai de 14 jours par lettre recommandée avec AR à : ${val(a.creditorVar ?? '')} — Service Rétractation — ${val(a.addressVar ?? '')}.</p>
-          <div style="margin-top:10px;font-size:9pt;">Adresse : ____________ &nbsp; Ville : ____________ &nbsp; <span style="float:right;border-bottom:1px solid #1e293b;min-width:120px;text-align:right;">Signature</span></div>
+          <div style="margin-top:10px;font-size:9pt;">Adresse : ${val(a.signAddressVar ?? '')} &nbsp; Ville : ${val(a.signCityVar ?? '')} &nbsp; <span style="float:right;border-bottom:1px solid #1e293b;min-width:120px;text-align:right;">Signature</span></div>
         </div>`
       }
 
@@ -323,12 +325,29 @@ export function renderTiptapToHtml(
 
   const body = renderBlock(doc)
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><style>
-    @page{size:A4;margin:18mm 22mm;}*{box-sizing:border-box;}
+    @page{size:A4;margin:18mm 22mm 26mm 22mm;}
+    *{box-sizing:border-box;}
     body{font-family:Arial,sans-serif;font-size:10pt;color:#1a1a1a;margin:0;padding:0;line-height:1.6;}
     h1,h2,h3{color:#0f172a;}
     ul,ol{padding-left:20px;}
     table{border-collapse:collapse;}
     hr{border:none;border-top:1px solid #e2e8f0;margin:16px 0;}
     p{margin:0 0 8px;}
-  </style></head><body>${body}</body></html>`
+    .pdf-footer{
+      position:fixed;
+      bottom:8mm;
+      left:0;right:0;
+      text-align:center;
+      font-size:8pt;
+      color:#94a3b8;
+      font-family:Arial,sans-serif;
+      border-top:1px solid #e2e8f0;
+      padding-top:3mm;
+    }
+    .pdf-footer-page::after{content:counter(page);}
+    .pdf-footer-pages::after{content:counter(pages);}
+  </style></head><body>
+    <div class="pdf-footer">Page <span class="pdf-footer-page"></span> / <span class="pdf-footer-pages"></span></div>
+    ${body}
+  </body></html>`
 }
