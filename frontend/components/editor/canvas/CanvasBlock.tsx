@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { Copy, Trash2 } from 'lucide-react';
 import { BlockData, GlobalStyles } from '@/lib/editor-types';
 import { resolvePadding, resolveMargin, resolveBlockAlign } from './utils';
@@ -148,7 +149,10 @@ export function CanvasBlock({
               onInput={(e) => { pendingText.current = e.currentTarget.innerHTML || ''; }}
               onBlur={(e) => {
                 pendingText.current = null;
-                onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
+                // flushSync so the click handler that just stole focus (e.g. Save) sees the latest text.
+                flushSync(() => {
+                  onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
+                });
               }}
               style={{
                 fontSize: block.styles.fontSize || 'inherit',

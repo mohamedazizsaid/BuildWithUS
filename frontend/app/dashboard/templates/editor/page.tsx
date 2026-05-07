@@ -1,6 +1,7 @@
 ﻿"use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef, Suspense } from "react";
+import { flushSync } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEditor } from "@/hooks/use-editor";
 import { useCollaboration } from "@/hooks/use-collaboration";
@@ -153,8 +154,31 @@ function EditorContent() {
     return () => observer.disconnect();
   }, []);
 
-  const generateMjml = useCallback(() => {
-    const { rows, globalStyles } = editorState.template;
+  // Mirror of editorState.template that's always up-to-date — readable from
+  // event handlers whose closure may still hold the previous render's state.
+  // Updated via useLayoutEffect so flushSync(...) inside a child's onBlur
+  // makes the latest text immediately visible to the very next click handler.
+  const templateRef = useRef(editorState.template);
+  useLayoutEffect(() => {
+    templateRef.current = editorState.template;
+  }, [editorState.template]);
+
+  // Force any focused contenteditable to commit its buffered text BEFORE the
+  // save reads state. Wrapping blur() in flushSync makes the onBlur handler's
+  // setState apply synchronously, so the useLayoutEffect above refreshes
+  // templateRef on the same tick — before generateMjml runs.
+  const flushPendingEdits = useCallback(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (active && (active as HTMLElement & { isContentEditable: boolean }).isContentEditable) {
+      flushSync(() => {
+        active.blur();
+      });
+    }
+  }, []);
+
+  const generateMjml = useCallback((override?: TemplateData) => {
+    const src = override ?? editorState.template;
+    const { rows, globalStyles } = src;
     let mjml = `<mjml>\n  <mj-body background-color="${globalStyles.bodyColor}" width="${globalStyles.width}">\n`;
 
     for (const row of rows) {
@@ -211,7 +235,9 @@ function EditorContent() {
     }
     setIsSaving(true);
     try {
-      const mjml = generateMjml();
+      // Commit any in-flight contenteditable text into React state before reading it.
+      flushPendingEdits();
+      const mjml = generateMjml(templateRef.current);
       const body = {
         name: templateName,
         description: templateDescription,
@@ -271,7 +297,8 @@ function EditorContent() {
 
     setIsSaving(true);
     try {
-      const mjml = generateMjml();
+      flushPendingEdits();
+      const mjml = generateMjml(templateRef.current);
       const body = {
         name: templateName,
         description: templateDescription,
@@ -344,6 +371,7 @@ function EditorContent() {
         onSendTestEmail={handleSendTestEmail}
         isSendingTest={isSendingTest}
         collaborators={otherUsers}
+        isPredefinedView={!!presetId}
       />
 
       <div className="flex flex-1 overflow-hidden">

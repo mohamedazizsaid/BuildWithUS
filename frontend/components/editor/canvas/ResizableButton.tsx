@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { BlockData, GlobalStyles } from '@/lib/editor-types';
 
 export function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onSelect, placeCaretEndRef, pendingText }: {
@@ -74,7 +75,10 @@ export function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onS
             onInput={(e) => { pendingText.current = e.currentTarget.innerHTML || ''; }}
             onBlur={(e) => {
               pendingText.current = null;
-              onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
+              // flushSync so the click handler that just stole focus (e.g. Save) sees the latest text.
+              flushSync(() => {
+                onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
+              });
             }}
             style={{ outline: 'none', minWidth: '20px', display: 'inline-block' }}
             onKeyDown={(e) => {

@@ -742,12 +742,8 @@ function PreviewModal({
 type ViewMode = 'modeles' | 'favoris' | 'predifinis';
 
 // Real rendered preview of a predefined template — same renderer as the editor canvas.
-// If `overrideMjml` is provided (tenant has customized this template), render that instead.
-function PredefinedThumbnail({ tmpl, overrideMjml }: { tmpl: PredefinedTemplate; overrideMjml?: string }) {
-  const html = useMemo(
-    () => overrideMjml ? mjmlToPreviewHtml(overrideMjml) : renderRowsPreview(tmpl.rows()),
-    [tmpl.id, overrideMjml],
-  );
+function PredefinedThumbnail({ tmpl }: { tmpl: PredefinedTemplate }) {
+  const html = useMemo(() => renderRowsPreview(tmpl.rows()), [tmpl.id]);
   return (
     <div className="w-full h-[200px] overflow-hidden bg-white relative">
       <div
@@ -763,19 +759,14 @@ function PredefinedThumbnail({ tmpl, overrideMjml }: { tmpl: PredefinedTemplate;
 // Full-template preview modal — opened when clicking "Aperçu" on a card.
 function PredefinedPreviewModal({
   tmpl,
-  overrideMjml,
   onClose,
   onUse,
 }: {
   tmpl: PredefinedTemplate;
-  overrideMjml?: string;
   onClose: () => void;
   onUse: () => void;
 }) {
-  const html = useMemo(
-    () => overrideMjml ? mjmlToPreviewHtml(overrideMjml) : renderRowsPreview(tmpl.rows()),
-    [tmpl.id, overrideMjml],
-  );
+  const html = useMemo(() => renderRowsPreview(tmpl.rows()), [tmpl.id]);
   const style = CATEGORY_STYLES[tmpl.category] || CATEGORY_STYLES.b2b;
   return (
     <motion.div
@@ -833,13 +824,9 @@ function PredefinedPreviewModal({
 }
 
 function PredefinedGallery({
-  overrides,
   onUse,
-  onEditOverride,
 }: {
-  overrides: Map<string, Template>;
   onUse: (id: string, name: string) => void;
-  onEditOverride: (template: Template) => void;
 }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [previewTarget, setPreviewTarget] = useState<PredefinedTemplate | null>(null);
@@ -884,13 +871,7 @@ function PredefinedGallery({
         >
           {filtered.map((tmpl, i) => {
             const style = CATEGORY_STYLES[tmpl.category] || CATEGORY_STYLES.b2b;
-            const override = overrides.get(tmpl.id);
-            const isCustomized = !!override;
-
-            const handleUse = () => {
-              if (override) onEditOverride(override);
-              else onUse(tmpl.id, tmpl.name);
-            };
+            const handleUse = () => onUse(tmpl.id, tmpl.name);
 
             return (
               <motion.div
@@ -902,7 +883,7 @@ function PredefinedGallery({
               >
                 {/* Real template preview */}
                 <div className="relative">
-                  <PredefinedThumbnail tmpl={tmpl} overrideMjml={override?.content} />
+                  <PredefinedThumbnail tmpl={tmpl} />
 
                   {/* Hover overlay with two actions */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-all duration-200 flex items-center justify-center gap-2">
@@ -917,21 +898,16 @@ function PredefinedGallery({
                       onClick={handleUse}
                       className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-2 bg-slate-900 text-white rounded-full text-xs font-semibold shadow-lg transition-all duration-150 hover:scale-105"
                     >
-                      {isCustomized ? <><Pencil size={12} />Modifier</> : <><Plus size={12} />Utiliser</>}
+                      <Eye size={12} />
+                      Ouvrir
                     </button>
                   </div>
 
-                  {/* Top-left badges: category + customized indicator */}
+                  {/* Top-left category badge */}
                   <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold shadow-sm" style={{ backgroundColor: style.bg, color: style.text, border: `1px solid ${style.accent}22` }}>
                       {PREDEFINED_CATEGORIES.find(c => c.id === tmpl.category)?.label}
                     </span>
-                    {isCustomized && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shadow-sm bg-amber-50 text-amber-700 border border-amber-200">
-                        <Pencil size={9} />
-                        Personnalisé
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -946,7 +922,8 @@ function PredefinedGallery({
                     onClick={handleUse}
                     className="mt-3 w-full h-8 rounded-lg border border-border text-xs font-medium hover:bg-slate-50 hover:border-slate-300 transition-colors flex items-center justify-center gap-1.5"
                   >
-                    {isCustomized ? <><Pencil size={12} />Modifier ma version</> : <><Plus size={12} />Utiliser ce template</>}
+                    <Eye size={12} />
+                    Ouvrir le template
                   </button>
                 </div>
               </motion.div>
@@ -960,14 +937,11 @@ function PredefinedGallery({
         {previewTarget && (
           <PredefinedPreviewModal
             tmpl={previewTarget}
-            overrideMjml={overrides.get(previewTarget.id)?.content}
             onClose={() => setPreviewTarget(null)}
             onUse={() => {
               const t = previewTarget;
-              const ov = t ? overrides.get(t.id) : null;
               setPreviewTarget(null);
-              if (ov) onEditOverride(ov);
-              else if (t) onUse(t.id, t.name);
+              if (t) onUse(t.id, t.name);
             }}
           />
         )}
@@ -995,7 +969,6 @@ export default function TemplatesPage() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const [templateList, setTemplateList] = useState<Template[]>([]);
-  const [overrideList, setOverrideList] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const initialView = (searchParams.get('view') as ViewMode | null);
   const [viewMode, setViewMode] = useState<ViewMode>(
@@ -1039,28 +1012,14 @@ export default function TemplatesPage() {
     router.push(`/dashboard/templates/editor?preset=${presetId}&name=${encodeURIComponent(presetName)}&type=1`);
   };
 
-  // Map predefined_template_id → tenant's override record (used to swap in their custom version)
-  const overrideMap = useMemo(() => {
-    const m = new Map<string, Template>();
-    for (const t of overrideList) {
-      if (t.predefined_template_id) m.set(t.predefined_template_id, t);
-    }
-    return m;
-  }, [overrideList]);
-
   useEffect(() => {
     loadTemplates();
   }, []);
 
   const loadTemplates = async () => {
     try {
-      // Two parallel calls: regular templates + tenant's predefined overrides
-      const [regular, overrides] = await Promise.all([
-        templates.list({ page: 1, limit: 100, excludePredefinedOverrides: true }),
-        templates.list({ page: 1, limit: 100, predefinedOverridesOnly: true }),
-      ]);
+      const regular = await templates.list({ page: 1, limit: 100 });
       setTemplateList(regular.templates || []);
-      setOverrideList(overrides.templates || []);
     } catch {
       toast.error('Échec du chargement des modèles');
     } finally {
@@ -1176,11 +1135,7 @@ export default function TemplatesPage() {
 
       {/* Predefined gallery — shown when viewMode === 'predifinis' */}
       {viewMode === 'predifinis' ? (
-        <PredefinedGallery
-          overrides={overrideMap}
-          onUse={handleUsePreset}
-          onEditOverride={(tmpl) => router.push(`/dashboard/templates/editor?id=${tmpl.id}&from=predifinis`)}
-        />
+        <PredefinedGallery onUse={handleUsePreset} />
       ) : (
         <>
           {/* Type sub-tabs (email / contrat / facture) */}

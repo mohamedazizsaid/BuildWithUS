@@ -41,6 +41,8 @@ interface EditorToolbarProps {
   isSendingTest?: boolean;
   // Collaboration
   collaborators?: { userId: string; userName: string; color: string }[];
+  // Read-only view of a built-in predefined template — hides Save / Create.
+  isPredefinedView?: boolean;
 }
 
 export default function EditorToolbar({
@@ -67,6 +69,7 @@ export default function EditorToolbar({
   onSendTestEmail,
   isSendingTest,
   collaborators,
+  isPredefinedView,
 }: EditorToolbarProps) {
   const isTextBlock =
     selectedBlock &&
@@ -111,16 +114,20 @@ export default function EditorToolbar({
           >
             <Redo2 size={16} />
           </Button>
-          <div className="w-px h-5 bg-border mx-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onSave}
-            className="h-8 gap-1.5 text-xs"
-          >
-            <Save size={14} />
-            Enregistrer
-          </Button>
+          {!isPredefinedView && (
+            <>
+              <div className="w-px h-5 bg-border mx-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSave}
+                className="h-8 gap-1.5 text-xs"
+              >
+                <Save size={14} />
+                Enregistrer
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Center */}
@@ -254,19 +261,21 @@ export default function EditorToolbar({
               {isSendingTest ? "Envoi..." : "Tester l'e-mail"}
             </Button>
           )}
-          <Button
-            onClick={onCreateTemplate}
-            disabled={isSaving}
-            className="h-8 px-3 text-xs"
-          >
-            {isSaving
-              ? isEditMode
-                ? "Enregistrement..."
-                : "Création..."
-              : isEditMode
-                ? "Enregistrer"
-                : "Créer le modèle"}
-          </Button>
+          {!isPredefinedView && (
+            <Button
+              onClick={onCreateTemplate}
+              disabled={isSaving}
+              className="h-8 px-3 text-xs"
+            >
+              {isSaving
+                ? isEditMode
+                  ? "Enregistrement..."
+                  : "Création..."
+                : isEditMode
+                  ? "Enregistrer"
+                  : "Créer le modèle"}
+            </Button>
+          )}
         </div>
       </div>
 
