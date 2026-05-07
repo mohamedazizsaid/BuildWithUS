@@ -96,6 +96,7 @@ export function extractVariablesFromTiptap(doc: Record<string, unknown>): string
 export function renderTiptapToHtml(
   doc: Record<string, unknown>,
   variables: Record<string, string>,
+  _options: { docName?: string } = {},
 ): string {
   function escape(s: string) {
     return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -325,7 +326,7 @@ export function renderTiptapToHtml(
 
   const body = renderBlock(doc)
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><style>
-    @page{size:A4;margin:18mm 22mm 26mm 22mm;}
+    @page{size:A4;margin:18mm 22mm;}
     *{box-sizing:border-box;}
     body{font-family:Arial,sans-serif;font-size:10pt;color:#1a1a1a;margin:0;padding:0;line-height:1.6;}
     h1,h2,h3{color:#0f172a;}
@@ -333,21 +334,34 @@ export function renderTiptapToHtml(
     table{border-collapse:collapse;}
     hr{border:none;border-top:1px solid #e2e8f0;margin:16px 0;}
     p{margin:0 0 8px;}
-    .pdf-footer{
-      position:fixed;
-      bottom:8mm;
-      left:0;right:0;
-      text-align:center;
-      font-size:8pt;
-      color:#94a3b8;
+    .pdf-pn{
+      position:absolute;
+      right:0;
+      font-size:7.5pt;
+      color:#cbd5e1;
       font-family:Arial,sans-serif;
-      border-top:1px solid #e2e8f0;
-      padding-top:3mm;
+      line-height:1;
+      pointer-events:none;
     }
-    .pdf-footer-page::after{content:counter(page);}
-    .pdf-footer-pages::after{content:counter(pages);}
   </style></head><body>
-    <div class="pdf-footer">Page <span class="pdf-footer-page"></span> / <span class="pdf-footer-pages"></span></div>
     ${body}
+    <script>
+    (function(){
+      // Content height per page = full A4 height minus top + bottom @page margins
+      // @page { margin: 18mm 22mm } → top=18mm, bottom=18mm
+      var MM_TO_PX = 96 / 25.4;
+      var CONTENT_PX = Math.round((297 - 18 - 18) * MM_TO_PX); // ~986px
+      document.body.style.position = 'relative';
+      var total = Math.max(1, Math.ceil(document.body.scrollHeight / CONTENT_PX));
+      for (var i = 0; i < total; i++) {
+        var el = document.createElement('span');
+        el.className = 'pdf-pn';
+        el.textContent = String(i + 1);
+        // Place 12px above the bottom boundary of this page's content area
+        el.style.top = (CONTENT_PX * (i + 1) - 12) + 'px';
+        document.body.appendChild(el);
+      }
+    })();
+    </script>
   </body></html>`
 }

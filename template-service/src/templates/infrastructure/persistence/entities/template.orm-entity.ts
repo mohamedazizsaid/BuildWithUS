@@ -61,6 +61,13 @@ export class TemplateOrmEntity {
   @Index()
   isFavorite: boolean;
 
+  @Column({ name: 'is_predefined_override', type: 'boolean', default: false })
+  @Index()
+  isPredefinedOverride: boolean;
+
+  @Column({ name: 'predefined_template_id', type: 'varchar', length: 100, nullable: true })
+  predefinedTemplateId: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 

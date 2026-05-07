@@ -63,6 +63,8 @@ export class TemplatesCommandsGrpcController implements TemplateCommandServiceCo
       request.content,
       request.channelContents,
       request.channels,
+      req.isPredefinedOverride || req.is_predefined_override || false,
+      req.predefinedTemplateId || req.predefined_template_id || '',
     );
 
     const template = await this.commandBus.execute<CreateTemplateCommand, Template>(command);

@@ -2031,7 +2031,7 @@ function ContractEditorContent() {
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
     // Pass empty values so renderTiptapToHtml falls back to {{name}} for every variable
-    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {});
+    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {}, { docName: name });
     try {
       const res = await fetch('http://localhost:3000/templates/render-pdf', {
         method: 'POST',
@@ -2071,7 +2071,7 @@ function ContractEditorContent() {
     if (!editor) return;
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
-    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, values);
+    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, values, { docName: name });
     try {
       const res = await fetch('http://localhost:3000/templates/render-pdf', {
         method: 'POST',
@@ -2121,7 +2121,7 @@ function ContractEditorContent() {
 
     let success = 0;
     for (let i = 0; i < rows.length; i++) {
-      const html = renderTiptapToHtml(docJson, rows[i]);
+      const html = renderTiptapToHtml(docJson, rows[i], { docName: `${name}_${i + 1}` });
       try {
         const res = await fetch('http://localhost:3000/templates/render-pdf', {
           method: 'POST',

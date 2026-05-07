@@ -49,6 +49,8 @@ export class Template extends AggregateRoot {
   private deletedAt?: Date;
   private _version: number;
   private isFavorite: boolean;
+  private isPredefinedOverride: boolean;
+  private predefinedTemplateId: string | null;
 
   /**
    * Private constructor - use factory methods
@@ -70,6 +72,8 @@ export class Template extends AggregateRoot {
     deletedAt?: Date,
     version: number = 0,
     isFavorite: boolean = false,
+    isPredefinedOverride: boolean = false,
+    predefinedTemplateId: string | null = null,
   ) {
     super();
     this.id = id;
@@ -88,6 +92,8 @@ export class Template extends AggregateRoot {
     this.deletedAt = deletedAt;
     this._version = version;
     this.isFavorite = isFavorite;
+    this.isPredefinedOverride = isPredefinedOverride;
+    this.predefinedTemplateId = predefinedTemplateId;
   }
 
   /**
@@ -104,6 +110,8 @@ export class Template extends AggregateRoot {
     channels?: Channel[],
     channelContents?: ChannelContentMap,
     variants?: Record<string, string>,
+    isPredefinedOverride: boolean = false,
+    predefinedTemplateId: string | null = null,
   ): Template {
     // Business rule: subject is required for EMAIL, forbidden for others
     const includesEmail = (channels && channels.includes('email')) || type.isEmail();
@@ -150,6 +158,13 @@ export class Template extends AggregateRoot {
       content,
       variables,
       variants || {},
+      undefined,
+      undefined,
+      undefined,
+      0,
+      false,
+      isPredefinedOverride,
+      predefinedTemplateId,
     );
 
     // Raise domain event
@@ -187,6 +202,8 @@ export class Template extends AggregateRoot {
     deletedAt: Date | undefined,
     version: number,
     isFavorite: boolean = false,
+    isPredefinedOverride: boolean = false,
+    predefinedTemplateId: string | null = null,
   ): Template {
     const resolvedChannels = (channels && channels.length > 0
       ? channels
@@ -221,6 +238,8 @@ export class Template extends AggregateRoot {
       deletedAt,
       version,
       isFavorite,
+      isPredefinedOverride,
+      predefinedTemplateId,
     );
   }
 
@@ -400,6 +419,8 @@ export class Template extends AggregateRoot {
       deletedAt: this.deletedAt,
       version: this._version,
       isFavorite: this.isFavorite,
+      isPredefinedOverride: this.isPredefinedOverride,
+      predefinedTemplateId: this.predefinedTemplateId,
     };
   }
 
@@ -468,5 +489,13 @@ export class Template extends AggregateRoot {
 
   public getIsFavorite(): boolean {
     return this.isFavorite;
+  }
+
+  public getIsPredefinedOverride(): boolean {
+    return this.isPredefinedOverride;
+  }
+
+  public getPredefinedTemplateId(): string | null {
+    return this.predefinedTemplateId;
   }
 }

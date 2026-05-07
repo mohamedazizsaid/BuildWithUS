@@ -19,6 +19,7 @@ import {
   Column,
 } from "@/lib/editor-types";
 import { SOCIAL_COLORS, socialIconSvgString } from "@/lib/social-icons";
+import { PREDEFINED_TEMPLATES } from "@/lib/predefined-templates";
 import { v4 as uuid } from "uuid";
 import Editor from "@monaco-editor/react";
 
@@ -29,8 +30,10 @@ function EditorContent() {
   const { user } = useAuth();
 
   // Edit mode: ?id=xxx loads existing template
+  // Preset mode: ?preset=newsletter-classique pre-loads a predefined template
   // Create mode: ?name=xxx&type=1 creates a new one
-  const editId = searchParams.get("id");
+  const editId   = searchParams.get("id");
+  const presetId = searchParams.get("preset");
   const isEditMode = !!editId;
   // Tracks the saved template ID — starts from URL param, updated after first silent save
   const [savedId, setSavedId] = useState<string | null>(editId);
@@ -101,6 +104,21 @@ function EditorContent() {
     loadTemplate();
     return () => { cancelled = true; };
   }, [editId]);
+
+  // Preset mode — load predefined template rows directly (no API call needed)
+  useEffect(() => {
+    if (!presetId) return;
+    const preset = PREDEFINED_TEMPLATES.find(t => t.id === presetId);
+    if (!preset) return;
+    editorState.setTemplate({
+      ...editorState.template,
+      rows: preset.rows(),
+    });
+    // Pre-fill name and subject from preset (URL params take precedence if set)
+    if (!searchParams.get("name"))    setTemplateName(preset.name);
+    if (!searchParams.get("subject")) setTemplateSubject(preset.subject);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -200,6 +218,7 @@ function EditorContent() {
         type: templateType,
         subject: templateSubject,
         content: mjml,
+        ...(presetId && !savedId ? { isPredefinedOverride: true, predefinedTemplateId: presetId } : {}),
       };
       if (savedId) {
         await templates.update(savedId, body);
@@ -259,6 +278,7 @@ function EditorContent() {
         type: templateType,
         subject: templateSubject,
         content: mjml,
+        ...(presetId && !isEditMode ? { isPredefinedOverride: true, predefinedTemplateId: presetId } : {}),
       };
 
       if (isEditMode && editId) {
@@ -268,7 +288,8 @@ function EditorContent() {
         await templates.create(body);
         toast.success("Modèle créé avec succès !");
       }
-      router.push("/dashboard/templates");
+      const fromPredefinis = presetId || searchParams.get("from") === "predifinis";
+      router.push(fromPredefinis ? "/dashboard/templates?view=predifinis" : "/dashboard/templates");
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Échec de l'enregistrement";
@@ -300,7 +321,16 @@ function EditorContent() {
         setPreviewDevice={setPreviewDevice}
         editDevice={editDevice}
         setEditDevice={setEditDevice}
-        onBack={() => router.push(isEditMode ? "/dashboard/templates" : "/dashboard/templates/new")}
+        onBack={() => {
+          const fromPredefinis = presetId || searchParams.get("from") === "predifinis";
+          router.push(
+            fromPredefinis
+              ? "/dashboard/templates?view=predifinis"
+              : isEditMode
+                ? "/dashboard/templates"
+                : "/dashboard/templates/new",
+          );
+        }}
         onCreateTemplate={handleSaveOrCreate}
         isSaving={isSaving}
         isEditMode={isEditMode}

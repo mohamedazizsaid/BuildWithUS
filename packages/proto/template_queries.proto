@@ -21,6 +21,8 @@ message ListTemplatesRequest {
   bool ascending = 6;
   string search = 7;
   bool favorites_only = 9;
+  bool exclude_predefined_overrides = 10;
+  bool predefined_overrides_only = 11;
 }
 
 message RenderTemplateRequest {

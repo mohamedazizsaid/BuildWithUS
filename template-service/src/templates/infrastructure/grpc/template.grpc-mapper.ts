@@ -64,6 +64,8 @@ export class TemplateGrpcMapper {
       version: primitives.version,
       usageCount,
       is_favorite: primitives.isFavorite ?? false,
+      is_predefined_override: primitives.isPredefinedOverride ?? false,
+      predefined_template_id: primitives.predefinedTemplateId ?? '',
     } as unknown as TemplateDTO;
   }
 
@@ -88,6 +90,8 @@ export class TemplateGrpcMapper {
       version: entity.version,
       usageCount: entity.usageCount || 0,
       is_favorite: entity.isFavorite ?? false,
+      is_predefined_override: entity.isPredefinedOverride ?? false,
+      predefined_template_id: entity.predefinedTemplateId ?? '',
     } as unknown as TemplateDTO;
   }
 }

@@ -21,5 +21,7 @@ export class CreateTemplateCommand implements CreateTemplateRequest {
     public readonly content: string,
     public readonly channelContents: ChannelContent[] = [],
     public readonly channels: TemplateType[] = [],
+    public readonly isPredefinedOverride: boolean = false,
+    public readonly predefinedTemplateId: string = '',
   ) {}
 }

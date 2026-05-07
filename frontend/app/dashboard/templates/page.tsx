@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Mail, FileText, ScrollText, Pencil, Trash2, Copy, Eye, X, Clock, Star, Receipt, Play } from 'lucide-react';
+import { Plus, Mail, FileText, ScrollText, Pencil, Trash2, Copy, Eye, X, Clock, Star, Receipt, Play, Layers } from 'lucide-react';
+import { PREDEFINED_TEMPLATES, PREDEFINED_CATEGORIES, CATEGORY_STYLES, PredefinedTemplate } from '@/lib/predefined-templates';
+import { renderRowsPreview } from '@/lib/preview-html';
+import { useMemo } from 'react';
 import { templates } from '@/lib/api';
 import { renderTiptapToHtml } from '@/lib/tiptap/variable-node';
 import { useAuth } from '@/context/auth';
@@ -58,6 +61,8 @@ interface Template {
   version: number;
   usage_count: number;
   is_favorite?: boolean;
+  is_predefined_override?: boolean;
+  predefined_template_id?: string;
 }
 
 const TYPE_CONFIG: Record<string, { label: string; icon: typeof Mail; color: string; bg: string; gradient: string }> = {
@@ -733,6 +738,244 @@ function PreviewModal({
   );
 }
 
+// ─── Predefined Templates Gallery ───
+type ViewMode = 'modeles' | 'favoris' | 'predifinis';
+
+// Real rendered preview of a predefined template — same renderer as the editor canvas.
+// If `overrideMjml` is provided (tenant has customized this template), render that instead.
+function PredefinedThumbnail({ tmpl, overrideMjml }: { tmpl: PredefinedTemplate; overrideMjml?: string }) {
+  const html = useMemo(
+    () => overrideMjml ? mjmlToPreviewHtml(overrideMjml) : renderRowsPreview(tmpl.rows()),
+    [tmpl.id, overrideMjml],
+  );
+  return (
+    <div className="w-full h-[200px] overflow-hidden bg-white relative">
+      <div
+        className="origin-top-left absolute top-0 left-0"
+        style={{ transform: 'scale(0.45)', width: '222%', height: '222%', pointerEvents: 'none' }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/80 pointer-events-none" />
+    </div>
+  );
+}
+
+// Full-template preview modal — opened when clicking "Aperçu" on a card.
+function PredefinedPreviewModal({
+  tmpl,
+  overrideMjml,
+  onClose,
+  onUse,
+}: {
+  tmpl: PredefinedTemplate;
+  overrideMjml?: string;
+  onClose: () => void;
+  onUse: () => void;
+}) {
+  const html = useMemo(
+    () => overrideMjml ? mjmlToPreviewHtml(overrideMjml) : renderRowsPreview(tmpl.rows()),
+    [tmpl.id, overrideMjml],
+  );
+  const style = CATEGORY_STYLES[tmpl.category] || CATEGORY_STYLES.b2b;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        transition={{ duration: 0.25 }}
+        className="relative bg-white rounded-2xl shadow-2xl w-[90vw] max-w-[900px] h-[85vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <div className="flex items-center gap-3 min-w-0">
+            <span
+              className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium shrink-0"
+              style={{ backgroundColor: style.bg, color: style.text, border: `1px solid ${style.accent}22` }}
+            >
+              {PREDEFINED_CATEGORIES.find(c => c.id === tmpl.category)?.label}
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold truncate">{tmpl.name}</h3>
+              <p className="text-[11px] text-muted-foreground truncate">{tmpl.description}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={onUse}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <Plus size={12} />
+              Utiliser ce template
+            </button>
+            <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-colors">
+              <X size={16} className="text-slate-500" />
+            </button>
+          </div>
+        </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+          <div className="mx-auto shadow-sm rounded-lg overflow-hidden max-w-[600px] bg-white">
+            <div dangerouslySetInnerHTML={{ __html: html }} />
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function PredefinedGallery({
+  overrides,
+  onUse,
+  onEditOverride,
+}: {
+  overrides: Map<string, Template>;
+  onUse: (id: string, name: string) => void;
+  onEditOverride: (template: Template) => void;
+}) {
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [previewTarget, setPreviewTarget] = useState<PredefinedTemplate | null>(null);
+
+  const filtered = selectedCategory === 'all'
+    ? PREDEFINED_TEMPLATES
+    : PREDEFINED_TEMPLATES.filter(t => t.category === selectedCategory);
+
+  return (
+    <div>
+      {/* Category filter pills */}
+      <div className="flex items-center gap-2 flex-wrap mb-6">
+        {PREDEFINED_CATEGORIES.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setSelectedCategory(cat.id)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              selectedCategory === cat.id
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {cat.label}
+            {cat.id !== 'all' && (
+              <span className={`ml-1.5 text-[10px] font-semibold ${selectedCategory === cat.id ? 'text-white/70' : 'text-slate-400'}`}>
+                {PREDEFINED_TEMPLATES.filter(t => t.category === cat.id).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Template grid */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={selectedCategory}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+        >
+          {filtered.map((tmpl, i) => {
+            const style = CATEGORY_STYLES[tmpl.category] || CATEGORY_STYLES.b2b;
+            const override = overrides.get(tmpl.id);
+            const isCustomized = !!override;
+
+            const handleUse = () => {
+              if (override) onEditOverride(override);
+              else onUse(tmpl.id, tmpl.name);
+            };
+
+            return (
+              <motion.div
+                key={tmpl.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.3 }}
+                className="group relative bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+              >
+                {/* Real template preview */}
+                <div className="relative">
+                  <PredefinedThumbnail tmpl={tmpl} overrideMjml={override?.content} />
+
+                  {/* Hover overlay with two actions */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-all duration-200 flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => setPreviewTarget(tmpl)}
+                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-2 bg-white text-slate-700 rounded-full text-xs font-semibold shadow-lg transition-all duration-150 hover:scale-105 hover:bg-slate-50"
+                    >
+                      <Eye size={12} />
+                      Aperçu
+                    </button>
+                    <button
+                      onClick={handleUse}
+                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-2 bg-slate-900 text-white rounded-full text-xs font-semibold shadow-lg transition-all duration-150 hover:scale-105"
+                    >
+                      {isCustomized ? <><Pencil size={12} />Modifier</> : <><Plus size={12} />Utiliser</>}
+                    </button>
+                  </div>
+
+                  {/* Top-left badges: category + customized indicator */}
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold shadow-sm" style={{ backgroundColor: style.bg, color: style.text, border: `1px solid ${style.accent}22` }}>
+                      {PREDEFINED_CATEGORIES.find(c => c.id === tmpl.category)?.label}
+                    </span>
+                    {isCustomized && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shadow-sm bg-amber-50 text-amber-700 border border-amber-200">
+                        <Pencil size={9} />
+                        Personnalisé
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Accent line */}
+                <div className="h-[2px]" style={{ backgroundColor: style.accent, opacity: 0.4 }} />
+
+                {/* Card info */}
+                <div className="p-3.5">
+                  <h3 className="text-sm font-semibold truncate text-foreground">{tmpl.name}</h3>
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">{tmpl.description}</p>
+                  <button
+                    onClick={handleUse}
+                    className="mt-3 w-full h-8 rounded-lg border border-border text-xs font-medium hover:bg-slate-50 hover:border-slate-300 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    {isCustomized ? <><Pencil size={12} />Modifier ma version</> : <><Plus size={12} />Utiliser ce template</>}
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Preview modal */}
+      <AnimatePresence>
+        {previewTarget && (
+          <PredefinedPreviewModal
+            tmpl={previewTarget}
+            overrideMjml={overrides.get(previewTarget.id)?.content}
+            onClose={() => setPreviewTarget(null)}
+            onUse={() => {
+              const t = previewTarget;
+              const ov = t ? overrides.get(t.id) : null;
+              setPreviewTarget(null);
+              if (ov) onEditOverride(ov);
+              else if (t) onUse(t.id, t.name);
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Tab config ───
 const TABS: { key: TabType; label: string; icon: typeof Mail; newRoute: string }[] = [
   { key: 'email',   label: 'Emails',   icon: Mail,       newRoute: '/dashboard/templates/new?preselect=email'   },
@@ -749,9 +992,15 @@ const TAB_TYPES: Record<TabType, string[]> = {
 // ─── Main Page ───
 export default function TemplatesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [templateList, setTemplateList] = useState<Template[]>([]);
+  const [overrideList, setOverrideList] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialView = (searchParams.get('view') as ViewMode | null);
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    initialView === 'predifinis' || initialView === 'favoris' ? initialView : 'modeles',
+  );
   const [activeTab, setActiveTab] = useState<TabType>('email');
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -760,8 +1009,13 @@ export default function TemplatesPage() {
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
   const { query } = useSearch();
 
+  // Filter by view mode: favoris shows only favorites
+  const viewFiltered = viewMode === 'favoris'
+    ? templateList.filter(t => t.is_favorite)
+    : templateList;
+
   // Filter by tab first, then by search query
-  const tabFiltered = templateList.filter((t) => TAB_TYPES[activeTab].includes(t.type));
+  const tabFiltered = viewFiltered.filter((t) => TAB_TYPES[activeTab].includes(t.type));
   const filteredTemplates = query.trim()
     ? tabFiltered.filter((t) => {
         const q = query.toLowerCase();
@@ -774,12 +1028,25 @@ export default function TemplatesPage() {
       })
     : tabFiltered;
 
-  // Counts per tab for badges
+  // Counts per tab for badges (scoped to current view)
   const counts: Record<TabType, number> = {
-    email:   templateList.filter((t) => TAB_TYPES.email.includes(t.type)).length,
-    contrat: templateList.filter((t) => TAB_TYPES.contrat.includes(t.type)).length,
-    facture: templateList.filter((t) => TAB_TYPES.facture.includes(t.type)).length,
+    email:   viewFiltered.filter((t) => TAB_TYPES.email.includes(t.type)).length,
+    contrat: viewFiltered.filter((t) => TAB_TYPES.contrat.includes(t.type)).length,
+    facture: viewFiltered.filter((t) => TAB_TYPES.facture.includes(t.type)).length,
   };
+
+  const handleUsePreset = (presetId: string, presetName: string) => {
+    router.push(`/dashboard/templates/editor?preset=${presetId}&name=${encodeURIComponent(presetName)}&type=1`);
+  };
+
+  // Map predefined_template_id → tenant's override record (used to swap in their custom version)
+  const overrideMap = useMemo(() => {
+    const m = new Map<string, Template>();
+    for (const t of overrideList) {
+      if (t.predefined_template_id) m.set(t.predefined_template_id, t);
+    }
+    return m;
+  }, [overrideList]);
 
   useEffect(() => {
     loadTemplates();
@@ -787,8 +1054,13 @@ export default function TemplatesPage() {
 
   const loadTemplates = async () => {
     try {
-      const data = await templates.list({ page: 1, limit: 100 });
-      setTemplateList(data.templates || []);
+      // Two parallel calls: regular templates + tenant's predefined overrides
+      const [regular, overrides] = await Promise.all([
+        templates.list({ page: 1, limit: 100, excludePredefinedOverrides: true }),
+        templates.list({ page: 1, limit: 100, predefinedOverridesOnly: true }),
+      ]);
+      setTemplateList(regular.templates || []);
+      setOverrideList(overrides.templates || []);
     } catch {
       toast.error('Échec du chargement des modèles');
     } finally {
@@ -859,7 +1131,9 @@ export default function TemplatesPage() {
         <div>
           <h1 className="text-2xl font-bold">Modèles</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {filteredTemplates.length} modèle{filteredTemplates.length !== 1 ? 's' : ''}{query.trim() ? ` pour "${query}"` : ''}
+            {viewMode === 'predifinis'
+              ? `${PREDEFINED_TEMPLATES.length} templates prêts à utiliser`
+              : `${filteredTemplates.length} modèle${filteredTemplates.length !== 1 ? 's' : ''}${query.trim() ? ` pour "${query}"` : ''}`}
           </p>
         </div>
         {canEdit && (
@@ -873,30 +1147,66 @@ export default function TemplatesPage() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-6 bg-slate-100 rounded-xl p-1 w-fit">
-        {TABS.map(({ key, label, icon: Icon }) => (
+      {/* View mode switcher */}
+      <div className="flex items-center gap-1 mb-4 bg-slate-100 rounded-xl p-1 w-fit">
+        {([
+          { key: 'modeles',   label: 'Mes modèles',          icon: Mail   },
+          { key: 'favoris',   label: 'Favoris',               icon: Star   },
+          { key: 'predifinis', label: 'Templates prédéfinis', icon: Layers },
+        ] as { key: ViewMode; label: string; icon: typeof Mail }[]).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
-            onClick={() => setActiveTab(key)}
+            onClick={() => setViewMode(key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === key
+              viewMode === key
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <Icon size={14} />
             {label}
-            {counts[key] > 0 && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                activeTab === key ? 'bg-slate-100 text-slate-600' : 'bg-slate-200 text-slate-500'
-              }`}>
-                {counts[key]}
+            {key === 'predifinis' && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${viewMode === key ? 'bg-slate-100 text-slate-600' : 'bg-slate-200 text-slate-500'}`}>
+                {PREDEFINED_TEMPLATES.length}
               </span>
             )}
           </button>
         ))}
       </div>
+
+      {/* Predefined gallery — shown when viewMode === 'predifinis' */}
+      {viewMode === 'predifinis' ? (
+        <PredefinedGallery
+          overrides={overrideMap}
+          onUse={handleUsePreset}
+          onEditOverride={(tmpl) => router.push(`/dashboard/templates/editor?id=${tmpl.id}&from=predifinis`)}
+        />
+      ) : (
+        <>
+          {/* Type sub-tabs (email / contrat / facture) */}
+          <div className="flex items-center gap-1 mb-6 bg-slate-100 rounded-xl p-1 w-fit">
+            {TABS.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === key
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Icon size={14} />
+                {label}
+                {counts[key] > 0 && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    activeTab === key ? 'bg-slate-100 text-slate-600' : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {counts[key]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
 
       {/* Empty State */}
       {filteredTemplates.length === 0 ? (
@@ -1048,6 +1358,8 @@ export default function TemplatesPage() {
             })}
           </motion.div>
         </AnimatePresence>
+      )}
+        </>
       )}
 
       {/* Delete Modal */}

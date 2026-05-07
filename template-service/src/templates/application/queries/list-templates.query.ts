@@ -17,5 +17,7 @@ export class ListTemplatesQuery implements ListTemplatesRequest {
     public readonly userId: string = '',
     public readonly tenantId: string = '',
     public readonly favoritesOnly: boolean = false,
+    public readonly excludePredefinedOverrides: boolean = false,
+    public readonly predefinedOverridesOnly: boolean = false,
   ) {}
 }

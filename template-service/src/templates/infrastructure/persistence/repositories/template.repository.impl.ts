@@ -64,6 +64,14 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       queryBuilder.andWhere('template.isFavorite = :isFavorite', { isFavorite: true });
     }
 
+    if (options?.excludePredefinedOverrides) {
+      queryBuilder.andWhere('template.isPredefinedOverride = :notOverride', { notOverride: false });
+    }
+
+    if (options?.predefinedOverridesOnly) {
+      queryBuilder.andWhere('template.isPredefinedOverride = :isOverride', { isOverride: true });
+    }
+
     // Apply sorting — primary by sortBy, secondary by createdAt
     const sortBy = options?.sortBy || 'updatedAt';
     const sortOrder = options?.ascending ? 'ASC' : 'DESC';
@@ -124,6 +132,8 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       updatedAt: primitives.updatedAt,
       deletedAt: primitives.deletedAt || null,
       isFavorite: primitives.isFavorite ?? false,
+      isPredefinedOverride: primitives.isPredefinedOverride ?? false,
+      predefinedTemplateId: primitives.predefinedTemplateId ?? null,
     };
 
     await this.repository.save(entity);
@@ -221,6 +231,8 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       entity.deletedAt || undefined,
       entity.version,
       entity.isFavorite ?? false,
+      entity.isPredefinedOverride ?? false,
+      entity.predefinedTemplateId ?? null,
     );
   }
 }

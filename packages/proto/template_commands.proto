@@ -27,6 +27,8 @@ message CreateTemplateRequest {
   string content = 6;
   repeated ChannelContent channel_contents = 7;
   repeated TemplateType channels = 8;
+  bool is_predefined_override = 10;
+  string predefined_template_id = 11;
 }
 
 message UpdateTemplateRequest {
@@ -94,6 +96,8 @@ message TemplateDTO {
   repeated ChannelContent channel_contents = 14;
   map<string, string> variants = 15;
   bool is_favorite = 16;
+  bool is_predefined_override = 17;
+  string predefined_template_id = 18;
 }
 
 message ToggleFavoriteRequest {

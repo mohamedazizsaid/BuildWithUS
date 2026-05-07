@@ -108,6 +108,9 @@ export class CreateTemplateHandler implements ICommandHandler<CreateTemplateComm
       content,
       channels as any,
       channelContents as any,
+      undefined,
+      command.isPredefinedOverride || false,
+      command.predefinedTemplateId || null,
     );
 
     // Save to repository

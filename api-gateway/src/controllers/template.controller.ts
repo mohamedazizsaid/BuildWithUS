@@ -172,6 +172,8 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
         content: body.content, // MJML or HTML content
         channel_contents: body.channelContents || [],
         channels: body.channels || [],
+        is_predefined_override: !!body.isPredefinedOverride,
+        predefined_template_id: body.predefinedTemplateId || '',
       }),
     );
     return result;
@@ -198,6 +200,10 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
         ascending: query.ascending === "true",
         favorites_only:
           query.favoritesOnly === "true" || query.favorites_only === "true",
+        exclude_predefined_overrides:
+          query.excludePredefinedOverrides === "true" || query.exclude_predefined_overrides === "true",
+        predefined_overrides_only:
+          query.predefinedOverridesOnly === "true" || query.predefined_overrides_only === "true",
       }),
     );
     return result;

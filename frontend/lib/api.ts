@@ -46,10 +46,10 @@ export const auth = {
 
 //----- Templates ----
 export const templates = {
-    create: (body: { name: string; description?: string; type: number; subject?: string; content: string }) =>
+    create: (body: { name: string; description?: string; type: number; subject?: string; content: string; isPredefinedOverride?: boolean; predefinedTemplateId?: string }) =>
         request('/templates', { method: 'POST', body: JSON.stringify(body) }),
     
-    list:(params?: {page?: number; limit?: number; type?: string; search?: string; favoritesOnly?: boolean; sortBy?: string; ascending?: boolean;}) =>{
+    list:(params?: {page?: number; limit?: number; type?: string; search?: string; favoritesOnly?: boolean; sortBy?: string; ascending?: boolean; excludePredefinedOverrides?: boolean; predefinedOverridesOnly?: boolean;}) =>{
         const query = new URLSearchParams();
         if(params?.page) query.set('page', String(params.page));
         if(params?.limit) query.set('limit', String(params.limit));
@@ -58,6 +58,8 @@ export const templates = {
         if(params?.favoritesOnly) query.set('favoritesOnly', 'true');
         if(params?.sortBy) query.set('sortBy', params.sortBy);
         if(params?.ascending !== undefined) query.set('ascending', String(params.ascending));
+        if(params?.excludePredefinedOverrides) query.set('excludePredefinedOverrides', 'true');
+        if(params?.predefinedOverridesOnly) query.set('predefinedOverridesOnly', 'true');
         return request(`/templates?${query.toString()}`);
     },
     get:(id: string) =>

@@ -12,6 +12,8 @@ export interface TemplateFilterOptions {
   sortBy?: string;
   ascending?: boolean;
   favoritesOnly?: boolean;
+  excludePredefinedOverrides?: boolean;
+  predefinedOverridesOnly?: boolean;
 }
 
 /**

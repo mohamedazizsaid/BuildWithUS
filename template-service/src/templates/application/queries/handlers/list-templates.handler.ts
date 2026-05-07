@@ -31,6 +31,8 @@ export class ListTemplatesHandler implements IQueryHandler<ListTemplatesQuery, L
       sortBy: query.sortBy,
       ascending: query.ascending,
       favoritesOnly: query.favoritesOnly || false,
+      excludePredefinedOverrides: query.excludePredefinedOverrides || false,
+      predefinedOverridesOnly: query.predefinedOverridesOnly || false,
     });
 
     const page = query.page || 1;
