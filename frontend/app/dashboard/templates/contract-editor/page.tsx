@@ -258,10 +258,20 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, csvDatase
 
   const insertBlock = useCallback((build: () => Record<string, unknown>) => {
     if (!editor) return;
-    // Use insertContentAt(selection.to) so atom-block NodeSelections are never
-    // replaced — content is always inserted after the current selection end.
-    const to = editor.state.selection.to;
-    editor.chain().focus().insertContentAt(to, build()).run();
+    const { selection } = editor.state;
+    const $to = selection.$to;
+    // If cursor is inside a nested node (depth ≥ 1), walk up to the top-level
+    // block and insert after it — avoids both replacing atom NodeSelections and
+    // splitting non-atom block content mid-paragraph.
+    // For depth=0 (e.g. NodeSelection on an atom block), selection.to is already
+    // after the node, so we use it directly.
+    let insertPos: number;
+    try {
+      insertPos = $to.depth >= 1 ? $to.after(1) : selection.to;
+    } catch {
+      insertPos = selection.to;
+    }
+    editor.chain().focus().insertContentAt(insertPos, build()).run();
   }, [editor]);
 
   const commitNewVar = useCallback((catLabel: string) => {
