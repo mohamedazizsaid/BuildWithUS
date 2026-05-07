@@ -169,9 +169,26 @@ const BLOCK_LIBRARY: { type: string; label: string; description: string; color: 
     build: () => ({
       type: 'formFieldsBlock',
       content: [
-        { type: 'paragraph', content: [{ type: 'text', text: 'Nom : ___' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Prénom : ___' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Email : ___' }] },
+        { type: 'paragraph', content: [
+          { type: 'text', text: 'Nom : ' },
+          { type: 'variable', attrs: { name: 'client_nom', label: null } },
+        ] },
+        { type: 'paragraph', content: [
+          { type: 'text', text: 'Prénom : ' },
+          { type: 'variable', attrs: { name: 'client_prenom', label: null } },
+        ] },
+        { type: 'paragraph', content: [
+          { type: 'text', text: 'Email : ' },
+          { type: 'variable', attrs: { name: 'client_email', label: null } },
+        ] },
+        { type: 'paragraph', content: [
+          { type: 'text', text: 'Téléphone : ' },
+          { type: 'variable', attrs: { name: 'client_telephone', label: null } },
+        ] },
+        { type: 'paragraph', content: [
+          { type: 'text', text: 'Adresse : ' },
+          { type: 'variable', attrs: { name: 'client_adresse', label: null } },
+        ] },
       ],
     }),
   },
@@ -241,7 +258,10 @@ function VariablePalette({ editor, allVars, customVarNames, varLabels, csvDatase
 
   const insertBlock = useCallback((build: () => Record<string, unknown>) => {
     if (!editor) return;
-    editor.chain().focus().insertContent(build()).run();
+    // Use insertContentAt(selection.to) so atom-block NodeSelections are never
+    // replaced — content is always inserted after the current selection end.
+    const to = editor.state.selection.to;
+    editor.chain().focus().insertContentAt(to, build()).run();
   }, [editor]);
 
   const commitNewVar = useCallback((catLabel: string) => {
@@ -971,22 +991,56 @@ function ContractCanvas({ editor, onBlockSelect }: {
       if (emptySlotEl) {
         const attrKey = emptySlotEl.getAttribute('data-empty-slot');
         if (attrKey) {
+          const setAttr = (pos: number, attrs: Record<string, unknown>) => {
+            editor.view.dispatch(
+              editor.state.tr.setNodeMarkup(pos, undefined, { ...attrs, [attrKey]: varName }),
+            );
+            toast.success(`Variable "${varLabel ?? varName}" assignée`);
+          };
+
+          // 1) posAtCoords — works for most blocks, but returns null inside
+          //    contentEditable=false atom blocks (e.g. table cells in FinancialBlock).
           const coordsPos = editor.view.posAtCoords({ left: e.clientX, top: e.clientY });
           if (coordsPos) {
             try {
+              const directNode = editor.state.doc.nodeAt(coordsPos.pos);
+              if (directNode?.attrs && attrKey in directNode.attrs) {
+                setAttr(coordsPos.pos, directNode.attrs as Record<string, unknown>);
+                return;
+              }
               const $pos = editor.state.doc.resolve(coordsPos.pos);
-              for (let d = $pos.depth; d >= 0; d--) {
-                const nodePos = d > 0 ? $pos.before(d) : 0;
+              for (let d = $pos.depth; d >= 1; d--) {
+                const nodePos = $pos.before(d);
                 const blockNode = editor.state.doc.nodeAt(nodePos);
                 if (blockNode?.attrs && attrKey in blockNode.attrs) {
-                  editor.view.dispatch(
-                    editor.state.tr.setNodeMarkup(nodePos, undefined, { ...blockNode.attrs, [attrKey]: varName }),
-                  );
-                  toast.success(`Variable "${varLabel ?? varName}" assignée`);
-                  break;
+                  setAttr(nodePos, blockNode.attrs as Record<string, unknown>);
+                  return;
                 }
               }
             } catch { /* ignore */ }
+          }
+
+          // 2) DOM walk fallback — for atom blocks inside tables where posAtCoords
+          //    returns null (e.g. TVA/TTC rows in FinancialBlock).
+          const tiptapEl = canvasRef.current?.querySelector('.tiptap');
+          if (tiptapEl) {
+            let blockEl: Element | null = emptySlotEl;
+            while (blockEl && blockEl.parentElement && !blockEl.parentElement.classList.contains('tiptap')) {
+              blockEl = blockEl.parentElement;
+            }
+            if (blockEl && blockEl.parentElement) {
+              const childIdx = Array.from(tiptapEl.children).indexOf(blockEl as HTMLElement);
+              if (childIdx >= 0) {
+                try {
+                  const pos = editor.view.posAtDOM(tiptapEl, childIdx);
+                  const node = editor.state.doc.nodeAt(pos);
+                  if (node?.attrs && attrKey in node.attrs) {
+                    setAttr(pos, node.attrs as Record<string, unknown>);
+                    return;
+                  }
+                } catch { /* ignore */ }
+              }
+            }
           }
           return;
         }

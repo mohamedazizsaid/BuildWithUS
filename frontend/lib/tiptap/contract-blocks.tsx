@@ -431,13 +431,18 @@ function SignatureView({ node, updateAttributes }: NodeViewProps) {
           Fait à <VarChip name={a.cityVar} attrKey="cityVar" small onClear={() => updateAttributes({ cityVar: '' })} />, le <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} />.
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          {labels.map((label) => (
-            <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ height: '50px', borderBottom: `1px solid ${lineColor}`, marginBottom: '6px' }} />
-              <div style={{ fontSize: '8.5pt', color: '#475569', fontWeight: 600 }}>Signature du {label}</div>
-              <div style={{ fontSize: '8pt', color: '#94a3b8', marginTop: '4px' }}>Nom : ____________</div>
-            </div>
-          ))}
+          {labels.map((label, i) => {
+            const nameKey = `nameVar${i}` as 'nameVar0' | 'nameVar1' | 'nameVar2'
+            return (
+              <div key={label} style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ height: '50px', borderBottom: `1px solid ${lineColor}`, marginBottom: '6px' }} />
+                <div style={{ fontSize: '8.5pt', color: '#475569', fontWeight: 600 }}>Signature du {label}</div>
+                <div style={{ fontSize: '8pt', color: '#94a3b8', marginTop: '4px' }}>
+                  Nom : <VarChip name={a[nameKey] ?? ''} attrKey={nameKey} small onClear={() => updateAttributes({ [nameKey]: '' })} />
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
     </NodeViewWrapper>
@@ -454,6 +459,9 @@ export const SignatureBlock = Node.create({
       cityVar:     { default: 'ville_signature' },
       dateVar:     { default: 'date_signature' },
       columns:     { default: 'Prestataire,Client' },
+      nameVar0:    { default: 'prestataire_nom' },
+      nameVar1:    { default: 'client_nom' },
+      nameVar2:    { default: '' },
       blockBg:     { default: '' },
       blockAccent: { default: '' },
     }
@@ -466,6 +474,9 @@ export const SignatureBlock = Node.create({
       'data-city-var':     a.cityVar,
       'data-date-var':     a.dateVar,
       'data-columns':      a.columns,
+      'data-name-var-0':   a.nameVar0,
+      'data-name-var-1':   a.nameVar1,
+      'data-name-var-2':   a.nameVar2,
       'data-block-bg':     a.blockBg,
       'data-block-accent': a.blockAccent,
     })]
@@ -569,9 +580,9 @@ function RetractView({ node, updateAttributes }: NodeViewProps) {
         <p style={{ fontSize: '8.5pt', color: '#94a3b8', margin: '0 0 8px' }}>
           À renvoyer dans un délai de 14 jours par lettre recommandée avec AR à : <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} /> — Service Rétractation — <VarChip name={a.addressVar} attrKey="addressVar" small onClear={() => updateAttributes({ addressVar: '' })} />.
         </p>
-        <div style={{ display: 'flex', gap: '12px', marginTop: '10px', fontSize: '9pt' }}>
-          <span>Adresse : ____________</span>
-          <span>Ville : ____________</span>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '10px', fontSize: '9pt', alignItems: 'center' }}>
+          <span>Adresse : <VarChip name={a.signAddressVar} attrKey="signAddressVar" small onClear={() => updateAttributes({ signAddressVar: '' })} /></span>
+          <span>Ville : <VarChip name={a.signCityVar} attrKey="signCityVar" small onClear={() => updateAttributes({ signCityVar: '' })} /></span>
           <span style={{ marginLeft: 'auto', borderBottom: `1px solid ${accentColor}`, minWidth: '120px', textAlign: 'right' }}>Signature</span>
         </div>
       </div>
@@ -586,29 +597,33 @@ export const RetractBlock = Node.create({
   draggable: true,
   addAttributes() {
     return {
-      firstNameVar: { default: 'client_prenom' },
-      lastNameVar:  { default: 'client_nom' },
-      creditorVar:  { default: 'prestataire_nom' },
-      addressVar:   { default: 'prestataire_adresse' },
-      dateVar:      { default: 'date_contrat' },
-      numberVar:    { default: 'numero_contrat' },
-      blockBg:      { default: '' },
-      blockAccent:  { default: '' },
+      firstNameVar:    { default: 'client_prenom' },
+      lastNameVar:     { default: 'client_nom' },
+      creditorVar:     { default: 'prestataire_nom' },
+      addressVar:      { default: 'prestataire_adresse' },
+      dateVar:         { default: 'date_contrat' },
+      numberVar:       { default: 'numero_contrat' },
+      signAddressVar:  { default: 'client_adresse' },
+      signCityVar:     { default: 'client_ville' },
+      blockBg:         { default: '' },
+      blockAccent:     { default: '' },
     }
   },
   parseHTML() { return [{ tag: 'div[data-retract-block]' }] },
   renderHTML({ node, HTMLAttributes }) {
     const a = node.attrs
     return ['div', mergeAttributes(HTMLAttributes, {
-      'data-retract-block':  '',
-      'data-first-name-var': a.firstNameVar,
-      'data-last-name-var':  a.lastNameVar,
-      'data-creditor-var':   a.creditorVar,
-      'data-address-var':    a.addressVar,
-      'data-date-var':       a.dateVar,
-      'data-number-var':     a.numberVar,
-      'data-block-bg':       a.blockBg,
-      'data-block-accent':   a.blockAccent,
+      'data-retract-block':    '',
+      'data-first-name-var':   a.firstNameVar,
+      'data-last-name-var':    a.lastNameVar,
+      'data-creditor-var':     a.creditorVar,
+      'data-address-var':      a.addressVar,
+      'data-date-var':         a.dateVar,
+      'data-number-var':       a.numberVar,
+      'data-sign-address-var': a.signAddressVar,
+      'data-sign-city-var':    a.signCityVar,
+      'data-block-bg':         a.blockBg,
+      'data-block-accent':     a.blockAccent,
     })]
   },
   addNodeView() { return ReactNodeViewRenderer(RetractView) },
@@ -633,7 +648,7 @@ export const ALL_CONTRACT_BLOCKS = [
 export const BLOCK_VAR_KEYS: Record<string, string[]> = {
   contractHeader:  ['companyVar', 'addressVar', 'siretVar', 'tvaVar', 'numberVar', 'versionVar', 'dateVar'],
   financialBlock:  ['descriptionVar', 'htVar', 'rateVar', 'tvaVar', 'ttcVar'],
-  signatureBlock:  ['cityVar', 'dateVar'],
+  signatureBlock:  ['cityVar', 'dateVar', 'nameVar0', 'nameVar1', 'nameVar2'],
   sepaBlock:       ['creditorVar', 'addressVar'],
-  retractBlock:    ['firstNameVar', 'lastNameVar', 'creditorVar', 'addressVar', 'dateVar', 'numberVar'],
+  retractBlock:    ['firstNameVar', 'lastNameVar', 'creditorVar', 'addressVar', 'dateVar', 'numberVar', 'signAddressVar', 'signCityVar'],
 }
