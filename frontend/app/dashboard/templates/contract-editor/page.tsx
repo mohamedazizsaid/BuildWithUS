@@ -13,9 +13,12 @@ import {
   List, ListOrdered, Minus, Undo, Redo, FileText, X, CheckCircle2,
   GripVertical, Copy, Trash2 as TrashIcon, Upload, AlertTriangle, FileDown,
 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { templates, contractVariables } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { VariableNode, extractVariablesFromTiptap, renderTiptapToHtml } from '@/lib/tiptap/variable-node';
+import { buildVariableMapping, applyMapping, type MappingSource } from '@/lib/variable-mapper';
+import { MappingConfirmModal } from '@/components/contract/MappingConfirmModal';
 import { VarLabelsContext } from '@/lib/tiptap/var-labels-context';
 import { ContractHeader } from '@/lib/tiptap/contract-header';
 import { ALL_CONTRACT_BLOCKS } from '@/lib/tiptap/contract-blocks';
@@ -1730,6 +1733,15 @@ function ContractEditorContent() {
   const [customVarNames, setCustomVarNames] = useState<Set<string>>(new Set());
   const [csvDatasets, setCsvDatasets] = useState<CsvDataset[]>([]);
 
+  // ── AI mapping modal state (CSV columns ↔ template variables) ──
+  const [mappingModal, setMappingModal] = useState<{
+    dataset: CsvDataset;
+    templateVars: string[];
+    mapping: Record<string, string | null>;
+    sources: Record<string, MappingSource>;
+  } | null>(null);
+  const [isMappingLoading, setIsMappingLoading] = useState(false);
+
   const varLabels = useMemo<Record<string, string>>(() => {
     const labels: Record<string, string> = {};
     for (const cat of VARIABLE_PALETTE) {
@@ -2104,24 +2116,63 @@ function ContractEditorContent() {
     }
   }, [editor, name, persistTemplate, isEditMode, router]);
 
-  // ── Batch CSV → PDFs (one PDF per CSV row) ──
+  // ── Batch CSV → PDFs: step 1 — build mapping & open confirmation modal ──
   const handleBatchCsvPdf = useCallback(async () => {
     if (!editor || csvDatasets.length === 0) {
       toast.error('Importez d\'abord un CSV depuis le panneau de gauche');
       return;
     }
-    const dataset = csvDatasets[csvDatasets.length - 1]; // most recently imported
-    const { rows, filename } = dataset;
-    if (rows.length === 0) { toast.error('Le CSV ne contient aucune ligne de données'); return; }
+    const dataset = csvDatasets[csvDatasets.length - 1];
+    if (dataset.rows.length === 0) {
+      toast.error('Le CSV ne contient aucune ligne de données');
+      return;
+    }
 
+    const templateVars = extractVariablesFromTiptap(editor.getJSON() as Record<string, unknown>);
+    if (templateVars.length === 0) {
+      toast.error('Aucune variable détectée dans le template');
+      return;
+    }
+
+    setIsMappingLoading(true);
+    const toastId = toast.loading('Analyse IA des colonnes…');
+    try {
+      const { mapping, sources } = await buildVariableMapping(
+        templateVars,
+        dataset.headers,
+        dataset.rows[0],
+      );
+      toast.dismiss(toastId);
+      setMappingModal({ dataset, templateVars, mapping, sources });
+    } catch {
+      toast.error('Échec de l\'analyse IA — assignez manuellement', { id: toastId });
+      const emptyMapping: Record<string, string | null> = {};
+      const emptySources: Record<string, MappingSource> = {};
+      for (const v of templateVars) {
+        emptyMapping[v] = null;
+        emptySources[v] = 'none';
+      }
+      setMappingModal({ dataset, templateVars, mapping: emptyMapping, sources: emptySources });
+    } finally {
+      setIsMappingLoading(false);
+    }
+  }, [editor, csvDatasets]);
+
+  // ── Batch CSV → PDFs: step 2 — user confirmed, run the generation ──
+  const confirmAndGenerateBatch = useCallback(async () => {
+    if (!editor || !mappingModal) return;
+    const { dataset, mapping } = mappingModal;
+    const { rows, filename } = dataset;
     const baseName = filename.replace(/\.csv$/i, '');
+
     setIsGenerating(true);
     const toastId = toast.loading(`Génération de ${rows.length} PDF(s)…`);
     const docJson = editor.getJSON() as Record<string, unknown>;
 
     let success = 0;
     for (let i = 0; i < rows.length; i++) {
-      const html = renderTiptapToHtml(docJson, rows[i], { docName: `${name}_${i + 1}` });
+      const mappedValues = applyMapping(rows[i], mapping);
+      const html = renderTiptapToHtml(docJson, mappedValues, { docName: `${name}_${i + 1}` });
       try {
         const res = await fetch('http://localhost:3000/templates/render-pdf', {
           method: 'POST',
@@ -2139,18 +2190,18 @@ function ContractEditorContent() {
         URL.revokeObjectURL(url);
         success++;
         toast.loading(`Génération… ${i + 1}/${rows.length}`, { id: toastId });
-        // Small pause so the browser doesn't block multiple downloads
         if (i < rows.length - 1) await new Promise((r) => setTimeout(r, 250));
       } catch { /* skip failed row */ }
     }
 
     setIsGenerating(false);
+    setMappingModal(null);
     if (success === rows.length) {
       toast.success(`${success} PDF(s) générés depuis "${filename}"`, { id: toastId });
     } else {
       toast.error(`${success}/${rows.length} PDF(s) générés (échecs sur certaines lignes)`, { id: toastId });
     }
-  }, [editor, csvDatasets]);
+  }, [editor, mappingModal, name]);
 
   const typeConfig = CONTRACT_TYPES[contractType];
 
@@ -2204,11 +2255,13 @@ function ContractEditorContent() {
           {csvDatasets.length > 0 && (
             <button
               onClick={handleBatchCsvPdf}
-              disabled={isGenerating}
+              disabled={isGenerating || isMappingLoading}
               title={`Générer un PDF par ligne de ${csvDatasets[csvDatasets.length - 1].filename} (${csvDatasets[csvDatasets.length - 1].rows.length} lignes)`}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-40"
             >
-              <FileDown size={13} /> CSV → PDF
+              {isMappingLoading
+                ? <><RefreshCw size={13} className="animate-spin" /> Analyse…</>
+                : <><FileDown size={13} /> CSV → PDF</>}
               <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-700/40 text-[10px]">
                 {csvDatasets[csvDatasets.length - 1].rows.length}
               </span>
@@ -2279,6 +2332,29 @@ function ContractEditorContent() {
           isGenerating={isGenerating}
         />
       )}
+
+      {/* ── CSV column ↔ template variable mapping modal ── */}
+      <AnimatePresence>
+        {mappingModal && (
+          <MappingConfirmModal
+            templateVars={mappingModal.templateVars}
+            fileHeaders={mappingModal.dataset.headers}
+            mapping={mappingModal.mapping}
+            sources={mappingModal.sources}
+            sampleRow={mappingModal.dataset.rows[0]}
+            rowCount={mappingModal.dataset.rows.length}
+            filename={mappingModal.dataset.filename}
+            isGenerating={isGenerating}
+            onChange={(templateVar, fileCol) =>
+              setMappingModal((prev) =>
+                prev ? { ...prev, mapping: { ...prev.mapping, [templateVar]: fileCol } } : prev,
+              )
+            }
+            onConfirm={confirmAndGenerateBatch}
+            onCancel={() => setMappingModal(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Editor styles ── */}
       <style>{`

@@ -228,4 +228,18 @@ export const ai = {
 
         return { mjml };
     },
+
+    mapVariables: async (body: {
+        template_vars: string[];
+        file_columns: string[];
+        sample_row?: Record<string, string>;
+    }): Promise<{ mapping: Record<string, string | null> }> => {
+        const res = await fetch(`${AI_SERVICE_URL}/map-variables`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`AI mapping failed: ${res.status}`);
+        return res.json();
+    },
 };

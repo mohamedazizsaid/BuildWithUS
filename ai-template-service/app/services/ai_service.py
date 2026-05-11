@@ -104,6 +104,98 @@ class AiService:
         logger.info("[AI] Template generation complete")
         return {"mjml": mjml}
 
+    # ── Variable mapping ─────────────────────────────────────────────────────
+
+    async def map_variables(
+        self,
+        template_vars: list[str],
+        file_columns: list[str],
+        sample_row: dict | None = None,
+    ) -> dict:
+        """
+        Ask the model to map template variables to file columns by semantic meaning.
+        Returns { template_var: file_column | None }.
+        """
+        if not template_vars or not file_columns:
+            return {}
+
+        sample_lines = ""
+        if sample_row:
+            sample_lines = "Example values from the first row:\n" + "\n".join(
+                f"  - {col}: {str(sample_row.get(col, ''))[:80]}"
+                for col in file_columns
+            )
+
+        system = (
+            "You are a strict JSON-only assistant that maps template placeholders to data "
+            "columns. Match by semantic meaning across languages (French ↔ English ↔ others). "
+            "Use the example values to disambiguate. If no good match exists for a template "
+            "variable, return null for it. Each template variable maps to AT MOST one file column. "
+            "Return ONLY a JSON object — no markdown, no explanation."
+        )
+        user = (
+            f"Template variables: {json.dumps(template_vars)}\n"
+            f"File columns: {json.dumps(file_columns)}\n"
+            f"{sample_lines}\n\n"
+            "Return JSON of the form: { \"template_var\": \"file_column_or_null\", ... }"
+        )
+
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "max_tokens": 800,
+            "temperature": 0.1,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    self.url,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    content=json.dumps(payload),
+                )
+                data = response.json()
+                if "error" in data:
+                    logger.error(f"[AI map] OpenRouter error: {data['error']}")
+                    raise RuntimeError(data["error"].get("message", "AI error"))
+                content = "".join(
+                    choice["message"]["content"]
+                    for choice in data.get("choices", [])
+                    if choice.get("message") and choice["message"].get("content")
+                )
+        except Exception as e:
+            logger.exception("[AI map] HTTP error")
+            raise
+
+        json_match = re.search(r"\{[\s\S]*\}", content)
+        if not json_match:
+            logger.warning(f"[AI map] No JSON found in: {content[:200]}")
+            return {}
+
+        try:
+            raw = json.loads(json_match.group(0))
+        except json.JSONDecodeError as e:
+            logger.warning(f"[AI map] JSON parse failed: {e}")
+            return {}
+
+        valid_cols = set(file_columns)
+        valid_vars = set(template_vars)
+        cleaned: dict[str, str | None] = {}
+        for k, v in raw.items():
+            if k not in valid_vars:
+                continue
+            if isinstance(v, str) and v in valid_cols:
+                cleaned[k] = v
+            else:
+                cleaned[k] = None
+        return cleaned
+
     # ── Sanitizer ────────────────────────────────────────────────────────────
 
     @staticmethod
