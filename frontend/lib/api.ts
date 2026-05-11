@@ -242,4 +242,19 @@ export const ai = {
         if (!res.ok) throw new Error(`AI mapping failed: ${res.status}`);
         return res.json();
     },
+
+    mapInvoiceFields: async (body: {
+        targets: { path: string; label: string; type: string; hint?: string }[];
+        file_columns: string[];
+        already_matched?: { target: string; column: string }[];
+        sample_row?: Record<string, string>;
+    }): Promise<{ mapping: Record<string, string | null> }> => {
+        const res = await fetch(`${AI_SERVICE_URL}/map-invoice-fields`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`AI invoice mapping failed: ${res.status}`);
+        return res.json();
+    },
 };

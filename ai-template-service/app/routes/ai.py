@@ -37,3 +37,33 @@ async def map_variables(request: MapVariablesRequest):
         return {"mapping": mapping}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class InvoiceTargetSpec(BaseModel):
+    path: str
+    label: str
+    type: str
+    hint: Optional[str] = ''
+
+class AlreadyMatchedSpec(BaseModel):
+    target: str
+    column: str
+
+class MapInvoiceFieldsRequest(BaseModel):
+    targets: list[InvoiceTargetSpec]
+    file_columns: list[str]
+    already_matched: Optional[list[AlreadyMatchedSpec]] = None
+    sample_row: Optional[dict] = None
+
+@router.post("/map-invoice-fields")
+async def map_invoice_fields(request: MapInvoiceFieldsRequest):
+    try:
+        mapping = await ai_service.map_invoice_fields(
+            targets=[t.model_dump() for t in request.targets],
+            file_columns=request.file_columns,
+            already_matched=[m.model_dump() for m in (request.already_matched or [])],
+            sample_row=request.sample_row,
+        )
+        return {"mapping": mapping}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -196,6 +196,116 @@ class AiService:
                 cleaned[k] = None
         return cleaned
 
+    # ── Invoice field mapping ────────────────────────────────────────────────
+
+    async def map_invoice_fields(
+        self,
+        targets: list[dict],          # [{path, label, type, hint}]
+        file_columns: list[str],
+        already_matched: list[dict] | None = None,
+        sample_row: dict | None = None,
+    ) -> dict:
+        """
+        Map remaining invoice schema fields to file columns. Unlike generic
+        variable mapping, the target schema is fixed and known — we pass labels,
+        types, and hints to help the model reason about which column fits.
+        """
+        if not targets or not file_columns:
+            return {}
+
+        sample_lines = ""
+        if sample_row:
+            sample_lines = "\nExample values from the first row:\n" + "\n".join(
+                f"  - {col}: {str(sample_row.get(col, ''))[:80]}"
+                for col in file_columns
+            )
+
+        already_str = ""
+        if already_matched:
+            already_str = "\nAlready matched (do NOT reuse these columns):\n" + "\n".join(
+                f"  - {m['target']} ← {m['column']}" for m in already_matched
+            )
+
+        targets_str = "\n".join(
+            f"  - {t['path']} ({t['label']}, type={t['type']}{', e.g. ' + t['hint'] if t.get('hint') else ''})"
+            for t in targets
+        )
+        used_columns = {m["column"] for m in (already_matched or [])}
+        available_str = ", ".join(c for c in file_columns if c not in used_columns) or "(none)"
+
+        system = (
+            "You map columns from a data file to fields of a STRICT invoice schema. "
+            "The target schema is fixed — every invoice has these fields. Each target "
+            "has a TYPE (string, number, date, email, siret, etc.) — only match a "
+            "column whose example value plausibly satisfies the type. Return null when "
+            "no column fits — never invent a match. Each target maps to AT MOST one "
+            "column, and each column is used AT MOST once. Output STRICT JSON only."
+        )
+        user = (
+            f"Available columns: {available_str}\n\n"
+            f"Targets to map:\n{targets_str}\n"
+            f"{already_str}{sample_lines}\n\n"
+            "Return JSON: { \"target_path\": \"column_or_null\", ... }"
+        )
+
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user",   "content": user},
+            ],
+            "max_tokens": 1000,
+            "temperature": 0.1,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    self.url,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    content=json.dumps(payload),
+                )
+                data = response.json()
+                if "error" in data:
+                    logger.error(f"[AI invoice-map] OpenRouter error: {data['error']}")
+                    raise RuntimeError(data["error"].get("message", "AI error"))
+                content = "".join(
+                    choice["message"]["content"]
+                    for choice in data.get("choices", [])
+                    if choice.get("message") and choice["message"].get("content")
+                )
+        except Exception:
+            logger.exception("[AI invoice-map] HTTP error")
+            raise
+
+        json_match = re.search(r"\{[\s\S]*\}", content)
+        if not json_match:
+            logger.warning(f"[AI invoice-map] No JSON found in: {content[:200]}")
+            return {}
+        try:
+            raw = json.loads(json_match.group(0))
+        except json.JSONDecodeError as e:
+            logger.warning(f"[AI invoice-map] JSON parse failed: {e}")
+            return {}
+
+        valid_paths = {t["path"] for t in targets}
+        valid_cols = set(file_columns)
+        # Enforce: each column used at most once, only valid paths returned.
+        used: set[str] = set()
+        cleaned: dict[str, str | None] = {}
+        for path, col in raw.items():
+            if path not in valid_paths:
+                continue
+            if isinstance(col, str) and col in valid_cols and col not in used:
+                cleaned[path] = col
+                used.add(col)
+            else:
+                cleaned[path] = None
+        return cleaned
+
     # ── Sanitizer ────────────────────────────────────────────────────────────
 
     @staticmethod
