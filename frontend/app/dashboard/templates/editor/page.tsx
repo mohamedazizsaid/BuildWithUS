@@ -313,10 +313,9 @@ function EditorContent() {
         toast.success("Modèle enregistré !");
       } else {
         await templates.create(body);
-        toast.success("Modèle créé avec succès !");
+        toast.success(presetId ? "Nouveau modèle créé à partir du template prédéfini !" : "Modèle créé avec succès !");
       }
-      const fromPredefinis = presetId || searchParams.get("from") === "predifinis";
-      router.push(fromPredefinis ? "/dashboard/templates?view=predifinis" : "/dashboard/templates");
+      router.push("/dashboard/templates");
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Échec de l'enregistrement";
@@ -371,7 +370,6 @@ function EditorContent() {
         onSendTestEmail={handleSendTestEmail}
         isSendingTest={isSendingTest}
         collaborators={otherUsers}
-        isPredefinedView={!!presetId}
       />
 
       <div className="flex flex-1 overflow-hidden">
