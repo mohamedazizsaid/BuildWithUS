@@ -4,7 +4,7 @@ import { Trash2, Copy, Plus } from 'lucide-react';
 import type { Invoice, InvoiceData, InvoiceTheme, Party, ColumnKey, RecurrenceInterval } from '@/lib/invoice/types';
 import type { InvoiceAction } from '@/lib/invoice/reducer';
 import { computeTotals, formatMoney, lineSubtotalHT } from '@/lib/invoice/compute';
-import { buildFooterMentions } from '@/lib/invoice/renderer';
+import { buildFooterMentions, designCss } from '@/lib/invoice/renderer';
 import { InlineText, InlineNumber } from './inline';
 
 export type Dispatch = (action: InvoiceAction) => void;
@@ -227,13 +227,15 @@ export function TypeSpecificBlock({ invoice, dispatch, selectedBlock, onSelectBl
       </BlockShell>
     );
   }
+  const d = designCss(theme);
+  const accentStyle: React.CSSProperties = {
+    ...cssStringToObj(d.blockAccent),
+    marginTop: 14, padding: '12px 14px', fontSize: '10pt',
+    borderRadius: `0 ${d.radiusPx}px ${d.radiusPx}px 0`,
+  };
   return (
     <BlockShell id="typeSpecific" selected={selectedBlock === 'typeSpecific'} onSelect={onSelectBlock}>
-      <div style={{
-        marginTop: 14, padding: '12px 14px',
-        background: '#f8fafc', borderLeft: `3px solid ${theme.colors.primary}`,
-        borderRadius: '0 8px 8px 0', fontSize: '10pt',
-      }}>
+      <div style={accentStyle}>
         <TypeSpecificFields data={data} theme={theme} dispatch={dispatch} />
       </div>
     </BlockShell>
@@ -499,6 +501,10 @@ function RecurrenteFields({ data, theme, dispatch }: { data: InvoiceData; theme:
 export function LinesBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: BlockProps) {
   const { data, layout, theme } = invoice;
   const cols = layout.columns.filter((c) => c.visible);
+  const d = designCss(theme);
+  const headerCss = cssStringToObj(d.tableHeader);
+  const cellCss = cssStringToObj(d.tableCell);
+  const stripeCss = cssStringToObj(d.tableStripe);
 
   return (
     <BlockShell id="lines" selected={selectedBlock === 'lines'} onSelect={onSelectBlock}>
@@ -510,7 +516,7 @@ export function LinesBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: 
                 <th
                   key={c.key}
                   style={{
-                    background: theme.colors.primary, color: '#fff',
+                    ...headerCss,
                     padding: '8px 10px', textAlign: c.key === 'description' ? 'left' : 'right',
                     fontWeight: 600, fontSize: '10pt',
                   }}
@@ -518,15 +524,16 @@ export function LinesBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: 
                   {COLUMN_LABELS[c.key]}
                 </th>
               ))}
-              <th style={{ width: 60, background: theme.colors.primary }} aria-hidden />
+              <th style={{ width: 60, ...headerCss }} aria-hidden />
             </tr>
           </thead>
           <tbody>
-            {data.lines.map((line) => (
+            {data.lines.map((line, rowIdx) => (
               <tr key={line.id} className="group">
                 {cols.map((c) => {
                   const numeric = c.key !== 'description';
-                  const td: React.CSSProperties = { padding: '8px 10px', borderBottom: '1px solid #e2e8f0', textAlign: numeric ? 'right' : 'left', verticalAlign: 'top' };
+                  const stripe = rowIdx % 2 === 1 ? stripeCss : {};
+                  const td: React.CSSProperties = { padding: '8px 10px', ...cellCss, ...stripe, textAlign: numeric ? 'right' : 'left', verticalAlign: 'top' };
                   switch (c.key) {
                     case 'description':
                       return (
@@ -585,7 +592,7 @@ export function LinesBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: 
                       );
                   }
                 })}
-                <td style={{ padding: '4px 6px', borderBottom: '1px solid #e2e8f0', width: 60 }}>
+                <td style={{ padding: '4px 6px', ...cellCss, ...(rowIdx % 2 === 1 ? stripeCss : {}), width: 60 }}>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => { e.stopPropagation(); dispatch({ type: 'lines/duplicate', id: line.id }); }}
@@ -660,7 +667,7 @@ export function TotalsBlock({ invoice, selectedBlock, onSelectBlock }: BlockProp
           <div style={{
             display: 'flex', justifyContent: 'space-between',
             background: theme.colors.primary, color: '#fff',
-            padding: '10px 14px', borderRadius: 6, marginTop: 8,
+            padding: '10px 14px', borderRadius: designCss(theme).radiusPx, marginTop: 8,
             fontWeight: 700, fontSize: '11pt',
           }}>
             <span>{grandLabel}</span>
@@ -689,9 +696,11 @@ function Row({ label, value, muted, color }: { label: string; value: string; mut
 export function PaymentBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: BlockProps) {
   const { data, theme } = invoice;
   const lbl = { fontSize: '8pt', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.5px', color: theme.colors.muted, marginRight: 6, display: 'inline-block', minWidth: 78 };
+  const d = designCss(theme);
+  const boxStyle: React.CSSProperties = { ...cssStringToObj(d.blockBox), borderRadius: d.radiusPx, padding: '12px 14px', fontSize: '10pt', marginTop: 14 };
   return (
     <BlockShell id="payment" selected={selectedBlock === 'payment'} onSelect={onSelectBlock}>
-      <div style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 14px', fontSize: '10pt', marginTop: 14 }}>
+      <div style={boxStyle}>
         <div style={lbl}>Informations de paiement</div>
         <div style={{ marginTop: 4 }}>
           <div><span style={lbl}>Conditions</span>
@@ -738,6 +747,30 @@ export function FooterBlock({ invoice, dispatch, selectedBlock, onSelectBlock }:
 }
 
 // ─── Block registry ─────────────────────────────────────────────────────────
+
+/**
+ * Tiny CSS-string → React.CSSProperties parser.
+ *
+ * Why this exists: the renderer (renderer.ts) outputs CSS strings because
+ * it produces HTML for the PDF service. The live editor needs the same
+ * styling rules but in React inline-style form. Rather than maintain two
+ * parallel encodings, the renderer exports its design-knob output as CSS
+ * strings and we re-parse them here. Strings are produced by us, so we can
+ * use a small regex parser without worrying about edge cases.
+ */
+function cssStringToObj(css: string): React.CSSProperties {
+  const result: Record<string, string> = {};
+  for (const decl of css.split(';')) {
+    const idx = decl.indexOf(':');
+    if (idx < 0) continue;
+    const prop = decl.slice(0, idx).trim();
+    const val = decl.slice(idx + 1).trim();
+    if (!prop || !val) continue;
+    const camel = prop.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+    result[camel] = val;
+  }
+  return result as React.CSSProperties;
+}
 
 export const BLOCK_COMPONENTS = {
   header:       HeaderBlock,

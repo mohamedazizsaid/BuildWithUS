@@ -49,6 +49,7 @@ export type InvoiceAction =
   | { type: 'theme/update';     patch: Partial<InvoiceTheme> }
   | { type: 'theme/updateColors'; patch: Partial<InvoiceTheme['colors']> }
   | { type: 'theme/updateLogo';   patch: Partial<InvoiceTheme['logo']> }
+  | { type: 'theme/updateDesign'; patch: Partial<InvoiceTheme['design']> }
   // Full replace (after loading from DB)
   | { type: 'invoice/replace';  invoice: Invoice };
 
@@ -212,6 +213,8 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
       return { ...state, theme: { ...state.theme, colors: { ...state.theme.colors, ...action.patch } } };
     case 'theme/updateLogo':
       return { ...state, theme: { ...state.theme, logo: { ...state.theme.logo, ...action.patch } } };
+    case 'theme/updateDesign':
+      return { ...state, theme: { ...state.theme, design: { ...state.theme.design, ...action.patch } } };
 
     case 'invoice/replace':
       return action.invoice;

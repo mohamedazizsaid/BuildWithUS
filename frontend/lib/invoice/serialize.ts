@@ -3,7 +3,7 @@ import type { Invoice, InvoiceData, InvoiceLine, Party, BlockId } from './types'
 import { INVOICE_SCHEMA_VERSION, ALL_BLOCKS } from './types';
 import {
   defaultInvoice, defaultLayout, defaultTheme, defaultPayment, defaultLegal,
-  emptyParty, emptySeller,
+  defaultDesign, emptyParty, emptySeller,
 } from './defaults';
 
 // ─── v1 shape (legacy, what's currently saved in DB) ───────────────────────
@@ -122,6 +122,7 @@ function ensureShape(inv: Invoice): Invoice {
     theme:  { ...base.theme,  ...(inv.theme ?? {}),
       colors: { ...base.theme.colors, ...(inv.theme?.colors ?? {}) },
       logo:   { ...base.theme.logo,   ...(inv.theme?.logo ?? {}) },
+      design: { ...defaultDesign(),   ...(inv.theme?.design ?? {}) },
     },
   };
 }

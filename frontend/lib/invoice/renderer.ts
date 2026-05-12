@@ -13,6 +13,7 @@ export function renderInvoiceHtml(invoice: Invoice): string {
 
   const fontFamily = fontStack(theme.font);
   const sizes = scaleSizes(theme.fontScale);
+  const d = designCss(theme);
 
   const visibleBlocks = layout.blockOrder.filter((b) => layout.blockVisibility[b]);
   const body = visibleBlocks.map((b) => renderBlock(b, data, theme, layout, totals, sizes)).join('');
@@ -23,17 +24,79 @@ export function renderInvoiceHtml(invoice: Invoice): string {
     .invoice-root { box-sizing: border-box; width: 210mm; min-height: 297mm; padding: 18mm 20mm; background: #ffffff; ${backgroundCss(theme)} }
     .invoice-section { margin-bottom: 18px; }
     table.lines { width: 100%; border-collapse: collapse; font-size: ${sizes.small}; }
-    table.lines th { background: ${theme.colors.primary}; color: #ffffff; padding: 8px 10px; text-align: left; font-weight: 600; font-size: ${sizes.small}; }
-    table.lines td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    table.lines th { ${d.tableHeader} padding: 8px 10px; text-align: left; font-weight: 600; font-size: ${sizes.small}; }
+    table.lines td { padding: 8px 10px; ${d.tableCell} vertical-align: top; }
+    table.lines tbody tr:nth-child(even) td { ${d.tableStripe} }
     table.lines td.num, table.lines th.num { text-align: right; }
     .totals-box { width: 280px; margin-left: auto; }
     .totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: ${sizes.small}; color: ${theme.colors.muted}; }
-    .totals-row.grand { background: ${theme.colors.primary}; color: #ffffff; padding: 8px 12px; border-radius: 6px; margin-top: 6px; font-weight: 700; font-size: ${sizes.body}; }
+    .totals-row.grand { background: ${theme.colors.primary}; color: #ffffff; padding: 8px 12px; border-radius: ${d.radiusPx}px; margin-top: 6px; font-weight: 700; font-size: ${sizes.body}; }
     .label { font-size: ${sizes.xs}; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: ${theme.colors.muted}; margin-bottom: 4px; }
     .accent-bar { height: 2px; background: ${theme.colors.primary}; margin: 14px 0; }
     .party-name { font-weight: 700; font-size: ${sizes.lg}; color: ${theme.colors.primary}; }
     .muted { color: ${theme.colors.muted}; font-size: ${sizes.small}; }
+    .box { ${d.blockBox} border-radius: ${d.radiusPx}px; padding: 12px 14px; }
+    .box-accent { ${d.blockAccent} border-radius: 0 ${d.radiusPx}px ${d.radiusPx}px 0; padding: 10px 14px; }
   </style></head><body><div class="invoice-root">${body}</div></body></html>`;
+}
+
+// ─── Design knobs → CSS ────────────────────────────────────────────────────
+
+export function designCss(theme: InvoiceTheme): {
+  tableHeader: string; tableCell: string; tableStripe: string;
+  blockBox: string; blockAccent: string; radiusPx: number;
+} {
+  const d = theme.design;
+  const primary = theme.colors.primary;
+  const accent = theme.colors.accent;
+  const radiusPx = ({ square: 0, soft: 4, rounded: 8, pill: 12 } as const)[d.cornerRadius];
+
+  // Header — filled (default), outline (border + transparent), minimal (underline only)
+  const tableHeader = ({
+    filled:  `background: ${primary}; color: #ffffff;`,
+    outline: `background: transparent; color: ${primary}; border: 1px solid ${primary};`,
+    minimal: `background: transparent; color: ${primary}; border-bottom: 2px solid ${primary};`,
+  } as const)[d.tableHeaderStyle];
+
+  // Cell borders — controls the body grid
+  const tableCell = ({
+    all:  `border: 1px solid #e2e8f0;`,
+    rows: `border-bottom: 1px solid #e2e8f0;`,
+    none: ``,
+  } as const)[d.tableCellBorders];
+
+  // Row striping — applies to even rows
+  const tableStripe = ({
+    none:         ``,
+    zebra_light:  `background: #f8fafc;`,
+    zebra_accent: `background: ${hexWithAlpha(accent, 0.08)};`,
+  } as const)[d.tableRowStriping];
+
+  // Block boxes (payment, totals area, type-specific)
+  const blockBox = ({
+    flat:     `background: #f8fafc;`,
+    bordered: `background: #ffffff; border: 1px solid #e2e8f0;`,
+    shadowed: `background: #ffffff; box-shadow: 0 2px 8px rgba(15,23,42,0.06);`,
+  } as const)[d.blockStyle];
+
+  // Accent block (typeSpecific) — keeps its left bar regardless of blockStyle
+  const blockAccent = ({
+    flat:     `background: #f8fafc; border-left: 3px solid ${primary};`,
+    bordered: `background: #ffffff; border: 1px solid #e2e8f0; border-left: 3px solid ${primary};`,
+    shadowed: `background: #ffffff; border-left: 3px solid ${primary}; box-shadow: 0 2px 8px rgba(15,23,42,0.06);`,
+  } as const)[d.blockStyle];
+
+  return { tableHeader, tableCell, tableStripe, blockBox, blockAccent, radiusPx };
+}
+
+/** "#6366f1" + 0.08 → "rgba(99,102,241,0.08)" — for translucent stripes. */
+function hexWithAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 // ─── Blocks ────────────────────────────────────────────────────────────────
@@ -277,7 +340,7 @@ function renderPayment(data: InvoiceData, _theme: InvoiceTheme): string {
   }
 
   if (rows.length === 0) return '';
-  return `<div class="invoice-section" style="background:#f8fafc;border-radius:8px;padding:12px 14px;font-size:10pt;">
+  return `<div class="invoice-section box" style="font-size:10pt;">
     <div class="label" style="margin-bottom:8px;">Informations de paiement</div>
     ${rows.join('')}
   </div>`;
@@ -365,7 +428,7 @@ function renderTypeSpecific(data: InvoiceData, theme: InvoiceTheme, sizes: Retur
   const body = typeSpecificBodyHtml(data, theme, sizes);
   if (!body) return '';
   const title = typeSpecificTitleFor(data.type);
-  return `<div class="invoice-section" style="background:#f8fafc;border-left:3px solid ${theme.colors.primary};border-radius:0 8px 8px 0;padding:10px 14px;font-size:${sizes.small};">
+  return `<div class="invoice-section box-accent" style="font-size:${sizes.small};">
     <div class="label" style="margin-bottom:6px;">${escapeHtml(title)}</div>
     ${body}
   </div>`;

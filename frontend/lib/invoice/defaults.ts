@@ -209,6 +209,17 @@ export function defaultTheme(): InvoiceTheme {
     font: 'inter',
     fontScale: 'md',
     background: 'plain',
+    design: defaultDesign(),
+  };
+}
+
+export function defaultDesign(): import('./types').InvoiceDesign {
+  return {
+    tableHeaderStyle: 'filled',
+    tableRowStriping: 'none',
+    tableCellBorders: 'rows',
+    blockStyle: 'flat',
+    cornerRadius: 'soft',
   };
 }
 

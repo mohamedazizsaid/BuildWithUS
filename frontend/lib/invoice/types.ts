@@ -201,6 +201,21 @@ export type FontFamily = 'inter' | 'roboto' | 'opensans';
 export type FontScale = 'sm' | 'md' | 'lg';
 export type BackgroundStyle = 'plain' | 'watermark' | 'header_band';
 
+// ─── Design controls (tables + borders + radius) ───────────────────────────
+export type TableHeaderStyle = 'filled' | 'outline' | 'minimal';
+export type TableRowStriping = 'none' | 'zebra_light' | 'zebra_accent';
+export type TableCellBorders = 'all' | 'rows' | 'none';
+export type BlockStyle = 'flat' | 'bordered' | 'shadowed';
+export type CornerRadius = 'square' | 'soft' | 'rounded' | 'pill';
+
+export interface InvoiceDesign {
+  tableHeaderStyle: TableHeaderStyle;
+  tableRowStriping: TableRowStriping;
+  tableCellBorders: TableCellBorders;
+  blockStyle: BlockStyle;
+  cornerRadius: CornerRadius;
+}
+
 export interface InvoiceTheme {
   logo: {
     url: string | null;
@@ -216,6 +231,7 @@ export interface InvoiceTheme {
   font: FontFamily;
   fontScale: FontScale;
   background: BackgroundStyle;
+  design: InvoiceDesign;
 }
 
 // ─── Derived (compute output, never stored) ────────────────────────────────

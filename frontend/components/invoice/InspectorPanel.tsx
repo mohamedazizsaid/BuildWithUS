@@ -2,7 +2,10 @@
 
 import { useState, useRef } from 'react';
 import { Palette, Columns3, Receipt, Upload, X, Eye, EyeOff, Lock, GripVertical } from 'lucide-react';
-import type { Invoice, ColumnKey, FontFamily, FontScale, BackgroundStyle, Currency, OperationNature } from '@/lib/invoice/types';
+import type {
+  Invoice, ColumnKey, FontFamily, FontScale, BackgroundStyle, Currency, OperationNature,
+  TableHeaderStyle, TableRowStriping, TableCellBorders, BlockStyle, CornerRadius, InvoiceDesign,
+} from '@/lib/invoice/types';
 import { ESSENTIAL_COLUMNS } from '@/lib/invoice/types';
 import { CURRENCIES } from '@/lib/invoice/compute';
 import { media } from '@/lib/api';
@@ -185,7 +188,80 @@ function ThemeTab({ invoice, dispatch }: Props) {
           onChange={(v) => dispatch({ type: 'data/setCurrency', value: v as Currency })}
         />
       </Section>
+
+      <DesignSection invoice={invoice} dispatch={dispatch} />
     </div>
+  );
+}
+
+const TABLE_HEADER_OPTIONS: { value: TableHeaderStyle; label: string }[] = [
+  { value: 'filled',  label: 'Plein (couleur principale)' },
+  { value: 'outline', label: 'Contour' },
+  { value: 'minimal', label: 'Minimal (souligné)' },
+];
+
+const TABLE_STRIPE_OPTIONS: { value: TableRowStriping; label: string }[] = [
+  { value: 'none',         label: 'Aucune' },
+  { value: 'zebra_light',  label: 'Bandes claires' },
+  { value: 'zebra_accent', label: 'Bandes accent' },
+];
+
+const TABLE_BORDERS_OPTIONS: { value: TableCellBorders; label: string }[] = [
+  { value: 'all',  label: 'Toutes' },
+  { value: 'rows', label: 'Horizontales' },
+  { value: 'none', label: 'Aucune' },
+];
+
+const BLOCK_STYLE_OPTIONS: { value: BlockStyle; label: string }[] = [
+  { value: 'flat',     label: 'Plat (fond gris)' },
+  { value: 'bordered', label: 'Avec bordure' },
+  { value: 'shadowed', label: 'Avec ombre' },
+];
+
+const RADIUS_OPTIONS: { value: CornerRadius; label: string }[] = [
+  { value: 'square',  label: 'Carré (0)' },
+  { value: 'soft',    label: 'Doux (4 px)' },
+  { value: 'rounded', label: 'Arrondi (8 px)' },
+  { value: 'pill',    label: 'Très arrondi (12 px)' },
+];
+
+function DesignSection({ invoice, dispatch }: Props) {
+  const d = invoice.theme.design;
+  const update = (patch: Partial<InvoiceDesign>) =>
+    dispatch({ type: 'theme/updateDesign', patch });
+  return (
+    <Section title="Design (tables & bordures)">
+      <SmallSelect
+        label="En-tête de table"
+        value={d.tableHeaderStyle}
+        options={TABLE_HEADER_OPTIONS}
+        onChange={(v) => update({ tableHeaderStyle: v as TableHeaderStyle })}
+      />
+      <SmallSelect
+        label="Lignes alternées"
+        value={d.tableRowStriping}
+        options={TABLE_STRIPE_OPTIONS}
+        onChange={(v) => update({ tableRowStriping: v as TableRowStriping })}
+      />
+      <SmallSelect
+        label="Bordures cellules"
+        value={d.tableCellBorders}
+        options={TABLE_BORDERS_OPTIONS}
+        onChange={(v) => update({ tableCellBorders: v as TableCellBorders })}
+      />
+      <SmallSelect
+        label="Style des blocs"
+        value={d.blockStyle}
+        options={BLOCK_STYLE_OPTIONS}
+        onChange={(v) => update({ blockStyle: v as BlockStyle })}
+      />
+      <SmallSelect
+        label="Coins arrondis"
+        value={d.cornerRadius}
+        options={RADIUS_OPTIONS}
+        onChange={(v) => update({ cornerRadius: v as CornerRadius })}
+      />
+    </Section>
   );
 }
 
