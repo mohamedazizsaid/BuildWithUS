@@ -2,6 +2,8 @@ import { v4 as uuid } from 'uuid';
 import type {
   Invoice, InvoiceData, InvoiceLayout, InvoiceTheme,
   Party, PaymentInfo, LegalMentions, BlockId, ColumnConfig,
+  InvoiceType, TypeSpecific,
+  ProFormaInfo, AcompteInfo, SoldeInfo, AvoirInfo, RecurrenteInfo,
 } from './types';
 import { INVOICE_SCHEMA_VERSION, ALL_BLOCKS } from './types';
 
@@ -38,6 +40,9 @@ export function defaultLegal(): LegalMentions {
     showNoDiscount: true,
     showLatePenalty: true,
     showRecoveryFee: true,
+    showAutoLiquidation: false,
+    showIntraCommunityVat: false,
+    showOptionDebits: false,
     customText: '',
   };
 }
@@ -52,10 +57,106 @@ function plusDaysIso(days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-function nextInvoiceNumber(): string {
+/** Prefix conventions used by French SMBs/ERPs to distinguish doc types at a glance. */
+export const TYPE_NUMBER_PREFIX: Record<InvoiceType, string> = {
+  standard:     'F',
+  'pro-forma':  'PF',
+  acompte:      'FA',
+  solde:        'FS',
+  avoir:        'AV',
+  recurrente:   'FR',
+};
+
+export function nextInvoiceNumberFor(type: InvoiceType): string {
   const year = new Date().getFullYear();
   const seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
-  return `F${year}-${seq}`;
+  return `${TYPE_NUMBER_PREFIX[type]}${year}-${seq}`;
+}
+
+function nextInvoiceNumber(): string {
+  return nextInvoiceNumberFor('standard');
+}
+
+// ─── Type-specific defaults ────────────────────────────────────────────────
+
+export function defaultProForma(): ProFormaInfo {
+  return {
+    validUntil: plusDaysIso(30),
+    acceptanceClause: 'Pour acceptation, retourner ce document signé précédé de la mention « Bon pour accord ».',
+  };
+}
+
+export function defaultAcompte(): AcompteInfo {
+  return {
+    commandeRef: '',
+    commandeDate: todayIso(),
+    totalContractHT: 0,
+    depositPercent: 30,            // usage courant en France (30% à la commande)
+  };
+}
+
+export function defaultSolde(): SoldeInfo {
+  return {
+    commandeRef: '',
+    commandeDate: todayIso(),
+    totalContractHT: 0,
+    acomptes: [],
+  };
+}
+
+export function defaultAvoir(): AvoirInfo {
+  return {
+    originalInvoiceRef: '',
+    originalInvoiceDate: todayIso(),
+    reason: '',
+    refundMethod: 'credit_note',   // à valoir sur prochaine facture
+  };
+}
+
+export function defaultRecurrente(): RecurrenteInfo {
+  const from = todayIso();
+  const to = plusDaysIso(30);
+  return {
+    periodFrom: from,
+    periodTo: to,
+    interval: 'monthly',
+    nextBillingDate: plusDaysIso(30),
+    sepaMandateRum: '',
+    contractRef: '',
+  };
+}
+
+/** Returns the type-specific payload populated for `type`, leaving others undefined. */
+export function defaultTypeSpecific(type: InvoiceType): TypeSpecific {
+  switch (type) {
+    case 'pro-forma':  return { proForma: defaultProForma() };
+    case 'acompte':    return { acompte: defaultAcompte() };
+    case 'solde':      return { solde: defaultSolde() };
+    case 'avoir':      return { avoir: defaultAvoir() };
+    case 'recurrente': return { recurrente: defaultRecurrente() };
+    case 'standard':
+    default:           return {};
+  }
+}
+
+/**
+ * Per-type legal mention defaults.
+ *
+ *  - Pro-forma  → no late penalty (not yet due), no recovery fee.
+ *  - Avoir      → no late penalty (it's a refund, nothing is due).
+ *  - Standard / Acompte / Solde / Récurrente → full FR mentions on.
+ */
+export function defaultLegalForType(type: InvoiceType): LegalMentions {
+  const off: LegalMentions = {
+    showNoDiscount: false, showLatePenalty: false, showRecoveryFee: false,
+    showAutoLiquidation: false, showIntraCommunityVat: false, showOptionDebits: false,
+    customText: '',
+  };
+  switch (type) {
+    case 'pro-forma': return off;   // sans valeur fiscale — aucune mention de pénalité
+    case 'avoir':     return off;   // remboursement — aucune pénalité à devoir
+    default:          return defaultLegal();
+  }
 }
 
 export function defaultData(): InvoiceData {
@@ -73,11 +174,14 @@ export function defaultData(): InvoiceData {
     payment: defaultPayment(),
     notes: '',
     legal: defaultLegal(),
+    typeSpecific: {},
   };
 }
 
 export function defaultLayout(): InvoiceLayout {
   const visibility = Object.fromEntries(ALL_BLOCKS.map((b) => [b, true])) as Record<BlockId, boolean>;
+  // typeSpecific is hidden by default — only meaningful for non-standard types.
+  visibility.typeSpecific = false;
   const columns: ColumnConfig[] = [
     { key: 'description', visible: true },
     { key: 'qty',         visible: true },

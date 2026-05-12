@@ -1,0 +1,11 @@
+invoice_number,issue_date,due_date,customer_name,customer_email,customer_phone,customer_address,customer_zip,customer_city,customer_country,customer_siret,customer_vat,product,qty,price,tax_rate,internal_ref
+F2026-101,15/01/2026,14/02/2026,Marie Dubois,marie.dubois@example.fr,06 12 34 56 78,12 rue de la Paix,75001,Paris,France,12345678901234,FR12345678901,Consultation stratégique,1,"1 500,00",20,REF-A1
+F2026-102,16/01/2026,15/02/2026,Jean Martin,jean.martin@gmail.com,06 98 76 54 32,45 avenue des Champs,69001,Lyon,France,98765432109876,FR98765432109,Développement site web,"3,5","850,00",20,REF-A2
+F2026-103,17/01/2026,18/02/2026,SARL TechCorp,contact@techcorp.fr,04 91 22 33 44,8 boulevard du Prado,13001,Marseille,France,55512345678901,FR55512345678,Formation Excel avancé,2,"450,00",20,REF-A3
+F2026-104,20/01/2026,21/02/2026,Pierre Leroy,pierre.leroy@outlook.fr,05 61 11 22 33,3 place du Capitole,31000,Toulouse,France,33344455566677,FR33344455566,Maintenance annuelle,1,"1 200,00",20,REF-A4
+F2026-105,22/01/2026,23/02/2026,Sophie Bernard,sophie.b@yahoo.fr,05 56 99 88 77,21 cours de l'Intendance,33000,Bordeaux,France,11122233344455,FR11122233344,Audit comptable,1,"980,50",20,REF-A5
+F2026-106,25/01/2026,26/02/2026,Cabinet Durand,durand@cabinet-durand.fr,01 42 12 34 56,90 rue de Rivoli,75004,Paris,France,77788899900011,FR77788899900,Conseil juridique,4,"320,00",20,REF-A6
+F2026-107,28/01/2026,28/02/2026,Atelier Moreau,hello@atelier-moreau.com,04 78 11 22 33,17 rue Mercière,69002,Lyon,France,44455566677788,FR44455566677,"Design graphique - charte complète","2,5","680,00",20,REF-A7
+F2026-108,30/01/2026,02/03/2026,,nicolas.p@example.com,06 55 44 33 22,55 rue de la République,13002,Marseille,France,22233344455566,FR22233344455,Coaching individuel (3 séances),3,"180,00",10,REF-A8
+F2026-109,01/02/2026,03/03/2026,Garage Auto Plus,garage.autoplus@orange.fr,03 88 12 34 56,42 route de Strasbourg,67000,Strasbourg,France,66677788899900,FR66677788899,Révision véhicule complète,1,"425,00",20,REF-A9
+F2026-110,03/02/2026,05/03/2026,Boulangerie Petit,contact@boulangerie-petit.fr,02 23 45 67 89,7 place du Marché,35000,Rennes,France,99900011122233,FR99900011122,"Livraison pains - contrat mensuel",30,"12,50",5.5,REF-A10

@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Palette, Columns3, Receipt, Upload, X, Eye, EyeOff, Lock, GripVertical } from 'lucide-react';
-import type { Invoice, ColumnKey, FontFamily, FontScale, BackgroundStyle, Currency } from '@/lib/invoice/types';
+import type { Invoice, ColumnKey, FontFamily, FontScale, BackgroundStyle, Currency, OperationNature } from '@/lib/invoice/types';
 import { ESSENTIAL_COLUMNS } from '@/lib/invoice/types';
 import { CURRENCIES } from '@/lib/invoice/compute';
 import { media } from '@/lib/api';
@@ -246,9 +246,25 @@ function ColumnsTab({ invoice, dispatch }: Props) {
 // ─── Paiement & Légal tab ──────────────────────────────────────────────────
 
 function LegalTab({ invoice, dispatch }: Props) {
-  const { payment, legal } = invoice.data;
+  const { payment, legal, type } = invoice.data;
+
+  const TYPE_HINT: Record<typeof type, string | null> = {
+    standard:    null,
+    'pro-forma': 'Pro-forma : pas une facture au sens du CGI. Pénalités et frais de recouvrement sont désactivés par défaut.',
+    acompte:     'Acompte : TVA exigible à l\'encaissement (art. 269-2-a bis CGI). Référencez la commande dans le bloc « Spécifique au type ».',
+    solde:       'Solde : pensez à lister les acomptes déjà facturés dans le bloc « Spécifique au type » — ils seront soustraits du total.',
+    avoir:       'Avoir : facture rectificative (art. 289-I-2 CGI). Pas de pénalités de retard, montant présenté en négatif.',
+    recurrente:  'Récurrente : période facturée et mandat SEPA (RUM) — règlement UE 260/2012.',
+  };
+
   return (
     <div className="space-y-5">
+      {TYPE_HINT[type] && (
+        <div className="text-[10px] leading-relaxed text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2">
+          {TYPE_HINT[type]}
+        </div>
+      )}
+
       <Section title="Conditions de paiement">
         <SmallField label="Conditions" value={payment.paymentTerms}
           onChange={(v) => dispatch({ type: 'payment/update', patch: { paymentTerms: v } })} />
@@ -268,12 +284,32 @@ function LegalTab({ invoice, dispatch }: Props) {
       </Section>
 
       <Section title="Mentions légales auto-injectées">
-        <Toggle label="Pas d'escompte" value={legal.showNoDiscount}
+        <Toggle label="Escompte « néant »" value={legal.showNoDiscount}
           onChange={(v) => dispatch({ type: 'legal/update', patch: { showNoDiscount: v } })} />
-        <Toggle label="Pénalités de retard" value={legal.showLatePenalty}
+        <Toggle label="Pénalités de retard (L. 441-10)" value={legal.showLatePenalty}
           onChange={(v) => dispatch({ type: 'legal/update', patch: { showLatePenalty: v } })} />
-        <Toggle label="Indemnité de recouvrement" value={legal.showRecoveryFee}
+        <Toggle label="Indemnité de recouvrement 40 €" value={legal.showRecoveryFee}
           onChange={(v) => dispatch({ type: 'legal/update', patch: { showRecoveryFee: v } })} />
+        <Toggle label="Auto-liquidation (art. 283-2 CGI)" value={legal.showAutoLiquidation}
+          onChange={(v) => dispatch({ type: 'legal/update', patch: { showAutoLiquidation: v } })} />
+        <Toggle label="Exonération TVA intracom. (262 ter)" value={legal.showIntraCommunityVat}
+          onChange={(v) => dispatch({ type: 'legal/update', patch: { showIntraCommunityVat: v } })} />
+        <Toggle label="Option pour les débits" value={legal.showOptionDebits}
+          onChange={(v) => dispatch({ type: 'legal/update', patch: { showOptionDebits: v } })} />
+      </Section>
+
+      <Section title="Facturation électronique (2026)">
+        <SmallSelect
+          label="Nature de l'opération"
+          value={invoice.data.operationNature ?? ''}
+          options={[
+            { value: '',         label: '— non spécifié —' },
+            { value: 'goods',    label: 'Livraison de biens' },
+            { value: 'services', label: 'Prestation de services' },
+            { value: 'mixed',    label: 'Mixte (biens et services)' },
+          ]}
+          onChange={(v) => dispatch({ type: 'data/setOperationNature', value: (v || undefined) as OperationNature | undefined })}
+        />
       </Section>
 
       <Section title="Texte légal personnalisé">

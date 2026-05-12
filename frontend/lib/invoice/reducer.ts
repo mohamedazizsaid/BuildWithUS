@@ -2,14 +2,23 @@ import { v4 as uuid } from 'uuid';
 import type {
   Invoice, InvoiceData, InvoiceLine, InvoiceLayout, InvoiceTheme,
   BlockId, ColumnConfig, ColumnKey, Party,
+  ProFormaInfo, AcompteInfo, SoldeInfo, AvoirInfo, RecurrenteInfo,
+  AcompteReference,
 } from './types';
 import { ESSENTIAL_BLOCKS, ESSENTIAL_COLUMNS } from './types';
+import {
+  defaultTypeSpecific, defaultLegalForType,
+  TYPE_NUMBER_PREFIX, nextInvoiceNumberFor,
+} from './defaults';
 
 export type InvoiceAction =
   // Data — top-level fields
   | { type: 'data/setType';     value: InvoiceData['type'] }
   | { type: 'data/setNumber';   value: string }
   | { type: 'data/setDate';     field: 'issueDate' | 'dueDate'; value: string }
+  | { type: 'data/setDeliveryDate'; value: string }
+  | { type: 'data/setPurchaseOrderRef'; value: string }
+  | { type: 'data/setOperationNature'; value: InvoiceData['operationNature'] }
   | { type: 'data/setCurrency'; value: InvoiceData['currency'] }
   | { type: 'data/setNotes';    value: string }
   // Data — party
@@ -22,6 +31,15 @@ export type InvoiceAction =
   // Data — payment & legal
   | { type: 'payment/update';   patch: Partial<InvoiceData['payment']> }
   | { type: 'legal/update';     patch: Partial<InvoiceData['legal']> }
+  // Data — type-specific (FR/EU regulatory payloads)
+  | { type: 'proForma/update';  patch: Partial<ProFormaInfo> }
+  | { type: 'acompte/update';   patch: Partial<AcompteInfo> }
+  | { type: 'solde/update';     patch: Partial<SoldeInfo> }
+  | { type: 'solde/addAcompte' }
+  | { type: 'solde/removeAcompte'; index: number }
+  | { type: 'solde/updateAcompte'; index: number; patch: Partial<AcompteReference> }
+  | { type: 'avoir/update';     patch: Partial<AvoirInfo> }
+  | { type: 'recurrente/update'; patch: Partial<RecurrenteInfo> }
   // Layout
   | { type: 'layout/reorder';   order: BlockId[] }
   | { type: 'layout/toggleBlock'; id: BlockId }
@@ -34,14 +52,58 @@ export type InvoiceAction =
   // Full replace (after loading from DB)
   | { type: 'invoice/replace';  invoice: Invoice };
 
+/** Predicate: is `n` a default-generated number for type `t`? Used to decide
+ * whether we can safely swap the prefix when the user changes the invoice type. */
+function isDefaultNumberForType(n: string, t: InvoiceData['type']): boolean {
+  const prefix = TYPE_NUMBER_PREFIX[t];
+  return new RegExp(`^${prefix}\\d{4}-\\d{3}$`).test(n);
+}
+
 export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
   switch (action.type) {
-    case 'data/setType':
-      return setData(state, { type: action.value });
+    case 'data/setType': {
+      const oldType = state.data.type;
+      const newType = action.value;
+      if (oldType === newType) return state;
+
+      // Smart number-prefix swap — only if the user hasn't overridden the default.
+      const number = isDefaultNumberForType(state.data.number, oldType)
+        ? nextInvoiceNumberFor(newType)
+        : state.data.number;
+
+      // Preserve user-edited typeSpecific payloads when re-selecting an earlier type.
+      const typeSpecific = { ...state.data.typeSpecific, ...defaultTypeSpecific(newType) };
+      if (state.data.typeSpecific.proForma   && newType === 'pro-forma')  typeSpecific.proForma   = state.data.typeSpecific.proForma;
+      if (state.data.typeSpecific.acompte    && newType === 'acompte')    typeSpecific.acompte    = state.data.typeSpecific.acompte;
+      if (state.data.typeSpecific.solde      && newType === 'solde')      typeSpecific.solde      = state.data.typeSpecific.solde;
+      if (state.data.typeSpecific.avoir      && newType === 'avoir')      typeSpecific.avoir      = state.data.typeSpecific.avoir;
+      if (state.data.typeSpecific.recurrente && newType === 'recurrente') typeSpecific.recurrente = state.data.typeSpecific.recurrente;
+
+      // Apply legal-mention defaults appropriate to the type (pro-forma/avoir → no late penalty etc.).
+      const legal = defaultLegalForType(newType);
+
+      // Show the typeSpecific block automatically for non-standard types.
+      const blockVisibility = {
+        ...state.layout.blockVisibility,
+        typeSpecific: newType !== 'standard',
+      };
+
+      return {
+        ...state,
+        data: { ...state.data, type: newType, number, typeSpecific, legal },
+        layout: { ...state.layout, blockVisibility },
+      };
+    }
     case 'data/setNumber':
       return setData(state, { number: action.value });
     case 'data/setDate':
       return setData(state, { [action.field]: action.value } as Partial<InvoiceData>);
+    case 'data/setDeliveryDate':
+      return setData(state, { deliveryDate: action.value || undefined });
+    case 'data/setPurchaseOrderRef':
+      return setData(state, { purchaseOrderRef: action.value || undefined });
+    case 'data/setOperationNature':
+      return setData(state, { operationNature: action.value });
     case 'data/setCurrency':
       return setData(state, { currency: action.value });
     case 'data/setNotes':
@@ -80,6 +142,47 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
       return setData(state, { payment: { ...state.data.payment, ...action.patch } });
     case 'legal/update':
       return setData(state, { legal: { ...state.data.legal, ...action.patch } });
+
+    case 'proForma/update': {
+      const proForma = { ...(state.data.typeSpecific.proForma ?? {} as ProFormaInfo), ...action.patch };
+      return setData(state, { typeSpecific: { ...state.data.typeSpecific, proForma } });
+    }
+    case 'acompte/update': {
+      const acompte = { ...(state.data.typeSpecific.acompte ?? {} as AcompteInfo), ...action.patch };
+      return setData(state, { typeSpecific: { ...state.data.typeSpecific, acompte } });
+    }
+    case 'solde/update': {
+      const solde = { ...(state.data.typeSpecific.solde ?? { acomptes: [] } as unknown as SoldeInfo), ...action.patch };
+      return setData(state, { typeSpecific: { ...state.data.typeSpecific, solde } });
+    }
+    case 'solde/addAcompte': {
+      const current = state.data.typeSpecific.solde ?? { commandeRef: '', commandeDate: '', totalContractHT: 0, acomptes: [] };
+      const next: SoldeInfo = {
+        ...current,
+        acomptes: [...current.acomptes, { ref: '', date: '', amountHT: 0, amountTTC: 0 }],
+      };
+      return setData(state, { typeSpecific: { ...state.data.typeSpecific, solde: next } });
+    }
+    case 'solde/removeAcompte': {
+      const current = state.data.typeSpecific.solde;
+      if (!current) return state;
+      const acomptes = current.acomptes.filter((_, i) => i !== action.index);
+      return setData(state, { typeSpecific: { ...state.data.typeSpecific, solde: { ...current, acomptes } } });
+    }
+    case 'solde/updateAcompte': {
+      const current = state.data.typeSpecific.solde;
+      if (!current) return state;
+      const acomptes = current.acomptes.map((a, i) => i === action.index ? { ...a, ...action.patch } : a);
+      return setData(state, { typeSpecific: { ...state.data.typeSpecific, solde: { ...current, acomptes } } });
+    }
+    case 'avoir/update': {
+      const avoir = { ...(state.data.typeSpecific.avoir ?? {} as AvoirInfo), ...action.patch };
+      return setData(state, { typeSpecific: { ...state.data.typeSpecific, avoir } });
+    }
+    case 'recurrente/update': {
+      const recurrente = { ...(state.data.typeSpecific.recurrente ?? {} as RecurrenteInfo), ...action.patch };
+      return setData(state, { typeSpecific: { ...state.data.typeSpecific, recurrente } });
+    }
 
     case 'layout/reorder':
       return { ...state, layout: { ...state.layout, blockOrder: action.order } };
