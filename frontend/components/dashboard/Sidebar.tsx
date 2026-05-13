@@ -39,6 +39,19 @@ import {
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
+// Hover "lift" effect for sidebar nav items — keeps the active state's
+// background, adds a 2px upward translate, a soft shadow, and a subtle icon
+// zoom on hover. The active:translate-y-0 line restores depth on click so it
+// feels like a real button being pressed.
+const NAV_HOVER_FX = [
+  'transition-all duration-200 ease-out',
+  'hover:-translate-y-0.5',
+  'hover:shadow-[0_6px_16px_-8px_rgba(15,23,42,0.22)]',
+  'active:translate-y-0 active:shadow-none',
+  '[&_svg]:transition-transform [&_svg]:duration-200',
+  'hover:[&_svg]:scale-110',
+].join(' ');
+
 export default function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -87,7 +100,7 @@ export default function AppSidebar() {
             <SidebarMenu>
               {mainLinks.map((link) => (
                 <SidebarMenuItem key={link.href}>
-                  <SidebarMenuButton asChild isActive={pathname === link.href} tooltip={link.label}>
+                  <SidebarMenuButton asChild isActive={pathname === link.href} tooltip={link.label} className={NAV_HOVER_FX}>
                     <Link href={link.href}>
                       <link.icon />
                       <span>{link.label}</span>
@@ -109,7 +122,7 @@ export default function AppSidebar() {
                 <SidebarMenu>
                   {adminLinks.map((link) => (
                     <SidebarMenuItem key={link.href}>
-                      <SidebarMenuButton asChild isActive={pathname === link.href} tooltip={link.label}>
+                      <SidebarMenuButton asChild isActive={pathname === link.href} tooltip={link.label} className={NAV_HOVER_FX}>
                         <Link href={link.href}>
                           <link.icon />
                           <span>{link.label}</span>
