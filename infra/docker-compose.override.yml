@@ -1,0 +1,75 @@
+services:
+  auth-service:
+    build:
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ../auth-service/src:/app/src
+      - ../auth-service/tsconfig.json:/app/tsconfig.json
+      - ../auth-service/nest-cli.json:/app/nest-cli.json
+      # anonymous volume prevents host node_modules from clobbering container's
+      - /app/node_modules
+    environment:
+      # for nest --watch on Windows bind mounts (filesystem events don't bubble through)
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+  template-service:
+    build:
+      dockerfile: template-service/Dockerfile.dev
+    volumes:
+      - ../template-service/src:/workspace/template-service/src
+      - ../template-service/tsconfig.json:/workspace/template-service/tsconfig.json
+      - ../template-service/nest-cli.json:/workspace/template-service/nest-cli.json
+      - ../template-service/ormconfig.ts:/workspace/template-service/ormconfig.ts
+      - ../packages/proto:/workspace/packages/proto:ro
+      - /workspace/template-service/node_modules
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"    
+  api-gateway:
+    volumes:
+      - ../api-gateway/src:/app/src
+      - ../api-gateway/tsconfig.json:/app/tsconfig.json
+      # protos are loaded via ../../auth-service/proto/auth.proto from __dirname
+      # so we need those folders mounted too
+      - ../auth-service/proto:/auth-service/proto:ro
+      - ../packages/proto:/packages/proto:ro
+      - /app/node_modules
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+
+  frontend:
+    volumes:
+      - ../frontend/app:/app/app
+      - ../frontend/components:/app/components
+      - ../frontend/context:/app/context
+      - ../frontend/convex:/app/convex
+      - ../frontend/hooks:/app/hooks
+      - ../frontend/lib:/app/lib
+      - ../frontend/public:/app/public
+      - ../frontend/next.config.ts:/app/next.config.ts
+      - ../frontend/tsconfig.json:/app/tsconfig.json
+      - ../frontend/postcss.config.mjs:/app/postcss.config.mjs
+      - ../frontend/components.json:/app/components.json
+      - ../frontend/eslint.config.mjs:/app/eslint.config.mjs
+      - ../frontend/next-env.d.ts:/app/next-env.d.ts
+      # anonymous volumes keep container-managed dirs untouched by host
+      - /app/node_modules
+      - /app/.next
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      # Turbopack uses native watching — polling helps when native fs events fail on Windows
+      TURBOPACK_WATCH_POLLING: "true"
+
+  ai-template-service:
+    build:
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ../ai-template-service:/app
+
+  image-pipeline:
+    build:
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ../image-pipeline:/app    

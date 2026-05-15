@@ -1,0 +1,217 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: winaity-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - winaity-net
+
+  minio:
+    image: minio/minio:latest
+    container_name: winaity-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - winaity-net
+
+  nats:
+    image: nats:2-alpine
+    container_name: winaity-nats
+    restart: unless-stopped
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - winaity-net
+
+  auth-service:
+    build:
+      context: ../auth-service
+      dockerfile: Dockerfile
+    image: winaity/auth-service:dev
+    container_name: winaity-auth-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      GRPC_PORT: 50055
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: auth_db
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 24h
+    ports:
+      - "50055:50055"
+    networks:
+      - winaity-net
+  template-service:
+    build:
+      context: ..
+      dockerfile: template-service/Dockerfile
+    image: winaity/template-service:dev
+    container_name: winaity-template-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      GRPC_PORT: 50054
+      SERVICE_HOST: template-service
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: templates_db
+      TYPEORM_LOGGING: "true"
+      NATS_URL: nats://nats:4222
+      NATS_STREAM_NAME: TEMPLATE_EVENTS
+      NATS_CONSUMER_GROUP: template-service-consumers
+      CONSUL_HOST: consul
+      CONSUL_PORT: 8500
+      CONSUL_SERVICE_NAME: template-service
+      CONSUL_SERVICE_ID: template-service-1
+      PROTO_ROOT: ../packages/proto
+    ports:
+      - "50054:50054"
+    networks:
+      - winaity-net
+  api-gateway:
+    build:
+      context: ../api-gateway
+      dockerfile: Dockerfile.dev
+    image: winaity/api-gateway:dev
+    container_name: winaity-api-gateway
+    restart: unless-stopped
+    depends_on:
+      auth-service:
+        condition: service_started
+      template-service:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      # gRPC clients point at container names, not localhost
+      AUTH_SERVICE_URL: auth-service:50055
+      TEMPLATE_SERVICE_URL: template-service:50054
+      # MinIO inside the network
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: templates
+      MINIO_USE_SSL: "false"
+      # Email
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      # JWT — MUST match auth-service's secret or tokens won't validate
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "3000:3000"
+    networks:
+      - winaity-net
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    image: winaity/frontend:dev
+    container_name: winaity-frontend
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    environment:
+      NODE_ENV: development
+      # Browser-side calls (your code uses this from the browser)
+      # Browser is on host, so hits host:3000 (mapped to gateway container)
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+      # Server-side calls (Next.js SSR / route handlers / server components)
+      # Runs inside container, uses Docker DNS
+      INTERNAL_API_URL: http://api-gateway:3000
+      # Convex - browser talks to cloud directly, no Docker involved
+      NEXT_PUBLIC_CONVEX_URL: https://optimistic-starfish-376.eu-west-1.convex.cloud
+      NEXT_PUBLIC_CONVEX_SITE_URL: https://optimistic-starfish-376.eu-west-1.convex.site
+    ports:
+      - "3001:3000"
+    networks:
+      - winaity-net
+
+  ai-template-service:
+    build:
+      context: ../ai-template-service
+      dockerfile: Dockerfile
+    container_name: ai-template-service
+    restart: unless-stopped
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      PORT: 8001
+      IMAGE_SEARCH_API: http://image-pipeline:8002
+    networks:
+      - winaity-net
+    ports:
+      - "8001:8001"
+  image-pipeline:
+    build:
+      context: ../image-pipeline
+      dockerfile: Dockerfile
+    container_name: image-pipeline
+    restart: unless-stopped
+    environment:
+      PEXELS_API_KEY: ${PEXELS_API_KEY}
+      IMAGE_SEARCH_PORT: 8002
+    networks:
+      - winaity-net
+    ports:
+      - "8002:8002"
+
+
+volumes:
+  pg_data:
+  minio_data:
+
+networks:
+  winaity-net:
+    driver: bridge

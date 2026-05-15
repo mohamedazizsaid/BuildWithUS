@@ -1,7 +1,5 @@
 node_modules
-dist
-proto/generated
-npm-debug.log
+.next
 .git
 .gitignore
 .env
@@ -13,5 +11,6 @@ Dockerfile.dev
 .dockerignore
 README.md
 *.log
-coverage
-.nyc_output
+AGENTS.md
+CLAUDE.md
+tsconfig.tsbuildinfo
