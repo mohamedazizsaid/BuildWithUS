@@ -1,19 +1,13 @@
 # ============================================================
 # Winaity Template Builder — CI Pipeline
 # ============================================================
-# Stages run in order. Jobs within a stage run in parallel.
-# Each job is scoped to its service via `rules: changes:`
-# so we only spend runner time on what actually changed.
-# ============================================================
 
 stages:
   - lint
   - test
   - build
 
-# ---- Global defaults ----
 default:
-  # Cancel old pipelines if a new commit comes in
   interruptible: true
 
 # ============================================================
@@ -25,13 +19,7 @@ lint:auth-service:
   image: node:20-bookworm-slim
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - auth-service/**/*
-        - .gitlab-ci.yml
     - if: $CI_COMMIT_BRANCH
-      changes:
-        - auth-service/**/*
-        - .gitlab-ci.yml
   cache:
     key:
       files:
