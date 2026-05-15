@@ -31,7 +31,7 @@ lint:auth-service:
     - npm ci --prefer-offline --no-audit
   script:
     - npm run lint
-    
+
 lint:template-service:
   stage: lint
   image: node:20-bookworm-slim
@@ -49,3 +49,21 @@ lint:template-service:
     - npm ci --prefer-offline --no-audit
   script:
     - npm run lint
+
+lint:api-gateway:
+     stage: lint
+     image: node:20-bookworm-slim
+     rules:
+       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+       - if: $CI_COMMIT_BRANCH
+     cache:
+       key:
+         files:
+           - api-gateway/package-lock.json
+       paths:
+         - api-gateway/node_modules/
+     before_script:
+       - cd api-gateway
+       - npm ci --prefer-offline --no-audit
+     script:
+       - npm run lint

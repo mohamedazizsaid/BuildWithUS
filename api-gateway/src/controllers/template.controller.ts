@@ -21,6 +21,7 @@ import { Roles, RolesGuard } from "../guards/roles.guard";
 import { PdfService } from "../services/pdf.service";
 import { TemplateRendererService } from "../services/template-renderer.service";
 import { Scopes, ScopesGuard } from "../guards/scopes.guard";
+import nodemailer from "nodemailer";
 
 /**
  * TemplateController — handles all /templates/* REST routes.
@@ -375,32 +376,31 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
    * POST /templates/test-email — Send a test email with MJML content via MailHog.
    * Does NOT require a saved template — sends raw MJML/HTML content directly.
    */
-  @Post("test-email")
-  @Roles("admin", "editor")
-  async sendTestEmail(@Req() req: any, @Body() body: any) {
-    const nodemailer = require("nodemailer");
+@Post("test-email")
+@Roles("admin", "editor")
+async sendTestEmail(@Req() req: any, @Body() body: any) {
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAILHOG_HOST || "localhost",
+    port: parseInt(process.env.MAILHOG_PORT || "1025"),
+    ignoreTLS: true,
+  });
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.MAILHOG_HOST || "localhost",
-      port: parseInt(process.env.MAILHOG_PORT || "1025"),
-      ignoreTLS: true,
+  const to = body.to || req.user.email;
+  const subject = body.subject || "Test — Winaity Template Builder";
+  const html = body.content || "<p>No content</p>";
+
+  try {
+    await transporter.sendMail({
+      from: `"Winaity" <test@winaity.com>`,
+      to,
+      subject,
+      html,
     });
 
-    const to = body.to || req.user.email;
-    const subject = body.subject || "Test — Winaity Template Builder";
-    const html = body.content || "<p>No content</p>";
-
-    try {
-      await transporter.sendMail({
-        from: `"Winaity" <test@winaity.com>`,
-        to,
-        subject,
-        html,
-      });
-      return { success: true, message: `E-mail de test envoyé à ${to}` };
-    } catch (error) {
-      console.error("Test email failed:", error);
-      return { success: false, message: "Échec de l'envoi" };
-    }
+    return { success: true, message: `E-mail de test envoyé à ${to}` };
+  } catch (error) {
+    console.error("Test email failed:", error);
+    return { success: false, message: "Échec de l'envoi" };
   }
+}
 }
