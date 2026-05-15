@@ -3,13 +3,14 @@
 import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/context/auth';
 
 // ─── AI Panel ───
 export function AiPanel({ onGenerate }: { onGenerate: (mjml: string) => void }) {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
-  const { user } = require('@/context/auth').useAuth();
+  const { user } = useAuth();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;

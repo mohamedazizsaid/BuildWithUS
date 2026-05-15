@@ -69,8 +69,9 @@ function InvoiceEditorContent() {
     if (loadedFor.current === templateId) return;
     loadedFor.current = templateId;
     templates.get(templateId)
-      .then((result: any) => {
-        const tmpl = result?.template ?? result;
+      .then((result: unknown) => {
+        const r = result as { template?: { content?: string; name?: string }; content?: string; name?: string } | null;
+        const tmpl = r?.template ?? r;
         const next = deserialize(tmpl?.content);
         dispatch({ type: 'invoice/replace', invoice: next });
         if (tmpl?.name) setName(tmpl.name);

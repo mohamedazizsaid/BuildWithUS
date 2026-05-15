@@ -58,9 +58,10 @@ function GenerateContent() {
   useEffect(() => {
     if (!templateId) return;
     templates.get(templateId)
-      .then((result: any) => {
+      .then((result: unknown) => {
         // API returns { template: { content, name, ... } } from gRPC
-        const tmpl = result?.template ?? result;
+        const r = result as { template?: { content?: string; name?: string }; content?: string; name?: string } | null;
+        const tmpl = r?.template ?? r;
         const content: string = tmpl?.content ?? '';
         setTemplateContent(content);
         const vars = extractVariables(content);

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 
 interface SearchContextValue {
@@ -18,11 +18,11 @@ const SearchContext = createContext<SearchContextValue>({
 export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [query, setQueryState] = useState('');
   const pathname = usePathname();
-  const lastPathRef = useRef(pathname);
+  const [lastPath, setLastPath] = useState(pathname);
 
   // Auto-clear when navigating to a new route
-  if (pathname !== lastPathRef.current) {
-    lastPathRef.current = pathname;
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
     if (query !== '') setQueryState('');
   }
 

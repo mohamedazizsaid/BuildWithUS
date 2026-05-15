@@ -60,7 +60,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const calls: Promise<any>[] = [
+        const calls: Promise<unknown>[] = [
           templates.list({ page: 1, limit: 1 }),
           templates.list({ page: 1, limit: 1, favoritesOnly: true }),
           templates.list({ page: 1, limit: 5, sortBy: 'updatedAt', ascending: false }),

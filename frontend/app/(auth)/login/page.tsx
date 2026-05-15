@@ -24,8 +24,9 @@ export default function LoginPage() {
     try {
       await login(data.email, data.password);
       toast.success('Bon retour !');
-    } catch (error: any) {
-      toast.error(error.message || 'E-mail ou mot de passe invalide');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      toast.error(message || 'E-mail ou mot de passe invalide');
     } finally {
       setIsLoading(false);
     }

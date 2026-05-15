@@ -172,8 +172,9 @@ function ContractEditorContent() {
     if (loadedFor.current === templateId) return;
     loadedFor.current = templateId;
     templates.get(templateId)
-      .then((result: any) => {
-        const tmpl = result?.template ?? result;
+      .then((result: unknown) => {
+        const r = result as { template?: { content?: string }; content?: string } | null;
+        const tmpl = r?.template ?? r;
         try {
           const parsed = JSON.parse(tmpl?.content ?? '');
           if (parsed.contractType) setContractType(parsed.contractType as ContractType);

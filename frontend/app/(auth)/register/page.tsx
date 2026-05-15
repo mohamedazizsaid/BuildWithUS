@@ -36,8 +36,9 @@ export default function RegisterPage() {
     try {
       await registerUser(data);
       toast.success('Compte créé avec succès');
-    } catch (error: any) {
-      toast.error(error.message) || toast.error('Échec de l\'inscription');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      toast.error(message || 'Échec de l\'inscription');
     } finally {
       setIsLoading(false);
     }

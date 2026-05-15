@@ -140,7 +140,7 @@ export function CanvasBlock({
       ) : isSelected && isTextBlock ? (
         <>
           {block.type === 'button' ? (
-            <ResizableButton block={block} onUpdate={onUpdate} globalStyles={globalStyles} btnEditRef={btnEditRef} onSelect={onSelect} placeCaretEndRef={placeCaretEndRef} pendingText={pendingText} />
+            <ResizableButton block={block} onUpdate={onUpdate} globalStyles={globalStyles} btnEditRef={btnEditRef} onSelect={onSelect} placeCaretEndRef={placeCaretEndRef} pendingTextRef={pendingText} />
           ) : (
             <div
               ref={editRef}

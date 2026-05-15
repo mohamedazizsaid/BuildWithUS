@@ -31,8 +31,9 @@ export default function InviteMemberPage() {
       setInviteLink(link);
       toast.success(`Invitation envoyée à ${data.email}`);
       reset();
-    } catch (error: any) {
-      toast.error(error.message || 'Échec de l\'envoi de l\'invitation');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      toast.error(message || 'Échec de l\'envoi de l\'invitation');
     } finally {
       setIsLoading(false);
     }

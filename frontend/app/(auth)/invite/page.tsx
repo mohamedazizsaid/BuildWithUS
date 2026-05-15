@@ -38,9 +38,14 @@ export default function InvitePage() {
     try {
       await acceptInvite({ ...data, token });
       toast.success('Bienvenue dans l\'équipe !');
-    } catch (error: any) {
-      toast.error(error.message || 'Échec de l\'invitation');
-    } finally {
+    } catch (error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "Échec de l'invitation";
+
+  toast.error(message);
+} finally {
       setIsLoading(false);
     }
   };

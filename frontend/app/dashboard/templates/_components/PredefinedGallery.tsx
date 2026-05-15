@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Eye, X } from 'lucide-react';
 import { PREDEFINED_TEMPLATES, PREDEFINED_CATEGORIES, CATEGORY_STYLES, type PredefinedTemplate } from '@/lib/predefined-templates';
 import { renderRowsPreview } from '@/lib/preview-html';
 
 function PredefinedThumbnail({ tmpl }: { tmpl: PredefinedTemplate }) {
-  const html = useMemo(() => renderRowsPreview(tmpl.rows()), [tmpl.id]);
+  const html = renderRowsPreview(tmpl.rows());
   return (
     <div className="w-full h-[200px] overflow-hidden bg-white relative">
       <div
@@ -29,7 +29,7 @@ function PredefinedPreviewModal({
   onClose: () => void;
   onUse: () => void;
 }) {
-  const html = useMemo(() => renderRowsPreview(tmpl.rows()), [tmpl.id]);
+  const html = renderRowsPreview(tmpl.rows());
   const style = CATEGORY_STYLES[tmpl.category] || CATEGORY_STYLES.b2b;
   return (
     <motion.div

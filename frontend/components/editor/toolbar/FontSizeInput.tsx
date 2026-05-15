@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { FONT_SIZES } from "./constants";
 
 export function FontSizeInput({
@@ -14,13 +14,15 @@ export function FontSizeInput({
 }) {
   const numVal = parseInt(value) || 16;
   const [inputVal, setInputVal] = useState(String(numVal));
+  const [prevValue, setPrevValue] = useState(value);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync when external value changes
-  useEffect(() => {
+  // Sync when external value changes (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+  if (value !== prevValue) {
+    setPrevValue(value);
     setInputVal(String(parseInt(value) || 16));
-  }, [value]);
+  }
 
   const commit = (raw: string) => {
     const n = parseInt(raw);

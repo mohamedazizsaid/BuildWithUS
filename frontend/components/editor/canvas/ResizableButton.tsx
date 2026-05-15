@@ -4,14 +4,14 @@ import { useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { BlockData, GlobalStyles } from '@/lib/editor-types';
 
-export function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onSelect, placeCaretEndRef, pendingText }: {
+export function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onSelect, placeCaretEndRef, pendingTextRef }: {
   block: BlockData;
   onUpdate: (updates: Partial<BlockData>) => void;
   globalStyles: GlobalStyles;
   btnEditRef: React.RefObject<HTMLSpanElement | null>;
   onSelect: (e: React.MouseEvent) => void;
-  placeCaretEndRef: React.MutableRefObject<boolean>;
-  pendingText: React.MutableRefObject<string | null>;
+  placeCaretEndRef: React.RefObject<boolean>;
+  pendingTextRef: React.RefObject<string | null>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -72,9 +72,9 @@ export function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onS
             contentEditable
             suppressContentEditableWarning
             spellCheck={false}
-            onInput={(e) => { pendingText.current = e.currentTarget.innerHTML || ''; }}
+            onInput={(e) => { pendingTextRef.current = e.currentTarget.innerHTML || ''; }}
             onBlur={(e) => {
-              pendingText.current = null;
+              pendingTextRef.current = null;
               // flushSync so the click handler that just stole focus (e.g. Save) sees the latest text.
               flushSync(() => {
                 onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
