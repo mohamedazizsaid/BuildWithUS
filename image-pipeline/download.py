@@ -4,15 +4,13 @@ Downloads 1,000 images from Unsplash using their free lite dataset CSV.
 Images are saved to ./images/ folder locally.
 """
 
-import os
 import sys
 import time
-import csv
-import io
-import requests
 from pathlib import Path
-from tqdm import tqdm
+
+import requests
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -27,10 +25,6 @@ PHOTO_SIZE = "small"  # thumb | small | regular | full
 def download_dataset_csv() -> list[dict]:
     """Download the Unsplash Lite dataset CSV and return photo rows."""
     print("[Dataset] Downloading Unsplash Lite photo list...")
-
-    # Unsplash Lite dataset: photos.tsv is inside a zip
-    # Direct TSV download (no auth needed for lite dataset)
-    tsv_url = "https://unsplash.com/data/lite/latest"
 
     # Fallback: use the public Unsplash source list
     # We'll use the curated collection approach via unsplash source
@@ -106,7 +100,7 @@ def download_images(photos: list[dict]) -> int:
             except requests.exceptions.Timeout:
                 failed += 1
                 bar.write(f"  TIMEOUT: {photo_id}")
-            except requests.exceptions.HTTPError as e:
+            except requests.exceptions.HTTPError:
                 failed += 1
                 # picsum IDs may not all exist — skip silently
                 if resp.status_code not in (404, 410):

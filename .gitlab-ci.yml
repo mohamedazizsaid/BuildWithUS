@@ -113,3 +113,53 @@ lint:frontend:
     - npm ci --prefer-offline --no-audit
   script:
     - npm run lint
+
+lint:image-pipeline:
+  stage: lint
+  image: python:3.12-slim-bookworm
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - image-pipeline/**/*
+        - .gitlab-ci.yml
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - image-pipeline/**/*
+        - .gitlab-ci.yml
+  cache:
+    key:
+      files:
+        - image-pipeline/requirements.txt
+    paths:
+      - .cache/pip
+  before_script:
+    - cd image-pipeline
+    - pip install --cache-dir=../.cache/pip ruff
+  script:
+    - ruff check .
+
+lint:ai-template-service:
+  stage: lint
+  image: python:3.12-slim-bookworm
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - ai-template-service/**/*
+        - .gitlab-ci.yml
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - ai-template-service/**/*
+        - .gitlab-ci.yml
+  cache:
+    key:
+      files:
+        - ai-template-service/requirements.txt
+    paths:
+      - .cache/pip
+  before_script:
+    - cd ai-template-service
+    - pip install --cache-dir=../.cache/pip ruff
+  script:
+    - ruff check .

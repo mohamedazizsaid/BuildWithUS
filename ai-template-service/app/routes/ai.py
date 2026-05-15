@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+
 from app.services.ai_service import AiService
 
 router = APIRouter()
@@ -18,13 +18,13 @@ async def generate(request: GenerateRequest):
         result = await ai_service.generate_template(prompt=request.prompt)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 class MapVariablesRequest(BaseModel):
     template_vars: list[str]
     file_columns: list[str]
-    sample_row: Optional[dict] = None
+    sample_row: dict | None = None
 
 @router.post("/map-variables")
 async def map_variables(request: MapVariablesRequest):
@@ -36,14 +36,14 @@ async def map_variables(request: MapVariablesRequest):
         )
         return {"mapping": mapping}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 class InvoiceTargetSpec(BaseModel):
     path: str
     label: str
     type: str
-    hint: Optional[str] = ''
+    hint: str | None = ''
 
 class AlreadyMatchedSpec(BaseModel):
     target: str
@@ -52,8 +52,8 @@ class AlreadyMatchedSpec(BaseModel):
 class MapInvoiceFieldsRequest(BaseModel):
     targets: list[InvoiceTargetSpec]
     file_columns: list[str]
-    already_matched: Optional[list[AlreadyMatchedSpec]] = None
-    sample_row: Optional[dict] = None
+    already_matched: list[AlreadyMatchedSpec] | None = None
+    sample_row: dict | None = None
 
 @router.post("/map-invoice-fields")
 async def map_invoice_fields(request: MapInvoiceFieldsRequest):
@@ -66,4 +66,4 @@ async def map_invoice_fields(request: MapInvoiceFieldsRequest):
         )
         return {"mapping": mapping}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

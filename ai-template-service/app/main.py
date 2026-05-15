@@ -1,11 +1,11 @@
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.routes import ai
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+from app.routes import ai  # noqa: E402
 
 app = FastAPI()
 

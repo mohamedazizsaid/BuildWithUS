@@ -1,8 +1,10 @@
+import json
+import logging
 import os
 import re
-import json
+
 import httpx
-import logging
+
 from app.utils.prompt_builder import build_prompt
 
 logger = logging.getLogger(__name__)
@@ -169,7 +171,7 @@ class AiService:
                     for choice in data.get("choices", [])
                     if choice.get("message") and choice["message"].get("content")
                 )
-        except Exception as e:
+        except Exception:
             logger.exception("[AI map] HTTP error")
             raise
 
@@ -438,7 +440,7 @@ class AiService:
     @staticmethod
     def _replace_srcs(mjml: str, matches: list, queries: list, image_map: dict) -> str:
         result = mjml
-        for m, q in zip(matches, queries):
+        for m, q in zip(matches, queries, strict=False):
             url = image_map.get(q)
             if not url:
                 continue

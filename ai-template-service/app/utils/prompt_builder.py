@@ -6,8 +6,6 @@ type-specific layout guidance + a few-shot MJML example so the
 model generates a structure that actually matches the request.
 """
 
-import re
-
 # ── Email type detection ────────────────────────────────────────────────────
 
 _TYPE_KEYWORDS = {

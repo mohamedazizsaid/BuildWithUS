@@ -33,7 +33,6 @@ import requests
 import psycopg2
 import chromadb
 from pathlib import Path
-from io import BytesIO
 from PIL import Image
 from tqdm import tqdm
 from minio import Minio
@@ -128,7 +127,8 @@ def wipe_old_data():
         cur  = conn.cursor()
         cur.execute("TRUNCATE TABLE images RESTART IDENTITY;")
         conn.commit()
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
         print("[WIPE] ✓ PostgreSQL images table cleared.")
     except Exception as e:
         print(f"[WIPE] PostgreSQL error: {e}")
