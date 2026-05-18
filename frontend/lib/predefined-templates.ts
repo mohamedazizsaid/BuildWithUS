@@ -1,8 +1,8 @@
 import { Row, RowLayout, BlockData, BlockType, DEFAULT_BLOCK_CONTENT } from './editor-types';
 import { v4 as uuid } from 'uuid';
 
-const MINIO = 'http://localhost:9000/stock-images';
-const P = (id: number) => `${MINIO}/pexels_${id}.jpg`;
+const P = (id: number) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800`;
 
 const IMGS = {
   business: [P(23496880), P(7793118),  P(36766707), P(7433828),  P(7109288),  P(34823909)],

@@ -132,13 +132,15 @@ services:
       # gRPC clients point at container names, not localhost
       AUTH_SERVICE_URL: auth-service:50055
       TEMPLATE_SERVICE_URL: template-service:50054
-      # MinIO inside the network
+      # MinIO inside the network (server-to-server)
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: templates
       MINIO_USE_SSL: "false"
+      # Browser-reachable MinIO URL (host port mapping)
+      MINIO_PUBLIC_URL: http://localhost:9000
       # Email
       RESEND_API_KEY: ${RESEND_API_KEY}
       GMAIL_USER: ${GMAIL_USER}

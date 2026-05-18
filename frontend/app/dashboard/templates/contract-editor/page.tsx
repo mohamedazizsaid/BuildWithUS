@@ -179,7 +179,10 @@ function ContractEditorContent() {
           const parsed = JSON.parse(tmpl?.content ?? '');
           if (parsed.contractType) setContractType(parsed.contractType as ContractType);
           if (parsed.version) setVersion(parsed.version);
-          if (parsed.doc) editor.commands.setContent(parsed.doc);
+          if (parsed.doc) {
+            editor.commands.setContent(parsed.doc);
+            editor.commands.setTextSelection(0);
+          }
         } catch { /* keep defaults */ }
       })
       .catch(() => toast.error('Erreur chargement du template'));
@@ -189,12 +192,14 @@ function ContractEditorContent() {
     if (!editor) return;
     if (type === 'blank') {
       editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] });
+      editor.commands.setTextSelection(0);
       setContractType(type);
       return;
     }
     const tpl = CONTRACT_TEMPLATES[type];
     if (!tpl) return;
     editor.commands.setContent(tpl);
+    editor.commands.setTextSelection(0);
     setContractType(type);
   }, [editor]);
 

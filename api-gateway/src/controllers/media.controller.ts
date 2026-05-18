@@ -75,7 +75,12 @@ export class MediaController {
         'Content-Type': file.mimetype,
       });
 
-      const url = `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || '9000'}/${BUCKET}/${fileName}`;
+      // MINIO_PUBLIC_URL is what the browser uses (host-mapped port);
+      // MINIO_ENDPOINT/MINIO_PORT are for the gateway → MinIO server-to-server call.
+      const publicBase =
+        process.env.MINIO_PUBLIC_URL ||
+        `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || '9000'}`;
+      const url = `${publicBase}/${BUCKET}/${fileName}`;
 
       return res.json({
         url,
