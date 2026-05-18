@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import * as jwt from 'jsonwebtoken';
 import { JwtService, JwtPayload , InviteTokenPayload , M2MTokenPayload} from './jwt.service';
 
 describe('JwtService', () => {
@@ -56,7 +57,7 @@ describe('JwtService', () => {
     });
 
     it('should throw when verifying a token signed with a different secret', () => {
-      const fakeToken = require('jsonwebtoken').sign(
+      const fakeToken = jwt.sign(
         { userId: 'hacker' },
         'wrong-secret',
       );
