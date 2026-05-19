@@ -7,10 +7,57 @@ import type {
 } from './types';
 import { INVOICE_SCHEMA_VERSION, ALL_BLOCKS } from './types';
 
+// String defaults are `{{token}}` placeholders so a fresh invoice opens
+// already templated — the user drags a different variable or types text
+// to override. Non-string defaults (currency, dates, numbers, booleans)
+// keep meaningful values since those inputs can't hold tokens directly.
+const TOKEN = (name: string) => `{{${name}}}`;
+
 export function emptyParty(): Party {
   return {
     name: '', address: '', city: '', zipCode: '', country: 'France',
     email: '', phone: '', siret: '', vatNumber: '',
+  };
+}
+
+// Party variant used as the *starting* state for the editor — pre-filled with
+// invoice tokens. Distinct from `emptyParty()` because the migrator/serializer
+// uses the empty variant when normalizing legacy data.
+export function defaultSeller(): Party {
+  return {
+    name:      TOKEN('prestataire_nom'),
+    address:   TOKEN('prestataire_adresse'),
+    city:      TOKEN('prestataire_ville'),
+    zipCode:   TOKEN('prestataire_code_postal'),
+    country:   'France',
+    email:     TOKEN('prestataire_email'),
+    phone:     TOKEN('prestataire_telephone'),
+    siret:     TOKEN('prestataire_siret'),
+    vatNumber: TOKEN('prestataire_tva'),
+    legalForm:    TOKEN('prestataire_forme_juridique'),
+    shareCapital: TOKEN('prestataire_capital'),
+    rcsCity:      TOKEN('prestataire_rcs'),
+    logo:     null,
+    iban:     TOKEN('iban'),
+    bic:      TOKEN('bic'),
+    bankName: TOKEN('banque'),
+  };
+}
+
+export function defaultClient(): Party {
+  return {
+    name:      TOKEN('client_nom'),
+    address:   TOKEN('client_adresse'),
+    city:      TOKEN('client_ville'),
+    zipCode:   TOKEN('client_code_postal'),
+    country:   'France',
+    email:     TOKEN('client_email'),
+    phone:     TOKEN('client_telephone'),
+    siret:     TOKEN('client_siret'),
+    vatNumber: TOKEN('client_tva'),
+    legalForm:    TOKEN('client_forme_juridique'),
+    shareCapital: TOKEN('client_capital'),
+    rcsCity:      TOKEN('client_rcs'),
   };
 }
 
@@ -26,10 +73,10 @@ export function emptySeller(): Party {
 
 export function defaultPayment(): PaymentInfo {
   return {
-    iban: '',
-    bic: '',
-    bankName: '',
-    paymentTerms: '30 jours',
+    iban:           TOKEN('iban'),
+    bic:            TOKEN('bic'),
+    bankName:       TOKEN('banque'),
+    paymentTerms:   TOKEN('modalites_paiement'),
     latePenaltyRate: 10.15,        // French legal rate, indicative
     recoveryFee: 40,
   };
@@ -43,7 +90,7 @@ export function defaultLegal(): LegalMentions {
     showAutoLiquidation: false,
     showIntraCommunityVat: false,
     showOptionDebits: false,
-    customText: '',
+    customText: TOKEN('mentions_personnalisees'),
   };
 }
 
@@ -82,13 +129,13 @@ function nextInvoiceNumber(): string {
 export function defaultProForma(): ProFormaInfo {
   return {
     validUntil: plusDaysIso(30),
-    acceptanceClause: 'Pour acceptation, retourner ce document signé précédé de la mention « Bon pour accord ».',
+    acceptanceClause: TOKEN('clause_acceptation'),
   };
 }
 
 export function defaultAcompte(): AcompteInfo {
   return {
-    commandeRef: '',
+    commandeRef: TOKEN('numero_commande'),
     commandeDate: todayIso(),
     totalContractHT: 0,
     depositPercent: 30,            // usage courant en France (30% à la commande)
@@ -97,7 +144,7 @@ export function defaultAcompte(): AcompteInfo {
 
 export function defaultSolde(): SoldeInfo {
   return {
-    commandeRef: '',
+    commandeRef: TOKEN('numero_commande'),
     commandeDate: todayIso(),
     totalContractHT: 0,
     acomptes: [],
@@ -106,9 +153,9 @@ export function defaultSolde(): SoldeInfo {
 
 export function defaultAvoir(): AvoirInfo {
   return {
-    originalInvoiceRef: '',
+    originalInvoiceRef: TOKEN('facture_rectifiee'),
     originalInvoiceDate: todayIso(),
-    reason: '',
+    reason: TOKEN('motif_avoir'),
     refundMethod: 'credit_note',   // à valoir sur prochaine facture
   };
 }
@@ -121,8 +168,8 @@ export function defaultRecurrente(): RecurrenteInfo {
     periodTo: to,
     interval: 'monthly',
     nextBillingDate: plusDaysIso(30),
-    sepaMandateRum: '',
-    contractRef: '',
+    sepaMandateRum: TOKEN('mandat_sepa_rum'),
+    contractRef: TOKEN('numero_contrat'),
   };
 }
 
@@ -150,7 +197,7 @@ export function defaultLegalForType(type: InvoiceType): LegalMentions {
   const off: LegalMentions = {
     showNoDiscount: false, showLatePenalty: false, showRecoveryFee: false,
     showAutoLiquidation: false, showIntraCommunityVat: false, showOptionDebits: false,
-    customText: '',
+    customText: TOKEN('mentions_personnalisees'),
   };
   switch (type) {
     case 'pro-forma': return off;   // sans valeur fiscale — aucune mention de pénalité
@@ -162,17 +209,23 @@ export function defaultLegalForType(type: InvoiceType): LegalMentions {
 export function defaultData(): InvoiceData {
   return {
     type: 'standard',
-    number: nextInvoiceNumber(),
+    number: TOKEN('numero_facture'),
     issueDate: todayIso(),
     dueDate: plusDaysIso(30),
     currency: 'EUR',
-    seller: emptySeller(),
-    client: emptyParty(),
+    seller: defaultSeller(),
+    client: defaultClient(),
     lines: [
-      { id: uuid(), description: 'Prestation de service', quantity: 1, unitPrice: 0, vatRate: 20 },
+      {
+        id: uuid(),
+        description: TOKEN('ligne_description_1'),
+        quantity:    TOKEN('ligne_qte_1'),
+        unitPrice:   TOKEN('ligne_prix_1'),
+        vatRate:     TOKEN('ligne_tva_1'),
+      },
     ],
     payment: defaultPayment(),
-    notes: '',
+    notes: TOKEN('notes'),
     legal: defaultLegal(),
     typeSpecific: {},
   };

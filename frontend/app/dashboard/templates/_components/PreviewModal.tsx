@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { Pencil, X } from 'lucide-react';
 import { mjmlToPreviewHtml, tiptapDocToPreviewHtml, findContractTitle } from '../_lib/preview-helpers';
 import { getTypeConfig, type Template } from '../_lib/types';
+import { deserialize } from '@/lib/invoice/serialize';
+import { renderInvoiceHtml } from '@/lib/invoice/renderer';
 
 function ModalContractInvoicePreview({ template }: { template: Template }) {
   const type = template.type?.toLowerCase();
@@ -128,70 +130,37 @@ function ModalContractInvoicePreview({ template }: { template: Template }) {
   }
 
   if (type === 'facture') {
+    // Render the same HTML the PDF service receives, so the modal is a faithful
+    // preview of the saved invoice — including `{{variable}}` placeholders
+    // surfaced as inline tokens. We inject a small stylesheet over the renderer
+    // output to highlight the tokens inside the iframe.
     try {
-      const d = JSON.parse(template.content);
-      const lines: { id: string; description: string; quantity: number; unitPrice: number }[] = d.lines || [];
-      const subtotalHT = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-      const tva = subtotalHT * ((d.tvaRate || 20) / 100);
-      const ttc = subtotalHT + tva;
-      const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const typeLabels: Record<string, string> = { standard: 'Standard', 'pro-forma': 'Pro-forma', acompte: 'Acompte', solde: 'Solde', avoir: 'Avoir', recurrente: 'Récurrente' };
-
+      const invoice = deserialize(template.content);
+      const baseHtml = renderInvoiceHtml(invoice);
+      const tokenCss = `
+        <style>
+          body { background: #f8fafc; }
+          .invoice-root { margin: 0 auto; box-shadow: 0 4px 16px rgba(15,23,42,0.08); }
+          /* Highlight {{var}} tokens that survived into the rendered HTML. */
+        </style>`;
+      // The renderer emits a full document — inject our extra style before </head>.
+      const html = baseHtml.includes('</head>')
+        ? baseHtml.replace('</head>', `${tokenCss}</head>`)
+        : `${tokenCss}${baseHtml}`;
+      // Wrap each `{{token}}` in the body with a styled span. The renderer
+      // escapes content, so the pattern matches `{{...}}` literally in the HTML.
+      const highlighted = html.replace(
+        /\{\{([a-zA-Z0-9_.]+)\}\}/g,
+        '<span style="display:inline-block;padding:0 4px;border-radius:3px;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;font-size:0.85em;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">{{$1}}</span>',
+      );
       return (
-        <div className="bg-white rounded-lg shadow-sm p-6" style={{ fontFamily: 'Arial, sans-serif' }}>
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="text-2xl font-black text-slate-900 tracking-tight">FACTURE</div>
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{typeLabels[d.invoiceType] || 'Standard'}</span>
-            </div>
-            <div className="text-right text-sm">
-              <div className="font-bold text-slate-900">{d.invoiceNumber || '—'}</div>
-              <div className="text-slate-400 text-xs">Date : {d.issueDate || '—'}</div>
-              <div className="text-slate-400 text-xs">Échéance : {d.dueDate || '—'}</div>
-            </div>
-          </div>
-          <div className="h-0.5 bg-slate-900 mb-4" />
-          {d.clientName && (
-            <div className="mb-4">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Facturé à</div>
-              <div className="font-bold text-sm">{d.clientName}</div>
-              {d.clientEmail && <div className="text-xs text-slate-500">{d.clientEmail}</div>}
-              {d.clientAddress && <div className="text-xs text-slate-500">{d.clientAddress}</div>}
-            </div>
-          )}
-          <table className="w-full mb-4" style={{ borderCollapse: 'collapse', fontSize: '11px' }}>
-            <thead>
-              <tr className="bg-slate-900 text-white">
-                <th className="text-left p-2 font-semibold rounded-tl">Description</th>
-                <th className="text-center p-2 font-semibold w-12">Qté</th>
-                <th className="text-right p-2 font-semibold w-20">PU HT</th>
-                <th className="text-right p-2 font-semibold w-20 rounded-tr">Total HT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.length === 0
-                ? <tr><td colSpan={4} className="p-3 text-center text-slate-400 italic">Aucune ligne</td></tr>
-                : lines.map((l, i) => (
-                  <tr key={l.id} className={i % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
-                    <td className="p-2">{l.description || '—'}</td>
-                    <td className="p-2 text-center">{l.quantity}</td>
-                    <td className="p-2 text-right">{fmt(l.unitPrice)} €</td>
-                    <td className="p-2 text-right font-medium">{fmt(l.quantity * l.unitPrice)} €</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-          <div className="flex justify-end">
-            <div className="w-52 text-xs">
-              <div className="flex justify-between py-1 text-slate-500"><span>Sous-total HT</span><span>{fmt(subtotalHT)} €</span></div>
-              <div className="flex justify-between py-1 text-slate-500"><span>TVA ({d.tvaRate || 20}%)</span><span>{fmt(tva)} €</span></div>
-              <div className="flex justify-between py-2 px-3 bg-slate-900 text-white rounded mt-1 font-bold text-sm">
-                <span>Total TTC</span><span>{fmt(ttc)} €</span>
-              </div>
-            </div>
-          </div>
-          {d.notes && <div className="mt-4 pt-3 border-t border-slate-200 text-xs text-slate-500">{d.notes}</div>}
-        </div>
+        <iframe
+          title={`Aperçu — ${template.name}`}
+          srcDoc={highlighted}
+          sandbox=""
+          className="w-full bg-white rounded-lg"
+          style={{ height: 'calc(85vh - 130px)', border: 'none' }}
+        />
       );
     } catch {
       return <div className="p-8 text-center text-slate-400 text-sm">Contenu invalide</div>;

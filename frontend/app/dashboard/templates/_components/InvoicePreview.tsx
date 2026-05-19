@@ -1,28 +1,23 @@
 'use client';
 
 import { FileText } from 'lucide-react';
+import { deserialize } from '@/lib/invoice/serialize';
+import { computeTotals, formatMoney, lineSubtotalHT } from '@/lib/invoice/compute';
+import { renderTextWithPills } from '@/lib/invoice/variables';
 
-type InvoiceData = {
-  invoiceType?: string;
-  invoiceNumber?: string;
-  issueDate?: string;
-  clientName?: string;
-  tvaRate?: number;
-  lines?: { description: string; quantity: number; unitPrice: number }[];
+const TYPE_LABELS: Record<string, string> = {
+  standard: 'Standard', 'pro-forma': 'Pro-forma',
+  acompte: 'Acompte', solde: 'Solde', avoir: 'Avoir', recurrente: 'Récurrente',
 };
 
-function parseInvoice(content: string): InvoiceData | null {
-  try {
-    return JSON.parse(content) as InvoiceData;
-  } catch {
-    return null;
-  }
-}
-
 export function InvoicePreview({ content }: { content: string }) {
-  const data = parseInvoice(content);
+  // `deserialize` normalizes both legacy v1 and current v2 payloads, so the
+  // thumbnail keeps working for older templates saved before the schema bump.
+  const invoice = (() => {
+    try { return deserialize(content); } catch { return null; }
+  })();
 
-  if (!data) {
+  if (!invoice) {
     return (
       <div className="w-full h-[180px] bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
         <FileText size={32} className="text-emerald-400 opacity-40" />
@@ -30,50 +25,68 @@ export function InvoicePreview({ content }: { content: string }) {
     );
   }
 
-  const typeLabels: Record<string, string> = {
-    standard: 'Standard', 'pro-forma': 'Pro-forma',
-    acompte: 'Acompte', solde: 'Solde', avoir: 'Avoir', recurrente: 'Récurrente',
-  };
-  const lines = data.lines || [];
-  const subtotalHT = lines.reduce((s, l) => s + (l.quantity || 1) * (l.unitPrice || 0), 0);
-  const tva = subtotalHT * ((data.tvaRate || 20) / 100);
-  const ttc = subtotalHT + tva;
-  const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const { data, theme } = invoice;
+  const totals = computeTotals(data);
+  const clientName = data.client.name?.trim();
+  const number = data.number?.trim() || 'F2026-001';
 
   return (
     <div className="w-full h-[180px] bg-white relative overflow-hidden p-4">
       <div className="flex justify-between items-start mb-2">
         <div>
-          <div className="text-[13px] font-black text-slate-900">FACTURE</div>
+          <div className="text-[13px] font-black" style={{ color: theme.colors.primary }}>FACTURE</div>
           <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-            {typeLabels[data.invoiceType ?? ''] || 'Standard'}
+            {TYPE_LABELS[data.type] || 'Standard'}
           </span>
         </div>
         <div className="text-right">
-          <div className="text-[10px] font-bold text-slate-700">{data.invoiceNumber || 'F2026-001'}</div>
-          <div className="text-[9px] text-slate-400">{data.issueDate || ''}</div>
+          <div
+            className="text-[10px] font-bold text-slate-700 invoice-preview-text"
+            dangerouslySetInnerHTML={{ __html: renderTextWithPills(number) }}
+          />
+          {data.issueDate && <div className="text-[9px] text-slate-400">{data.issueDate}</div>}
         </div>
       </div>
-      <div className="h-px bg-slate-900 mb-2" />
-      {data.clientName && (
+      <div className="h-px mb-2" style={{ background: theme.colors.primary }} />
+      {clientName && (
         <div className="text-[9px] text-slate-500 mb-2 truncate">
-          <span className="font-semibold text-slate-700">{data.clientName}</span>
+          <span
+            className="font-semibold text-slate-700 invoice-preview-text"
+            dangerouslySetInnerHTML={{ __html: renderTextWithPills(clientName) }}
+          />
         </div>
       )}
       <div className="flex flex-col gap-1 mb-2">
-        {lines.slice(0, 2).map((l, i) => (
-          <div key={i} className="flex justify-between text-[9px]">
-            <span className="text-slate-500 truncate flex-1">{l.description || '—'}</span>
-            <span className="text-slate-700 font-medium ml-2">{fmt(l.quantity * l.unitPrice)} €</span>
+        {data.lines.slice(0, 2).map((l) => (
+          <div key={l.id} className="flex justify-between text-[9px]">
+            <span
+              className="text-slate-500 truncate flex-1 invoice-preview-text"
+              dangerouslySetInnerHTML={{ __html: renderTextWithPills(l.description || '—') }}
+            />
+            <span className="text-slate-700 font-medium ml-2">{formatMoney(lineSubtotalHT(l), data.currency)}</span>
           </div>
         ))}
       </div>
-      {ttc > 0 && (
-        <div className="absolute bottom-3 right-3 bg-slate-900 text-white px-2 py-1 rounded-md text-[10px] font-bold">
-          {fmt(ttc)} € TTC
+      {totals.totalTTC > 0 && (
+        <div className="absolute bottom-3 right-3 text-white px-2 py-1 rounded-md text-[10px] font-bold" style={{ background: theme.colors.primary }}>
+          {formatMoney(totals.totalTTC, data.currency)} TTC
         </div>
       )}
       <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent" />
+      <style>{`
+        .invoice-preview-text .invoice-var {
+          display: inline-block;
+          padding: 0 3px;
+          border-radius: 2px;
+          background: #dbeafe;
+          color: #1d4ed8;
+          border: 1px solid #bfdbfe;
+          font-size: 0.85em;
+          font-weight: 700;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          line-height: 1.2;
+        }
+      `}</style>
     </div>
   );
 }

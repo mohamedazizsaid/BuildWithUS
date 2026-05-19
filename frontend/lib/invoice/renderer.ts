@@ -2,7 +2,7 @@ import type {
   Invoice, InvoiceData, InvoiceTheme, InvoiceLayout,
   BlockId, ColumnKey, Party,
 } from './types';
-import { computeTotals, formatMoney, isVatExempt, lineSubtotalHT } from './compute';
+import { computeTotals, formatMoney, isVatExempt, lineSubtotalHT, toNumber } from './compute';
 
 // ─── Public API ────────────────────────────────────────────────────────────
 
@@ -252,12 +252,14 @@ function renderLines(data: InvoiceData, theme: InvoiceTheme, layout: InvoiceLayo
   }).join('');
 
   const rows = data.lines.map((line) => {
+    // Tokens stay as-is in qty / unit price / vat so the template's pills
+    // survive into the rendered HTML; concrete numbers go through formatters.
     const cells = cols.map((c) => {
       switch (c.key) {
         case 'description': return `<td>${escapeHtml(line.description)}</td>`;
-        case 'qty':         return `<td class="num">${line.quantity}</td>`;
-        case 'unitPrice':   return `<td class="num">${formatMoney(line.unitPrice, data.currency)}</td>`;
-        case 'vat':         return `<td class="num">${line.vatRate}%</td>`;
+        case 'qty':         return `<td class="num">${escapeHtml(String(line.quantity))}</td>`;
+        case 'unitPrice':   return `<td class="num">${typeof line.unitPrice === 'string' ? escapeHtml(line.unitPrice) : formatMoney(line.unitPrice, data.currency)}</td>`;
+        case 'vat':         return `<td class="num">${typeof line.vatRate === 'string' ? escapeHtml(line.vatRate) : `${line.vatRate}%`}</td>`;
         case 'discount':    return `<td class="num">${line.discount ? (line.discount.type === 'percent' ? `${line.discount.value}%` : formatMoney(line.discount.value, data.currency)) : '—'}</td>`;
         case 'total':       return `<td class="num">${formatMoney(lineSubtotalHT(line), data.currency)}</td>`;
       }

@@ -42,9 +42,22 @@ export function round2(n: number): number {
 
 // ─── Line math ─────────────────────────────────────────────────────────────
 
+/** Coerce a `number | string` field to a finite number. Unresolved tokens
+ *  (e.g. `"{{ligne_qte_1}}"`) and non-numeric strings become 0 so totals stay
+ *  defined while the user is editing the template. The renderer / CSV-apply
+ *  layer replaces tokens with real numbers before final calculations. */
+export function toNumber(v: number | string | undefined): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (typeof v === 'string') {
+    const n = Number.parseFloat(v.replace(',', '.'));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
 /** Total HT for a single line after its own discount. */
 export function lineSubtotalHT(line: InvoiceLine): number {
-  const gross = (line.quantity || 0) * (line.unitPrice || 0);
+  const gross = toNumber(line.quantity) * toNumber(line.unitPrice);
   if (!line.discount) return round2(gross);
   if (line.discount.type === 'percent') {
     return round2(gross * (1 - (line.discount.value || 0) / 100));
@@ -53,7 +66,7 @@ export function lineSubtotalHT(line: InvoiceLine): number {
 }
 
 export function lineDiscountAmount(line: InvoiceLine): number {
-  const gross = (line.quantity || 0) * (line.unitPrice || 0);
+  const gross = toNumber(line.quantity) * toNumber(line.unitPrice);
   if (!line.discount) return 0;
   if (line.discount.type === 'percent') {
     return round2(gross * ((line.discount.value || 0) / 100));
@@ -62,7 +75,7 @@ export function lineDiscountAmount(line: InvoiceLine): number {
 }
 
 export function lineVAT(line: InvoiceLine): number {
-  return round2(lineSubtotalHT(line) * ((line.vatRate || 0) / 100));
+  return round2(lineSubtotalHT(line) * (toNumber(line.vatRate) / 100));
 }
 
 export function lineTotalTTC(line: InvoiceLine): number {
@@ -81,7 +94,7 @@ export function computeTotals(data: InvoiceData): InvoiceTotals {
     const vat = lineVAT(line);
     subtotalHT += ht;
     totalDiscount += lineDiscountAmount(line);
-    const rate = line.vatRate || 0;
+    const rate = toNumber(line.vatRate);
     const bucket = vatBuckets.get(rate) ?? { base: 0, amount: 0 };
     bucket.base += ht;
     bucket.amount += vat;
@@ -108,5 +121,5 @@ export function computeTotals(data: InvoiceData): InvoiceTotals {
 
 /** True if no line has VAT — triggers the "TVA non applicable" mention. */
 export function isVatExempt(data: InvoiceData): boolean {
-  return data.lines.every((l) => (l.vatRate || 0) === 0);
+  return data.lines.every((l) => toNumber(l.vatRate) === 0);
 }

@@ -40,25 +40,22 @@ services:
 
   frontend:
     volumes:
-      - ../frontend/app:/app/app
-      - ../frontend/components:/app/components
-      - ../frontend/context:/app/context
-      - ../frontend/convex:/app/convex
-      - ../frontend/hooks:/app/hooks
-      - ../frontend/lib:/app/lib
-      - ../frontend/public:/app/public
-      - ../frontend/next.config.ts:/app/next.config.ts
-      - ../frontend/tsconfig.json:/app/tsconfig.json
-      - ../frontend/postcss.config.mjs:/app/postcss.config.mjs
-      - ../frontend/components.json:/app/components.json
-      - ../frontend/eslint.config.mjs:/app/eslint.config.mjs
-      - ../frontend/next-env.d.ts:/app/next-env.d.ts
+      # Single bind mount of the whole frontend dir so newly-created files
+      # (not just edits to existing ones) propagate without docker-compose
+      # recreate — Docker Desktop on Windows misses new files when each
+      # subdir is mounted individually.
+      - ../frontend:/app
       # anonymous volumes keep container-managed dirs untouched by host
       - /app/node_modules
       - /app/.next
     environment:
+      # Polling watchers re-scan the tree on an interval instead of relying on
+      # inotify events that don't bubble through Docker Desktop's bind mount on
+      # Windows. Shorter intervals = faster HMR but more CPU; 300ms is a good
+      # middle ground.
       CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
+      WATCHPACK_POLLING: "300"
       # Turbopack uses native watching — polling helps when native fs events fail on Windows
       TURBOPACK_WATCH_POLLING: "true"
 

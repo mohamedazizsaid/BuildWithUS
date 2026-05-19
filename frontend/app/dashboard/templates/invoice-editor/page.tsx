@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Save, Download, ChevronDown, FileDown } from 'lucide-react';
-import { templates } from '@/lib/api';
+import { templates, contractVariables } from '@/lib/api';
 import toast from 'react-hot-toast';
 import type { Invoice, InvoiceData } from '@/lib/invoice/types';
 import { defaultInvoice } from '@/lib/invoice/defaults';
@@ -15,6 +15,9 @@ import { computeTotals, formatMoney } from '@/lib/invoice/compute';
 import { buildInvoiceMapping, type MappingSource } from '@/lib/invoice/ingest/mapper';
 import { applyMappingToRow, type InvoiceMapping } from '@/lib/invoice/ingest/apply';
 import type { ParsedFile } from '@/lib/invoice/ingest/parse-file';
+import { useAuth } from '@/context/auth';
+import { VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
+import { applyAutoTokensToInvoice, INVOICE_VARIABLE_CATEGORIES } from '@/lib/invoice/variables';
 import { OutlinePanel } from '@/components/invoice/OutlinePanel';
 import { InspectorPanel } from '@/components/invoice/InspectorPanel';
 import { BLOCK_COMPONENTS } from '@/components/invoice/blocks';
@@ -39,6 +42,7 @@ function fontStack(font: Invoice['theme']['font']): string {
 function InvoiceEditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const templateId = searchParams.get('id');
   const isEditMode = !!templateId;
 
@@ -50,6 +54,83 @@ function InvoiceEditorContent() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
+
+  // Variable palette state — shared with the contract editor's tenant-wide
+  // custom variables, so a `{{client_name}}` defined in a contract is usable
+  // in an invoice template too.
+  const [allVars, setAllVars] = useState<Record<string, string[]>>({});
+  const [customVarNames, setCustomVarNames] = useState<Set<string>>(new Set());
+
+  const varLabels = useMemo<Record<string, string>>(() => {
+    const labels: Record<string, string> = {};
+    for (const cat of VARIABLE_PALETTE) {
+      for (const v of cat.vars) labels[v.name] = v.label;
+    }
+    for (const cat of INVOICE_VARIABLE_CATEGORIES) {
+      for (const v of cat.vars) labels[v.name] = v.label;
+    }
+    for (const names of Object.values(allVars)) {
+      for (const n of names) {
+        if (!labels[n]) labels[n] = n.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+    }
+    return labels;
+  }, [allVars]);
+
+  useEffect(() => {
+    if (!user?.tenant_id) return;
+
+    // Contract palette + invoice-specific categories are merged so the
+    // Variables panel shows tokens for every invoice block alongside the
+    // tenant-wide custom variables.
+    const paletteDefaults = (): Record<string, string[]> => {
+      const fb: Record<string, string[]> = {};
+      VARIABLE_PALETTE.forEach((c) => { fb[c.label] = c.vars.map((v) => v.name); });
+      INVOICE_VARIABLE_CATEGORIES.forEach((c) => { fb[c.label] = c.vars.map((v) => v.name); });
+      return fb;
+    };
+
+    const merge = (saved: Record<string, string[]>): Record<string, string[]> => {
+      const result = paletteDefaults();
+      for (const [cat, names] of Object.entries(saved)) {
+        if (result[cat]) {
+          const existing = new Set(result[cat]);
+          const extras = (names as string[]).filter((n) => !existing.has(n));
+          if (extras.length) result[cat] = [...result[cat], ...extras];
+        } else {
+          result[cat] = names as string[];
+        }
+      }
+      return result;
+    };
+
+    contractVariables.get()
+      .then((data) => {
+        if (!data?.variables || Object.keys(data.variables).length === 0) {
+          setAllVars(paletteDefaults());
+          setCustomVarNames(new Set());
+        } else {
+          setAllVars(merge(data.variables));
+          setCustomVarNames(new Set(data.customNames ?? []));
+        }
+      })
+      .catch(() => {
+        setAllVars(paletteDefaults());
+        setCustomVarNames(new Set());
+      });
+  }, [user?.tenant_id]);
+
+  const handleAddVar = useCallback((catLabel: string, name: string) => {
+    contractVariables.add({ category: catLabel, name }).catch(console.error);
+    setAllVars((prev) => ({ ...prev, [catLabel]: [...(prev[catLabel] ?? []), name] }));
+    setCustomVarNames((prev) => new Set([...prev, name]));
+  }, []);
+
+  const handleDeleteVar = useCallback((catLabel: string, name: string) => {
+    contractVariables.remove(name).catch(console.error);
+    setAllVars((prev) => ({ ...prev, [catLabel]: (prev[catLabel] ?? []).filter((n) => n !== name) }));
+    setCustomVarNames((prev) => { const s = new Set(prev); s.delete(name); return s; });
+  }, []);
 
   // ── CSV import flow state ──────────────────────────────────────────────
   const [importFile, setImportFile] = useState<ParsedFile | null>(null);
@@ -72,7 +153,9 @@ function InvoiceEditorContent() {
       .then((result: unknown) => {
         const r = result as { template?: { content?: string; name?: string }; content?: string; name?: string } | null;
         const tmpl = r?.template ?? r;
-        const next = deserialize(tmpl?.content);
+        // Top up tokens for templates saved before the "all blocks" auto-fill,
+        // so opening an older invoice still shows pills everywhere.
+        const next = applyAutoTokensToInvoice(deserialize(tmpl?.content));
         dispatch({ type: 'invoice/replace', invoice: next });
         if (tmpl?.name) setName(tmpl.name);
       })
@@ -84,11 +167,15 @@ function InvoiceEditorContent() {
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
+      // Empty seller/client/meta string fields get defaulted to `{{token}}`
+      // placeholders so the template is reusable even when saved from a
+      // blank canvas. Fields the user filled in (text or variables) survive.
+      const templated = applyAutoTokensToInvoice(invoice);
       const body = {
         name,
         description,
         type: 2,
-        content: serialize(invoice),
+        content: serialize(templated),
       };
       if (isEditMode && templateId) {
         await templates.update(templateId, body);
@@ -280,6 +367,11 @@ function InvoiceEditorContent() {
           dispatch={dispatch}
           selectedBlock={selectedBlock}
           onSelectBlock={setSelectedBlock}
+          allVars={allVars}
+          customVarNames={customVarNames}
+          varLabels={varLabels}
+          onAddVar={handleAddVar}
+          onDeleteVar={handleDeleteVar}
         />
 
         {/* Canvas */}
@@ -355,6 +447,38 @@ function InvoiceEditorContent() {
           />
         )}
       </AnimatePresence>
+
+      <style>{`
+        .inline-editable .invoice-var {
+          display: inline-block;
+          padding: 0 4px;
+          margin: 0 1px;
+          border-radius: 3px;
+          background: #dbeafe;
+          color: #1d4ed8;
+          border: 1px solid #bfdbfe;
+          font-size: 0.85em;
+          font-weight: 700;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          line-height: 1.4;
+          user-select: none;
+        }
+        .inline-editable[data-placeholder]:empty::before {
+          content: attr(data-placeholder);
+          color: #cbd5e1;
+          font-style: italic;
+          pointer-events: none;
+        }
+        .dragging-variable .inline-editable {
+          outline: 1px dashed #f59e0b;
+          outline-offset: 1px;
+          background: #fffbeb !important;
+        }
+        .dragging-variable .inline-editable:hover {
+          outline: 2px solid #f59e0b;
+          background: #fef3c7 !important;
+        }
+      `}</style>
     </div>
   );
 }

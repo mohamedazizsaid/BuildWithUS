@@ -116,9 +116,13 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
     }
 
     case 'lines/add': {
+      const nextIndex = state.data.lines.length + 1;
       const newLine: InvoiceLine = {
-        id: uuid(), description: '', quantity: 1, unitPrice: 0,
-        vatRate: state.data.lines[0]?.vatRate ?? 20,
+        id: uuid(),
+        description: `{{ligne_description_${nextIndex}}}`,
+        quantity:    `{{ligne_qte_${nextIndex}}}`,
+        unitPrice:   `{{ligne_prix_${nextIndex}}}`,
+        vatRate:     `{{ligne_tva_${nextIndex}}}`,
       };
       return setData(state, { lines: [...state.data.lines, newLine] });
     }
@@ -158,9 +162,10 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
     }
     case 'solde/addAcompte': {
       const current = state.data.typeSpecific.solde ?? { commandeRef: '', commandeDate: '', totalContractHT: 0, acomptes: [] };
+      const nextIndex = current.acomptes.length + 1;
       const next: SoldeInfo = {
         ...current,
-        acomptes: [...current.acomptes, { ref: '', date: '', amountHT: 0, amountTTC: 0 }],
+        acomptes: [...current.acomptes, { ref: `{{acompte_ref_${nextIndex}}}`, date: '', amountHT: 0, amountTTC: 0 }],
       };
       return setData(state, { typeSpecific: { ...state.data.typeSpecific, solde: next } });
     }

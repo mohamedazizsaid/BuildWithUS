@@ -1,20 +1,66 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, GripVertical, Lock } from 'lucide-react';
+import { Eye, EyeOff, GripVertical, Lock, ChevronDown, Plus, Minus } from 'lucide-react';
 import type { Invoice, BlockId } from '@/lib/invoice/types';
 import { ESSENTIAL_BLOCKS } from '@/lib/invoice/types';
 import { BLOCK_LABELS } from './blocks';
 import type { Dispatch } from './blocks';
+import { extractInvoiceVariables, INVOICE_VARIABLE_CATEGORIES } from '@/lib/invoice/variables';
+import { VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
+
+// Combined lookup for chip colors: contract-side palette + invoice-block
+// categories. Custom user categories that match neither fall back to slate.
+const COMBINED_PALETTE_STYLES: Record<string, { bg: string; color: string; border: string }> = {};
+for (const c of VARIABLE_PALETTE) {
+  COMBINED_PALETTE_STYLES[c.label] = { bg: c.bg, color: c.color, border: c.border };
+}
+for (const c of INVOICE_VARIABLE_CATEGORIES) {
+  COMBINED_PALETTE_STYLES[c.label] = { bg: c.bg, color: c.color, border: c.border };
+}
 
 interface Props {
   invoice: Invoice;
   selectedBlock: string | null;
   onSelectBlock: (id: string) => void;
   dispatch: Dispatch;
+  allVars: Record<string, string[]>;
+  customVarNames: Set<string>;
+  varLabels: Record<string, string>;
+  onAddVar: (category: string, name: string) => void;
+  onDeleteVar: (category: string, name: string) => void;
 }
 
-export function OutlinePanel({ invoice, selectedBlock, onSelectBlock, dispatch }: Props) {
+type Tab = 'structure' | 'vars';
+
+export function OutlinePanel(props: Props) {
+  const [tab, setTab] = useState<Tab>('structure');
+
+  return (
+    <div className="w-60 border-r border-border bg-slate-50/50 flex flex-col overflow-hidden shrink-0">
+      <div className="flex border-b border-border bg-white shrink-0">
+        <button
+          onClick={() => setTab('structure')}
+          className={`flex-1 px-2 py-2.5 text-[10px] font-semibold transition-colors ${tab === 'structure' ? 'text-slate-900 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+          Structure
+        </button>
+        <button
+          onClick={() => setTab('vars')}
+          className={`flex-1 px-2 py-2.5 text-[10px] font-semibold transition-colors ${tab === 'vars' ? 'text-slate-900 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+          Variables
+        </button>
+      </div>
+
+      {tab === 'structure' ? <StructureTab {...props} /> : <VariablesTab {...props} />}
+    </div>
+  );
+}
+
+// ─── Structure tab ─────────────────────────────────────────────────────────
+
+function StructureTab({ invoice, selectedBlock, onSelectBlock, dispatch }: Props) {
   const [dragId, setDragId] = useState<BlockId | null>(null);
   const [overId, setOverId] = useState<BlockId | null>(null);
 
@@ -34,10 +80,7 @@ export function OutlinePanel({ invoice, selectedBlock, onSelectBlock, dispatch }
   };
 
   return (
-    <div className="w-60 border-r border-border bg-slate-50/50 flex flex-col overflow-hidden shrink-0">
-      <div className="px-3 py-2.5 border-b border-border bg-white">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Structure</h3>
-      </div>
+    <>
       <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
         {invoice.layout.blockOrder.map((id) => {
           const visible = invoice.layout.blockVisibility[id];
@@ -77,6 +120,152 @@ export function OutlinePanel({ invoice, selectedBlock, onSelectBlock, dispatch }
       <div className="px-3 py-2 border-t border-border text-[10px] text-slate-400 leading-relaxed bg-white">
         Glissez pour réordonner. Les blocs <span className="font-semibold">Lignes</span> et <span className="font-semibold">Totaux</span> sont obligatoires.
       </div>
+    </>
+  );
+}
+
+// ─── Variables tab ─────────────────────────────────────────────────────────
+
+function VariablesTab({ invoice, allVars, customVarNames, varLabels, onAddVar, onDeleteVar }: Props) {
+  const [open, setOpen] = useState<string | null>('Prestataire');
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [newVarName, setNewVarName] = useState('');
+
+  const usedVars = extractInvoiceVariables(invoice);
+
+  const categories = Object.keys(allVars).map((label) => {
+    const style = COMBINED_PALETTE_STYLES[label];
+    return {
+      label,
+      bg:     style?.bg     ?? '#f1f5f9',
+      color:  style?.color  ?? '#334155',
+      border: style?.border ?? '#e2e8f0',
+      vars:   allVars[label] ?? [],
+    };
+  });
+
+  const commitNewVar = (catLabel: string) => {
+    const name = newVarName.trim().replace(/\s+/g, '_');
+    if (!name) { setAddingTo(null); setNewVarName(''); return; }
+    onAddVar(catLabel, name);
+    setOpen(catLabel);
+    setAddingTo(null);
+    setNewVarName('');
+  };
+
+  return (
+    <>
+      <div className="px-3 py-2 border-b border-border bg-white">
+        <p className="text-[10px] text-slate-400">Glissez une variable dans un champ pour insérer <span className="font-mono">{'{{token}}'}</span></p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+        {categories.map((cat) => (
+          <div key={cat.label}>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setOpen(open === cat.label ? null : cat.label)}
+                className="flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <span className="text-[11px] font-semibold text-slate-500">{cat.label}</span>
+                <ChevronDown size={11} className={`text-slate-400 transition-transform ${open === cat.label ? 'rotate-180' : ''}`} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setAddingTo(cat.label); setOpen(cat.label); }}
+                className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                title="Ajouter une variable"
+              >
+                <Plus size={11} />
+              </button>
+            </div>
+            {open === cat.label && (
+              <div className="space-y-0.5 pl-1 mb-1">
+                {cat.vars.map((name) => (
+                  <VarChip
+                    key={name}
+                    name={name}
+                    label={varLabels[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                    bg={cat.bg} color={cat.color} border={cat.border}
+                    used={usedVars.includes(name)}
+                    removable={customVarNames.has(name)}
+                    onRemove={() => onDeleteVar(cat.label, name)}
+                  />
+                ))}
+                {addingTo === cat.label && (
+                  <div className="px-2 py-1">
+                    <input
+                      autoFocus
+                      value={newVarName}
+                      onChange={(e) => setNewVarName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitNewVar(cat.label);
+                        if (e.key === 'Escape') { setAddingTo(null); setNewVarName(''); }
+                      }}
+                      onBlur={() => commitNewVar(cat.label)}
+                      placeholder="nom_variable"
+                      className="w-full px-2 py-1 text-[10px] font-mono border border-indigo-300 rounded-md bg-white outline-none focus:ring-1 focus:ring-indigo-400"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <UsedVarsFooter used={usedVars} />
+    </>
+  );
+}
+
+function VarChip({ name, label, bg, color, border, used, removable, onRemove }: {
+  name: string;
+  label: string;
+  bg: string; color: string; border: string;
+  used: boolean;
+  removable: boolean;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('variable-name', name);
+        e.dataTransfer.effectAllowed = 'copy';
+        document.body.classList.add('dragging-variable');
+      }}
+      onDragEnd={() => document.body.classList.remove('dragging-variable')}
+      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-grab group"
+      title={`Glissez-déposez {{${name}}} dans un champ de la facture`}
+    >
+      <div className="flex-1 min-w-0 flex items-center gap-1.5">
+        <span
+          className="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0"
+          style={{ background: bg, color, border: `1px solid ${border}` }}
+        >
+          {label}
+        </span>
+        {used && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Utilisée dans la facture" />}
+      </div>
+      {removable && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
+          title="Supprimer"
+        >
+          <Minus size={9} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function UsedVarsFooter({ used }: { used: string[] }) {
+  return (
+    <div className="px-3 py-2 border-t border-border text-[10px] text-slate-400 leading-relaxed bg-white">
+      {used.length === 0
+        ? 'Aucune variable utilisée. Glissez-en une dans un champ de la facture.'
+        : <><span className="font-semibold text-emerald-600">{used.length}</span> variable{used.length > 1 ? 's' : ''} utilisée{used.length > 1 ? 's' : ''} dans cette facture.</>}
     </div>
   );
 }

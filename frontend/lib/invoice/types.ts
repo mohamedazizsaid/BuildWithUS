@@ -45,12 +45,19 @@ export interface Party {
   bankName?: string;
 }
 
+// `quantity`, `unitPrice`, and `vatRate` accept either a numeric value
+// (concrete invoice) or a `{{token}}` string (template placeholder filled
+// from CSV at generation time). Compute helpers coerce non-numeric values
+// to 0 for previewing — final values get parsed when `applyVariablesToInvoice`
+// substitutes tokens before PDF rendering.
+export type LineNumeric = number | string;
+
 export interface InvoiceLine {
   id: string;
   description: string;
-  quantity: number;
-  unitPrice: number;
-  vatRate: number;                 // per-line VAT enables multi-rate invoices
+  quantity: LineNumeric;
+  unitPrice: LineNumeric;
+  vatRate: LineNumeric;
   discount?: LineDiscount;
 }
 

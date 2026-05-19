@@ -5,7 +5,7 @@ import type { Invoice, InvoiceData, InvoiceTheme, Party, ColumnKey, RecurrenceIn
 import type { InvoiceAction } from '@/lib/invoice/reducer';
 import { computeTotals, formatMoney, lineSubtotalHT } from '@/lib/invoice/compute';
 import { buildFooterMentions, designCss } from '@/lib/invoice/renderer';
-import { InlineText, InlineNumber } from './inline';
+import { InlineText, InlineNumber, InlineNumberOrToken } from './inline';
 
 export type Dispatch = (action: InvoiceAction) => void;
 
@@ -548,27 +548,22 @@ export function LinesBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: 
                     case 'qty':
                       return (
                         <td key={c.key} style={td}>
-                          <InlineNumber value={line.quantity} min={0} step={1}
+                          <InlineNumberOrToken value={line.quantity} min={0} step={1}
                             onChange={(v) => dispatch({ type: 'lines/update', id: line.id, patch: { quantity: v } })} />
                         </td>
                       );
                     case 'unitPrice':
                       return (
                         <td key={c.key} style={td}>
-                          <InlineNumber value={line.unitPrice} min={0} step={0.01}
+                          <InlineNumberOrToken value={line.unitPrice} min={0} step={0.01}
                             onChange={(v) => dispatch({ type: 'lines/update', id: line.id, patch: { unitPrice: v } })} />
                         </td>
                       );
                     case 'vat':
                       return (
                         <td key={c.key} style={td}>
-                          <select
-                            value={line.vatRate}
-                            onChange={(e) => dispatch({ type: 'lines/update', id: line.id, patch: { vatRate: parseFloat(e.target.value) } })}
-                            className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-right"
-                          >
-                            {[0, 2.1, 5.5, 10, 20].map((r) => <option key={r} value={r}>{r}%</option>)}
-                          </select>
+                          <InlineNumberOrToken value={line.vatRate} min={0} step={0.1} suffix="%"
+                            onChange={(v) => dispatch({ type: 'lines/update', id: line.id, patch: { vatRate: v } })} />
                         </td>
                       );
                     case 'discount':
