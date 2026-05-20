@@ -3,17 +3,21 @@ import type {
   Invoice, InvoiceData, InvoiceLine, InvoiceLayout, InvoiceTheme,
   BlockId, ColumnConfig, ColumnKey, Party,
   ProFormaInfo, AcompteInfo, SoldeInfo, AvoirInfo, RecurrenteInfo,
-  AcompteReference,
+  AcompteReference, InvoiceStamp,
 } from './types';
 import { ESSENTIAL_BLOCKS, ESSENTIAL_COLUMNS } from './types';
 import {
   defaultTypeSpecific, defaultLegalForType,
+  defaultClientForRelation,
   TYPE_NUMBER_PREFIX, nextInvoiceNumberFor,
 } from './defaults';
+import type { ClientRelation } from './types';
 
 export type InvoiceAction =
   // Data — top-level fields
   | { type: 'data/setType';     value: InvoiceData['type'] }
+  | { type: 'data/setClientRelation'; value: ClientRelation }
+  | { type: 'data/setTitle';    value: string }
   | { type: 'data/setNumber';   value: string }
   | { type: 'data/setDate';     field: 'issueDate' | 'dueDate'; value: string }
   | { type: 'data/setDeliveryDate'; value: string }
@@ -50,6 +54,11 @@ export type InvoiceAction =
   | { type: 'theme/updateColors'; patch: Partial<InvoiceTheme['colors']> }
   | { type: 'theme/updateLogo';   patch: Partial<InvoiceTheme['logo']> }
   | { type: 'theme/updateDesign'; patch: Partial<InvoiceTheme['design']> }
+  // Stamp (cachet) — free-positioned overlay
+  | { type: 'stamp/setImage';   url: string }
+  | { type: 'stamp/place';      x: number; y: number }
+  | { type: 'stamp/update';     patch: Partial<InvoiceStamp> }
+  | { type: 'stamp/remove' }
   // Full replace (after loading from DB)
   | { type: 'invoice/replace';  invoice: Invoice };
 
@@ -95,6 +104,28 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
         layout: { ...state.layout, blockVisibility },
       };
     }
+    case 'data/setClientRelation': {
+      if (state.data.clientRelation === action.value) return state;
+      // Swap every client field that's still in its default (token or empty)
+      // state — leave anything the user has typed by hand untouched.
+      const fresh = defaultClientForRelation(action.value);
+      const merged: Party = { ...state.data.client };
+      for (const key of Object.keys(fresh) as (keyof Party)[]) {
+        const cur = state.data.client[key];
+        if (typeof cur !== 'string') continue;
+        // Token-only or empty → swap to the new relation's default.
+        if (cur.trim() === '' || /^\s*\{\{[a-zA-Z0-9_. ]+\}\}\s*$/.test(cur) ||
+            /^(\s*\{\{[a-zA-Z0-9_. ]+\}\}\s*)+$/.test(cur)) {
+          (merged as unknown as Record<string, unknown>)[key] =
+            (fresh as unknown as Record<string, unknown>)[key];
+        }
+      }
+      return setData(state, { clientRelation: action.value, client: merged });
+    }
+    case 'data/setTitle':
+      // Empty string clears the override so the renderer falls back to the
+      // type-based default. Trimming avoids "blank but truthy" titles.
+      return setData(state, { titleOverride: action.value.trim() || undefined });
     case 'data/setNumber':
       return setData(state, { number: action.value });
     case 'data/setDate':
@@ -220,6 +251,29 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
       return { ...state, theme: { ...state.theme, logo: { ...state.theme.logo, ...action.patch } } };
     case 'theme/updateDesign':
       return { ...state, theme: { ...state.theme, design: { ...state.theme.design, ...action.patch } } };
+
+    case 'stamp/setImage': {
+      // Uploading a new image keeps existing position/size if any, otherwise
+      // seeds sensible defaults: bottom-right of A4 with no rotation. The
+      // user can still drag from the panel to override the placement.
+      const prev = state.data.stamp;
+      const next: InvoiceStamp = prev
+        ? { ...prev, url: action.url }
+        : { url: action.url, x: 130, y: 230, width: 50, rotation: 0 };
+      return setData(state, { stamp: next });
+    }
+    case 'stamp/place': {
+      const prev = state.data.stamp;
+      if (!prev) return state;
+      return setData(state, { stamp: { ...prev, x: action.x, y: action.y } });
+    }
+    case 'stamp/update': {
+      const prev = state.data.stamp;
+      if (!prev) return state;
+      return setData(state, { stamp: { ...prev, ...action.patch } });
+    }
+    case 'stamp/remove':
+      return setData(state, { stamp: undefined });
 
     case 'invoice/replace':
       return action.invoice;

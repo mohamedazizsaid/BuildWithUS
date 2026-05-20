@@ -17,11 +17,12 @@ export function renderInvoiceHtml(invoice: Invoice): string {
 
   const visibleBlocks = layout.blockOrder.filter((b) => layout.blockVisibility[b]);
   const body = visibleBlocks.map((b) => renderBlock(b, data, theme, layout, totals, sizes)).join('');
+  const stamp = renderStamp(data);
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     @page { size: A4; margin: 0; }
     body { margin: 0; padding: 0; font-family: ${fontFamily}; color: ${theme.colors.text}; font-size: ${sizes.body}; line-height: 1.5; }
-    .invoice-root { box-sizing: border-box; width: 210mm; min-height: 297mm; padding: 18mm 20mm; background: #ffffff; ${backgroundCss(theme)} }
+    .invoice-root { position: relative; box-sizing: border-box; width: 210mm; min-height: 297mm; padding: 18mm 20mm; background: #ffffff; ${backgroundCss(theme)} }
     .invoice-section { margin-bottom: 18px; }
     table.lines { width: 100%; border-collapse: collapse; font-size: ${sizes.small}; }
     table.lines th { ${d.tableHeader} padding: 8px 10px; text-align: left; font-weight: 600; font-size: ${sizes.small}; }
@@ -37,7 +38,18 @@ export function renderInvoiceHtml(invoice: Invoice): string {
     .muted { color: ${theme.colors.muted}; font-size: ${sizes.small}; }
     .box { ${d.blockBox} border-radius: ${d.radiusPx}px; padding: 12px 14px; }
     .box-accent { ${d.blockAccent} border-radius: 0 ${d.radiusPx}px ${d.radiusPx}px 0; padding: 10px 14px; }
-  </style></head><body><div class="invoice-root">${body}</div></body></html>`;
+    .invoice-stamp { position: absolute; pointer-events: none; }
+  </style></head><body><div class="invoice-root">${body}${stamp}</div></body></html>`;
+}
+
+/** Stamp (cachet/signature) — free-positioned in mm, rendered as an absolutely
+ *  positioned `img` so it sits over the document content. The editor stores
+ *  position relative to the page top-left in mm; CSS mm units mean the same
+ *  coordinates render identically in the browser preview and the PDF. */
+function renderStamp(data: InvoiceData): string {
+  const s = data.stamp;
+  if (!s?.url) return '';
+  return `<img class="invoice-stamp" src="${escapeAttr(s.url)}" alt="" style="left:${s.x}mm;top:${s.y}mm;width:${s.width}mm;transform:rotate(${s.rotation}deg);transform-origin:center center;" />`;
 }
 
 // ─── Design knobs → CSS ────────────────────────────────────────────────────
@@ -125,7 +137,8 @@ function renderHeader(data: InvoiceData, theme: InvoiceTheme, sizes: ReturnType<
   const logo = theme.logo.url
     ? `<img src="${escapeAttr(theme.logo.url)}" style="max-width:${theme.logo.width}px;height:auto;display:block;margin:${alignMargin(theme.logo.align)};" />`
     : '';
-  const typeLabel = invoiceTypeLabel(data.type);
+  // Title falls back to the type label when the user hasn't customised it.
+  const typeLabel = data.titleOverride?.trim() || invoiceTypeLabel(data.type);
   const banner = typeBannerHtml(data, sizes);
   return `<div class="invoice-section" style="display:flex;justify-content:space-between;align-items:flex-start;">
     <div style="text-align:${theme.logo.align};">${logo}</div>

@@ -85,6 +85,13 @@ function migrateV1(v1: InvoiceV1): Invoice {
   return { schema_version: INVOICE_SCHEMA_VERSION, data, layout: defaultLayout(), theme: defaultTheme() };
 }
 
+// Keep token strings as-is, accept finite numbers, otherwise fall back to
+// the supplied default. Used by `ensureShape` for line numeric fields.
+function numericOr(v: unknown, fallback: number): number | string {
+  if (typeof v === 'string') return v;
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+}
+
 // ─── Shape guard (defends against partial/legacy v2 objects) ───────────────
 
 function ensureShape(inv: Invoice): Invoice {
@@ -109,12 +116,16 @@ function ensureShape(inv: Invoice): Invoice {
       payment: { ...defaultPayment(), ...(inv.data?.payment ?? {}) },
       legal:   { ...defaultLegal(),   ...(inv.data?.legal ?? {}) },
       typeSpecific: inv.data?.typeSpecific ?? {},
+      stamp:   inv.data?.stamp ?? undefined,
       lines:   (inv.data?.lines?.length ? inv.data.lines : base.data.lines).map((l) => ({
         id: l.id || uuid(),
         description: l.description ?? '',
-        quantity: Number.isFinite(l.quantity) ? l.quantity : 1,
-        unitPrice: Number.isFinite(l.unitPrice) ? l.unitPrice : 0,
-        vatRate: Number.isFinite(l.vatRate) ? l.vatRate : 20,
+        // Preserve token strings (e.g. "{{ligne_qte_1}}"); fall back to a
+        // numeric default only when the value is neither a string nor a
+        // finite number.
+        quantity:  numericOr(l.quantity, 1),
+        unitPrice: numericOr(l.unitPrice, 0),
+        vatRate:   numericOr(l.vatRate, 20),
         discount: l.discount,
       })),
     },

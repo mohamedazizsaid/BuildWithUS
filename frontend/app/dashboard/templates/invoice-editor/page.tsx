@@ -6,7 +6,7 @@ import { AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Save, Download, ChevronDown, FileDown } from 'lucide-react';
 import { templates, contractVariables } from '@/lib/api';
 import toast from 'react-hot-toast';
-import type { Invoice, InvoiceData } from '@/lib/invoice/types';
+import type { Invoice, InvoiceData, ClientRelation } from '@/lib/invoice/types';
 import { defaultInvoice } from '@/lib/invoice/defaults';
 import { deserialize, serialize } from '@/lib/invoice/serialize';
 import { invoiceReducer } from '@/lib/invoice/reducer';
@@ -18,11 +18,12 @@ import type { ParsedFile } from '@/lib/invoice/ingest/parse-file';
 import { useAuth } from '@/context/auth';
 import { VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
 import { applyAutoTokensToInvoice, INVOICE_VARIABLE_CATEGORIES } from '@/lib/invoice/variables';
-import { OutlinePanel } from '@/components/invoice/OutlinePanel';
+import { OutlinePanel, STAMP_DRAG_TYPE } from '@/components/invoice/OutlinePanel';
 import { InspectorPanel } from '@/components/invoice/InspectorPanel';
 import { BLOCK_COMPONENTS } from '@/components/invoice/blocks';
 import { InvoiceImportModal } from '@/components/invoice/InvoiceImportModal';
 import { InvoiceMappingModal } from '@/components/invoice/InvoiceMappingModal';
+import { StampOverlay } from '@/components/invoice/StampOverlay';
 
 const INVOICE_TYPES: { value: InvoiceData['type']; label: string; color: string }[] = [
   { value: 'standard',   label: 'Standard',    color: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -31,6 +32,13 @@ const INVOICE_TYPES: { value: InvoiceData['type']; label: string; color: string 
   { value: 'solde',      label: 'Solde',       color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   { value: 'avoir',      label: 'Avoir',       color: 'bg-red-50 text-red-700 border-red-200' },
   { value: 'recurrente', label: 'Récurrente',  color: 'bg-violet-50 text-violet-700 border-violet-200' },
+];
+
+const CLIENT_RELATIONS: { value: ClientRelation; label: string; description: string; color: string }[] = [
+  { value: 'b2c',        label: 'B2C',         description: 'Particulier',    color: 'bg-sky-50 text-sky-700 border-sky-200' },
+  { value: 'b2b',        label: 'B2B',         description: 'Entreprise',     color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  { value: 'b2g',        label: 'B2G',         description: 'Administration', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { value: 'abonnement', label: 'Abonnement',  description: 'Récurrent',      color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
 ];
 
 function fontStack(font: Invoice['theme']['font']): string {
@@ -54,6 +62,8 @@ function InvoiceEditorContent() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
+  const [showRelationMenu, setShowRelationMenu] = useState(false);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
 
   // Variable palette state — shared with the contract editor's tenant-wide
   // custom variables, so a `{{client_name}}` defined in a contract is usable
@@ -294,9 +304,10 @@ function InvoiceEditorContent() {
   }
 
   const typeCfg = INVOICE_TYPES.find((t) => t.value === invoice.data.type) ?? INVOICE_TYPES[0];
+  const relationCfg = CLIENT_RELATIONS.find((r) => r.value === invoice.data.clientRelation) ?? CLIENT_RELATIONS[0];
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden" onClick={() => setShowTypeMenu(false)}>
+    <div className="h-screen flex flex-col bg-background overflow-hidden" onClick={() => { setShowTypeMenu(false); setShowRelationMenu(false); }}>
       {/* ── Toolbar ── */}
       <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
@@ -306,8 +317,9 @@ function InvoiceEditorContent() {
           <div className="w-px h-4 bg-border" />
           <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => setShowTypeMenu((v) => !v)}
+              onClick={() => { setShowTypeMenu((v) => !v); setShowRelationMenu(false); }}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${typeCfg.color}`}
+              title="Type de facture (catégorie réglementaire FR)"
             >
               {typeCfg.label} <ChevronDown size={11} />
             </button>
@@ -320,6 +332,29 @@ function InvoiceEditorContent() {
                     className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 ${invoice.data.type === t.value ? 'font-semibold text-slate-900' : 'text-slate-500'}`}
                   >
                     {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => { setShowRelationMenu((v) => !v); setShowTypeMenu(false); }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${relationCfg.color}`}
+              title="Relation client — change les variables par défaut du bloc Client"
+            >
+              {relationCfg.label} <span className="text-[10px] opacity-60">· {relationCfg.description}</span> <ChevronDown size={11} />
+            </button>
+            {showRelationMenu && (
+              <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl border border-slate-200 shadow-lg z-50 overflow-hidden">
+                {CLIENT_RELATIONS.map((r) => (
+                  <button
+                    key={r.value}
+                    onClick={() => { dispatch({ type: 'data/setClientRelation', value: r.value }); setShowRelationMenu(false); }}
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 ${invoice.data.clientRelation === r.value ? 'font-semibold text-slate-900' : 'text-slate-500'}`}
+                  >
+                    <div>{r.label}</div>
+                    <div className="text-[10px] text-slate-400">{r.description}</div>
                   </button>
                 ))}
               </div>
@@ -377,6 +412,7 @@ function InvoiceEditorContent() {
         {/* Canvas */}
         <div className="flex-1 overflow-y-auto bg-slate-100 p-6" onClick={() => setSelectedBlock(null)}>
           <div
+            ref={canvasRef}
             className="bg-white shadow-sm mx-auto"
             style={{
               width: '210mm',
@@ -389,8 +425,30 @@ function InvoiceEditorContent() {
                 invoice.theme.background === 'header_band'
                   ? `linear-gradient(${invoice.theme.colors.primary} 0, ${invoice.theme.colors.primary} 6mm, #fff 6mm)`
                   : '#ffffff',
+              position: 'relative',
             }}
             onClick={(e) => e.stopPropagation()}
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes(STAMP_DRAG_TYPE)) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+              }
+            }}
+            onDrop={(e) => {
+              if (!e.dataTransfer.types.includes(STAMP_DRAG_TYPE)) return;
+              if (!invoice.data.stamp) return;
+              e.preventDefault();
+              const rect = e.currentTarget.getBoundingClientRect();
+              // Convert drop position to mm. The canvas is rendered at 210mm
+              // wide via CSS, so px-per-mm is consistent across both axes.
+              const xMm = ((e.clientX - rect.left) * 210) / rect.width;
+              const yMm = ((e.clientY - rect.top)  * 210) / rect.width;
+              // Center the stamp on the cursor instead of top-left anchoring,
+              // which feels more like "dropping" than "pinning a corner".
+              const half = invoice.data.stamp.width / 2;
+              dispatch({ type: 'stamp/place', x: Math.max(0, xMm - half), y: Math.max(0, yMm - half) });
+              setSelectedBlock('stamp');
+            }}
           >
             {invoice.layout.blockOrder.map((id) => {
               if (!invoice.layout.blockVisibility[id]) return null;
@@ -405,6 +463,16 @@ function InvoiceEditorContent() {
                 />
               );
             })}
+
+            {invoice.data.stamp && (
+              <StampOverlay
+                stamp={invoice.data.stamp}
+                canvasRef={canvasRef}
+                dispatch={dispatch}
+                selected={selectedBlock === 'stamp'}
+                onSelect={() => setSelectedBlock('stamp')}
+              />
+            )}
           </div>
 
           {/* Live total badge — floats bottom-right of canvas */}

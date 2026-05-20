@@ -54,6 +54,17 @@ export const INVOICE_VARIABLE_CATEGORIES = [
     ],
   },
   {
+    label: 'Marché public (B2G)',
+    bg: '#fef9c3', color: '#713f12', border: '#fde68a',
+    vars: [
+      { name: 'pouvoir_adjudicateur', label: 'Pouvoir adjudicateur' },
+      { name: 'reference_marche',     label: 'Référence marché' },
+      { name: 'nom_marche',           label: 'Objet du marché' },
+      { name: 'numero_engagement',    label: "N° engagement juridique" },
+      { name: 'code_chorus',          label: 'Code service Chorus Pro' },
+    ],
+  },
+  {
     label: 'Type spécifique',
     bg: '#ede9fe', color: '#5b21b6', border: '#ddd6fe',
     vars: [

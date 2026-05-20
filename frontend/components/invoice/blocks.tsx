@@ -78,11 +78,15 @@ export function HeaderBlock({ invoice, dispatch, selectedBlock, onSelectBlock }:
           )}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{
-            fontSize: '22pt', fontWeight: 800, color: theme.colors.primary, letterSpacing: '-0.5px',
-          }}>
-            {INVOICE_TYPE_LABELS[data.type]}
-          </div>
+          <InlineText
+            value={data.titleOverride ?? INVOICE_TYPE_LABELS[data.type]}
+            onChange={(v) => dispatch({ type: 'data/setTitle', value: v })}
+            placeholder={INVOICE_TYPE_LABELS[data.type]}
+            ariaLabel="Titre de la facture"
+            style={{
+              fontSize: '22pt', fontWeight: 800, color: theme.colors.primary, letterSpacing: '-0.5px', textAlign: 'right',
+            }}
+          />
           <InlineText
             value={data.number}
             onChange={(v) => dispatch({ type: 'data/setNumber', value: v })}

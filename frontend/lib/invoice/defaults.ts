@@ -45,20 +45,67 @@ export function defaultSeller(): Party {
 }
 
 export function defaultClient(): Party {
-  return {
-    name:      TOKEN('client_nom'),
-    address:   TOKEN('client_adresse'),
-    city:      TOKEN('client_ville'),
-    zipCode:   TOKEN('client_code_postal'),
-    country:   'France',
-    email:     TOKEN('client_email'),
-    phone:     TOKEN('client_telephone'),
-    siret:     TOKEN('client_siret'),
-    vatNumber: TOKEN('client_tva'),
-    legalForm:    TOKEN('client_forme_juridique'),
-    shareCapital: TOKEN('client_capital'),
-    rcsCity:      TOKEN('client_rcs'),
-  };
+  return defaultClientForRelation('b2c');
+}
+
+// Per-relation client placeholder shapes. The name field gets a different
+// token (prenom + nom for particuliers, raison sociale for entreprises,
+// pouvoir adjudicateur for administrations); company-only fields stay
+// blank for B2C since particuliers don't have a SIRET or RCS entry.
+export function defaultClientForRelation(rel: import('./types').ClientRelation): Party {
+  switch (rel) {
+    case 'b2c':
+      return {
+        name:      `${TOKEN('client_prenom')} ${TOKEN('client_nom')}`,
+        address:   TOKEN('client_adresse'),
+        city:      TOKEN('client_ville'),
+        zipCode:   TOKEN('client_code_postal'),
+        country:   'France',
+        email:     TOKEN('client_email'),
+        phone:     TOKEN('client_telephone'),
+        siret:     '',  // particulier — pas de SIRET
+        vatNumber: '',  // pas de TVA intracom
+      };
+    case 'b2b':
+      return {
+        name:      TOKEN('client_raison_sociale'),
+        address:   TOKEN('client_adresse'),
+        city:      TOKEN('client_ville'),
+        zipCode:   TOKEN('client_code_postal'),
+        country:   'France',
+        email:     TOKEN('client_email'),
+        phone:     TOKEN('client_telephone'),
+        siret:     TOKEN('client_siret'),
+        vatNumber: TOKEN('client_tva'),
+        legalForm:    TOKEN('client_forme_juridique'),
+        shareCapital: TOKEN('client_capital'),
+        rcsCity:      TOKEN('client_rcs'),
+      };
+    case 'b2g':
+      return {
+        name:      TOKEN('pouvoir_adjudicateur'),
+        address:   TOKEN('client_adresse'),
+        city:      TOKEN('client_ville'),
+        zipCode:   TOKEN('client_code_postal'),
+        country:   'France',
+        email:     TOKEN('client_email'),
+        phone:     TOKEN('client_telephone'),
+        siret:     TOKEN('client_siret'),
+        vatNumber: '', // administrations FR : pas de TVA en règle générale
+      };
+    case 'abonnement':
+      return {
+        name:      TOKEN('client_raison_sociale'),
+        address:   TOKEN('client_adresse'),
+        city:      TOKEN('client_ville'),
+        zipCode:   TOKEN('client_code_postal'),
+        country:   'France',
+        email:     TOKEN('client_email'),
+        phone:     TOKEN('client_telephone'),
+        siret:     TOKEN('client_siret'),
+        vatNumber: TOKEN('client_tva'),
+      };
+  }
 }
 
 export function emptySeller(): Party {
@@ -209,6 +256,7 @@ export function defaultLegalForType(type: InvoiceType): LegalMentions {
 export function defaultData(): InvoiceData {
   return {
     type: 'standard',
+    clientRelation: 'b2c',
     number: TOKEN('numero_facture'),
     issueDate: todayIso(),
     dueDate: plusDaysIso(30),

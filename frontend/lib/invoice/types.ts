@@ -21,6 +21,12 @@ export type InvoiceType =
   | 'avoir'
   | 'recurrente';
 
+// Orthogonal to `InvoiceType` — describes the client relationship, which
+// affects the *default tokens* in the client party block but not the legal
+// nature of the document. A B2B acompte and a B2C acompte are both
+// regulatorily acomptes; they just have different placeholder shapes.
+export type ClientRelation = 'b2c' | 'b2b' | 'b2g' | 'abonnement';
+
 export type Currency =
   | 'EUR' | 'USD' | 'GBP' | 'CHF' | 'CAD' | 'MAD' | 'TND';
 
@@ -155,8 +161,25 @@ export interface TypeSpecific {
   recurrente?: RecurrenteInfo;
 }
 
+// Free-positioned stamp (cachet d'entreprise / signature scan). Optional —
+// stays `undefined` until the user uploads an image. Coordinates are in mm
+// relative to the A4 page top-left so the same numbers work in the live
+// editor and the PDF renderer (both use mm-based layout).
+export interface InvoiceStamp {
+  url: string;                     // uploaded image URL
+  x: number;                       // mm from page left
+  y: number;                       // mm from page top
+  width: number;                   // mm — image is scaled by width, height auto
+  rotation: number;                // degrees, e.g. -8 for a casual angle
+}
+
 export interface InvoiceData {
   type: InvoiceType;
+  clientRelation: ClientRelation;
+  /** User-customised header title. When empty/undefined, the renderer falls
+   *  back to the default label for the invoice type (FACTURE,
+   *  FACTURE PRO-FORMA, …). Allows wording like "DEVIS", "RELEVÉ", etc. */
+  titleOverride?: string;
   number: string;
   issueDate: string;               // ISO date — date d'émission de la facture
   deliveryDate?: string;           // ISO date — date de livraison/exécution (Art. 242 nonies A, Ann. II CGI)
@@ -172,6 +195,7 @@ export interface InvoiceData {
   legal: LegalMentions;
   typeSpecific: TypeSpecific;      // per-type regulatory fields (FR/EU)
   metadata?: InvoiceMetadata;      // reserved for recurring / status (v2 features)
+  stamp?: InvoiceStamp;            // free-positioned stamp overlay (cachet/signature)
 }
 
 // ─── Layout layer (presentation) ───────────────────────────────────────────

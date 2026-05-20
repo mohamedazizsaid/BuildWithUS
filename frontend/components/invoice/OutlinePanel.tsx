@@ -1,13 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { Eye, EyeOff, GripVertical, Lock, ChevronDown, Plus, Minus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Eye, EyeOff, GripVertical, Lock, ChevronDown, Plus, Minus, Stamp, Upload, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import type { Invoice, BlockId } from '@/lib/invoice/types';
 import { ESSENTIAL_BLOCKS } from '@/lib/invoice/types';
+import { media } from '@/lib/api';
 import { BLOCK_LABELS } from './blocks';
 import type { Dispatch } from './blocks';
 import { extractInvoiceVariables, INVOICE_VARIABLE_CATEGORIES } from '@/lib/invoice/variables';
 import { VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
+
+/** Drag-and-drop MIME type that the canvas listens for to know a stamp is being dropped. */
+export const STAMP_DRAG_TYPE = 'application/x-invoice-stamp';
 
 // Combined lookup for chip colors: contract-side palette + invoice-block
 // categories. Custom user categories that match neither fall back to slate.
@@ -116,11 +121,100 @@ function StructureTab({ invoice, selectedBlock, onSelectBlock, dispatch }: Props
             </div>
           );
         })}
+
+        <StampSection invoice={invoice} dispatch={dispatch} />
       </div>
       <div className="px-3 py-2 border-t border-border text-[10px] text-slate-400 leading-relaxed bg-white">
         Glissez pour réordonner. Les blocs <span className="font-semibold">Lignes</span> et <span className="font-semibold">Totaux</span> sont obligatoires.
       </div>
     </>
+  );
+}
+
+// ─── Tampon (stamp) section ────────────────────────────────────────────────
+// Lives at the bottom of the structure list. Unlike blocks, the stamp is
+// free-positioned: the user drags its thumbnail onto the canvas to drop it
+// anywhere, then drags the placed stamp itself to reposition.
+
+function StampSection({ invoice, dispatch }: { invoice: Invoice; dispatch: Dispatch }) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const stamp = invoice.data.stamp;
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const { url } = await media.upload(file);
+      dispatch({ type: 'stamp/setImage', url });
+      toast.success('Tampon prêt — glissez-le sur la facture');
+    } catch {
+      toast.error('Échec du téléchargement');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-200">
+      <div className="px-2 mb-1.5 flex items-center gap-1.5">
+        <Stamp size={11} className="text-slate-400" />
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tampon</span>
+      </div>
+
+      {!stamp ? (
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="w-full flex items-center justify-center gap-1.5 px-2 py-3 rounded-md border border-dashed border-slate-300 hover:border-indigo-300 hover:bg-indigo-50/30 text-[11px] text-slate-500 hover:text-indigo-600 transition-all disabled:opacity-50"
+          title="Ajouter une image de tampon ou de signature"
+        >
+          <Upload size={11} />
+          {uploading ? 'Téléchargement…' : 'Ajouter un tampon'}
+        </button>
+      ) : (
+        <div
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData(STAMP_DRAG_TYPE, '1');
+            // Some browsers require a text fallback on the dataTransfer payload
+            // before the drag is recognised as carrying data.
+            e.dataTransfer.setData('text/plain', 'stamp');
+            e.dataTransfer.effectAllowed = 'copyMove';
+          }}
+          className="group relative flex items-center gap-2 p-2 rounded-md border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm cursor-grab active:cursor-grabbing transition-all"
+          title="Glissez sur la facture pour placer le tampon"
+        >
+          <img
+            src={stamp.url}
+            alt="Tampon"
+            className="w-10 h-10 object-contain rounded bg-slate-50 shrink-0 pointer-events-none"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-medium text-slate-700 truncate">Tampon</div>
+            <div className="text-[9px] text-slate-400">Glisser sur la facture</div>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'stamp/remove' }); }}
+            className="opacity-0 group-hover:opacity-100 p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-all"
+            title="Supprimer le tampon"
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
+      )}
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleUpload(file);
+          e.target.value = '';
+        }}
+      />
+    </div>
   );
 }
 
