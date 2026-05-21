@@ -27,3 +27,12 @@ export interface BlockMeta {
   top: number;   height: number;
   left: number;  right: number;
 }
+
+export interface FloatingImage {
+  id: string;
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}

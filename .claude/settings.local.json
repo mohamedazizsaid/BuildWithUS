@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.apple.com)"
+      "WebFetch(domain:www.apple.com)",
+      "Bash(npm install *)"
     ]
   }
 }

@@ -7,12 +7,27 @@ import { GripVertical, Copy, Trash2 as TrashIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { resolveBlock } from '../_lib/blocks';
 import { replaceAllVariableNodes } from '../_lib/variable-mapping';
-import type { BlockMeta } from '../_lib/types';
+import type { BlockMeta, FloatingImage } from '../_lib/types';
+import { FloatingImages } from './FloatingImages';
 
-export function ContractCanvas({ editor, onBlockSelect, bgColor = '#ffffff' }: {
+export function ContractCanvas({
+  editor,
+  onBlockSelect,
+  bgColor = '#ffffff',
+  floatingImages = [],
+  selectedImageId = null,
+  onSelectImage,
+  onUpdateImage,
+  onRemoveImage,
+}: {
   readonly editor: Editor | null;
   readonly onBlockSelect?: (b: BlockMeta | null) => void;
   readonly bgColor?: string;
+  readonly floatingImages?: FloatingImage[];
+  readonly selectedImageId?: string | null;
+  readonly onSelectImage?: (id: string | null) => void;
+  readonly onUpdateImage?: (id: string, patch: Partial<FloatingImage>) => void;
+  readonly onRemoveImage?: (id: string) => void;
 }) {
   const canvasRef  = useRef<HTMLDivElement>(null);
   const scrollRef  = useRef<HTMLDivElement>(null);
@@ -70,7 +85,8 @@ export function ContractCanvas({ editor, onBlockSelect, bgColor = '#ffffff' }: {
     if (!editor || !canvasRef.current) return;
     const meta = resolveBlock(editor, e.clientX, e.clientY, canvasRef.current);
     setSelected(meta);
-  }, [editor]);
+    onSelectImage?.(null);
+  }, [editor, onSelectImage]);
 
   const clearSelection = useCallback(() => setSelected(null), []);
 
@@ -245,6 +261,17 @@ export function ContractCanvas({ editor, onBlockSelect, bgColor = '#ffffff' }: {
         }}
       >
         {editor && <EditorContent editor={editor} />}
+
+        {onSelectImage && onUpdateImage && onRemoveImage && (
+          <FloatingImages
+            images={floatingImages}
+            selectedId={selectedImageId}
+            onSelect={onSelectImage}
+            onUpdate={onUpdateImage}
+            onRemove={onRemoveImage}
+            pageRef={canvasRef}
+          />
+        )}
 
         {active && (
           <div

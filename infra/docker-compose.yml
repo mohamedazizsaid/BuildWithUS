@@ -151,6 +151,11 @@ services:
       SMTP_PASS: ${SMTP_PASS}
       # JWT — MUST match auth-service's secret or tokens won't validate
       JWT_SECRET: ${JWT_SECRET}
+      # PDF export (Two-View): gateway signs short-lived print tokens that
+      # Playwright forwards in the URL to the Next.js /print route. Both
+      # services must share the same secret.
+      PRINT_TOKEN_SECRET: ${PRINT_TOKEN_SECRET}
+      FRONTEND_URL: http://frontend:3000
     ports:
       - "3000:3000"
     networks:
@@ -176,6 +181,9 @@ services:
       # Convex - browser talks to cloud directly, no Docker involved
       NEXT_PUBLIC_CONVEX_URL: https://optimistic-starfish-376.eu-west-1.convex.cloud
       NEXT_PUBLIC_CONVEX_SITE_URL: https://optimistic-starfish-376.eu-west-1.convex.site
+      # PDF export — same secret as api-gateway, used to verify print tokens
+      # signed by gateway in /app/print/contract/[id]/route.ts
+      PRINT_TOKEN_SECRET: ${PRINT_TOKEN_SECRET}
     ports:
       - "3001:3000"
     networks:

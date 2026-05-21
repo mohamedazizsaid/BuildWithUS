@@ -24,7 +24,7 @@ import { ContractHeader } from '@/lib/tiptap/contract-header';
 import { ALL_CONTRACT_BLOCKS } from '@/lib/tiptap/contract-blocks';
 import { CONTRACT_TEMPLATES, VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
 
-import { CONTRACT_TYPES, type ContractType, type SlashMenuItem, type CsvDataset, type BlockMeta } from './_lib/types';
+import { CONTRACT_TYPES, type ContractType, type SlashMenuItem, type CsvDataset, type BlockMeta, type FloatingImage } from './_lib/types';
 import { VariablePalette } from './_components/VariablePalette';
 import { EditorToolbar } from './_components/EditorToolbar';
 import { ContractCanvas } from './_components/Canvas';
@@ -44,6 +44,8 @@ function ContractEditorContent() {
 
   const [contractType, setContractType] = useState<ContractType>('b2c');
   const [docBgColor, setDocBgColor] = useState<string>('#ffffff');
+  const [floatingImages, setFloatingImages] = useState<FloatingImage[]>([]);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [selectedBlock, setSelectedBlock] = useState<BlockMeta | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -126,6 +128,32 @@ function ContractEditorContent() {
     contractVariables.add({ category: catLabel, name }).catch(console.error);
     setAllVars((prev) => ({ ...prev, [catLabel]: [...(prev[catLabel] ?? []), name] }));
     setCustomVarNames((prev) => new Set([...prev, name]));
+  }, []);
+
+  const handleAddImage = useCallback((src: string, naturalW: number, naturalH: number) => {
+    const pageWidthMm = 210;
+    const pageHeightMm = 297;
+    const MM_PER_PX = 25.4 / 96;
+    let widthMm = Math.min(naturalW * MM_PER_PX, pageWidthMm * 0.45);
+    if (widthMm < 20) widthMm = Math.min(60, pageWidthMm * 0.3);
+    const ratio = naturalH > 0 ? naturalH / naturalW : 1;
+    const heightMm = widthMm * ratio;
+    const x = Math.max(0, (pageWidthMm - widthMm) / 2);
+    const y = Math.max(0, Math.min(40, pageHeightMm - heightMm - 10));
+    const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+      ? crypto.randomUUID()
+      : `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setFloatingImages((prev) => [...prev, { id, src, x, y, width: widthMm, height: heightMm }]);
+    setSelectedImageId(id);
+  }, []);
+
+  const handleUpdateImage = useCallback((id: string, patch: Partial<FloatingImage>) => {
+    setFloatingImages((prev) => prev.map((img) => (img.id === id ? { ...img, ...patch } : img)));
+  }, []);
+
+  const handleRemoveImage = useCallback((id: string) => {
+    setFloatingImages((prev) => prev.filter((img) => img.id !== id));
+    setSelectedImageId((prev) => (prev === id ? null : prev));
   }, []);
 
   const handleDeleteVar = useCallback((catLabel: string, name: string) => {
@@ -235,6 +263,7 @@ function ContractEditorContent() {
           if (parsed.contractType) setContractType(parsed.contractType as ContractType);
           if (parsed.version) setVersion(parsed.version);
           if (typeof parsed.docBgColor === 'string') setDocBgColor(parsed.docBgColor);
+          if (Array.isArray(parsed.floatingImages)) setFloatingImages(parsed.floatingImages as FloatingImage[]);
           if (parsed.doc) {
             editor.commands.setContent(parsed.doc);
             editor.commands.setTextSelection(0);
@@ -372,6 +401,7 @@ function ContractEditorContent() {
       contractType,
       version: newVersion,
       docBgColor,
+      floatingImages,
       doc: editor.getJSON(),
     });
     try {
@@ -385,7 +415,7 @@ function ContractEditorContent() {
     } catch {
       return false;
     }
-  }, [editor, version, contractType, docBgColor, isEditMode, templateId, name, description]);
+  }, [editor, version, contractType, docBgColor, floatingImages, isEditMode, templateId, name, description]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -403,7 +433,7 @@ function ContractEditorContent() {
     if (!editor) return;
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
-    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {}, { docName: name, bgColor: docBgColor });
+    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {}, { docName: name, bgColor: docBgColor, floatingImages });
     try {
       const res = await fetch('http://localhost:3000/templates/render-pdf', {
         method: 'POST',
@@ -423,7 +453,7 @@ function ContractEditorContent() {
     } finally {
       setIsGenerating(false);
     }
-  }, [editor, name]);
+  }, [editor, name, docBgColor, floatingImages]);
 
   const handleGenerate = useCallback(() => {
     if (!editor) return;
@@ -466,7 +496,7 @@ function ContractEditorContent() {
     } finally {
       setIsGenerating(false);
     }
-  }, [editor, name, persistTemplate, isEditMode, router]);
+  }, [editor, name, docBgColor, floatingImages, persistTemplate, isEditMode, router]);
 
   const typeConfig = CONTRACT_TYPES[contractType];
 
@@ -542,10 +572,24 @@ function ContractEditorContent() {
           onEditMapping={handleEditMapping}
           isMappingLoading={isMappingLoading}
         />
-        <ContractCanvas editor={editor} onBlockSelect={setSelectedBlock} bgColor={docBgColor} />
+        <ContractCanvas
+          editor={editor}
+          onBlockSelect={setSelectedBlock}
+          bgColor={docBgColor}
+          floatingImages={floatingImages}
+          selectedImageId={selectedImageId}
+          onSelectImage={setSelectedImageId}
+          onUpdateImage={handleUpdateImage}
+          onRemoveImage={handleRemoveImage}
+        />
         <RightPanel
           docBgColor={docBgColor}
           onChangeDocBgColor={setDocBgColor}
+          floatingImages={floatingImages}
+          onAddImage={handleAddImage}
+          onRemoveImage={handleRemoveImage}
+          onSelectImage={setSelectedImageId}
+          selectedImageId={selectedImageId}
         />
       </div>
       </VarLabelsContext.Provider>
