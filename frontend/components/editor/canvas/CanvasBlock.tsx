@@ -66,20 +66,24 @@ export function CanvasBlock({
     }
   }, [isSelected, isTextBlock, block.type]);
 
+  // Always-fresh onUpdate — the interval below intentionally doesn't re-arm on
+  // every render, so it can't close over onUpdate directly without going stale
+  // (which would clobber concurrent style edits like a textAlign change made
+  // while typing).
+  const onUpdateRef = useRef(onUpdate);
+  useEffect(() => { onUpdateRef.current = onUpdate; });
+
   // Flush pending text to template state at most once every 100ms.
   // Decouples keystrokes from React renders → no caret jumps, no lag.
   useEffect(() => {
     if (!isSelected || !isTextBlock) return;
     const id = setInterval(() => {
       if (pendingText.current !== null) {
-        onUpdate({ content: { text: pendingText.current } });
+        onUpdateRef.current({ content: { text: pendingText.current } });
         pendingText.current = null;
       }
     }, 100);
     return () => clearInterval(id);
-  // onUpdate identity changes each render but we intentionally keep the interval
-  // alive across those renders — the ref always carries the latest text.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSelected, isTextBlock]);
 
   return (
@@ -149,9 +153,15 @@ export function CanvasBlock({
               onInput={(e) => { pendingText.current = e.currentTarget.innerHTML || ''; }}
               onBlur={(e) => {
                 pendingText.current = null;
-                // flushSync so the click handler that just stole focus (e.g. Save) sees the latest text.
-                flushSync(() => {
-                  onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
+                const html = e.currentTarget.innerHTML || '';
+                // Defer to a microtask: if blur fires during a parent re-render
+                // (e.g. element being unmounted), flushSync would throw. The
+                // microtask drains between blur and click in the same gesture,
+                // so the next click handler (e.g. Save) still sees fresh state.
+                queueMicrotask(() => {
+                  flushSync(() => {
+                    onUpdate({ content: { text: html } });
+                  });
                 });
               }}
               style={{

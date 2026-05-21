@@ -112,6 +112,24 @@ export function blockToMjml(block: BlockData, g: GlobalStyles) {
       out += `        </mj-social>\n`;
       return out;
     }
+    case "menu": {
+      const items = (block.content.items || []) as string[][];
+      const layout = (block.content.layout as string) || 'horizontal';
+      const align = (block.content.align as string) || 'center';
+      const spacing = block.styles.spacing || '20px';
+      const linkColor = block.styles.color || g.linkColor || '#0f172a';
+      const linkSize = block.styles.fontSize || g.fontSize;
+      const linkWeight = block.styles.fontWeight || g.fontWeight;
+      const linkFamily = block.styles.fontFamily || g.fontFamily;
+      const linkDeco = block.styles.textDecoration || 'none';
+      const pad = block.styles.padding || '10px';
+      const isVertical = layout === 'vertical';
+      const linkStyle = `color:${linkColor};font-size:${linkSize};font-weight:${linkWeight};font-family:${linkFamily};text-decoration:${linkDeco}`;
+      const html = isVertical
+        ? items.map(([label, url]) => `<div style="text-align:${align};padding:2px 0">${label ? `<a href="${(url || '#').replace(/&/g, '&amp;')}" style="${linkStyle}">${label}</a>` : ''}</div>`).join('')
+        : `<div style="text-align:${align}">${items.map(([label, url], i) => label ? `<a href="${(url || '#').replace(/&/g, '&amp;')}" style="${linkStyle};display:inline-block;${i < items.length - 1 ? `margin-right:${spacing}` : ''}">${label}</a>` : '').join('')}</div>`;
+      return `        <mj-text padding="${pad}" align="${align}">${html}</mj-text>\n`;
+    }
     case "signature": {
       const sigLineColor = block.styles.lineColor || '#000000';
       const sigLineWidth = block.styles.lineWidth || '200px';
@@ -188,6 +206,26 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
         return `<div style="text-align:${vAlign};padding:${block.styles.padding}"><video src="${vSrc}" style="width:${vWidth};max-width:100%;border-radius:${vRadius}" controls></video></div>`;
       }
       return '';
+    }
+    case "menu": {
+      const items = (block.content.items || []) as string[][];
+      const layout = (block.content.layout as string) || 'horizontal';
+      const align = (block.content.align as string) || 'center';
+      const spacing = block.styles.spacing || '20px';
+      const linkColor = block.styles.color || globalStyles.linkColor || '#0f172a';
+      const linkSize = block.styles.fontSize || globalStyles.fontSize;
+      const linkWeight = block.styles.fontWeight || globalStyles.fontWeight;
+      const linkFamily = block.styles.fontFamily || globalStyles.fontFamily;
+      const linkDeco = block.styles.textDecoration || 'none';
+      const pad = block.styles.padding || '10px';
+      const linkStyle = `color:${linkColor};font-size:${linkSize};font-weight:${linkWeight};font-family:${linkFamily};text-decoration:${linkDeco}`;
+      const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' };
+      if (layout === 'vertical') {
+        const rows = items.map(([label, url]) => label ? `<div style="text-align:${align};padding:${parseInt(spacing) / 2 || 4}px 0"><a href="${url || '#'}" style="${linkStyle}">${label}</a></div>` : '').join('');
+        return `<div style="padding:${pad}">${rows}</div>`;
+      }
+      const linksH = items.map(([label, url]) => label ? `<a href="${url || '#'}" style="${linkStyle};margin:0 ${parseInt(spacing) / 2 || 10}px;display:inline-block">${label}</a>` : '').join('');
+      return `<div style="padding:${pad};display:flex;justify-content:${justifyMap[align] || 'center'};flex-wrap:wrap;align-items:center">${linksH}</div>`;
     }
     case "signature":
       return `<div style="padding:${block.styles.padding};font-size:${block.styles.fontSize};color:${block.styles.color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></div>`;

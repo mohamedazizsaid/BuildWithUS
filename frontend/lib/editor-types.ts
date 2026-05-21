@@ -1,4 +1,4 @@
-export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature' | 'social';
+export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature' | 'social' | 'menu';
 
 export type RowLayout =
   | '100'
@@ -126,6 +126,22 @@ export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, 
       align: 'center',
     },
     styles: { padding: '10px', iconSize: '32px', iconPadding: '4px' },
+  },
+  menu: {
+    content: {
+      items: [['Option 1', '#'], ['Option 2', '#'], ['Option 3', '#']] as string[][],
+      layout: 'horizontal',
+      align: 'center',
+    },
+    styles: {
+      padding: '10px',
+      spacing: '20px',
+      color: '',
+      fontSize: '',
+      fontFamily: '',
+      fontWeight: '',
+      textDecoration: 'none',
+    },
   },
 };
 

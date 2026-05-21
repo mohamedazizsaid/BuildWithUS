@@ -227,6 +227,40 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
         </div>
       );
     }
+    case 'menu': {
+      const items = (block.content.items || []) as string[][];
+      const layout = (block.content.layout as string) || 'horizontal';
+      const align = (block.content.align as string) || 'center';
+      const spacing = block.styles.spacing || '20px';
+      const color = block.styles.color || globalStyles.linkColor || '#0f172a';
+      const fontSize = block.styles.fontSize || 'inherit';
+      const fontWeight = block.styles.fontWeight || 'inherit';
+      const fontFamily = block.styles.fontFamily || 'inherit';
+      const textDecoration = block.styles.textDecoration || 'none';
+      const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' };
+      const isVertical = layout === 'vertical';
+
+      if (items.length === 0) {
+        return <div style={{ padding: block.styles.padding || '10px', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>Aucune option — ajoutez-en dans les propriétés</div>;
+      }
+      return (
+        <div style={{
+          display: 'flex',
+          flexDirection: isVertical ? 'column' : 'row',
+          justifyContent: justifyMap[align] || 'center',
+          alignItems: isVertical ? (align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center') : 'center',
+          gap: spacing,
+          padding: block.styles.padding || '10px',
+          flexWrap: 'wrap',
+        }}>
+          {items.map(([label, url], i) => (
+            <a key={i} href={url || '#'} style={{ color, fontSize, fontWeight, fontFamily, textDecoration }}>
+              {label || `Option ${i + 1}`}
+            </a>
+          ))}
+        </div>
+      );
+    }
     case 'signature': {
       const sLineColor = block.styles.lineColor || '#000000';
       const sLineWidth = block.styles.lineWidth || '200px';

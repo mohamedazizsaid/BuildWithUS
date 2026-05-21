@@ -3,6 +3,31 @@
 import { useRef, useEffect } from 'react';
 import { BlockData } from '@/lib/editor-types';
 
+// Renders a contentEditable cell whose innerHTML is set ONCE on mount.
+// Re-rendering the parent must never touch the cell's DOM contents, otherwise
+// React's `dangerouslySetInnerHTML` would overwrite text the user is typing
+// (but hasn't blurred yet). The DOM is the source of truth between mount and
+// blur; saveAll() reads it back on demand.
+function EditableCell({ initial, onBlur, style }: { initial: string; onBlur: () => void; style: React.CSSProperties }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.innerHTML = initial;
+    // intentional: only run on mount. Deps would re-apply innerHTML mid-typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onBlur={onBlur}
+      style={style}
+      onKeyDown={(e) => { if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '  '); } }}
+    />
+  );
+}
+
 export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate: (updates: Partial<BlockData>) => void }) {
   const tableRef = useRef<HTMLTableElement>(null);
   const borderColor = block.styles.tableBorderColor || '#dddddd';
@@ -103,15 +128,7 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
           <tr>
             {headers.map((h, i) => (
               <th key={`h-${i}-${headers.length}`} style={{ ...cellStyle, backgroundColor: headerBg, fontWeight: 600 }}>
-                <div
-                  contentEditable
-                  suppressContentEditableWarning
-                  spellCheck={false}
-                  onBlur={onCellBlur}
-                  style={editableStyle}
-                  onKeyDown={(e) => { if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\u00a0\u00a0'); } }}
-                  dangerouslySetInnerHTML={{ __html: h }}
-                />
+                <EditableCell initial={h} onBlur={onCellBlur} style={editableStyle} />
                 {headers.length > 1 && (
                   <button
                     onClick={() => removeColumn(i)}
@@ -134,15 +151,7 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
             <tr key={`r-${ri}-${rows.length}`} className="group/row">
               {row.map((cell, ci) => (
                 <td key={`c-${ri}-${ci}-${row.length}`} style={cellStyle}>
-                  <div
-                    contentEditable
-                    suppressContentEditableWarning
-                    spellCheck={false}
-                    onBlur={onCellBlur}
-                    style={editableStyle}
-                    onKeyDown={(e) => { if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\u00a0\u00a0'); } }}
-                    dangerouslySetInnerHTML={{ __html: cell }}
-                  />
+                  <EditableCell initial={cell} onBlur={onCellBlur} style={editableStyle} />
                 </td>
               ))}
               <td style={{ border: 'none', padding: 0, width: '30px', verticalAlign: 'middle' }}>

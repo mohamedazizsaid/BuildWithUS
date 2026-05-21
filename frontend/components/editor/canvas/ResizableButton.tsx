@@ -75,9 +75,14 @@ export function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onS
             onInput={(e) => { pendingTextRef.current = e.currentTarget.innerHTML || ''; }}
             onBlur={(e) => {
               pendingTextRef.current = null;
-              // flushSync so the click handler that just stole focus (e.g. Save) sees the latest text.
-              flushSync(() => {
-                onUpdate({ content: { text: e.currentTarget.innerHTML || '' } });
+              const html = e.currentTarget.innerHTML || '';
+              // Defer to a microtask: if blur fires during a parent re-render
+              // (element being unmounted), flushSync would throw. Microtask
+              // drains between blur and click, so Save still sees fresh state.
+              queueMicrotask(() => {
+                flushSync(() => {
+                  onUpdate({ content: { text: html } });
+                });
               });
             }}
             style={{ outline: 'none', minWidth: '20px', display: 'inline-block' }}
