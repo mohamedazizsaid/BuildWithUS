@@ -327,10 +327,18 @@ export function renderTiptapToHtml(
 
   const body = renderBlock(doc)
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><style>
-    @page{size:A4;margin:18mm 22mm;}
+    @page{size:A4;margin:18mm 22mm;background:${bgColor};}
     *{box-sizing:border-box;}
     html,body{background:${bgColor};-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     body{font-family:Arial,sans-serif;font-size:10pt;color:#1a1a1a;margin:0;padding:0;line-height:1.6;}
+    .pdf-page-bg{
+      position:fixed;
+      top:-30mm;left:-30mm;right:-30mm;bottom:-30mm;
+      background:${bgColor};
+      z-index:-1;
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
     h1,h2,h3{color:#0f172a;}
     ul,ol{padding-left:20px;}
     table{border-collapse:collapse;}
@@ -346,6 +354,7 @@ export function renderTiptapToHtml(
       pointer-events:none;
     }
   </style></head><body>
+    <div class="pdf-page-bg" aria-hidden="true"></div>
     ${body}
     <script>
     (function(){
