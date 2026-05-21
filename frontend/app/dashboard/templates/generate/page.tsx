@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Download, RefreshCw, FileText } from 'lucide-react';
@@ -98,15 +98,33 @@ function GenerateContent() {
     }
   }, [templateContent, values]);
 
+  const buildPrintHtml = useCallback((vars: Record<string, string>, docName: string): string => {
+    try {
+      const parsed = JSON.parse(templateContent);
+      if (parsed.doc?.type === 'doc') {
+        return renderTiptapToHtml(parsed.doc, vars, { docName });
+      }
+      const blocks: { type: string; content: string }[] = parsed.blocks ?? [];
+      const body = blocks
+        .map((b) => `<div style="page-break-inside:avoid;">${renderBlock(b, vars)}</div>`)
+        .join('');
+      return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><style>@page{size:A4;margin:18mm 20mm;}*{box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:10pt;color:#1a1a1a;margin:0;padding:0;line-height:1.6;}table{border-collapse:collapse;}</style></head><body>${body}</body></html>`;
+    } catch {
+      const text = injectVariables(templateContent, vars);
+      return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><style>@page{size:A4;margin:18mm 20mm;}body{font-family:Arial,sans-serif;font-size:10pt;}</style></head><body><pre style="white-space:pre-wrap;">${text}</pre></body></html>`;
+    }
+  }, [templateContent]);
+
   const handleGenerate = async () => {
     setGenerating(true);
     const toastId = toast.loading('Génération du PDF...');
     try {
-      const res = await fetch(`http://localhost:3000/templates/${templateId}/generate`, {
+      const html = buildPrintHtml(values, templateName);
+      const res = await fetch(`http://localhost:3000/templates/render-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ variables: values }),
+        body: JSON.stringify({ html, name: templateName }),
       });
       if (!res.ok) throw new Error('PDF generation failed');
       const blob = await res.blob();
@@ -166,6 +184,7 @@ function GenerateContent() {
             </div>
             <span className="text-xs text-muted-foreground">{filledCount}/{total} champs</span>
           </div>
+
           <button
             onClick={handleGenerate}
             disabled={generating || filledCount < 1}
@@ -240,6 +259,7 @@ function GenerateContent() {
           />
         </div>
       </div>
+
     </div>
   );
 }

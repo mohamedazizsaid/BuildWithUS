@@ -17,6 +17,8 @@ export interface CsvDataset {
   filename: string;
   headers: string[];
   rows: Record<string, string>[];
+  mapping?: Record<string, string | null>;
+  mappingSources?: Record<string, 'exact' | 'ai' | 'none'>;
 }
 
 export interface BlockMeta {

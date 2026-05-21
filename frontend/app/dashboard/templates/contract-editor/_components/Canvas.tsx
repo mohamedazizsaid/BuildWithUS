@@ -9,9 +9,10 @@ import { resolveBlock } from '../_lib/blocks';
 import { replaceAllVariableNodes } from '../_lib/variable-mapping';
 import type { BlockMeta } from '../_lib/types';
 
-export function ContractCanvas({ editor, onBlockSelect }: {
+export function ContractCanvas({ editor, onBlockSelect, bgColor = '#ffffff' }: {
   readonly editor: Editor | null;
   readonly onBlockSelect?: (b: BlockMeta | null) => void;
+  readonly bgColor?: string;
 }) {
   const canvasRef  = useRef<HTMLDivElement>(null);
   const scrollRef  = useRef<HTMLDivElement>(null);
@@ -230,7 +231,7 @@ export function ContractCanvas({ editor, onBlockSelect }: {
         onMouseMove={onMouseMove}
         onMouseLeave={() => setHovered(null)}
         onClick={onClick}
-        className="bg-white shadow-sm mx-auto contract-canvas"
+        className="shadow-sm mx-auto contract-canvas"
         style={{
           position:   'relative',
           width:      '210mm',
@@ -240,6 +241,7 @@ export function ContractCanvas({ editor, onBlockSelect }: {
           color:      '#1a1a1a',
           fontSize:   '10pt',
           lineHeight: '1.75',
+          background: bgColor,
         }}
       >
         {editor && <EditorContent editor={editor} />}

@@ -13,6 +13,8 @@ interface Props {
   rowCount: number;
   filename: string;
   isGenerating: boolean;
+  title?: string;
+  confirmLabel?: string;
   onChange: (templateVar: string, fileCol: string | null) => void;
   onConfirm: () => void;
   onCancel: () => void;
@@ -61,6 +63,8 @@ export function MappingConfirmModal({
   rowCount,
   filename,
   isGenerating,
+  title = 'Correspondance détectée',
+  confirmLabel,
   onChange,
   onConfirm,
   onCancel,
@@ -108,7 +112,7 @@ export function MappingConfirmModal({
               <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white animate-pulse" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-slate-900">Correspondance détectée</h3>
+              <h3 className="text-base font-semibold text-slate-900">{title}</h3>
               <p className="text-[12px] text-slate-500 flex items-center gap-1.5 mt-0.5">
                 <FileSpreadsheet size={11} />
                 <span className="font-medium text-slate-600">{filename}</span>
@@ -283,12 +287,12 @@ export function MappingConfirmModal({
               {isGenerating ? (
                 <>
                   <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Génération...
+                  Enregistrement...
                 </>
               ) : (
                 <>
                   <Sparkles size={12} />
-                  Générer {rowCount} PDF{rowCount > 1 ? 's' : ''}
+                  {confirmLabel ?? `Enregistrer le mapping (${rowCount} ligne${rowCount > 1 ? 's' : ''})`}
                 </>
               )}
             </button>

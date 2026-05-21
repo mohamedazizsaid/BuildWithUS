@@ -9,7 +9,7 @@ import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
   ArrowLeft, Save, Download, RefreshCw, ChevronDown,
-  AlertTriangle, FileDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -17,7 +17,7 @@ import toast from 'react-hot-toast';
 import { templates, contractVariables } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { VariableNode, extractVariablesFromTiptap, renderTiptapToHtml } from '@/lib/tiptap/variable-node';
-import { buildVariableMapping, applyMapping, type MappingSource } from '@/lib/variable-mapper';
+import { buildVariableMapping, type MappingSource } from '@/lib/variable-mapper';
 import { MappingConfirmModal } from '@/components/contract/MappingConfirmModal';
 import { VarLabelsContext } from '@/lib/tiptap/var-labels-context';
 import { ContractHeader } from '@/lib/tiptap/contract-header';
@@ -43,6 +43,7 @@ function ContractEditorContent() {
   const isEditMode = !!templateId;
 
   const [contractType, setContractType] = useState<ContractType>('b2c');
+  const [docBgColor, setDocBgColor] = useState<string>('#ffffff');
   const [selectedBlock, setSelectedBlock] = useState<BlockMeta | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -57,7 +58,7 @@ function ContractEditorContent() {
   const [csvDatasets, setCsvDatasets] = useState<CsvDataset[]>([]);
 
   const [mappingModal, setMappingModal] = useState<{
-    dataset: CsvDataset;
+    filename: string;
     templateVars: string[];
     mapping: Record<string, string | null>;
     sources: Record<string, MappingSource>;
@@ -133,14 +134,6 @@ function ContractEditorContent() {
     setCustomVarNames((prev) => { const s = new Set(prev); s.delete(name); return s; });
   }, []);
 
-  const handleImportCsv = useCallback((filename: string, headers: string[], rows: Record<string, string>[]) => {
-    setCsvDatasets((prev) => {
-      const filtered = prev.filter((d) => d.filename !== filename);
-      return [...filtered, { filename, headers, rows }];
-    });
-    toast.success(`"${filename}" importé : ${headers.length} colonne(s), ${rows.length} ligne(s)`);
-  }, []);
-
   const [slashMenu, setSlashMenu] = useState<{
     query: string; from: number; coords: { top: number; bottom: number; left: number };
   } | null>(null);
@@ -166,6 +159,68 @@ function ContractEditorContent() {
     },
   });
 
+  const runAiMappingForDataset = useCallback(async (dataset: CsvDataset) => {
+    if (!editor) return;
+    const templateVars = extractVariablesFromTiptap(editor.getJSON() as Record<string, unknown>);
+    if (templateVars.length === 0) {
+      toast('Aucune variable dans le template — ajoutez-en pour mapper le CSV', { icon: 'ℹ️' });
+      return;
+    }
+
+    if (dataset.mapping && dataset.mappingSources) {
+      setMappingModal({
+        filename: dataset.filename,
+        templateVars,
+        mapping: { ...dataset.mapping },
+        sources: { ...dataset.mappingSources },
+      });
+      return;
+    }
+
+    setIsMappingLoading(true);
+    const toastId = toast.loading('Analyse IA des colonnes…');
+    try {
+      const { mapping, sources } = await buildVariableMapping(templateVars, dataset.headers, dataset.rows[0]);
+      toast.dismiss(toastId);
+      setMappingModal({ filename: dataset.filename, templateVars, mapping, sources });
+    } catch {
+      toast.error('Échec de l\'analyse IA — assignez manuellement', { id: toastId });
+      const emptyMapping: Record<string, string | null> = {};
+      const emptySources: Record<string, MappingSource> = {};
+      for (const v of templateVars) { emptyMapping[v] = null; emptySources[v] = 'none'; }
+      setMappingModal({ filename: dataset.filename, templateVars, mapping: emptyMapping, sources: emptySources });
+    } finally {
+      setIsMappingLoading(false);
+    }
+  }, [editor]);
+
+  const handleImportCsv = useCallback((filename: string, headers: string[], rows: Record<string, string>[]) => {
+    const dataset: CsvDataset = { filename, headers, rows };
+    setCsvDatasets((prev) => {
+      const filtered = prev.filter((d) => d.filename !== filename);
+      return [...filtered, dataset];
+    });
+    toast.success(`"${filename}" importé : ${headers.length} colonne(s), ${rows.length} ligne(s)`);
+    void runAiMappingForDataset(dataset);
+  }, [runAiMappingForDataset]);
+
+  const handleEditMapping = useCallback((filename: string) => {
+    const ds = csvDatasets.find((d) => d.filename === filename);
+    if (ds) void runAiMappingForDataset(ds);
+  }, [csvDatasets, runAiMappingForDataset]);
+
+  const confirmMapping = useCallback(() => {
+    if (!mappingModal) return;
+    const { filename, mapping, sources } = mappingModal;
+    setCsvDatasets((prev) => prev.map((d) =>
+      d.filename === filename
+        ? { ...d, mapping: { ...mapping }, mappingSources: { ...sources } }
+        : d,
+    ));
+    setMappingModal(null);
+    toast.success('Mapping enregistré');
+  }, [mappingModal]);
+
   const loadedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!templateId || !editor) return;
@@ -179,6 +234,7 @@ function ContractEditorContent() {
           const parsed = JSON.parse(tmpl?.content ?? '');
           if (parsed.contractType) setContractType(parsed.contractType as ContractType);
           if (parsed.version) setVersion(parsed.version);
+          if (typeof parsed.docBgColor === 'string') setDocBgColor(parsed.docBgColor);
           if (parsed.doc) {
             editor.commands.setContent(parsed.doc);
             editor.commands.setTextSelection(0);
@@ -315,6 +371,7 @@ function ContractEditorContent() {
     const content = JSON.stringify({
       contractType,
       version: newVersion,
+      docBgColor,
       doc: editor.getJSON(),
     });
     try {
@@ -328,7 +385,7 @@ function ContractEditorContent() {
     } catch {
       return false;
     }
-  }, [editor, version, contractType, isEditMode, templateId, name, description]);
+  }, [editor, version, contractType, docBgColor, isEditMode, templateId, name, description]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -346,7 +403,7 @@ function ContractEditorContent() {
     if (!editor) return;
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
-    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {}, { docName: name });
+    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {}, { docName: name, bgColor: docBgColor });
     try {
       const res = await fetch('http://localhost:3000/templates/render-pdf', {
         method: 'POST',
@@ -379,7 +436,7 @@ function ContractEditorContent() {
     if (!editor) return;
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
-    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, values, { docName: name });
+    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, values, { docName: name, bgColor: docBgColor });
     try {
       const res = await fetch('http://localhost:3000/templates/render-pdf', {
         method: 'POST',
@@ -410,91 +467,6 @@ function ContractEditorContent() {
       setIsGenerating(false);
     }
   }, [editor, name, persistTemplate, isEditMode, router]);
-
-  const handleBatchCsvPdf = useCallback(async () => {
-    if (!editor || csvDatasets.length === 0) {
-      toast.error('Importez d\'abord un CSV depuis le panneau de gauche');
-      return;
-    }
-    const dataset = csvDatasets[csvDatasets.length - 1];
-    if (dataset.rows.length === 0) {
-      toast.error('Le CSV ne contient aucune ligne de données');
-      return;
-    }
-
-    const templateVars = extractVariablesFromTiptap(editor.getJSON() as Record<string, unknown>);
-    if (templateVars.length === 0) {
-      toast.error('Aucune variable détectée dans le template');
-      return;
-    }
-
-    setIsMappingLoading(true);
-    const toastId = toast.loading('Analyse IA des colonnes…');
-    try {
-      const { mapping, sources } = await buildVariableMapping(
-        templateVars,
-        dataset.headers,
-        dataset.rows[0],
-      );
-      toast.dismiss(toastId);
-      setMappingModal({ dataset, templateVars, mapping, sources });
-    } catch {
-      toast.error('Échec de l\'analyse IA — assignez manuellement', { id: toastId });
-      const emptyMapping: Record<string, string | null> = {};
-      const emptySources: Record<string, MappingSource> = {};
-      for (const v of templateVars) {
-        emptyMapping[v] = null;
-        emptySources[v] = 'none';
-      }
-      setMappingModal({ dataset, templateVars, mapping: emptyMapping, sources: emptySources });
-    } finally {
-      setIsMappingLoading(false);
-    }
-  }, [editor, csvDatasets]);
-
-  const confirmAndGenerateBatch = useCallback(async () => {
-    if (!editor || !mappingModal) return;
-    const { dataset, mapping } = mappingModal;
-    const { rows, filename } = dataset;
-    const baseName = filename.replace(/\.csv$/i, '');
-
-    setIsGenerating(true);
-    const toastId = toast.loading(`Génération de ${rows.length} PDF(s)…`);
-    const docJson = editor.getJSON() as Record<string, unknown>;
-
-    let success = 0;
-    for (let i = 0; i < rows.length; i++) {
-      const mappedValues = applyMapping(rows[i], mapping);
-      const html = renderTiptapToHtml(docJson, mappedValues, { docName: `${name}_${i + 1}` });
-      try {
-        const res = await fetch('http://localhost:3000/templates/render-pdf', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ html, name: `${baseName}_${i + 1}` }),
-        });
-        if (!res.ok) continue;
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${baseName}_${i + 1}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-        success++;
-        toast.loading(`Génération… ${i + 1}/${rows.length}`, { id: toastId });
-        if (i < rows.length - 1) await new Promise((r) => setTimeout(r, 250));
-      } catch { /* skip failed row */ }
-    }
-
-    setIsGenerating(false);
-    setMappingModal(null);
-    if (success === rows.length) {
-      toast.success(`${success} PDF(s) générés depuis "${filename}"`, { id: toastId });
-    } else {
-      toast.error(`${success}/${rows.length} PDF(s) générés (échecs sur certaines lignes)`, { id: toastId });
-    }
-  }, [editor, mappingModal, name]);
 
   const typeConfig = CONTRACT_TYPES[contractType];
 
@@ -544,21 +516,6 @@ function ContractEditorContent() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50">
             <Save size={13} /> {isSaving ? 'Enregistrement…' : 'Enregistrer template'}
           </button>
-          {csvDatasets.length > 0 && (
-            <button
-              onClick={handleBatchCsvPdf}
-              disabled={isGenerating || isMappingLoading}
-              title={`Générer un PDF par ligne de ${csvDatasets[csvDatasets.length - 1].filename} (${csvDatasets[csvDatasets.length - 1].rows.length} lignes)`}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-40"
-            >
-              {isMappingLoading
-                ? <><RefreshCw size={13} className="animate-spin" /> Analyse…</>
-                : <><FileDown size={13} /> CSV → PDF</>}
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-700/40 text-[10px]">
-                {csvDatasets[csvDatasets.length - 1].rows.length}
-              </span>
-            </button>
-          )}
           <button onClick={handleDownloadTemplatePdf} disabled={isGenerating}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-40">
             {isGenerating
@@ -582,11 +539,13 @@ function ContractEditorContent() {
           onDeleteVar={handleDeleteVar}
           onImportCsv={handleImportCsv}
           onRemoveCsv={handleRemoveCsv}
+          onEditMapping={handleEditMapping}
+          isMappingLoading={isMappingLoading}
         />
-        <ContractCanvas editor={editor} onBlockSelect={setSelectedBlock} />
+        <ContractCanvas editor={editor} onBlockSelect={setSelectedBlock} bgColor={docBgColor} />
         <RightPanel
-          contractType={contractType}
-          onSwitchType={requestSwitch}
+          docBgColor={docBgColor}
+          onChangeDocBgColor={setDocBgColor}
         />
       </div>
       </VarLabelsContext.Provider>
@@ -621,25 +580,36 @@ function ContractEditorContent() {
       )}
 
       <AnimatePresence>
-        {mappingModal && (
-          <MappingConfirmModal
-            templateVars={mappingModal.templateVars}
-            fileHeaders={mappingModal.dataset.headers}
-            mapping={mappingModal.mapping}
-            sources={mappingModal.sources}
-            sampleRow={mappingModal.dataset.rows[0]}
-            rowCount={mappingModal.dataset.rows.length}
-            filename={mappingModal.dataset.filename}
-            isGenerating={isGenerating}
-            onChange={(templateVar, fileCol) =>
-              setMappingModal((prev) =>
-                prev ? { ...prev, mapping: { ...prev.mapping, [templateVar]: fileCol } } : prev,
-              )
-            }
-            onConfirm={confirmAndGenerateBatch}
-            onCancel={() => setMappingModal(null)}
-          />
-        )}
+        {mappingModal && (() => {
+          const ds = csvDatasets.find((d) => d.filename === mappingModal.filename);
+          return (
+            <MappingConfirmModal
+              templateVars={mappingModal.templateVars}
+              fileHeaders={ds?.headers ?? []}
+              mapping={mappingModal.mapping}
+              sources={mappingModal.sources}
+              sampleRow={ds?.rows[0]}
+              rowCount={ds?.rows.length ?? 0}
+              filename={mappingModal.filename}
+              isGenerating={false}
+              title="Mapping CSV → Variables du template"
+              confirmLabel="Enregistrer le mapping"
+              onChange={(templateVar, fileCol) =>
+                setMappingModal((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        mapping: { ...prev.mapping, [templateVar]: fileCol },
+                        sources: { ...prev.sources, [templateVar]: fileCol ? prev.sources[templateVar] ?? 'none' : 'none' },
+                      }
+                    : prev,
+                )
+              }
+              onConfirm={confirmMapping}
+              onCancel={() => setMappingModal(null)}
+            />
+          );
+        })()}
       </AnimatePresence>
 
       <style>{`

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
-import { ChevronDown, Plus, Minus, Upload, X } from 'lucide-react';
+import { ChevronDown, Plus, Minus, Upload, X, Wand2, RefreshCw, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
 import { BLOCK_LIBRARY } from '../_lib/block-library';
@@ -19,9 +19,11 @@ interface VariablePaletteProps {
   onDeleteVar: (category: string, name: string) => void;
   onImportCsv: (filename: string, headers: string[], rows: Record<string, string>[]) => void;
   onRemoveCsv: (filename: string) => void;
+  onEditMapping?: (filename: string) => void;
+  isMappingLoading?: boolean;
 }
 
-export function VariablePalette({ editor, allVars, customVarNames, varLabels, csvDatasets, onAddVar, onDeleteVar, onImportCsv, onRemoveCsv }: VariablePaletteProps) {
+export function VariablePalette({ editor, allVars, customVarNames, varLabels, csvDatasets, onAddVar, onDeleteVar, onImportCsv, onRemoveCsv, onEditMapping, isMappingLoading }: VariablePaletteProps) {
   const [tab, setTab] = useState<'vars' | 'blocs' | 'csv'>('vars');
   const [open, setOpen] = useState<string | null>('Prestataire');
   const [addingTo, setAddingTo] = useState<string | null>(null);
@@ -265,7 +267,13 @@ export function VariablePalette({ editor, allVars, customVarNames, varLabels, cs
                 </button>
               </div>
             ) : (
-              csvDatasets.map((ds) => (
+              csvDatasets.map((ds) => {
+                const mappedCount = ds.mapping
+                  ? Object.values(ds.mapping).filter((v) => v).length
+                  : 0;
+                const totalVars = ds.mapping ? Object.keys(ds.mapping).length : 0;
+                const hasMapping = !!ds.mapping;
+                return (
                 <div key={ds.filename} className="rounded-lg border border-emerald-200 bg-white overflow-hidden">
                   <div className="px-2.5 py-2 bg-emerald-50 border-b border-emerald-200 flex items-center gap-1.5">
                     <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded shrink-0">CSV</span>
@@ -281,6 +289,29 @@ export function VariablePalette({ editor, allVars, customVarNames, varLabels, cs
                       <X size={10} />
                     </button>
                   </div>
+
+                  {onEditMapping && (
+                    <div className="px-2.5 py-1.5 bg-white border-b border-emerald-100 flex items-center gap-1.5">
+                      {hasMapping ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-700">
+                          <Check size={9} strokeWidth={3} />
+                          Mapping : {mappedCount}/{totalVars} variable{totalVars > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-slate-400 italic">Aucun mapping</span>
+                      )}
+                      <button
+                        onClick={() => onEditMapping(ds.filename)}
+                        disabled={isMappingLoading}
+                        title="Voir / modifier le mapping IA"
+                        className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border border-indigo-200 transition-colors disabled:opacity-50"
+                      >
+                        {isMappingLoading
+                          ? <><RefreshCw size={9} className="animate-spin" /> Analyse…</>
+                          : <><Wand2 size={9} /> {hasMapping ? 'Modifier' : 'Mapper avec IA'}</>}
+                      </button>
+                    </div>
+                  )}
                   <div className="p-1.5 space-y-0.5">
                     {ds.headers.map((name) => (
                       <div
@@ -303,7 +334,8 @@ export function VariablePalette({ editor, allVars, customVarNames, varLabels, cs
                     ))}
                   </div>
                 </div>
-              ))
+              );
+              })
             )}
           </div>
         </>

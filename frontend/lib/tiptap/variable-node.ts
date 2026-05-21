@@ -96,8 +96,9 @@ export function extractVariablesFromTiptap(doc: Record<string, unknown>): string
 export function renderTiptapToHtml(
   doc: Record<string, unknown>,
   variables: Record<string, string>,
-  _options: { docName?: string } = {},
+  options: { docName?: string; bgColor?: string } = {},
 ): string {
+  const bgColor = options.bgColor ?? '#ffffff';
   function escape(s: string) {
     return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
   }
@@ -328,6 +329,7 @@ export function renderTiptapToHtml(
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><style>
     @page{size:A4;margin:18mm 22mm;}
     *{box-sizing:border-box;}
+    html,body{background:${bgColor};-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     body{font-family:Arial,sans-serif;font-size:10pt;color:#1a1a1a;margin:0;padding:0;line-height:1.6;}
     h1,h2,h3{color:#0f172a;}
     ul,ol{padding-left:20px;}
