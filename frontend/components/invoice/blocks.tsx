@@ -62,9 +62,11 @@ function BlockShell({
 
 export function HeaderBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: BlockProps) {
   const { data, theme } = invoice;
+  const muted = { color: theme.colors.muted, fontSize: '9pt' };
   return (
     <BlockShell id="header" selected={selectedBlock === 'header'} onSelect={onSelectBlock}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      {/* Row 1: logo (left) — seller info (right) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24 }}>
         <div style={{ textAlign: theme.logo.align, flex: 1 }}>
           {theme.logo.url ? (
             <img src={theme.logo.url} alt="" style={{
@@ -77,22 +79,41 @@ export function HeaderBlock({ invoice, dispatch, selectedBlock, onSelectBlock }:
             </div>
           )}
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div style={{ flex: 1, textAlign: 'right' }}>
           <InlineText
-            value={data.titleOverride ?? INVOICE_TYPE_LABELS[data.type]}
-            onChange={(v) => dispatch({ type: 'data/setTitle', value: v })}
-            placeholder={INVOICE_TYPE_LABELS[data.type]}
-            ariaLabel="Titre de la facture"
-            style={{
-              fontSize: '22pt', fontWeight: 800, color: theme.colors.primary, letterSpacing: '-0.5px', textAlign: 'right',
-            }}
+            value={data.seller.name}
+            onChange={(v) => dispatch({ type: 'data/updateParty', party: 'seller', patch: { name: v } })}
+            placeholder="Nom / Raison sociale"
+            style={{ fontWeight: 700, fontSize: '11pt', color: theme.colors.primary }}
           />
+          <InlineText value={data.seller.address}  onChange={(v) => dispatch({ type: 'data/updateParty', party: 'seller', patch: { address: v } })}  placeholder="Adresse"   style={muted} />
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <InlineText value={data.seller.zipCode} onChange={(v) => dispatch({ type: 'data/updateParty', party: 'seller', patch: { zipCode: v } })} placeholder="CP"    style={{ ...muted, minWidth: 40 }} />
+            <InlineText value={data.seller.city}    onChange={(v) => dispatch({ type: 'data/updateParty', party: 'seller', patch: { city: v } })}    placeholder="Ville" style={muted} />
+          </div>
+          <InlineText value={data.seller.country} onChange={(v) => dispatch({ type: 'data/updateParty', party: 'seller', patch: { country: v } })} placeholder="Pays"      style={muted} />
+          <InlineText value={data.seller.phone}   onChange={(v) => dispatch({ type: 'data/updateParty', party: 'seller', patch: { phone: v } })}   placeholder="Téléphone" style={muted} />
+          <InlineText value={data.seller.email}   onChange={(v) => dispatch({ type: 'data/updateParty', party: 'seller', patch: { email: v } })}   placeholder="Email"     style={muted} />
+        </div>
+      </div>
+      {/* Row 2: invoice title (left) — N° + badge (right) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 18, paddingTop: 14, borderTop: `2px solid ${theme.colors.primary}` }}>
+        <InlineText
+          value={data.titleOverride ?? INVOICE_TYPE_LABELS[data.type]}
+          onChange={(v) => dispatch({ type: 'data/setTitle', value: v })}
+          placeholder={INVOICE_TYPE_LABELS[data.type]}
+          ariaLabel="Titre de la facture"
+          style={{
+            fontSize: '22pt', fontWeight: 800, color: theme.colors.primary, letterSpacing: '-0.5px', textAlign: 'left',
+          }}
+        />
+        <div style={{ textAlign: 'right' }}>
           <InlineText
             value={data.number}
             onChange={(v) => dispatch({ type: 'data/setNumber', value: v })}
             placeholder="N° de facture"
             ariaLabel="Numéro de facture"
-            style={{ color: theme.colors.muted, fontSize: '10pt', marginTop: 4, textAlign: 'right' }}
+            style={{ color: theme.colors.muted, fontSize: '10pt', textAlign: 'right' }}
           />
           {TYPE_BADGE[data.type] && (
             <div style={{
@@ -117,12 +138,68 @@ export function PartiesBlock({ invoice, dispatch, selectedBlock, onSelectBlock }
   const { data, theme } = invoice;
   return (
     <BlockShell id="parties" selected={selectedBlock === 'parties'} onSelect={onSelectBlock}>
-      <div style={{ display: 'flex', gap: 24, marginTop: 18 }}>
-        <PartyEditor label="Émetteur" party={data.seller} theme={theme} onChange={(patch) => dispatch({ type: 'data/updateParty', party: 'seller', patch })} />
-        <PartyEditor label="Facturé à" party={data.client} theme={theme} onChange={(patch) => dispatch({ type: 'data/updateParty', party: 'client', patch })} />
+      <div style={{ display: 'flex', gap: 24, marginTop: 18, alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <PartyEditor label="Facturé à" party={data.client} theme={theme} onChange={(patch) => dispatch({ type: 'data/updateParty', party: 'client', patch })} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <InfoFields invoice={invoice} dispatch={dispatch} />
+        </div>
       </div>
-      <div style={{ height: 2, background: theme.colors.primary, margin: '14px 0' }} />
     </BlockShell>
+  );
+}
+
+// Right column of the merged info block — meta fields (number, dates, BC ref)
+// plus the type-specific fields. All values use InlineText so the user can map
+// tokens / drop variables into each one, including dates.
+function InfoFields({ invoice, dispatch }: { invoice: Invoice; dispatch: Dispatch }) {
+  const { data, theme } = invoice;
+  return (
+    <div style={{ fontSize: '10pt' }}>
+      <KV label="N° de commande" theme={theme}>
+        <InlineText
+          value={data.purchaseOrderRef ?? ''}
+          onChange={(v) => dispatch({ type: 'data/setPurchaseOrderRef', value: v })}
+          placeholder="{{numero_commande}}"
+        />
+      </KV>
+      <KV label="Date d'émission" theme={theme}>
+        <InlineText
+          value={data.issueDate}
+          onChange={(v) => dispatch({ type: 'data/setDate', field: 'issueDate', value: v })}
+          placeholder="{{date_emission}}"
+        />
+      </KV>
+      <KV label="Date d'échéance" theme={theme}>
+        <InlineText
+          value={data.dueDate}
+          onChange={(v) => dispatch({ type: 'data/setDate', field: 'dueDate', value: v })}
+          placeholder="{{date_echeance}}"
+        />
+      </KV>
+      <KV label="Devise" theme={theme}>
+        <span style={{ fontWeight: 600 }}>{data.currency}</span>
+      </KV>
+      {data.type !== 'standard' && (
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${theme.colors.muted}33` }}>
+          <TypeSpecificFields data={data} theme={theme} dispatch={dispatch} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Key/value row used inside InfoFields — label left, value right.
+function KV({ label, theme, children }: { label: string; theme: InvoiceTheme; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 4, gap: 8 }}>
+      <span style={{
+        flex: '0 0 130px', fontSize: '8pt', fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.5px', color: theme.colors.muted,
+      }}>{label}</span>
+      <span style={{ flex: 1 }}>{children}</span>
+    </div>
   );
 }
 
@@ -167,83 +244,18 @@ function PartyEditor({ label, party, theme, onChange }: {
 
 // ─── Meta ───────────────────────────────────────────────────────────────────
 
-export function MetaBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: BlockProps) {
-  const { data, theme } = invoice;
-  const lbl = { fontSize: '8pt', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.5px', color: theme.colors.muted, marginRight: 6 };
-  return (
-    <BlockShell id="meta" selected={selectedBlock === 'meta'} onSelect={onSelectBlock}>
-      <div style={{ display: 'flex', gap: 18, rowGap: 8, flexWrap: 'wrap', fontSize: '10pt', marginTop: 10 }}>
-        <div>
-          <span style={lbl}>Date</span>
-          <input
-            type="date"
-            value={data.issueDate}
-            onChange={(e) => dispatch({ type: 'data/setDate', field: 'issueDate', value: e.target.value })}
-            className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded"
-          />
-        </div>
-        {/* Date de livraison / exécution — obligatoire (Art. 242 nonies A, Ann. II CGI) */}
-        <div title="Date de livraison/exécution — mention obligatoire">
-          <span style={lbl}>Livraison</span>
-          <input
-            type="date"
-            value={data.deliveryDate ?? ''}
-            onChange={(e) => dispatch({ type: 'data/setDeliveryDate', value: e.target.value })}
-            className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded"
-          />
-        </div>
-        <div>
-          <span style={lbl}>Échéance</span>
-          <input
-            type="date"
-            value={data.dueDate}
-            onChange={(e) => dispatch({ type: 'data/setDate', field: 'dueDate', value: e.target.value })}
-            className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded"
-          />
-        </div>
-        <div>
-          <span style={lbl}>Devise</span>
-          <span style={{ fontWeight: 600 }}>{data.currency}</span>
-        </div>
-        <div>
-          <span style={lbl}>Bon de cmd</span>
-          <InlineText
-            value={data.purchaseOrderRef ?? ''}
-            onChange={(v) => dispatch({ type: 'data/setPurchaseOrderRef', value: v })}
-            placeholder="BC-2026-001"
-          />
-        </div>
-      </div>
-    </BlockShell>
-  );
+// Folded into PartiesBlock — kept as a no-op so old templates that still list
+// "meta" in blockOrder don't crash. The default layout now hides this block.
+export function MetaBlock() {
+  return null;
 }
 
 // ─── Type-specific (FR/EU regulatory info — varies per invoice type) ───────
 
-export function TypeSpecificBlock({ invoice, dispatch, selectedBlock, onSelectBlock }: BlockProps) {
-  const { data, theme } = invoice;
-  if (data.type === 'standard') {
-    return (
-      <BlockShell id="typeSpecific" selected={selectedBlock === 'typeSpecific'} onSelect={onSelectBlock}>
-        <div style={{ marginTop: 14, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, fontSize: '9pt', color: theme.colors.muted, fontStyle: 'italic' }}>
-          Aucune information type-spécifique pour une facture standard.
-        </div>
-      </BlockShell>
-    );
-  }
-  const d = designCss(theme);
-  const accentStyle: React.CSSProperties = {
-    ...cssStringToObj(d.blockAccent),
-    marginTop: 14, padding: '12px 14px', fontSize: '10pt',
-    borderRadius: `0 ${d.radiusPx}px ${d.radiusPx}px 0`,
-  };
-  return (
-    <BlockShell id="typeSpecific" selected={selectedBlock === 'typeSpecific'} onSelect={onSelectBlock}>
-      <div style={accentStyle}>
-        <TypeSpecificFields data={data} theme={theme} dispatch={dispatch} />
-      </div>
-    </BlockShell>
-  );
+// Folded into PartiesBlock — kept as a no-op so old templates that still list
+// "typeSpecific" in blockOrder don't crash. The default layout now hides this.
+export function TypeSpecificBlock() {
+  return null;
 }
 
 function TypeSpecificFields({ data, theme, dispatch }: { data: InvoiceData; theme: InvoiceTheme; dispatch: Dispatch }) {
@@ -276,10 +288,10 @@ function ProFormaFields({ data, theme, dispatch }: { data: InvoiceData; theme: I
   return (
     <>
       <FieldRow label="Valable jusqu'au" theme={theme}>
-        <input
-          type="date" value={pf.validUntil}
-          onChange={(e) => dispatch({ type: 'proForma/update', patch: { validUntil: e.target.value } })}
-          className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-[10pt]"
+        <InlineText
+          value={pf.validUntil}
+          onChange={(v) => dispatch({ type: 'proForma/update', patch: { validUntil: v } })}
+          placeholder="{{date_validite}}"
         />
       </FieldRow>
       <FieldRow label="Clause d'acceptation" theme={theme}>
@@ -305,10 +317,10 @@ function AcompteFields({ data, theme, dispatch }: { data: InvoiceData; theme: In
         />
       </FieldRow>
       <FieldRow label="Date commande" theme={theme}>
-        <input
-          type="date" value={a.commandeDate}
-          onChange={(e) => dispatch({ type: 'acompte/update', patch: { commandeDate: e.target.value } })}
-          className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-[10pt]"
+        <InlineText
+          value={a.commandeDate}
+          onChange={(v) => dispatch({ type: 'acompte/update', patch: { commandeDate: v } })}
+          placeholder="{{date_commande}}"
         />
       </FieldRow>
       <FieldRow label="Montant total HT" theme={theme}>
@@ -339,10 +351,10 @@ function SoldeFields({ data, theme, dispatch }: { data: InvoiceData; theme: Invo
         />
       </FieldRow>
       <FieldRow label="Date commande" theme={theme}>
-        <input
-          type="date" value={s.commandeDate}
-          onChange={(e) => dispatch({ type: 'solde/update', patch: { commandeDate: e.target.value } })}
-          className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-[10pt]"
+        <InlineText
+          value={s.commandeDate}
+          onChange={(v) => dispatch({ type: 'solde/update', patch: { commandeDate: v } })}
+          placeholder="{{date_commande}}"
         />
       </FieldRow>
       <FieldRow label="Montant total HT" theme={theme}>
@@ -374,9 +386,9 @@ function SoldeFields({ data, theme, dispatch }: { data: InvoiceData; theme: Invo
                   placeholder="FA-…" />
               </td>
               <td style={{ padding: '4px 6px', borderBottom: '1px solid #f1f5f9' }}>
-                <input type="date" value={acc.date}
-                  onChange={(e) => dispatch({ type: 'solde/updateAcompte', index: i, patch: { date: e.target.value } })}
-                  className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-[9pt]" />
+                <InlineText value={acc.date}
+                  onChange={(v) => dispatch({ type: 'solde/updateAcompte', index: i, patch: { date: v } })}
+                  placeholder="{{date_acompte}}" />
               </td>
               <td style={{ padding: '4px 6px', borderBottom: '1px solid #f1f5f9', textAlign: 'right' }}>
                 <InlineNumber value={acc.amountHT} min={0} step={0.01}
@@ -421,10 +433,10 @@ function AvoirFields({ data, theme, dispatch }: { data: InvoiceData; theme: Invo
         />
       </FieldRow>
       <FieldRow label="Date facture" theme={theme}>
-        <input
-          type="date" value={av.originalInvoiceDate}
-          onChange={(e) => dispatch({ type: 'avoir/update', patch: { originalInvoiceDate: e.target.value } })}
-          className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-[10pt]"
+        <InlineText
+          value={av.originalInvoiceDate}
+          onChange={(v) => dispatch({ type: 'avoir/update', patch: { originalInvoiceDate: v } })}
+          placeholder="{{date_facture_origine}}"
         />
       </FieldRow>
       <FieldRow label="Motif" theme={theme}>
@@ -463,14 +475,14 @@ function RecurrenteFields({ data, theme, dispatch }: { data: InvoiceData; theme:
         />
       </FieldRow>
       <FieldRow label="Période — début" theme={theme}>
-        <input type="date" value={r.periodFrom}
-          onChange={(e) => dispatch({ type: 'recurrente/update', patch: { periodFrom: e.target.value } })}
-          className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-[10pt]" />
+        <InlineText value={r.periodFrom}
+          onChange={(v) => dispatch({ type: 'recurrente/update', patch: { periodFrom: v } })}
+          placeholder="{{periode_debut}}" />
       </FieldRow>
       <FieldRow label="Période — fin" theme={theme}>
-        <input type="date" value={r.periodTo}
-          onChange={(e) => dispatch({ type: 'recurrente/update', patch: { periodTo: e.target.value } })}
-          className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-[10pt]" />
+        <InlineText value={r.periodTo}
+          onChange={(v) => dispatch({ type: 'recurrente/update', patch: { periodTo: v } })}
+          placeholder="{{periode_fin}}" />
       </FieldRow>
       <FieldRow label="Récurrence" theme={theme}>
         <select
@@ -485,9 +497,9 @@ function RecurrenteFields({ data, theme, dispatch }: { data: InvoiceData; theme:
         </select>
       </FieldRow>
       <FieldRow label="Prochaine échéance" theme={theme}>
-        <input type="date" value={r.nextBillingDate}
-          onChange={(e) => dispatch({ type: 'recurrente/update', patch: { nextBillingDate: e.target.value } })}
-          className="bg-transparent focus:outline-none focus:bg-indigo-50/40 rounded text-[10pt]" />
+        <InlineText value={r.nextBillingDate}
+          onChange={(v) => dispatch({ type: 'recurrente/update', patch: { nextBillingDate: v } })}
+          placeholder="{{prochaine_echeance}}" />
       </FieldRow>
       <FieldRow label="Mandat SEPA (RUM)" theme={theme}>
         <InlineText

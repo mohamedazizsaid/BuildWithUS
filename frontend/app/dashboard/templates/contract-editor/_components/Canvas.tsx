@@ -34,7 +34,27 @@ export function ContractCanvas({
 
   const [hovered,  setHovered]  = useState<BlockMeta | null>(null);
   const [selected, setSelected] = useState<BlockMeta | null>(null);
+  const [pageCount, setPageCount] = useState(1);
   const draggingRef = useRef<{ from: number; to: number } | null>(null);
+
+  // Track rendered canvas height to draw fake A4 page-break lines.
+  // Why: TipTap Pro's pagination requires a paid licence — we fake it with
+  // a horizontal divider every 297mm so the user can see where pages split.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0) return;
+      const pxPerMm = rect.width / 210;
+      const pageHeightPx = 297 * pxPerMm;
+      setPageCount(Math.max(1, Math.ceil(rect.height / pageHeightPx)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => { onBlockSelect?.(selected); }, [selected, onBlockSelect]);
 
@@ -261,6 +281,60 @@ export function ContractCanvas({
         }}
       >
         {editor && <EditorContent editor={editor} />}
+
+        {/* Fake page-break separators — drawn every 297mm down the canvas. */}
+        {Array.from({ length: pageCount - 1 }, (_, i) => i + 1).map((breakAt) => (
+          <div
+            key={breakAt}
+            style={{
+              position:      'absolute',
+              top:           `${breakAt * 297}mm`,
+              left:          '-22mm',
+              right:         '-22mm',
+              height:        0,
+              borderTop:     '2px dashed #cbd5e1',
+              pointerEvents: 'none',
+              zIndex:        20,
+            }}
+          >
+            <div style={{
+              position:    'absolute',
+              top:         -10,
+              left:        '50%',
+              transform:   'translateX(-50%)',
+              background:  '#f1f5f9',
+              color:       '#64748b',
+              fontSize:    10,
+              fontWeight:  600,
+              padding:     '2px 10px',
+              borderRadius: 10,
+              border:      '1px solid #cbd5e1',
+              whiteSpace:  'nowrap',
+              letterSpacing: 0.3,
+            }}>
+              Page {breakAt} / {pageCount} — Page {breakAt + 1}
+            </div>
+          </div>
+        ))}
+
+        {/* Total page count badge — top-right corner of the canvas. */}
+        <div style={{
+          position:      'absolute',
+          top:           8,
+          right:         8,
+          background:    'rgba(241, 245, 249, 0.9)',
+          color:         '#64748b',
+          fontSize:      10,
+          fontWeight:    600,
+          padding:       '2px 8px',
+          borderRadius:  10,
+          border:        '1px solid #cbd5e1',
+          pointerEvents: 'none',
+          zIndex:        20,
+          letterSpacing: 0.3,
+        }}>
+          {pageCount} page{pageCount > 1 ? 's' : ''}
+        </div>
 
         {onSelectImage && onUpdateImage && onRemoveImage && (
           <FloatingImages

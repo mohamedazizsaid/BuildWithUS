@@ -172,15 +172,23 @@ export function InlineNumberOrToken({ value, onChange, step = 1, min, suffix, cl
   };
 
   if (token) {
+    // Compact label for the default `ligne_<col>_<n>` tokens so the cells
+    // don't blow the table width. Custom tokens fall back to the full name.
+    const compact = (() => {
+      const m = /^ligne_(qte|prix|tva|description)_(\d+)$/.exec(token);
+      if (!m) return token;
+      const labels: Record<string, string> = { qte: 'Qté', prix: 'Prix', tva: 'TVA', description: 'Desc' };
+      return `${labels[m[1]]} ${m[2]}`;
+    })();
     return (
       <span
         className={`inline-editable inline-flex items-center justify-end gap-1 rounded px-1 ${className ?? ''}`}
         style={style}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        title="Cliquez × pour saisir un nombre"
+        title={`{{${token}}} — Cliquez × pour saisir un nombre`}
       >
-        <span className="invoice-var" aria-label={ariaLabel}>{`{{${token}}}`}</span>
+        <span className="invoice-var" aria-label={ariaLabel}>{compact}</span>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onChange(0); }}

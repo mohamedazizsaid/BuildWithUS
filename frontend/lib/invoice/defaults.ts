@@ -141,16 +141,6 @@ export function defaultLegal(): LegalMentions {
   };
 }
 
-function todayIso(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function plusDaysIso(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
-
 /** Prefix conventions used by French SMBs/ERPs to distinguish doc types at a glance. */
 export const TYPE_NUMBER_PREFIX: Record<InvoiceType, string> = {
   standard:     'F',
@@ -175,7 +165,7 @@ function nextInvoiceNumber(): string {
 
 export function defaultProForma(): ProFormaInfo {
   return {
-    validUntil: plusDaysIso(30),
+    validUntil: TOKEN('date_validite'),
     acceptanceClause: TOKEN('clause_acceptation'),
   };
 }
@@ -183,7 +173,7 @@ export function defaultProForma(): ProFormaInfo {
 export function defaultAcompte(): AcompteInfo {
   return {
     commandeRef: TOKEN('numero_commande'),
-    commandeDate: todayIso(),
+    commandeDate: TOKEN('date_commande'),
     totalContractHT: 0,
     depositPercent: 30,            // usage courant en France (30% à la commande)
   };
@@ -192,7 +182,7 @@ export function defaultAcompte(): AcompteInfo {
 export function defaultSolde(): SoldeInfo {
   return {
     commandeRef: TOKEN('numero_commande'),
-    commandeDate: todayIso(),
+    commandeDate: TOKEN('date_commande'),
     totalContractHT: 0,
     acomptes: [],
   };
@@ -200,23 +190,21 @@ export function defaultSolde(): SoldeInfo {
 
 export function defaultAvoir(): AvoirInfo {
   return {
-    originalInvoiceRef: TOKEN('facture_rectifiee'),
-    originalInvoiceDate: todayIso(),
+    originalInvoiceRef:  TOKEN('facture_rectifiee'),
+    originalInvoiceDate: TOKEN('date_facture_origine'),
     reason: TOKEN('motif_avoir'),
     refundMethod: 'credit_note',   // à valoir sur prochaine facture
   };
 }
 
 export function defaultRecurrente(): RecurrenteInfo {
-  const from = todayIso();
-  const to = plusDaysIso(30);
   return {
-    periodFrom: from,
-    periodTo: to,
+    periodFrom:      TOKEN('periode_debut'),
+    periodTo:        TOKEN('periode_fin'),
     interval: 'monthly',
-    nextBillingDate: plusDaysIso(30),
-    sepaMandateRum: TOKEN('mandat_sepa_rum'),
-    contractRef: TOKEN('numero_contrat'),
+    nextBillingDate: TOKEN('prochaine_echeance'),
+    sepaMandateRum:  TOKEN('mandat_sepa_rum'),
+    contractRef:     TOKEN('numero_contrat'),
   };
 }
 
@@ -258,8 +246,8 @@ export function defaultData(): InvoiceData {
     type: 'standard',
     clientRelation: 'b2c',
     number: TOKEN('numero_facture'),
-    issueDate: todayIso(),
-    dueDate: plusDaysIso(30),
+    issueDate: TOKEN('date_emission'),
+    dueDate:   TOKEN('date_echeance'),
     currency: 'EUR',
     seller: defaultSeller(),
     client: defaultClient(),
@@ -281,7 +269,11 @@ export function defaultData(): InvoiceData {
 
 export function defaultLayout(): InvoiceLayout {
   const visibility = Object.fromEntries(ALL_BLOCKS.map((b) => [b, true])) as Record<BlockId, boolean>;
-  // typeSpecific is hidden by default — only meaningful for non-standard types.
+  // `meta` and `typeSpecific` are now folded into the `parties` block (see
+  // components/invoice/blocks.tsx — InfoFields). Hide them so they don't
+  // render twice. Old templates loaded with them visible get them flipped to
+  // false in the load path.
+  visibility.meta = false;
   visibility.typeSpecific = false;
   const columns: ColumnConfig[] = [
     { key: 'description', visible: true },

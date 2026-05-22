@@ -182,7 +182,6 @@ export interface InvoiceData {
   titleOverride?: string;
   number: string;
   issueDate: string;               // ISO date — date d'émission de la facture
-  deliveryDate?: string;           // ISO date — date de livraison/exécution (Art. 242 nonies A, Ann. II CGI)
   dueDate: string;                 // ISO date — échéance de paiement
   purchaseOrderRef?: string;       // référence du bon de commande (recommandé B2B, obligatoire dans certains marchés)
   operationNature?: OperationNature; // biens / services / mixte (obligatoire facturation électronique sept. 2026)

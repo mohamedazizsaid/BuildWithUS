@@ -9,12 +9,12 @@ import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
   ArrowLeft, Save, Download, RefreshCw, ChevronDown,
-  AlertTriangle,
+  AlertTriangle, FileText, FilePlus, Upload,
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-import { templates, contractVariables } from '@/lib/api';
+import { templates, contractVariables, media } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { VariableNode, extractVariablesFromTiptap, renderTiptapToHtml } from '@/lib/tiptap/variable-node';
 import { buildVariableMapping, type MappingSource } from '@/lib/variable-mapper';
@@ -24,10 +24,15 @@ import { ContractHeader } from '@/lib/tiptap/contract-header';
 import { ALL_CONTRACT_BLOCKS } from '@/lib/tiptap/contract-blocks';
 import { CONTRACT_TEMPLATES, VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
 
+import { FontSize } from './_lib/font-size';
+import { TextColor } from './_lib/text-color';
 import { CONTRACT_TYPES, type ContractType, type SlashMenuItem, type CsvDataset, type BlockMeta, type FloatingImage } from './_lib/types';
 import { VariablePalette } from './_components/VariablePalette';
 import { EditorToolbar } from './_components/EditorToolbar';
 import { ContractCanvas } from './_components/Canvas';
+import { PdfCanvas, PdfPlacementInspector } from './_components/PdfCanvas';
+import { type PdfTemplate, tryParsePdfTemplate, serializePdfTemplate, emptyPdfTemplate } from './_lib/pdf-template';
+import { exportPdfTemplateWithValues } from './_lib/pdf-export';
 import { RightPanel } from './_components/RightPanel';
 import { SwitchTypeModal } from './_components/SwitchTypeModal';
 import { FillVariablesModal } from './_components/FillVariablesModal';
@@ -58,6 +63,14 @@ function ContractEditorContent() {
   const [allVars, setAllVars] = useState<Record<string, string[]>>({});
   const [customVarNames, setCustomVarNames] = useState<Set<string>>(new Set());
   const [csvDatasets, setCsvDatasets] = useState<CsvDataset[]>([]);
+
+  // PDF-template mode. When `pdfTemplate` is non-null the editor renders the
+  // PDF canvas instead of TipTap and saves a `PdfTemplate` JSON to `content`.
+  const [pdfTemplate, setPdfTemplate] = useState<PdfTemplate | null>(null);
+  const [selectedPlacementId, setSelectedPlacementId] = useState<string | null>(null);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const pdfFileInputRef = useRef<HTMLInputElement | null>(null);
+  const isPdfMode = pdfTemplate !== null;
 
   const [mappingModal, setMappingModal] = useState<{
     filename: string;
@@ -174,6 +187,8 @@ function ContractEditorContent() {
       ContractHeader,
       ...ALL_CONTRACT_BLOCKS,
       Underline,
+      FontSize,
+      TextColor,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder: 'Commencez à rédiger votre contrat…' }),
     ],
@@ -258,8 +273,16 @@ function ContractEditorContent() {
       .then((result: unknown) => {
         const r = result as { template?: { content?: string }; content?: string } | null;
         const tmpl = r?.template ?? r;
+        const raw = tmpl?.content ?? '';
+        // First branch: is this a PDF template? (kind === 'pdf-template')
+        const pdfTpl = tryParsePdfTemplate(raw);
+        if (pdfTpl) {
+          setPdfTemplate(pdfTpl);
+          return;
+        }
+        // Otherwise: legacy / current TipTap-based contract.
         try {
-          const parsed = JSON.parse(tmpl?.content ?? '');
+          const parsed = JSON.parse(raw);
           if (parsed.contractType) setContractType(parsed.contractType as ContractType);
           if (parsed.version) setVersion(parsed.version);
           if (typeof parsed.docBgColor === 'string') setDocBgColor(parsed.docBgColor);
@@ -395,6 +418,22 @@ function ContractEditorContent() {
   }, [pendingSwitch, loadTemplate]);
 
   const persistTemplate = useCallback(async (): Promise<boolean> => {
+    // PDF mode: payload is the PdfTemplate JSON. Skip the TipTap branch
+    // entirely so empty editors don't blow away the saved PDF.
+    if (pdfTemplate) {
+      const content = serializePdfTemplate(pdfTemplate);
+      try {
+        if (isEditMode && templateId) {
+          await templates.update(templateId, { name, description, type: 3, content });
+        } else {
+          await templates.create({ name, description, type: 3, content });
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     if (!editor) return false;
     const newVersion = version + 1;
     const content = JSON.stringify({
@@ -415,7 +454,45 @@ function ContractEditorContent() {
     } catch {
       return false;
     }
-  }, [editor, version, contractType, docBgColor, floatingImages, isEditMode, templateId, name, description]);
+  }, [pdfTemplate, editor, version, contractType, docBgColor, floatingImages, isEditMode, templateId, name, description]);
+
+  // ─── PDF mode handlers ───────────────────────────────────────────────────
+
+  const handleUploadPdfClick = useCallback(() => {
+    pdfFileInputRef.current?.click();
+  }, []);
+
+  const handleUploadPdfFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Sélectionnez un fichier PDF');
+      return;
+    }
+    setIsUploadingPdf(true);
+    const toastId = toast.loading('Upload du PDF…');
+    try {
+      const { url } = await media.upload(file);
+      setPdfTemplate(emptyPdfTemplate(url, file.name));
+      setSelectedPlacementId(null);
+      toast.success('PDF chargé', { id: toastId });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Échec upload PDF', { id: toastId });
+    } finally {
+      setIsUploadingPdf(false);
+    }
+  }, []);
+
+  const enterPdfMode = useCallback(() => {
+    if (pdfTemplate) return;
+    handleUploadPdfClick();
+  }, [pdfTemplate, handleUploadPdfClick]);
+
+  const exitPdfMode = useCallback(() => {
+    setPdfTemplate(null);
+    setSelectedPlacementId(null);
+  }, []);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -430,6 +507,25 @@ function ContractEditorContent() {
   };
 
   const handleDownloadTemplatePdf = useCallback(async () => {
+    // PDF mode: stamp the unsubstituted tokens on a copy of the source PDF so
+    // the user gets a "blank template" file showing all the variable slots.
+    if (pdfTemplate) {
+      setIsGenerating(true);
+      const toastId = toast.loading('Génération du PDF…');
+      try {
+        const values: Record<string, string> = {};
+        for (const p of pdfTemplate.placements) values[p.variableName] = `{{${p.variableName}}}`;
+        const blob = await exportPdfTemplateWithValues(pdfTemplate, { values });
+        triggerDownload(blob, `${name}.pdf`);
+        toast.success('Template téléchargé en PDF', { id: toastId });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur génération PDF', { id: toastId });
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
+
     if (!editor) return;
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
@@ -443,26 +539,53 @@ function ContractEditorContent() {
       });
       if (!res.ok) throw new Error('PDF failed');
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `${name}.pdf`; a.click();
-      URL.revokeObjectURL(url);
+      triggerDownload(blob, `${name}.pdf`);
       toast.success('Template téléchargé en PDF', { id: toastId });
     } catch {
       toast.error('Erreur génération PDF', { id: toastId });
     } finally {
       setIsGenerating(false);
     }
-  }, [editor, name, docBgColor, floatingImages]);
+  }, [pdfTemplate, editor, name, docBgColor, floatingImages]);
 
   const handleGenerate = useCallback(() => {
+    if (pdfTemplate) {
+      const vars = Array.from(new Set(pdfTemplate.placements.map((p) => p.variableName))).sort();
+      setModalVars(vars);
+      setShowFillModal(true);
+      return;
+    }
     if (!editor) return;
     const vars = extractVariablesFromTiptap(editor.getJSON() as Record<string, unknown>);
     setModalVars(vars);
     setShowFillModal(true);
-  }, [editor]);
+  }, [pdfTemplate, editor]);
 
   const confirmGenerate = useCallback(async (values: Record<string, string>) => {
+    if (pdfTemplate) {
+      setIsGenerating(true);
+      const toastId = toast.loading('Génération du PDF…');
+      try {
+        const blob = await exportPdfTemplateWithValues(pdfTemplate, { values });
+        triggerDownload(blob, `${name}.pdf`);
+        toast.success('PDF téléchargé', { id: toastId });
+        toast.loading('Enregistrement du template…', { id: toastId });
+        const saved = await persistTemplate();
+        if (saved) {
+          toast.success(isEditMode ? 'Template mis à jour' : 'Template enregistré', { id: toastId });
+          setShowFillModal(false);
+          router.push('/dashboard/templates');
+        } else {
+          toast.error("PDF généré, mais l'enregistrement du template a échoué", { id: toastId });
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur génération PDF', { id: toastId });
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
+
     if (!editor) return;
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
@@ -496,9 +619,14 @@ function ContractEditorContent() {
     } finally {
       setIsGenerating(false);
     }
-  }, [editor, name, docBgColor, floatingImages, persistTemplate, isEditMode, router]);
+  }, [pdfTemplate, editor, name, docBgColor, floatingImages, persistTemplate, isEditMode, router]);
 
   const typeConfig = CONTRACT_TYPES[contractType];
+
+  const selectedPlacement = useMemo(
+    () => pdfTemplate?.placements.find((p) => p.id === selectedPlacementId) ?? null,
+    [pdfTemplate, selectedPlacementId],
+  );
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden" onClick={() => setShowTypeMenu(false)}>
@@ -528,6 +656,32 @@ function ContractEditorContent() {
             )}
           </div>
           <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">v{version}</span>
+
+          {/* Mode toggle — switch between TipTap rich-text and PDF overlay. */}
+          <div className="ml-2 flex items-center rounded-md border border-border overflow-hidden">
+            <button
+              onClick={exitPdfMode}
+              className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium transition-colors ${!isPdfMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+              title="Construire depuis zéro"
+            >
+              <FilePlus size={11} /> Build
+            </button>
+            <button
+              onClick={enterPdfMode}
+              className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium transition-colors border-l border-border ${isPdfMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+              title="Importer un PDF et y mapper des variables"
+            >
+              <FileText size={11} /> PDF
+            </button>
+          </div>
+
+          <input
+            ref={pdfFileInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={handleUploadPdfFile}
+          />
         </div>
 
         <span className="text-sm font-medium text-foreground/80 truncate max-w-xs">{name}</span>
@@ -555,7 +709,7 @@ function ContractEditorContent() {
         </div>
       </div>
 
-      <EditorToolbar editor={editor} selectedBlock={selectedBlock} />
+      {!isPdfMode && <EditorToolbar editor={editor} selectedBlock={selectedBlock} />}
 
       <VarLabelsContext.Provider value={varLabels}>
       <div className="flex flex-1 overflow-hidden" onClick={() => setSlashMenu(null)}>
@@ -572,25 +726,77 @@ function ContractEditorContent() {
           onEditMapping={handleEditMapping}
           isMappingLoading={isMappingLoading}
         />
-        <ContractCanvas
-          editor={editor}
-          onBlockSelect={setSelectedBlock}
-          bgColor={docBgColor}
-          floatingImages={floatingImages}
-          selectedImageId={selectedImageId}
-          onSelectImage={setSelectedImageId}
-          onUpdateImage={handleUpdateImage}
-          onRemoveImage={handleRemoveImage}
-        />
-        <RightPanel
-          docBgColor={docBgColor}
-          onChangeDocBgColor={setDocBgColor}
-          floatingImages={floatingImages}
-          onAddImage={handleAddImage}
-          onRemoveImage={handleRemoveImage}
-          onSelectImage={setSelectedImageId}
-          selectedImageId={selectedImageId}
-        />
+        {isPdfMode && pdfTemplate ? (
+          <div className="flex-1 overflow-y-auto bg-slate-100">
+            <PdfCanvas
+              template={pdfTemplate}
+              onChange={setPdfTemplate}
+              selectedId={selectedPlacementId}
+              onSelect={setSelectedPlacementId}
+            />
+          </div>
+        ) : (
+          <ContractCanvas
+            editor={editor}
+            onBlockSelect={setSelectedBlock}
+            bgColor={docBgColor}
+            floatingImages={floatingImages}
+            selectedImageId={selectedImageId}
+            onSelectImage={setSelectedImageId}
+            onUpdateImage={handleUpdateImage}
+            onRemoveImage={handleRemoveImage}
+          />
+        )}
+        {isPdfMode ? (
+          <div className="w-72 border-l border-border bg-white overflow-y-auto">
+            <div className="px-4 py-3 border-b border-border">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">PDF source</div>
+              <div className="text-xs text-slate-600 truncate" title={pdfTemplate?.pdfFileName}>
+                {pdfTemplate?.pdfFileName || pdfTemplate?.pdfUrl.split('/').pop()}
+              </div>
+              <button
+                onClick={handleUploadPdfClick}
+                disabled={isUploadingPdf}
+                className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium rounded-md border border-dashed border-slate-300 text-slate-500 hover:border-slate-500 hover:text-slate-700 disabled:opacity-50 transition-colors"
+              >
+                <Upload size={11} /> {isUploadingPdf ? 'Upload…' : 'Remplacer le PDF'}
+              </button>
+            </div>
+            <div className="px-4 py-3 border-b border-border">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                Placements ({pdfTemplate?.placements.length ?? 0})
+              </div>
+              {(!pdfTemplate || pdfTemplate.placements.length === 0) && (
+                <p className="text-[11px] text-slate-400 italic">
+                  Glissez une variable depuis le panneau de gauche sur le PDF.
+                </p>
+              )}
+            </div>
+            {selectedPlacement && pdfTemplate && (
+              <div className="px-4 py-3">
+                <PdfPlacementInspector
+                  placement={selectedPlacement}
+                  onChange={(patch) => setPdfTemplate({
+                    ...pdfTemplate,
+                    placements: pdfTemplate.placements.map((p) =>
+                      p.id === selectedPlacement.id ? { ...p, ...patch } : p,
+                    ),
+                  })}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <RightPanel
+            docBgColor={docBgColor}
+            onChangeDocBgColor={setDocBgColor}
+            floatingImages={floatingImages}
+            onAddImage={handleAddImage}
+            onRemoveImage={handleRemoveImage}
+            onSelectImage={setSelectedImageId}
+            selectedImageId={selectedImageId}
+          />
+        )}
       </div>
       </VarLabelsContext.Provider>
 
@@ -719,4 +925,13 @@ export default function ContractEditorPage() {
       <ContractEditorContent />
     </Suspense>
   );
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

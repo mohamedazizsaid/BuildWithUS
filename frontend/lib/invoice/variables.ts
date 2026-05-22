@@ -22,7 +22,6 @@ export const INVOICE_VARIABLE_CATEGORIES = [
       { name: 'bon_de_commande', label: 'Bon de commande' },
       { name: 'date_emission',   label: "Date d'émission" },
       { name: 'date_echeance',   label: "Date d'échéance" },
-      { name: 'date_livraison',  label: 'Date de livraison' },
     ],
   },
   {
@@ -68,12 +67,18 @@ export const INVOICE_VARIABLE_CATEGORIES = [
     label: 'Type spécifique',
     bg: '#ede9fe', color: '#5b21b6', border: '#ddd6fe',
     vars: [
-      { name: 'numero_commande',    label: 'N° commande' },
-      { name: 'numero_contrat',     label: 'N° contrat' },
-      { name: 'clause_acceptation', label: "Clause d'acceptation" },
-      { name: 'facture_rectifiee',  label: 'Facture rectifiée' },
-      { name: 'motif_avoir',        label: 'Motif avoir' },
-      { name: 'mandat_sepa_rum',    label: 'Mandat SEPA (RUM)' },
+      { name: 'numero_commande',      label: 'N° commande' },
+      { name: 'date_commande',        label: 'Date commande' },
+      { name: 'numero_contrat',       label: 'N° contrat' },
+      { name: 'clause_acceptation',   label: "Clause d'acceptation" },
+      { name: 'date_validite',        label: 'Date de validité (pro-forma)' },
+      { name: 'facture_rectifiee',    label: 'Facture rectifiée' },
+      { name: 'date_facture_origine', label: "Date facture d'origine" },
+      { name: 'motif_avoir',          label: 'Motif avoir' },
+      { name: 'mandat_sepa_rum',      label: 'Mandat SEPA (RUM)' },
+      { name: 'periode_debut',        label: 'Période — début' },
+      { name: 'periode_fin',          label: 'Période — fin' },
+      { name: 'prochaine_echeance',   label: 'Prochaine échéance' },
     ],
   },
   {
@@ -123,6 +128,8 @@ export function applyVariablesToInvoice(invoice: Invoice, vars: Record<string, s
       ...data,
       number: replace(data.number),
       notes: replace(data.notes),
+      issueDate:    replace(data.issueDate),
+      dueDate:      replace(data.dueDate),
       purchaseOrderRef: data.purchaseOrderRef ? replace(data.purchaseOrderRef) : data.purchaseOrderRef,
       seller: replaceParty(data.seller, replace),
       client: replaceParty(data.client, replace),
@@ -141,7 +148,31 @@ export function applyVariablesToInvoice(invoice: Invoice, vars: Record<string, s
         bankName: replace(data.payment.bankName),
       },
       legal: { ...data.legal, customText: replace(data.legal.customText) },
+      typeSpecific: replaceTypeSpecific(data.typeSpecific, replace),
     },
+  };
+}
+
+function replaceTypeSpecific(
+  ts: InvoiceData['typeSpecific'],
+  replace: (s: string) => string,
+): InvoiceData['typeSpecific'] {
+  return {
+    ...ts,
+    proForma:   ts.proForma   ? { ...ts.proForma,   validUntil:          replace(ts.proForma.validUntil) }                 : ts.proForma,
+    acompte:    ts.acompte    ? { ...ts.acompte,    commandeDate:        replace(ts.acompte.commandeDate) }                : ts.acompte,
+    solde:      ts.solde      ? {
+      ...ts.solde,
+      commandeDate: replace(ts.solde.commandeDate),
+      acomptes: ts.solde.acomptes.map((a) => ({ ...a, date: a.date ? replace(a.date) : a.date })),
+    } : ts.solde,
+    avoir:      ts.avoir      ? { ...ts.avoir,      originalInvoiceDate: replace(ts.avoir.originalInvoiceDate) }            : ts.avoir,
+    recurrente: ts.recurrente ? {
+      ...ts.recurrente,
+      periodFrom:      replace(ts.recurrente.periodFrom),
+      periodTo:        replace(ts.recurrente.periodTo),
+      nextBillingDate: replace(ts.recurrente.nextBillingDate),
+    } : ts.recurrente,
   };
 }
 
@@ -168,12 +199,21 @@ function replaceParty(p: Party, replace: (s: string) => string): Party {
 
 function* walkStrings(d: InvoiceData): Generator<string> {
   yield d.number; yield d.notes;
+  yield d.issueDate; yield d.dueDate;
   if (d.purchaseOrderRef) yield d.purchaseOrderRef;
   yield* partyStrings(d.seller);
   yield* partyStrings(d.client);
   for (const l of d.lines) yield l.description;
   yield d.payment.paymentTerms; yield d.payment.iban; yield d.payment.bic; yield d.payment.bankName;
   yield d.legal.customText;
+  // Type-specific date fields — kept walked so the Variables panel surfaces
+  // tokens declared inside the active type block (acompte, pro-forma, etc.).
+  const ts = d.typeSpecific;
+  if (ts.proForma)   { yield ts.proForma.validUntil; }
+  if (ts.acompte)    { yield ts.acompte.commandeDate; }
+  if (ts.solde)      { yield ts.solde.commandeDate; for (const a of ts.solde.acomptes) if (a.date) yield a.date; }
+  if (ts.avoir)      { yield ts.avoir.originalInvoiceDate; }
+  if (ts.recurrente) { yield ts.recurrente.periodFrom; yield ts.recurrente.periodTo; yield ts.recurrente.nextBillingDate; }
 }
 
 function* partyStrings(p: Party): Generator<string> {
@@ -248,6 +288,8 @@ export function applyAutoTokensToInvoice(invoice: Invoice): Invoice {
       ...data,
       // Header + meta
       number:           tokenIfEmpty(data.number, 'numero_facture'),
+      issueDate:        tokenIfDateLike(data.issueDate, 'date_emission'),
+      dueDate:          tokenIfDateLike(data.dueDate,   'date_echeance'),
       purchaseOrderRef: data.purchaseOrderRef !== undefined
         ? tokenIfEmpty(data.purchaseOrderRef, 'bon_de_commande')
         : data.purchaseOrderRef,
@@ -292,22 +334,32 @@ export function applyAutoTokensToInvoice(invoice: Invoice): Invoice {
 
 function autoTokenProForma(p: InvoiceData['typeSpecific']['proForma']): InvoiceData['typeSpecific']['proForma'] {
   if (!p) return p;
-  return { ...p, acceptanceClause: tokenIfEmpty(p.acceptanceClause, 'clause_acceptation') };
+  return {
+    ...p,
+    validUntil:       tokenIfDateLike(p.validUntil,       'date_validite'),
+    acceptanceClause: tokenIfEmpty(p.acceptanceClause, 'clause_acceptation'),
+  };
 }
 
 function autoTokenAcompte(a: InvoiceData['typeSpecific']['acompte']): InvoiceData['typeSpecific']['acompte'] {
   if (!a) return a;
-  return { ...a, commandeRef: tokenIfEmpty(a.commandeRef, 'numero_commande') };
+  return {
+    ...a,
+    commandeRef:  tokenIfEmpty(a.commandeRef, 'numero_commande'),
+    commandeDate: tokenIfDateLike(a.commandeDate, 'date_commande'),
+  };
 }
 
 function autoTokenSolde(s: InvoiceData['typeSpecific']['solde']): InvoiceData['typeSpecific']['solde'] {
   if (!s) return s;
   return {
     ...s,
-    commandeRef: tokenIfEmpty(s.commandeRef, 'numero_commande'),
+    commandeRef:  tokenIfEmpty(s.commandeRef, 'numero_commande'),
+    commandeDate: tokenIfDateLike(s.commandeDate, 'date_commande'),
     acomptes: s.acomptes.map((a, i) => ({
       ...a,
-      ref: tokenIfEmpty(a.ref, `acompte_ref_${i + 1}`),
+      ref:  tokenIfEmpty(a.ref, `acompte_ref_${i + 1}`),
+      date: a.date ? tokenIfDateLike(a.date, `acompte_date_${i + 1}`) : `{{acompte_date_${i + 1}}}`,
     })),
   };
 }
@@ -316,8 +368,9 @@ function autoTokenAvoir(av: InvoiceData['typeSpecific']['avoir']): InvoiceData['
   if (!av) return av;
   return {
     ...av,
-    originalInvoiceRef: tokenIfEmpty(av.originalInvoiceRef, 'facture_rectifiee'),
-    reason:             tokenIfEmpty(av.reason,             'motif_avoir'),
+    originalInvoiceRef:  tokenIfEmpty(av.originalInvoiceRef, 'facture_rectifiee'),
+    originalInvoiceDate: tokenIfDateLike(av.originalInvoiceDate, 'date_facture_origine'),
+    reason:              tokenIfEmpty(av.reason, 'motif_avoir'),
   };
 }
 
@@ -327,7 +380,20 @@ function autoTokenRecurrente(r: InvoiceData['typeSpecific']['recurrente']): Invo
     ...r,
     contractRef:    tokenIfEmpty(r.contractRef,    'numero_contrat'),
     sepaMandateRum: tokenIfEmpty(r.sepaMandateRum, 'mandat_sepa_rum'),
+    periodFrom:      tokenIfDateLike(r.periodFrom,      'periode_debut'),
+    periodTo:        tokenIfDateLike(r.periodTo,        'periode_fin'),
+    nextBillingDate: tokenIfDateLike(r.nextBillingDate, 'prochaine_echeance'),
   };
+}
+
+// Date fields previously held raw ISO strings (today's date, +30 days). When
+// migrating to a token-everywhere model, replace those literals with the
+// matching `{{token}}` so existing templates open as variables. Custom tokens
+// or text the user typed are left untouched.
+function tokenIfDateLike(value: string, token: string): string {
+  if (!value) return `{{${token}}}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `{{${token}}}`;
+  return value;
 }
 
 function autoTokenParty(p: Party, tokens: Record<keyof Party, string>): Party {
@@ -369,11 +435,22 @@ export function renderTextWithPills(value: string): string {
   for (const m of value.matchAll(VARIABLE_TOKEN_RE)) {
     const idx = m.index ?? 0;
     if (idx > lastIdx) out += escapeHtml(value.slice(lastIdx, idx));
-    out += `<span class="invoice-var" data-var="${escapeAttr(m[1])}" contenteditable="false">{{${escapeHtml(m[1])}}}</span>`;
+    const compact = compactPillLabel(m[1]);
+    out += `<span class="invoice-var" data-var="${escapeAttr(m[1])}" title="{{${escapeAttr(m[1])}}}" contenteditable="false">${escapeHtml(compact)}</span>`;
     lastIdx = idx + m[0].length;
   }
   if (lastIdx < value.length) out += escapeHtml(value.slice(lastIdx));
   return out;
+}
+
+// Shorten line-default tokens (`ligne_description_2` → `Desc 2`) so cells fit
+// inside the table. Other tokens (`client_nom`, custom vars…) keep their full
+// `{{name}}` look since they aren't bound by a narrow column.
+function compactPillLabel(name: string): string {
+  const m = /^ligne_(description|qte|prix|tva)_(\d+)$/.exec(name);
+  if (!m) return `{{${name}}}`;
+  const labels: Record<string, string> = { description: 'Desc', qte: 'Qté', prix: 'Prix', tva: 'TVA' };
+  return `${labels[m[1]]} ${m[2]}`;
 }
 
 function escapeHtml(s: string): string {

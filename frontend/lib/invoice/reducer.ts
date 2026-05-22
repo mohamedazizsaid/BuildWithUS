@@ -20,7 +20,6 @@ export type InvoiceAction =
   | { type: 'data/setTitle';    value: string }
   | { type: 'data/setNumber';   value: string }
   | { type: 'data/setDate';     field: 'issueDate' | 'dueDate'; value: string }
-  | { type: 'data/setDeliveryDate'; value: string }
   | { type: 'data/setPurchaseOrderRef'; value: string }
   | { type: 'data/setOperationNature'; value: InvoiceData['operationNature'] }
   | { type: 'data/setCurrency'; value: InvoiceData['currency'] }
@@ -130,8 +129,6 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
       return setData(state, { number: action.value });
     case 'data/setDate':
       return setData(state, { [action.field]: action.value } as Partial<InvoiceData>);
-    case 'data/setDeliveryDate':
-      return setData(state, { deliveryDate: action.value || undefined });
     case 'data/setPurchaseOrderRef':
       return setData(state, { purchaseOrderRef: action.value || undefined });
     case 'data/setOperationNature':
@@ -155,11 +152,11 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
         unitPrice:   `{{ligne_prix_${nextIndex}}}`,
         vatRate:     `{{ligne_tva_${nextIndex}}}`,
       };
-      return setData(state, { lines: [...state.data.lines, newLine] });
+      return setData(state, { lines: reindexLineTokens([...state.data.lines, newLine]) });
     }
     case 'lines/remove': {
       if (state.data.lines.length <= 1) return state;       // keep at least one
-      return setData(state, { lines: state.data.lines.filter((l) => l.id !== action.id) });
+      return setData(state, { lines: reindexLineTokens(state.data.lines.filter((l) => l.id !== action.id)) });
     }
     case 'lines/update': {
       const lines = state.data.lines.map((l) => l.id === action.id ? { ...l, ...action.patch } : l);
@@ -171,7 +168,7 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
       const copy = { ...state.data.lines[idx], id: uuid() };
       const next = [...state.data.lines];
       next.splice(idx + 1, 0, copy);
-      return setData(state, { lines: next });
+      return setData(state, { lines: reindexLineTokens(next) });
     }
 
     case 'payment/update':
@@ -282,4 +279,26 @@ export function invoiceReducer(state: Invoice, action: InvoiceAction): Invoice {
 
 function setData(state: Invoice, patch: Partial<InvoiceData>): Invoice {
   return { ...state, data: { ...state.data, ...patch } };
+}
+
+// Renumber line-default tokens (`{{ligne_qte_N}}`, etc.) so N matches each line's
+// position in the array after add/remove/duplicate. Custom tokens or literal
+// values typed by the user are left untouched.
+const LINE_TOKEN_RE = /^\{\{ligne_(description|qte|prix|tva)_\d+\}\}$/;
+
+function reindexLineTokens(lines: InvoiceLine[]): InvoiceLine[] {
+  return lines.map((line, i) => {
+    const idx = i + 1;
+    const fix = (val: string | number, prefix: 'description' | 'qte' | 'prix' | 'tva'): string | number => {
+      if (typeof val !== 'string') return val;
+      return LINE_TOKEN_RE.test(val) && val.startsWith(`{{ligne_${prefix}_`) ? `{{ligne_${prefix}_${idx}}}` : val;
+    };
+    return {
+      ...line,
+      description: fix(line.description, 'description') as string,
+      quantity:    fix(line.quantity,    'qte'),
+      unitPrice:   fix(line.unitPrice,   'prix'),
+      vatRate:     fix(line.vatRate,     'tva'),
+    };
+  });
 }

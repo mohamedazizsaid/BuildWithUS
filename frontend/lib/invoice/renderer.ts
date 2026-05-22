@@ -219,8 +219,6 @@ function renderMeta(data: InvoiceData, _theme: InvoiceTheme): string {
     `<div><span class="label" style="display:inline-block;margin-right:6px;">${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`;
   const cells: string[] = [
     cell('Date', formatDateFr(data.issueDate)),
-    // Date de livraison / exécution — Art. 242 nonies A, Ann. II CGI
-    ...(data.deliveryDate ? [cell('Livraison', formatDateFr(data.deliveryDate))] : []),
     cell(dueLabel, dueValue),
     cell('Devise', data.currency),
     ...(data.purchaseOrderRef ? [cell('Bon de cmd', data.purchaseOrderRef)] : []),
@@ -587,11 +585,13 @@ function alignMargin(align: 'left' | 'center' | 'right'): string {
 
 function formatDateFr(iso: string): string {
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch {
-    return iso;
-  }
+  // Template tokens / free-form text pass through untouched. Only canonical
+  // AAAA-MM-JJ strings (from date inputs or after token substitution) are
+  // formatted to French locale.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function escapeHtml(s: string): string {

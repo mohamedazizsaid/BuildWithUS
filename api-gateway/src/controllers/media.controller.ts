@@ -52,18 +52,21 @@ export class MediaController {
     }
 
     // Validate file type
-    const allowedImages = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-    const allowedVideos = ['video/mp4', 'video/webm', 'video/ogg'];
-    const allowed = [...allowedImages, ...allowedVideos];
+    const allowedImages    = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    const allowedVideos    = ['video/mp4', 'video/webm', 'video/ogg'];
+    const allowedDocuments = ['application/pdf'];
+    const allowed = [...allowedImages, ...allowedVideos, ...allowedDocuments];
     if (!allowed.includes(file.mimetype)) {
-      return res.status(400).json({ error: 'Type de fichier non autorisé. Utilisez JPG, PNG, GIF, WebP, SVG, MP4, WebM ou OGG.' });
+      return res.status(400).json({ error: 'Type de fichier non autorisé. Utilisez JPG, PNG, GIF, WebP, SVG, MP4, WebM, OGG ou PDF.' });
     }
 
-    // Max 50MB for videos, 5MB for images
+    // Per-kind size caps: videos 50MB, PDFs 20MB, images 5MB.
     const isVideo = allowedVideos.includes(file.mimetype);
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    const isPdf   = allowedDocuments.includes(file.mimetype);
+    const maxSize = isVideo ? 50 * 1024 * 1024 : isPdf ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      return res.status(400).json({ error: `Le fichier ne doit pas dépasser ${isVideo ? '50' : '5'} Mo` });
+      const limitMb = isVideo ? 50 : isPdf ? 20 : 5;
+      return res.status(400).json({ error: `Le fichier ne doit pas dépasser ${limitMb} Mo` });
     }
 
     try {

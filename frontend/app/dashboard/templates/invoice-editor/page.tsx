@@ -54,7 +54,7 @@ function InvoiceEditorContent() {
   const templateId = searchParams.get('id');
   const isEditMode = !!templateId;
 
-  const [invoice, dispatch] = useReducer(invoiceReducer, defaultInvoice());
+  const [invoice, dispatch] = useReducer(invoiceReducer, applyAutoTokensToInvoice(defaultInvoice()));
   const [name, setName] = useState(searchParams.get('name') ?? 'Nouvelle facture');
   const [description] = useState(searchParams.get('description') ?? '');
   const [loading, setLoading] = useState(isEditMode);
