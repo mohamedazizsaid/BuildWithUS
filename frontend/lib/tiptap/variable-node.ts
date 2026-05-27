@@ -104,15 +104,31 @@ export interface RenderFloatingImage {
   height: number;
 }
 
+export interface RenderFloatingSignature {
+  kind: 'signed' | 'field';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  src?: string;
+  role?: string;
+}
+
 /** @deprecated Use renderTiptapJsonToPrintHtml from lib/tiptap/render-print-html.ts (Two-View architecture). */
 export function renderTiptapToHtml(
   doc: Record<string, unknown>,
   variables: Record<string, string>,
-  options: { docName?: string; bgColor?: string; floatingImages?: RenderFloatingImage[] } = {},
+  options: {
+    docName?: string;
+    bgColor?: string;
+    floatingImages?: RenderFloatingImage[];
+    floatingSignatures?: RenderFloatingSignature[];
+  } = {},
 ): string {
   const bgColor = options.bgColor ?? '#ffffff';
   const body = renderTiptapDocToBodyHtml(doc, variables);
   const images = options.floatingImages ?? [];
+  const signatures = options.floatingSignatures ?? [];
 
   const escapeAttr = (s: string) =>
     s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -120,6 +136,19 @@ export function renderTiptapToHtml(
   const imagesHtml = images.map((img) => `
     <img src="${escapeAttr(img.src)}" alt="" style="position:absolute;left:${img.x}mm;top:${img.y}mm;width:${img.width}mm;height:${img.height}mm;object-fit:fill;pointer-events:none;"/>
   `).join('');
+
+  const signaturesHtml = signatures.map((sig) => {
+    const box = `position:absolute;left:${sig.x}mm;top:${sig.y}mm;width:${sig.width}mm;height:${sig.height}mm;pointer-events:none;`;
+    if (sig.kind === 'signed' && sig.src) {
+      return `<img src="${escapeAttr(sig.src)}" alt="Signature" style="${box}object-fit:contain;"/>`;
+    }
+    // Field: empty bordered slot ending in a solid ink line, with role label underneath.
+    const role = escapeAttr(sig.role || 'Client');
+    return `<div style="${box}display:flex;flex-direction:column;justify-content:flex-end;">
+      <div style="flex:1;border-bottom:1px solid #1e293b;"></div>
+      <div style="font-size:8pt;color:#475569;text-align:center;margin-top:2px;font-weight:600;">Signature — ${role}</div>
+    </div>`;
+  }).join('');
 
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><style>
     @page{size:A4;margin:0;background:${bgColor};}
@@ -132,5 +161,5 @@ export function renderTiptapToHtml(
     table{border-collapse:collapse;}
     hr{border:none;border-top:1px solid #e2e8f0;margin:16px 0;}
     p{margin:0 0 8px;}
-  </style></head><body><div class="page-wrap">${body}${imagesHtml}</div></body></html>`
+  </style></head><body><div class="page-wrap">${body}${imagesHtml}${signaturesHtml}</div></body></html>`
 }

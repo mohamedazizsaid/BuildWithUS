@@ -1,0 +1,7 @@
+name;last_name;salary
+Karim;Hamrouni;5200
+Julie;Lefebvre;3600
+Walid;Gharbi;3300
+Manon;Petit;3950
+Anis;Khelifi;2800
+Chloé;Moreau;4100

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { auth } from '@/lib/api';
+import { auth, isEmbedMode, getEmbedToken, decodeJwtPayload } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -30,8 +30,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // On app load, check if user is already logged in (cookie exists)
+  // On app load, check if user is already logged in (cookie exists).
+  // In embed mode we have no cookie session — we have an M2M JWT. Stub a
+  // user object from the JWT claims so the dashboard chrome can render
+  // without needing /auth/me to succeed.
   useEffect(() => {
+    if (isEmbedMode()) {
+      const tok = getEmbedToken();
+      const claims = tok ? decodeJwtPayload(tok) : null;
+      const tenantId = (claims?.tenantId ?? claims?.tenant_id ?? '') as string;
+      setUser({
+        id: 'embed-m2m',
+        tenant_id: tenantId,
+        tenant_name: 'Embedded session',
+        email: 'embed@m2m',
+        first_name: 'Embed',
+        last_name: 'Session',
+        role: 'm2m',
+      });
+      setLoading(false);
+      return;
+    }
     auth.getMe()
       .then((data) => setUser({ ...data.user, tenant_name: data.tenant_name }))
       .catch(() => setUser(null))

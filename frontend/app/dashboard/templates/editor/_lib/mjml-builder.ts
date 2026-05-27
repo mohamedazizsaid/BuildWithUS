@@ -173,8 +173,23 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
         ? `<div style="padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="display:block;width:${block.styles.width};max-width:100%;height:${block.styles.height || 'auto'};${block.styles.height && block.styles.height !== 'auto' ? 'object-fit:cover;' : ''}border-radius:${pBr};${pBorder}${pCircle}${pMargin}" /></div>`
         : `<div style="background:#f1f5f9;padding:32px;text-align:center;color:#94a3b8;font-size:12px">Pas d'image</div>`;
     }
-    case "button":
-      return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${block.styles.backgroundColor || globalStyles.btnBackgroundColor};color:${block.styles.color || globalStyles.btnFontColor};font-size:${block.styles.fontSize || globalStyles.btnFontSize};font-family:${block.styles.fontFamily || globalStyles.btnFontFamily};font-weight:${block.styles.fontWeight || globalStyles.btnFontWeight};padding:${block.styles.padding};border-radius:${block.styles.borderRadius || globalStyles.btnBorderRadius};border:${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor};text-decoration:none">${block.content.text}</a></div>`;
+    case "button": {
+      // Mirror blockToMjml: block.styles.padding is the OUTER spacing around the
+      // button; MJML sizes the button with its default inner-padding of 10px 25px.
+      const btnBg = block.styles.backgroundColor || globalStyles.btnBackgroundColor;
+      const btnColor = block.styles.color || globalStyles.btnFontColor;
+      const btnSize = block.styles.fontSize || globalStyles.btnFontSize;
+      const btnRadius = block.styles.borderRadius || globalStyles.btnBorderRadius;
+      const btnFamily = block.styles.fontFamily || globalStyles.btnFontFamily;
+      const btnWeight = block.styles.fontWeight || globalStyles.btnFontWeight;
+      const btnBorderSize = block.styles.borderSize || globalStyles.btnBorderSize || '0px';
+      const btnBorderColor = block.styles.borderColor || globalStyles.btnBorderColor || 'transparent';
+      const btnBorder = btnBorderSize !== '0px' ? `border:${btnBorderSize} solid ${btnBorderColor};` : '';
+      const btnLh = block.styles.lineHeight || globalStyles.lineHeight;
+      const btnLs = block.styles.letterSpacing || '0px';
+      const innerPad = '10px 25px'; // MJML mj-button default inner-padding
+      return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${btnBg};color:${btnColor};font-size:${btnSize};font-family:${btnFamily};font-weight:${btnWeight};line-height:${btnLh};letter-spacing:${btnLs};padding:${innerPad};border-radius:${btnRadius};${btnBorder}text-align:center;text-decoration:none">${block.content.text}</a></div>`;
+    }
     case "divider":
       return `<hr style="border-color:${block.styles.borderColor};border-width:${block.styles.borderWidth};margin:${block.styles.padding} 0" />`;
     case "table": {

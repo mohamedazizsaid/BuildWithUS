@@ -1,6 +1,7 @@
 'use client';
 
-import { ScrollText } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ScrollText, FileText } from 'lucide-react';
 import { tiptapDocToPreviewHtml } from '../_lib/preview-helpers';
 
 export function ContractPreview({ content }: { content: string }) {
@@ -8,13 +9,22 @@ export function ContractPreview({ content }: { content: string }) {
 
   try {
     const data = JSON.parse(content);
+
+    // PDF-template contracts store an uploaded PDF instead of TipTap/blocks.
+    if (data.kind === 'pdf-template' && typeof data.pdfUrl === 'string') {
+      return <PdfThumb pdfUrl={data.pdfUrl} fileName={data.pdfFileName} />;
+    }
+
     const contractType = data.contractType || 'b2c';
+    const bgColor = typeof data.docBgColor === 'string' ? data.docBgColor : '#ffffff';
+    const floatingImages = Array.isArray(data.floatingImages) ? data.floatingImages : [];
+    const floatingSignatures = Array.isArray(data.floatingSignatures) ? data.floatingSignatures : [];
 
     if (data.doc?.type === 'doc') {
-      const html = tiptapDocToPreviewHtml(data.doc);
+      const html = tiptapDocToPreviewHtml(data.doc, { bgColor, floatingImages, floatingSignatures });
       if (html) {
         return (
-          <div className="w-full h-[180px] overflow-hidden bg-white relative">
+          <div className="w-full h-[180px] overflow-hidden relative" style={{ background: bgColor }}>
             <div
               className="origin-top-left absolute top-0 left-0"
               style={{
@@ -27,11 +37,14 @@ export function ContractPreview({ content }: { content: string }) {
                 fontSize: '10pt',
                 color: '#1a1a1a',
                 lineHeight: 1.6,
-                background: 'white',
+                background: bgColor,
               }}
               dangerouslySetInnerHTML={{ __html: html }}
             />
-            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-white via-white/70 to-transparent pointer-events-none" />
+            <div
+              className="absolute inset-x-0 bottom-0 h-14 pointer-events-none"
+              style={{ background: `linear-gradient(to top, ${bgColor}, ${bgColor}b3 50%, transparent)` }}
+            />
             <div className="absolute top-2.5 right-2.5 z-10">
               <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shadow-sm">
                 {typeLabels[contractType] || contractType.toUpperCase()}
@@ -87,4 +100,66 @@ export function ContractPreview({ content }: { content: string }) {
       </div>
     );
   }
+}
+
+/** Renders the first page of an uploaded PDF as a card thumbnail. */
+function PdfThumb({ pdfUrl, fileName }: { pdfUrl: string; fileName?: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFailed(false);
+
+    (async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist');
+        pdfjs.GlobalWorkerOptions.workerSrc =
+          `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+        const doc = await pdfjs.getDocument(pdfUrl).promise;
+        const page = await doc.getPage(1);
+        if (cancelled) { await doc.destroy(); return; }
+
+        const canvas = canvasRef.current;
+        if (!canvas) { await doc.destroy(); return; }
+
+        const targetWidth = 320;
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: targetWidth / base.width });
+        canvas.width = Math.round(viewport.width);
+        canvas.height = Math.round(viewport.height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { await doc.destroy(); return; }
+
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+        await doc.destroy();
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [pdfUrl]);
+
+  if (failed) {
+    return (
+      <div className="w-full h-[180px] bg-gradient-to-br from-slate-100 to-slate-50 flex flex-col items-center justify-center gap-2">
+        <FileText size={32} className="text-slate-400 opacity-50" />
+        {fileName && <span className="text-[10px] text-slate-400 px-3 truncate max-w-full">{fileName}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-[180px] overflow-hidden relative bg-white">
+      {/* w-full + h-auto on a block (not flex) keeps the page's true aspect
+          ratio; the container crops the bottom and the fade hides the cut. */}
+      <canvas ref={canvasRef} className="block w-full h-auto" />
+      <div className="absolute inset-x-0 bottom-0 h-14 pointer-events-none bg-gradient-to-t from-white via-white/70 to-transparent" />
+      <div className="absolute top-2.5 right-2.5 z-10">
+        <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 shadow-sm">PDF</span>
+      </div>
+    </div>
+  );
 }

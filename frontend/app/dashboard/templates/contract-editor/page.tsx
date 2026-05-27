@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
@@ -9,12 +9,13 @@ import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
   ArrowLeft, Save, Download, RefreshCw, ChevronDown,
-  AlertTriangle, FileText, FilePlus, Upload,
+  AlertTriangle, FileText, FilePlus, Upload, Check, CloudOff, Loader2, Type,
+  Square, Circle, Minus,
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-import { templates, contractVariables, media } from '@/lib/api';
+import { templates, contractVariables, media, getEmbedReturnOrigin, isEmbedMode } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { VariableNode, extractVariablesFromTiptap, renderTiptapToHtml } from '@/lib/tiptap/variable-node';
 import { buildVariableMapping, type MappingSource } from '@/lib/variable-mapper';
@@ -26,35 +27,56 @@ import { CONTRACT_TEMPLATES, VARIABLE_PALETTE } from '@/lib/tiptap/contract-temp
 
 import { FontSize } from './_lib/font-size';
 import { TextColor } from './_lib/text-color';
-import { CONTRACT_TYPES, type ContractType, type SlashMenuItem, type CsvDataset, type BlockMeta, type FloatingImage } from './_lib/types';
+import { CONTRACT_TYPES, type ContractType, type SlashMenuItem, type CsvDataset, type BlockMeta, type FloatingImage, type FloatingSignature } from './_lib/types';
 import { VariablePalette } from './_components/VariablePalette';
 import { EditorToolbar } from './_components/EditorToolbar';
 import { ContractCanvas } from './_components/Canvas';
 import { PdfCanvas, PdfPlacementInspector } from './_components/PdfCanvas';
-import { type PdfTemplate, tryParsePdfTemplate, serializePdfTemplate, emptyPdfTemplate } from './_lib/pdf-template';
+import { type PdfTemplate, tryParsePdfTemplate, serializePdfTemplate, emptyPdfTemplate, makeTextPlacement, makeShapePlacement, reorderPlacement } from './_lib/pdf-template';
 import { exportPdfTemplateWithValues } from './_lib/pdf-export';
 import { RightPanel } from './_components/RightPanel';
 import { SwitchTypeModal } from './_components/SwitchTypeModal';
 import { FillVariablesModal } from './_components/FillVariablesModal';
 import { SlashMenu } from './_components/SlashMenu';
 
-function ContractEditorContent() {
+export function ContractEditorContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const templateId = searchParams.get('id') || null;
+  // True for /embed/* routes AND for /dashboard/* routes loaded inside the
+  // iframe (the user navigated via the sidebar after landing on /dashboard).
+  const isEmbed = (pathname?.startsWith('/embed') ?? false) || isEmbedMode();
+  const postToHost = useCallback((msg: Record<string, unknown>) => {
+    if (!isEmbed || typeof window === 'undefined' || window.parent === window) return;
+    const origin = getEmbedReturnOrigin();
+    if (!origin) return;
+    try { window.parent.postMessage(msg, origin); } catch { /* ignore */ }
+  }, [isEmbed]);
+  const initialTemplateId = searchParams.get('id') || null;
   const name = searchParams.get('name') || 'Nouveau contrat';
   const description = searchParams.get('description') || '';
-  const isEditMode = !!templateId;
 
+  const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(initialTemplateId);
   const [contractType, setContractType] = useState<ContractType>('b2c');
   const [docBgColor, setDocBgColor] = useState<string>('#ffffff');
   const [floatingImages, setFloatingImages] = useState<FloatingImage[]>([]);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [floatingSignatures, setFloatingSignatures] = useState<FloatingSignature[]>([]);
+  const [selectedSignatureId, setSelectedSignatureId] = useState<string | null>(null);
   const [selectedBlock, setSelectedBlock] = useState<BlockMeta | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [version, setVersion] = useState(1);
+
+  type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>(initialTemplateId ? 'saved' : 'idle');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveReadyRef = useRef(false);
+  const stateMountedRef = useRef(false);
+  const savingRef = useRef(false);
+  const pendingAfterSaveRef = useRef(false);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showFillModal, setShowFillModal] = useState(false);
   const [modalVars, setModalVars] = useState<string[]>([]);
@@ -169,6 +191,57 @@ function ContractEditorContent() {
     setSelectedImageId((prev) => (prev === id ? null : prev));
   }, []);
 
+  const newSignatureId = () =>
+    (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+      ? crypto.randomUUID()
+      : `sig-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const handleAddSignedSignature = useCallback((src: string, naturalW: number, naturalH: number) => {
+    const pageWidthMm = 210;
+    const pageHeightMm = 297;
+    const MM_PER_PX = 25.4 / 96;
+    let widthMm = Math.min(naturalW * MM_PER_PX, 60);
+    if (widthMm < 25) widthMm = 50;
+    const ratio = naturalH > 0 ? naturalH / naturalW : 0.5;
+    const heightMm = widthMm * ratio;
+    const x = Math.max(0, (pageWidthMm - widthMm) / 2);
+    const y = Math.max(0, pageHeightMm - heightMm - 40);
+    const sig: FloatingSignature = {
+      id: newSignatureId(),
+      kind: 'signed',
+      src,
+      x, y, width: widthMm, height: heightMm,
+    };
+    setFloatingSignatures((prev) => [...prev, sig]);
+    setSelectedSignatureId(sig.id);
+  }, []);
+
+  const handleAddSignatureField = useCallback((role: string) => {
+    const pageWidthMm = 210;
+    const pageHeightMm = 297;
+    const widthMm = 65;
+    const heightMm = 22;
+    const x = Math.max(0, (pageWidthMm - widthMm) / 2);
+    const y = Math.max(0, pageHeightMm - heightMm - 30);
+    const sig: FloatingSignature = {
+      id: newSignatureId(),
+      kind: 'field',
+      role,
+      x, y, width: widthMm, height: heightMm,
+    };
+    setFloatingSignatures((prev) => [...prev, sig]);
+    setSelectedSignatureId(sig.id);
+  }, []);
+
+  const handleUpdateSignature = useCallback((id: string, patch: Partial<FloatingSignature>) => {
+    setFloatingSignatures((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }, []);
+
+  const handleRemoveSignature = useCallback((id: string) => {
+    setFloatingSignatures((prev) => prev.filter((s) => s.id !== id));
+    setSelectedSignatureId((prev) => (prev === id ? null : prev));
+  }, []);
+
   const handleDeleteVar = useCallback((catLabel: string, name: string) => {
     contractVariables.remove(name).catch(console.error);
     setAllVars((prev) => ({ ...prev, [catLabel]: (prev[catLabel] ?? []).filter((n) => n !== name) }));
@@ -266,10 +339,10 @@ function ContractEditorContent() {
 
   const loadedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!templateId || !editor) return;
-    if (loadedFor.current === templateId) return;
-    loadedFor.current = templateId;
-    templates.get(templateId)
+    if (!initialTemplateId || !editor) return;
+    if (loadedFor.current === initialTemplateId) return;
+    loadedFor.current = initialTemplateId;
+    templates.get(initialTemplateId)
       .then((result: unknown) => {
         const r = result as { template?: { content?: string }; content?: string } | null;
         const tmpl = r?.template ?? r;
@@ -287,14 +360,29 @@ function ContractEditorContent() {
           if (parsed.version) setVersion(parsed.version);
           if (typeof parsed.docBgColor === 'string') setDocBgColor(parsed.docBgColor);
           if (Array.isArray(parsed.floatingImages)) setFloatingImages(parsed.floatingImages as FloatingImage[]);
+          if (Array.isArray(parsed.floatingSignatures)) setFloatingSignatures(parsed.floatingSignatures as FloatingSignature[]);
+          if (Array.isArray(parsed.csvDatasets)) setCsvDatasets(parsed.csvDatasets as CsvDataset[]);
           if (parsed.doc) {
             editor.commands.setContent(parsed.doc);
             editor.commands.setTextSelection(0);
           }
         } catch { /* keep defaults */ }
       })
-      .catch(() => toast.error('Erreur chargement du template'));
-  }, [templateId, editor]);
+      .catch(() => toast.error('Erreur chargement du template'))
+      .finally(() => {
+        // Defer past React's commit so the setContent-triggered 'update' isn't
+        // mistaken for a user edit.
+        setTimeout(() => { autosaveReadyRef.current = true; }, 150);
+      });
+  }, [initialTemplateId, editor]);
+
+  // For brand-new templates (no id in URL), arm autosave shortly after the
+  // editor mounts so the very first user keystroke triggers a save.
+  useEffect(() => {
+    if (!editor || initialTemplateId) return;
+    const t = setTimeout(() => { autosaveReadyRef.current = true; }, 250);
+    return () => clearTimeout(t);
+  }, [editor, initialTemplateId]);
 
   const loadTemplate = useCallback((type: ContractType) => {
     if (!editor) return;
@@ -417,16 +505,28 @@ function ContractEditorContent() {
     toast.success(`Modèle ${CONTRACT_TYPES[pendingSwitch].label} chargé`);
   }, [pendingSwitch, loadTemplate]);
 
+  const adoptNewTemplateId = useCallback((newId: string) => {
+    // Mark this id as already loaded so the URL change below doesn't re-trigger
+    // the load effect and clobber edits made while the autosave was in flight.
+    loadedFor.current = newId;
+    setCurrentTemplateId(newId);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('id', newId);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
+
   const persistTemplate = useCallback(async (): Promise<boolean> => {
     // PDF mode: payload is the PdfTemplate JSON. Skip the TipTap branch
     // entirely so empty editors don't blow away the saved PDF.
     if (pdfTemplate) {
       const content = serializePdfTemplate(pdfTemplate);
       try {
-        if (isEditMode && templateId) {
-          await templates.update(templateId, { name, description, type: 3, content });
+        if (currentTemplateId) {
+          await templates.update(currentTemplateId, { name, description, type: 3, content });
         } else {
-          await templates.create({ name, description, type: 3, content });
+          const created = await templates.create({ name, description, type: 3, content }) as { id?: string; template?: { id?: string } };
+          const newId = created.id ?? created.template?.id ?? null;
+          if (newId) adoptNewTemplateId(newId);
         }
         return true;
       } catch {
@@ -435,26 +535,87 @@ function ContractEditorContent() {
     }
 
     if (!editor) return false;
-    const newVersion = version + 1;
     const content = JSON.stringify({
       contractType,
-      version: newVersion,
+      version,
       docBgColor,
       floatingImages,
+      floatingSignatures,
+      csvDatasets,
       doc: editor.getJSON(),
     });
     try {
-      if (isEditMode && templateId) {
-        await templates.update(templateId, { name, description, type: 3, content });
+      if (currentTemplateId) {
+        await templates.update(currentTemplateId, { name, description, type: 3, content });
       } else {
-        await templates.create({ name, description, type: 3, content });
+        const created = await templates.create({ name, description, type: 3, content }) as { id?: string; template?: { id?: string } };
+        const newId = created.id ?? created.template?.id ?? null;
+        if (newId) adoptNewTemplateId(newId);
       }
-      setVersion(newVersion);
       return true;
     } catch {
       return false;
     }
-  }, [pdfTemplate, editor, version, contractType, docBgColor, floatingImages, isEditMode, templateId, name, description]);
+  }, [pdfTemplate, editor, version, contractType, docBgColor, floatingImages, floatingSignatures, csvDatasets, currentTemplateId, name, description, adoptNewTemplateId]);
+
+  // ─── Autosave ─────────────────────────────────────────────────────────────
+
+  const runAutosave = useCallback(async () => {
+    if (savingRef.current) { pendingAfterSaveRef.current = true; return; }
+    savingRef.current = true;
+    setSaveStatus('saving');
+    let ok = false;
+    try {
+      ok = await persistTemplate();
+    } finally {
+      savingRef.current = false;
+    }
+    if (ok) {
+      setSaveStatus('saved');
+      setLastSavedAt(new Date());
+      postToHost({ event: 'saved', templateId: currentTemplateId, name });
+    } else {
+      setSaveStatus('error');
+    }
+    if (pendingAfterSaveRef.current) {
+      pendingAfterSaveRef.current = false;
+      // Re-run if more edits arrived during the save.
+      void runAutosave();
+    }
+  }, [persistTemplate, postToHost, currentTemplateId, name]);
+
+  const scheduleAutosave = useCallback(() => {
+    if (!autosaveReadyRef.current) return;
+    setSaveStatus((s) => (s === 'saving' ? s : 'unsaved'));
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void runAutosave();
+    }, 1500);
+  }, [runAutosave]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.on('update', scheduleAutosave);
+    return () => { editor.off('update', scheduleAutosave); };
+  }, [editor, scheduleAutosave]);
+
+  useEffect(() => {
+    if (!stateMountedRef.current) { stateMountedRef.current = true; return; }
+    scheduleAutosave();
+  }, [contractType, docBgColor, floatingImages, floatingSignatures, pdfTemplate, csvDatasets, scheduleAutosave]);
+
+  // Warn before leaving with unsaved changes (debounce timer still pending or save failed).
+  useEffect(() => {
+    const shouldWarn = () => autosaveTimerRef.current !== null || savingRef.current || saveStatus === 'error' || saveStatus === 'unsaved';
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!shouldWarn()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [saveStatus]);
 
   // ─── PDF mode handlers ───────────────────────────────────────────────────
 
@@ -495,13 +656,22 @@ function ContractEditorContent() {
   }, []);
 
   const handleSave = async () => {
+    // Cancel any pending autosave and persist immediately.
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
     setIsSaving(true);
+    setSaveStatus('saving');
     const ok = await persistTemplate();
     setIsSaving(false);
     if (ok) {
+      setSaveStatus('saved');
+      setLastSavedAt(new Date());
       toast.success('Template enregistré');
-      router.push('/dashboard/templates');
+      postToHost({ event: 'saved', templateId: currentTemplateId, name });
     } else {
+      setSaveStatus('error');
       toast.error("Échec de l'enregistrement");
     }
   };
@@ -529,7 +699,7 @@ function ContractEditorContent() {
     if (!editor) return;
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
-    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {}, { docName: name, bgColor: docBgColor, floatingImages });
+    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {}, { docName: name, bgColor: docBgColor, floatingImages, floatingSignatures });
     try {
       const res = await fetch('http://localhost:3000/templates/render-pdf', {
         method: 'POST',
@@ -550,7 +720,10 @@ function ContractEditorContent() {
 
   const handleGenerate = useCallback(() => {
     if (pdfTemplate) {
-      const vars = Array.from(new Set(pdfTemplate.placements.map((p) => p.variableName))).sort();
+      // Static-text placements carry no variable — exclude them from the fill modal.
+      const vars = Array.from(new Set(
+        pdfTemplate.placements.filter((p) => p.type !== 'text' && p.variableName).map((p) => p.variableName),
+      )).sort();
       setModalVars(vars);
       setShowFillModal(true);
       return;
@@ -572,9 +745,10 @@ function ContractEditorContent() {
         toast.loading('Enregistrement du template…', { id: toastId });
         const saved = await persistTemplate();
         if (saved) {
-          toast.success(isEditMode ? 'Template mis à jour' : 'Template enregistré', { id: toastId });
+          toast.success(currentTemplateId ? 'Template mis à jour' : 'Template enregistré', { id: toastId });
           setShowFillModal(false);
-          router.push('/dashboard/templates');
+          postToHost({ event: 'saved', templateId: currentTemplateId, name });
+          if (!isEmbed) router.push('/dashboard/templates');
         } else {
           toast.error("PDF généré, mais l'enregistrement du template a échoué", { id: toastId });
         }
@@ -589,7 +763,7 @@ function ContractEditorContent() {
     if (!editor) return;
     setIsGenerating(true);
     const toastId = toast.loading('Génération du PDF…');
-    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, values, { docName: name, bgColor: docBgColor });
+    const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, values, { docName: name, bgColor: docBgColor, floatingImages, floatingSignatures });
     try {
       const res = await fetch('http://localhost:3000/templates/render-pdf', {
         method: 'POST',
@@ -608,9 +782,10 @@ function ContractEditorContent() {
       toast.loading('Enregistrement du template…', { id: toastId });
       const saved = await persistTemplate();
       if (saved) {
-        toast.success(isEditMode ? 'Template mis à jour' : 'Template enregistré', { id: toastId });
+        toast.success(currentTemplateId ? 'Template mis à jour' : 'Template enregistré', { id: toastId });
         setShowFillModal(false);
-        router.push('/dashboard/templates');
+        postToHost({ event: 'saved', templateId: currentTemplateId, name });
+        if (!isEmbed) router.push('/dashboard/templates');
       } else {
         toast.error("PDF généré, mais l'enregistrement du template a échoué", { id: toastId });
       }
@@ -619,7 +794,7 @@ function ContractEditorContent() {
     } finally {
       setIsGenerating(false);
     }
-  }, [pdfTemplate, editor, name, docBgColor, floatingImages, persistTemplate, isEditMode, router]);
+  }, [pdfTemplate, editor, name, docBgColor, floatingImages, persistTemplate, currentTemplateId, router, isEmbed, postToHost]);
 
   const typeConfig = CONTRACT_TYPES[contractType];
 
@@ -628,13 +803,29 @@ function ContractEditorContent() {
     [pdfTemplate, selectedPlacementId],
   );
 
+  const addPdfPlacement = useCallback((placement: PdfTemplate['placements'][number]) => {
+    setPdfTemplate((prev) => prev && { ...prev, placements: [...prev.placements, placement] });
+    setSelectedPlacementId(placement.id);
+  }, []);
+
+  const reorderSelectedPlacement = useCallback((dir: 'front' | 'back' | 'forward' | 'backward') => {
+    if (!selectedPlacementId) return;
+    setPdfTemplate((prev) => prev && { ...prev, placements: reorderPlacement(prev.placements, selectedPlacementId, dir) });
+  }, [selectedPlacementId]);
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden" onClick={() => setShowTypeMenu(false)}>
 
       <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
-          <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft size={15} /> Retour
+          <button
+            onClick={() => {
+              if (isEmbed) postToHost({ event: 'closed' });
+              else router.back();
+            }}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={15} /> {isEmbed ? 'Fermer' : 'Retour'}
           </button>
           <div className="w-px h-4 bg-border" />
           <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -656,6 +847,7 @@ function ContractEditorContent() {
             )}
           </div>
           <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">v{version}</span>
+          <SaveStatusIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
 
           {/* Mode toggle — switch between TipTap rich-text and PDF overlay. */}
           <div className="ml-2 flex items-center rounded-md border border-border overflow-hidden">
@@ -745,6 +937,11 @@ function ContractEditorContent() {
             onSelectImage={setSelectedImageId}
             onUpdateImage={handleUpdateImage}
             onRemoveImage={handleRemoveImage}
+            floatingSignatures={floatingSignatures}
+            selectedSignatureId={selectedSignatureId}
+            onSelectSignature={setSelectedSignatureId}
+            onUpdateSignature={handleUpdateSignature}
+            onRemoveSignature={handleRemoveSignature}
           />
         )}
         {isPdfMode ? (
@@ -766,9 +963,38 @@ function ContractEditorContent() {
               <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
                 Placements ({pdfTemplate?.placements.length ?? 0})
               </div>
+              <button
+                onClick={() => addPdfPlacement(makeTextPlacement(1))}
+                className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium rounded-md border border-dashed border-slate-300 text-slate-500 hover:border-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <Type size={11} /> Ajouter une zone de texte
+              </button>
+              <div className="grid grid-cols-3 gap-1 mt-1.5">
+                <button
+                  onClick={() => addPdfPlacement(makeShapePlacement(1, 'rect'))}
+                  className="flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-md border border-slate-200 text-slate-500 hover:border-slate-500 hover:text-slate-700 transition-colors"
+                  title="Rectangle"
+                >
+                  <Square size={12} /> Rect
+                </button>
+                <button
+                  onClick={() => addPdfPlacement(makeShapePlacement(1, 'ellipse'))}
+                  className="flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-md border border-slate-200 text-slate-500 hover:border-slate-500 hover:text-slate-700 transition-colors"
+                  title="Ellipse"
+                >
+                  <Circle size={12} /> Ellipse
+                </button>
+                <button
+                  onClick={() => addPdfPlacement(makeShapePlacement(1, 'line'))}
+                  className="flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-md border border-slate-200 text-slate-500 hover:border-slate-500 hover:text-slate-700 transition-colors"
+                  title="Ligne"
+                >
+                  <Minus size={12} /> Ligne
+                </button>
+              </div>
               {(!pdfTemplate || pdfTemplate.placements.length === 0) && (
-                <p className="text-[11px] text-slate-400 italic">
-                  Glissez une variable depuis le panneau de gauche sur le PDF.
+                <p className="text-[11px] text-slate-400 italic mt-2">
+                  Glissez une variable depuis le panneau de gauche, ou ajoutez une zone de texte / forme pour recouvrir le PDF.
                 </p>
               )}
             </div>
@@ -782,6 +1008,7 @@ function ContractEditorContent() {
                       p.id === selectedPlacement.id ? { ...p, ...patch } : p,
                     ),
                   })}
+                  onReorder={reorderSelectedPlacement}
                 />
               </div>
             )}
@@ -795,6 +1022,12 @@ function ContractEditorContent() {
             onRemoveImage={handleRemoveImage}
             onSelectImage={setSelectedImageId}
             selectedImageId={selectedImageId}
+            floatingSignatures={floatingSignatures}
+            onAddSignedSignature={handleAddSignedSignature}
+            onAddSignatureField={handleAddSignatureField}
+            onRemoveSignature={handleRemoveSignature}
+            onSelectSignature={setSelectedSignatureId}
+            selectedSignatureId={selectedSignatureId}
           />
         )}
       </div>
@@ -925,6 +1158,57 @@ export default function ContractEditorPage() {
       <ContractEditorContent />
     </Suspense>
   );
+}
+
+function SaveStatusIndicator({
+  status,
+  lastSavedAt,
+}: {
+  readonly status: 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+  readonly lastSavedAt: Date | null;
+}) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (status !== 'saved') return;
+    const t = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, [status]);
+
+  if (status === 'idle') return null;
+
+  if (status === 'saving') {
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-slate-500">
+        <Loader2 size={11} className="animate-spin" /> Enregistrement…
+      </span>
+    );
+  }
+  if (status === 'unsaved') {
+    return <span className="text-[11px] text-amber-600">Modifications non enregistrées</span>;
+  }
+  if (status === 'error') {
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-red-600">
+        <CloudOff size={11} /> Échec de l’enregistrement
+      </span>
+    );
+  }
+  // saved
+  return (
+    <span className="flex items-center gap-1 text-[11px] text-emerald-600">
+      <Check size={11} /> Enregistré{lastSavedAt ? ` ${formatRelative(lastSavedAt)}` : ''}
+    </span>
+  );
+}
+
+function formatRelative(d: Date): string {
+  const secs = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (secs < 5) return 'à l’instant';
+  if (secs < 60) return `il y a ${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `il y a ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  return `il y a ${hrs} h`;
 }
 
 function triggerDownload(blob: Blob, filename: string) {

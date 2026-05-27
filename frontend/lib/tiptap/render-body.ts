@@ -15,8 +15,16 @@ export function renderTiptapDocToBodyHtml(
     return escape(variables[name] ?? `{{${name}}}`)
   }
 
-  function renderMarks(text: string, marks: { type: string }[] = []): string {
+  function renderMarks(text: string, marks: { type: string; attrs?: Record<string, unknown> }[] = []): string {
     let out = escape(text)
+    // Apply style-bearing marks (fontSize, textColor) first as the innermost span
+    // so they survive being wrapped by structural marks like <strong>/<em>.
+    const styles: string[] = []
+    for (const m of marks) {
+      if (m.type === 'fontSize' && m.attrs?.size) styles.push(`font-size:${String(m.attrs.size)}`)
+      else if (m.type === 'textColor' && m.attrs?.color) styles.push(`color:${String(m.attrs.color)}`)
+    }
+    if (styles.length > 0) out = `<span style="${styles.join(';')}">${out}</span>`
     for (const m of marks) {
       if (m.type === 'bold') out = `<strong>${out}</strong>`
       else if (m.type === 'italic') out = `<em>${out}</em>`
@@ -30,7 +38,7 @@ export function renderTiptapDocToBodyHtml(
     if (node.type === 'text') {
       return renderMarks(
         String(node.text ?? ''),
-        (node.marks as { type: string }[]) ?? [],
+        (node.marks as { type: string; attrs?: Record<string, unknown> }[]) ?? [],
       )
     }
     if (node.type === 'variable') {
@@ -111,17 +119,17 @@ export function renderTiptapDocToBodyHtml(
       case 'financialBlock': {
         const a = attrs
         const desc = a.descriptionVar
-          ? `<div style="font-size:9.5pt;color:#065f46;margin-bottom:10px;font-weight:500;">Prestation : ${val(a.descriptionVar)}</div>`
+          ? `<div style="font-size:9.5pt;color:#065f46;margin-bottom:10px;font-weight:500;">${escape(a.labelDescription || 'Prestation :')} ${val(a.descriptionVar)}</div>`
           : ''
         return `<div style="margin:14px 0;border:1px solid #d1fae5;border-radius:6px;overflow:hidden;page-break-inside:avoid;">
           <div style="background:#059669;color:white;padding:7px 14px;font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${escape(a.title || 'RÉCAPITULATIF FINANCIER')}</div>
           <div style="padding:12px 14px;background:#f0fdf4;">${desc}
             <table style="width:100%;border-collapse:collapse;font-size:10pt;">
-              <tr style="border-bottom:1px solid #d1fae5;"><td style="padding:5px 0;color:#475569;">Montant HT</td><td style="text-align:right;font-weight:500;">${val(a.htVar ?? '')} €</td></tr>
-              <tr style="border-bottom:1px solid #d1fae5;"><td style="padding:5px 0;color:#475569;">TVA (${val(a.rateVar ?? '')}%)</td><td style="text-align:right;font-weight:500;">${val(a.tvaVar ?? '')} €</td></tr>
-              <tr><td style="padding:8px 0;font-size:11pt;font-weight:800;">Total TTC</td><td style="text-align:right;font-size:11pt;font-weight:800;color:#059669;">${val(a.ttcVar ?? '')} €</td></tr>
+              <tr style="border-bottom:1px solid #d1fae5;"><td style="padding:5px 0;color:#475569;">${escape(a.labelHt || 'Montant HT')}</td><td style="text-align:right;font-weight:500;">${val(a.htVar ?? '')} €</td></tr>
+              <tr style="border-bottom:1px solid #d1fae5;"><td style="padding:5px 0;color:#475569;">${escape(a.labelTva || 'TVA')} (${val(a.rateVar ?? '')}%)</td><td style="text-align:right;font-weight:500;">${val(a.tvaVar ?? '')} €</td></tr>
+              <tr><td style="padding:8px 0;font-size:11pt;font-weight:800;">${escape(a.labelTtc || 'Total TTC')}</td><td style="text-align:right;font-size:11pt;font-weight:800;color:#059669;">${val(a.ttcVar ?? '')} €</td></tr>
             </table>
-            <div style="font-size:8pt;color:#6b7280;margin-top:8px;font-style:italic;">Prix TTC — TVA incluse — Conformément à l'article 289 du CGI</div>
+            <div style="font-size:8pt;color:#6b7280;margin-top:8px;font-style:italic;">${escape(a.labelFooter || 'Prix TTC — TVA incluse — Conformément à l’article 289 du CGI')}</div>
           </div>
         </div>`
       }
@@ -179,16 +187,18 @@ export function renderTiptapDocToBodyHtml(
       case 'signatureBlock': {
         const a = attrs
         const labels = (a.columns || 'Prestataire,Client').split(',').map((s) => s.trim()).filter(Boolean)
+        const signedBy = escape(a.labelSignedBy || 'Signature du')
+        const nameLabel = escape(a.labelName || 'Nom :')
         const cols = labels.map((label, i) => {
           const nameVal = val((a as Record<string, string>)[`nameVar${i}`] ?? '')
           return `<td style="text-align:center;padding:0 8px;vertical-align:top;">
             <div style="height:50px;border-bottom:1px solid #1e293b;margin-bottom:6px;"></div>
-            <div style="font-size:8.5pt;color:#475569;font-weight:600;">Signature du ${escape(label)}</div>
-            <div style="font-size:8pt;color:#94a3b8;margin-top:4px;">Nom : ${nameVal}</div>
+            <div style="font-size:8.5pt;color:#475569;font-weight:600;">${signedBy} ${escape(label)}</div>
+            <div style="font-size:8pt;color:#94a3b8;margin-top:4px;">${nameLabel} ${nameVal}</div>
           </td>`
         }).join('')
         return `<div style="margin:24px 0 16px;page-break-inside:avoid;">
-          <div style="font-size:10pt;color:#475569;margin-bottom:18px;">Fait à ${val(a.cityVar ?? '')}, le ${val(a.dateVar ?? '')}.</div>
+          <div style="font-size:10pt;color:#475569;margin-bottom:18px;">${escape(a.labelPlace || 'Fait à')} ${val(a.cityVar ?? '')}, ${escape(a.labelDate || 'le')} ${val(a.dateVar ?? '')}.</div>
           <table style="width:100%;border-collapse:separate;border-spacing:0;"><tr>${cols}</tr></table>
         </div>`
       }
@@ -196,22 +206,22 @@ export function renderTiptapDocToBodyHtml(
       case 'sepaBlock': {
         const a = attrs
         return `<div style="margin:14px 0;border:2px solid #0f172a;border-radius:4px;overflow:hidden;font-size:9.5pt;color:#1e293b;page-break-inside:avoid;">
-          <div style="background:#0f172a;color:white;text-align:center;padding:8px;font-size:11pt;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Mandat de prélèvement SEPA</div>
+          <div style="background:#0f172a;color:white;text-align:center;padding:8px;font-size:11pt;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${escape(a.title || 'Mandat de prélèvement SEPA')}</div>
           <div style="padding:12px;">
             <p style="margin:0 0 10px;">En signant ce formulaire, vous autorisez ${val(a.creditorVar ?? '')} à envoyer des instructions à votre banque pour débiter votre compte.</p>
-            <div style="margin-bottom:6px;"><strong>Créancier :</strong> ${val(a.creditorVar ?? '')} &nbsp; <strong>ICS :</strong> ${val(a.icsVar ?? '')}</div>
-            <div style="margin-bottom:10px;"><strong>Adresse :</strong> ${val(a.addressVar ?? '')}</div>
+            <div style="margin-bottom:6px;"><strong>${escape(a.labelCreditor || 'Créancier :')}</strong> ${val(a.creditorVar ?? '')} &nbsp; <strong>${escape(a.labelIcs || 'ICS :')}</strong> ${val(a.icsVar ?? '')}</div>
+            <div style="margin-bottom:10px;"><strong>${escape(a.labelAddress || 'Adresse :')}</strong> ${val(a.addressVar ?? '')}</div>
             <table style="width:100%;border-collapse:separate;border-spacing:8px 0;"><tr>
               <td style="border:1px solid #cbd5e1;padding:6px 8px;border-radius:4px;width:65%;">
-                <div style="font-weight:700;font-size:8pt;margin-bottom:4px;">IBAN</div>
+                <div style="font-weight:700;font-size:8pt;margin-bottom:4px;">${escape(a.labelIban || 'IBAN')}</div>
                 <div style="font-size:9pt;">${val(a.ibanVar ?? '')}</div>
               </td>
               <td style="border:1px solid #cbd5e1;padding:6px 8px;border-radius:4px;">
-                <div style="font-weight:700;font-size:8pt;margin-bottom:4px;">BIC</div>
+                <div style="font-weight:700;font-size:8pt;margin-bottom:4px;">${escape(a.labelBic || 'BIC')}</div>
                 <div style="font-size:9pt;">${val(a.bicVar ?? '')}</div>
               </td>
             </tr></table>
-            <div style="margin-top:10px;display:flex;justify-content:space-between;font-size:8.5pt;"><span><strong>Type :</strong> Récurrent / répétitif</span><span style="border-bottom:1px solid #1e293b;min-width:120px;text-align:right;">Signature</span></div>
+            <div style="margin-top:10px;display:flex;justify-content:space-between;font-size:8.5pt;"><span>${escape(a.labelType || 'Type : Récurrent / répétitif')}</span><span style="border-bottom:1px solid #1e293b;min-width:120px;text-align:right;">${escape(a.labelSignature || 'Signature')}</span></div>
           </div>
         </div>`
       }
@@ -219,10 +229,10 @@ export function renderTiptapDocToBodyHtml(
       case 'retractBlock': {
         const a = attrs
         return `<div style="margin:14px 0;padding:14px;border:1px solid #e2e8f0;border-radius:4px;background:#fafafa;font-size:9pt;line-height:1.7;color:#475569;page-break-inside:avoid;">
-          <div style="text-align:center;font-size:9pt;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;color:#0f172a;">Formulaire de rétractation</div>
+          <div style="text-align:center;font-size:9pt;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;color:#0f172a;">${escape(a.title || 'Formulaire de rétractation')}</div>
           <p style="margin:0 0 8px;">Je soussigné(e) ${val(a.firstNameVar ?? '')} ${val(a.lastNameVar ?? '')}, déclare renoncer au contrat conclu auprès de ${val(a.creditorVar ?? '')} le ${val(a.dateVar ?? '')} (N° contrat : ${val(a.numberVar ?? '')}).</p>
           <p style="font-size:8.5pt;color:#94a3b8;margin:0 0 8px;">À renvoyer dans un délai de 14 jours par lettre recommandée avec AR à : ${val(a.creditorVar ?? '')} — Service Rétractation — ${val(a.addressVar ?? '')}.</p>
-          <div style="margin-top:10px;font-size:9pt;">Adresse : ${val(a.signAddressVar ?? '')} &nbsp; Ville : ${val(a.signCityVar ?? '')} &nbsp; <span style="float:right;border-bottom:1px solid #1e293b;min-width:120px;text-align:right;">Signature</span></div>
+          <div style="margin-top:10px;font-size:9pt;">${escape(a.labelAddress || 'Adresse :')} ${val(a.signAddressVar ?? '')} &nbsp; ${escape(a.labelCity || 'Ville :')} ${val(a.signCityVar ?? '')} &nbsp; <span style="float:right;border-bottom:1px solid #1e293b;min-width:120px;text-align:right;">${escape(a.labelSignature || 'Signature')}</span></div>
         </div>`
       }
 

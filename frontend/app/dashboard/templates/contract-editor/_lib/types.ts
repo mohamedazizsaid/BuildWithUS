@@ -36,3 +36,18 @@ export interface FloatingImage {
   width: number;
   height: number;
 }
+
+export type FloatingSignatureKind = 'signed' | 'field';
+
+export interface FloatingSignature {
+  id: string;
+  kind: FloatingSignatureKind;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** For kind === 'signed': data-URL or upload URL of the signature image. */
+  src?: string;
+  /** For kind === 'field': role label shown under the slot (e.g. "Client"). */
+  role?: string;
+}

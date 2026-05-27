@@ -58,8 +58,15 @@ export function blockToHtml(block: BlockData, globalStyles: GlobalStyles): strin
         ? `<div style="padding:${block.styles.padding}"><img src="${block.content.src}" alt="${block.content.alt}" style="display:block;width:${block.styles.width};max-width:100%;height:${block.styles.height || 'auto'};${block.styles.height && block.styles.height !== 'auto' ? 'object-fit:cover;' : ''}border-radius:${pBr};${pBorder}${pCircle}${pMargin}" /></div>`
         : `<div style="background:#f1f5f9;padding:32px;text-align:center;color:#94a3b8;font-size:12px">Pas d'image</div>`;
     }
-    case 'button':
-      return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${block.styles.backgroundColor || globalStyles.btnBackgroundColor};color:${block.styles.color || globalStyles.btnFontColor};font-size:${block.styles.fontSize || globalStyles.btnFontSize};font-family:${block.styles.fontFamily || globalStyles.btnFontFamily};font-weight:${block.styles.fontWeight || globalStyles.btnFontWeight};padding:${block.styles.padding};border-radius:${block.styles.borderRadius || globalStyles.btnBorderRadius};border:${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor};text-decoration:none">${block.content.text}</a></div>`;
+    case 'button': {
+      // Mirror blockToMjml: block.styles.padding is the OUTER spacing around the
+      // button; MJML sizes the button with its default inner-padding of 10px 25px.
+      const bBorderSize = block.styles.borderSize || globalStyles.btnBorderSize || '0px';
+      const bBorder = bBorderSize !== '0px' ? `border:${bBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor};` : '';
+      const bLh = block.styles.lineHeight || globalStyles.lineHeight;
+      const bLs = block.styles.letterSpacing || '0px';
+      return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${block.styles.backgroundColor || globalStyles.btnBackgroundColor};color:${block.styles.color || globalStyles.btnFontColor};font-size:${block.styles.fontSize || globalStyles.btnFontSize};font-family:${block.styles.fontFamily || globalStyles.btnFontFamily};font-weight:${block.styles.fontWeight || globalStyles.btnFontWeight};line-height:${bLh};letter-spacing:${bLs};padding:10px 25px;border-radius:${block.styles.borderRadius || globalStyles.btnBorderRadius};${bBorder}text-align:center;text-decoration:none">${block.content.text}</a></div>`;
+    }
     case 'divider':
       return `<hr style="border-color:${block.styles.borderColor};border-width:${block.styles.borderWidth};margin:${block.styles.padding} 0" />`;
     case 'table': {

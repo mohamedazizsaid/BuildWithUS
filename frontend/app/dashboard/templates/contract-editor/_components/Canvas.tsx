@@ -7,8 +7,9 @@ import { GripVertical, Copy, Trash2 as TrashIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { resolveBlock } from '../_lib/blocks';
 import { replaceAllVariableNodes } from '../_lib/variable-mapping';
-import type { BlockMeta, FloatingImage } from '../_lib/types';
+import type { BlockMeta, FloatingImage, FloatingSignature } from '../_lib/types';
 import { FloatingImages } from './FloatingImages';
+import { FloatingSignatures } from './FloatingSignatures';
 
 export function ContractCanvas({
   editor,
@@ -19,6 +20,11 @@ export function ContractCanvas({
   onSelectImage,
   onUpdateImage,
   onRemoveImage,
+  floatingSignatures = [],
+  selectedSignatureId = null,
+  onSelectSignature,
+  onUpdateSignature,
+  onRemoveSignature,
 }: {
   readonly editor: Editor | null;
   readonly onBlockSelect?: (b: BlockMeta | null) => void;
@@ -28,6 +34,11 @@ export function ContractCanvas({
   readonly onSelectImage?: (id: string | null) => void;
   readonly onUpdateImage?: (id: string, patch: Partial<FloatingImage>) => void;
   readonly onRemoveImage?: (id: string) => void;
+  readonly floatingSignatures?: FloatingSignature[];
+  readonly selectedSignatureId?: string | null;
+  readonly onSelectSignature?: (id: string | null) => void;
+  readonly onUpdateSignature?: (id: string, patch: Partial<FloatingSignature>) => void;
+  readonly onRemoveSignature?: (id: string) => void;
 }) {
   const canvasRef  = useRef<HTMLDivElement>(null);
   const scrollRef  = useRef<HTMLDivElement>(null);
@@ -343,6 +354,17 @@ export function ContractCanvas({
             onSelect={onSelectImage}
             onUpdate={onUpdateImage}
             onRemove={onRemoveImage}
+            pageRef={canvasRef}
+          />
+        )}
+
+        {onSelectSignature && onUpdateSignature && onRemoveSignature && (
+          <FloatingSignatures
+            signatures={floatingSignatures}
+            selectedId={selectedSignatureId}
+            onSelect={onSelectSignature}
+            onUpdate={onUpdateSignature}
+            onRemove={onRemoveSignature}
             pageRef={canvasRef}
           />
         )}

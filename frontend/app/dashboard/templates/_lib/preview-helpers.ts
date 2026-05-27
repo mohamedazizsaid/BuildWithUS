@@ -1,8 +1,15 @@
-import { renderTiptapToHtml } from '@/lib/tiptap/variable-node';
+import { renderTiptapToHtml, type RenderFloatingImage, type RenderFloatingSignature } from '@/lib/tiptap/variable-node';
 
-export function tiptapDocToPreviewHtml(doc: unknown): string {
+export function tiptapDocToPreviewHtml(
+  doc: unknown,
+  options: {
+    bgColor?: string;
+    floatingImages?: RenderFloatingImage[];
+    floatingSignatures?: RenderFloatingSignature[];
+  } = {},
+): string {
   try {
-    const full = renderTiptapToHtml(doc as Record<string, unknown>, {});
+    const full = renderTiptapToHtml(doc as Record<string, unknown>, {}, options);
     const m = full.match(/<body>([\s\S]*)<\/body>/);
     const body = m ? m[1] : full;
     return body.replaceAll(

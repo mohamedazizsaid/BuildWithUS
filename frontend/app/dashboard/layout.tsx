@@ -8,6 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import AppSidebar from '@/components/dashboard/Sidebar';
 import Navbar from '@/components/dashboard/Navbar';
 import { SearchProvider } from '@/context/search';
+import { isEmbedMode } from '@/lib/api';
 
 export default function DashboardLayout({ children }: { readonly children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -21,7 +22,9 @@ export default function DashboardLayout({ children }: { readonly children: React
     pathname?.startsWith('/dashboard/templates/generate');
 
   useEffect(() => {
-    if (!loading && !user) {
+    // In embed mode the AuthProvider stubs a user from the M2M token, so
+    // `user` is non-null. Skip the redirect either way — extra safety.
+    if (!loading && !user && !isEmbedMode()) {
       router.push('/login');
     }
   }, [user, loading, router]);

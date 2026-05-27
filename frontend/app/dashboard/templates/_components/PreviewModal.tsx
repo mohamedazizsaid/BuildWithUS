@@ -1,16 +1,65 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Pencil, X } from 'lucide-react';
 import { mjmlToPreviewHtml, tiptapDocToPreviewHtml, findContractTitle } from '../_lib/preview-helpers';
 import { getTypeConfig, type Template } from '../_lib/types';
 import { deserialize } from '@/lib/invoice/serialize';
 import { renderInvoiceHtml } from '@/lib/invoice/renderer';
+import { type PdfTemplate, tryParsePdfTemplate } from '../contract-editor/_lib/pdf-template';
+import { exportPdfTemplateWithValues } from '../contract-editor/_lib/pdf-export';
+
+/** Renders a PDF-template contract as the real stamped PDF in an iframe.
+ *  Variables are surfaced as `{{token}}`; static text & shapes are baked in. */
+function PdfTemplatePreview({ template }: { template: PdfTemplate }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setUrl(null);
+    setFailed(false);
+
+    (async () => {
+      try {
+        const values: Record<string, string> = {};
+        for (const p of template.placements) {
+          if (p.type !== 'text' && p.variableName) values[p.variableName] = `{{${p.variableName}}}`;
+        }
+        const blob = await exportPdfTemplateWithValues(template, { values });
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [template]);
+
+  if (failed) return <div className="p-8 text-center text-slate-400 text-sm">Aperçu PDF indisponible</div>;
+  if (!url)   return <div className="p-8 text-center text-slate-400 text-sm">Chargement de l&apos;aperçu…</div>;
+  return (
+    <iframe
+      title="Aperçu PDF"
+      src={url}
+      className="w-full bg-white rounded-lg"
+      style={{ height: 'calc(85vh - 130px)', border: 'none' }}
+    />
+  );
+}
 
 function ModalContractInvoicePreview({ template }: { template: Template }) {
   const type = template.type?.toLowerCase();
 
   if (type === 'contrat') {
+    // PDF-template contracts: render the real stamped PDF rather than TipTap/blocks.
+    const pdfTpl = tryParsePdfTemplate(template.content);
+    if (pdfTpl) return <PdfTemplatePreview template={pdfTpl} />;
+
     try {
       const data = JSON.parse(template.content);
       const contractLabels: Record<string, string> = {

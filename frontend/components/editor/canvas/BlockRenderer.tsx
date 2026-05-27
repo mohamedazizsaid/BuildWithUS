@@ -116,22 +116,33 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
     }
     case 'button': {
       const bWidth = block.styles.btnWidth || 'auto';
+      const bFull = bWidth !== 'auto';
+      const bBorderSize = block.styles.borderSize || globalStyles.btnBorderSize;
+      // Mirror blockToMjml: block.styles.padding is the OUTER spacing around the
+      // button; MJML sizes the button with its default inner-padding of 10px 25px
+      // and vertically centers the label.
       return (
-        <div style={{ textAlign: block.styles.textAlign as React.CSSProperties['textAlign'] }}>
+        <div style={{ textAlign: block.styles.textAlign as React.CSSProperties['textAlign'], padding: block.styles.padding }}>
           <span style={{
-            display: bWidth !== 'auto' ? 'block' : 'inline-block',
-            width: bWidth !== 'auto' ? bWidth : undefined,
+            display: bFull ? 'flex' : 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: bFull ? bWidth : undefined,
             backgroundColor: block.styles.backgroundColor || globalStyles.btnBackgroundColor,
             color: block.styles.color || globalStyles.btnFontColor,
             fontSize: block.styles.fontSize || globalStyles.btnFontSize,
             fontFamily: block.styles.fontFamily || globalStyles.btnFontFamily,
             fontWeight: block.styles.fontWeight || globalStyles.btnFontWeight,
-            padding: block.styles.padding,
+            lineHeight: block.styles.lineHeight || globalStyles.lineHeight,
+            letterSpacing: block.styles.letterSpacing || undefined,
+            padding: '10px 25px',
             borderRadius: block.styles.borderRadius || globalStyles.btnBorderRadius,
-            border: `${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor}`,
+            border: bBorderSize && bBorderSize !== '0px'
+              ? `${bBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor}`
+              : undefined,
             cursor: 'pointer',
             textAlign: 'center',
-            margin: block.styles.textAlign === 'center' ? '0 auto' : block.styles.textAlign === 'right' ? '0 0 0 auto' : undefined,
+            margin: !bFull && block.styles.textAlign === 'center' ? '0 auto' : !bFull && block.styles.textAlign === 'right' ? '0 0 0 auto' : undefined,
           }}>
             <span dangerouslySetInnerHTML={{ __html: (block.content.text as string) || 'Bouton' }} />
           </span>

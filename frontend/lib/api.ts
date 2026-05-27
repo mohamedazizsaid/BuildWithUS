@@ -1,13 +1,85 @@
 const API_URL = 'http://localhost:3000';
 
+// ─── Embed-mode Bearer auth ────────────────────────────────────────────────
+// When the app is loaded inside an <iframe> via /embed, the host (Tool X)
+// passes an M2M JWT in the URL fragment. The embed page calls setEmbedToken()
+// once at boot. From then on every API call switches to Bearer auth and
+// stops sending cookies (the iframe is cross-origin and has no session
+// cookie of its own).
+//
+// We mirror the token + the host origin into sessionStorage so they survive
+// client-side navigation inside the iframe (e.g. /embed → /embed/contract-editor).
+let embedToken: string | null = null;
+const TOKEN_KEY  = 'winaity_embed_token';
+const ORIGIN_KEY = 'winaity_embed_return_origin';
+
+export function setEmbedToken(token: string | null): void {
+    embedToken = token;
+    if (typeof window === 'undefined') return;
+    try {
+        if (token) sessionStorage.setItem(TOKEN_KEY, token);
+        else sessionStorage.removeItem(TOKEN_KEY);
+    } catch { /* sessionStorage may be unavailable */ }
+}
+
+export function setEmbedReturnOrigin(origin: string | null): void {
+    if (typeof window === 'undefined') return;
+    try {
+        if (origin) sessionStorage.setItem(ORIGIN_KEY, origin);
+        else sessionStorage.removeItem(ORIGIN_KEY);
+    } catch { /* ignore */ }
+}
+
+export function getEmbedReturnOrigin(): string | null {
+    if (typeof window === 'undefined') return null;
+    try { return sessionStorage.getItem(ORIGIN_KEY); } catch { return null; }
+}
+
+function activeEmbedToken(): string | null {
+    if (embedToken) return embedToken;
+    if (typeof window === 'undefined') return null;
+    try {
+        const v = sessionStorage.getItem(TOKEN_KEY);
+        if (v) embedToken = v;
+        return v;
+    } catch { return null; }
+}
+
+export function getEmbedToken(): string | null { return activeEmbedToken(); }
+
+/** True whenever an embed M2M token is active. Reactive code should poll
+ *  this rather than caching the result — the token gets set right after the
+ *  /embed page mounts. */
+export function isEmbedMode(): boolean { return activeEmbedToken() != null; }
+
+/** Decode a JWT payload without verifying its signature. Safe to use only for
+ *  reading claims the server has already validated on the request that gave
+ *  us this token. Returns null on malformed input. */
+export function decodeJwtPayload(token: string): Record<string, unknown> | null {
+    try {
+        const part = token.split('.')[1];
+        if (!part) return null;
+        const padded = part + '='.repeat((4 - (part.length % 4)) % 4);
+        const json = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
+        return JSON.parse(json) as Record<string, unknown>;
+    } catch { return null; }
+}
+
 async function request(endpoint: string, options: RequestInit = {}){
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> | undefined),
+    };
+    let credentials: RequestCredentials = 'include';
+    const t = activeEmbedToken();
+    if (t) {
+        headers.Authorization = `Bearer ${t}`;
+        credentials = 'omit';
+    }
     const res = await fetch(`${API_URL}${endpoint}`,{
      ...options,
-     credentials: 'include', // send ookies with every request
-     headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-     },
+     credentials,
+     headers,
 });
 
 const data = await res.json();

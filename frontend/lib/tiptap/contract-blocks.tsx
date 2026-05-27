@@ -1,9 +1,71 @@
 'use client'
 
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewWrapper, NodeViewContent, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useVarLabels } from './var-labels-context'
+
+// ─── EditableLabel ───────────────────────────────────────────────────────────
+// Tiny controlled input that inherits the surrounding text style. Used to make
+// hardcoded labels in block NodeViews user-editable. Click to focus, Enter or
+// blur to commit, Escape to cancel.
+
+function EditableLabel({
+  value,
+  placeholder,
+  onCommit,
+  display = 'block',
+  style,
+}: {
+  value: string
+  placeholder?: string
+  onCommit: (v: string) => void
+  display?: 'block' | 'inline'
+  style?: CSSProperties
+}) {
+  const [draft, setDraft] = useState(value)
+  useEffect(() => { setDraft(value) }, [value])
+
+  const commit = () => { if (draft !== value) onCommit(draft) }
+  const inline = display === 'inline'
+  const displayed = draft.length > 0 ? draft : (placeholder ?? '')
+  const widthCh = Math.max(displayed.length, placeholder?.length ?? 0, 4) + 1
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur() }
+        if (e.key === 'Escape') { setDraft(value); (e.target as HTMLInputElement).blur() }
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      contentEditable={false}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        outline: 'none',
+        padding: 0,
+        margin: 0,
+        color: 'inherit',
+        font: 'inherit',
+        textAlign: 'inherit',
+        textTransform: 'inherit',
+        letterSpacing: 'inherit',
+        cursor: 'text',
+        ...(inline
+          ? { display: 'inline-block', width: `${widthCh}ch`, verticalAlign: 'baseline' }
+          : { display: 'block', width: '100%' }),
+        ...style,
+      }}
+    />
+  )
+}
 
 // ─── Inline variable chip (used by atom NodeViews) ───────────────────────────
 
@@ -116,24 +178,57 @@ function FinancialView({ node, updateAttributes }: NodeViewProps) {
     <NodeViewWrapper>
       <div style={{ margin: '14px 0', border: `1px solid ${accentColor}33`, borderRadius: '6px', overflow: 'hidden' }}>
         <div style={{ background: headerBg, color: 'white', padding: '7px 14px', fontSize: '9pt', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {a.title || 'RÉCAPITULATIF FINANCIER'}
+          <EditableLabel
+            value={a.title ?? ''}
+            placeholder="RÉCAPITULATIF FINANCIER"
+            onCommit={(v) => updateAttributes({ title: v })}
+          />
         </div>
         <div style={{ padding: '12px 14px', background: bodyBg }} contentEditable={false}>
           <div style={{ fontSize: '9.5pt', color: accentColor, marginBottom: '10px', fontWeight: 500 }}>
-            Prestation : <VarChip name={a.descriptionVar} attrKey="descriptionVar" small onClear={() => updateAttributes({ descriptionVar: '' })} />
+            <EditableLabel
+              value={a.labelDescription ?? ''}
+              placeholder="Prestation :"
+              display="inline"
+              onCommit={(v) => updateAttributes({ labelDescription: v })}
+            />
+            {' '}
+            <VarChip name={a.descriptionVar} attrKey="descriptionVar" small onClear={() => updateAttributes({ descriptionVar: '' })} />
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt' }}>
             <tbody>
               <tr style={{ borderBottom: `1px solid ${accentColor}33` }}>
-                <td style={{ padding: '5px 0', color: '#475569' }}>Montant HT</td>
+                <td style={{ padding: '5px 0', color: '#475569' }}>
+                  <EditableLabel
+                    value={a.labelHt ?? ''}
+                    placeholder="Montant HT"
+                    display="inline"
+                    onCommit={(v) => updateAttributes({ labelHt: v })}
+                  />
+                </td>
                 <td style={{ textAlign: 'right', fontWeight: 500 }}><VarChip name={a.htVar} attrKey="htVar" small onClear={() => updateAttributes({ htVar: '' })} /> €</td>
               </tr>
               <tr style={{ borderBottom: `1px solid ${accentColor}33` }}>
-                <td style={{ padding: '5px 0', color: '#475569' }}>TVA (<VarChip name={a.rateVar} attrKey="rateVar" small onClear={() => updateAttributes({ rateVar: '' })} />%)</td>
+                <td style={{ padding: '5px 0', color: '#475569' }}>
+                  <EditableLabel
+                    value={a.labelTva ?? ''}
+                    placeholder="TVA"
+                    display="inline"
+                    onCommit={(v) => updateAttributes({ labelTva: v })}
+                  />
+                  {' ('}<VarChip name={a.rateVar} attrKey="rateVar" small onClear={() => updateAttributes({ rateVar: '' })} />{'%)'}
+                </td>
                 <td style={{ textAlign: 'right', fontWeight: 500 }}><VarChip name={a.tvaVar} attrKey="tvaVar" small onClear={() => updateAttributes({ tvaVar: '' })} /> €</td>
               </tr>
               <tr>
-                <td style={{ padding: '8px 0', fontSize: '11pt', fontWeight: 800 }}>Total TTC</td>
+                <td style={{ padding: '8px 0', fontSize: '11pt', fontWeight: 800 }}>
+                  <EditableLabel
+                    value={a.labelTtc ?? ''}
+                    placeholder="Total TTC"
+                    display="inline"
+                    onCommit={(v) => updateAttributes({ labelTtc: v })}
+                  />
+                </td>
                 <td style={{ textAlign: 'right', fontSize: '11pt', fontWeight: 800, color: accentColor }}>
                   <VarChip name={a.ttcVar} attrKey="ttcVar" onClear={() => updateAttributes({ ttcVar: '' })} /> €
                 </td>
@@ -141,7 +236,11 @@ function FinancialView({ node, updateAttributes }: NodeViewProps) {
             </tbody>
           </table>
           <div style={{ fontSize: '8pt', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' }}>
-            Prix TTC — TVA incluse — Conformément à l&apos;article 289 du CGI
+            <EditableLabel
+              value={a.labelFooter ?? ''}
+              placeholder="Prix TTC — TVA incluse — Conformément à l&apos;article 289 du CGI"
+              onCommit={(v) => updateAttributes({ labelFooter: v })}
+            />
           </div>
         </div>
       </div>
@@ -157,29 +256,39 @@ export const FinancialBlock = Node.create({
   selectable: true,
   addAttributes() {
     return {
-      title:          { default: 'RÉCAPITULATIF FINANCIER' },
-      descriptionVar: { default: 'description_prestation' },
-      htVar:          { default: 'montant_ht' },
-      rateVar:        { default: 'taux_tva' },
-      tvaVar:         { default: 'montant_tva' },
-      ttcVar:         { default: 'montant_ttc' },
-      blockBg:        { default: '' },
-      blockAccent:    { default: '' },
+      title:            { default: 'RÉCAPITULATIF FINANCIER' },
+      descriptionVar:   { default: 'description_prestation' },
+      htVar:            { default: 'montant_ht' },
+      rateVar:          { default: 'taux_tva' },
+      tvaVar:           { default: 'montant_tva' },
+      ttcVar:           { default: 'montant_ttc' },
+      labelDescription: { default: 'Prestation :' },
+      labelHt:          { default: 'Montant HT' },
+      labelTva:         { default: 'TVA' },
+      labelTtc:         { default: 'Total TTC' },
+      labelFooter:      { default: 'Prix TTC — TVA incluse — Conformément à l’article 289 du CGI' },
+      blockBg:          { default: '' },
+      blockAccent:      { default: '' },
     }
   },
   parseHTML() { return [{ tag: 'div[data-financial-block]' }] },
   renderHTML({ node, HTMLAttributes }) {
     const a = node.attrs
     return ['div', mergeAttributes(HTMLAttributes, {
-      'data-financial-block': '',
-      'data-title':           a.title,
-      'data-description-var': a.descriptionVar,
-      'data-ht-var':          a.htVar,
-      'data-rate-var':        a.rateVar,
-      'data-tva-var':         a.tvaVar,
-      'data-ttc-var':         a.ttcVar,
-      'data-block-bg':        a.blockBg,
-      'data-block-accent':    a.blockAccent,
+      'data-financial-block':   '',
+      'data-title':             a.title,
+      'data-description-var':   a.descriptionVar,
+      'data-ht-var':            a.htVar,
+      'data-rate-var':          a.rateVar,
+      'data-tva-var':           a.tvaVar,
+      'data-ttc-var':           a.ttcVar,
+      'data-label-description': a.labelDescription,
+      'data-label-ht':          a.labelHt,
+      'data-label-tva':         a.labelTva,
+      'data-label-ttc':         a.labelTtc,
+      'data-label-footer':      a.labelFooter,
+      'data-block-bg':          a.blockBg,
+      'data-block-accent':      a.blockAccent,
     })]
   },
   addNodeView() { return ReactNodeViewRenderer(FinancialView) },
@@ -189,7 +298,7 @@ export const FinancialBlock = Node.create({
 // 2. DEFINITIONS BLOCK
 // ═════════════════════════════════════════════════════════════════════════════
 
-function DefinitionsView({ node }: NodeViewProps) {
+function DefinitionsView({ node, updateAttributes }: NodeViewProps) {
   const a = node.attrs as Record<string, string>
   const headerBg = a.blockAccent || '#0f172a'
   const bodyBg   = a.blockBg    || '#f8fafc'
@@ -197,7 +306,11 @@ function DefinitionsView({ node }: NodeViewProps) {
     <NodeViewWrapper>
       <div style={{ margin: '14px 0', border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
         <div contentEditable={false} style={{ background: headerBg, color: 'white', padding: '8px 14px', fontSize: '9pt', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {a.title || 'DÉFINITIONS'}
+          <EditableLabel
+            value={a.title ?? ''}
+            placeholder="DÉFINITIONS"
+            onCommit={(v) => updateAttributes({ title: v })}
+          />
         </div>
         <NodeViewContent style={{ padding: '10px 14px', background: bodyBg, fontSize: '9.5pt', color: '#334155', minHeight: '50px' }} />
       </div>
@@ -240,7 +353,7 @@ const INFO_VARIANTS: Record<string, { bg: string; border: string; titleColor: st
   note:    { bg: '#f8fafc', border: '#cbd5e1', titleColor: '#475569', textColor: '#1e293b' },
 }
 
-function InfoBoxView({ node }: NodeViewProps) {
+function InfoBoxView({ node, updateAttributes }: NodeViewProps) {
   const a = node.attrs as Record<string, string>
   const variant = INFO_VARIANTS[a.variant] ?? INFO_VARIANTS.info
   const bg          = a.blockBg     || variant.bg
@@ -250,11 +363,13 @@ function InfoBoxView({ node }: NodeViewProps) {
   return (
     <NodeViewWrapper>
       <div style={{ margin: '12px 0', padding: '12px 16px', background: bg, border: `1px solid ${borderColor}`, borderRadius: '4px' }}>
-        {a.title && (
-          <div contentEditable={false} style={{ fontSize: '9pt', fontWeight: 700, color: titleColor, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-            {a.title}
-          </div>
-        )}
+        <div contentEditable={false} style={{ fontSize: '9pt', fontWeight: 700, color: titleColor, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+          <EditableLabel
+            value={a.title ?? ''}
+            placeholder="Titre (optionnel)"
+            onCommit={(v) => updateAttributes({ title: v })}
+          />
+        </div>
         <NodeViewContent style={{ fontSize: '9.5pt', lineHeight: 1.65, color: textColor }} />
       </div>
     </NodeViewWrapper>
@@ -330,7 +445,7 @@ export const PartiesBlock = Node.create({
 // 5. FORM FIELDS BLOCK
 // ═════════════════════════════════════════════════════════════════════════════
 
-function FormFieldsView({ node }: NodeViewProps) {
+function FormFieldsView({ node, updateAttributes }: NodeViewProps) {
   const a = node.attrs as Record<string, string>
   const bodyBg      = a.blockBg    || 'transparent'
   const accentColor = a.blockAccent || '#0f172a'
@@ -339,7 +454,11 @@ function FormFieldsView({ node }: NodeViewProps) {
     <NodeViewWrapper>
       <div style={{ margin: '12px 0', padding: '14px', border: `1px solid ${borderColor}`, borderRadius: '6px', background: bodyBg }}>
         <div contentEditable={false} style={{ fontSize: '9pt', fontWeight: 700, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: accentColor }}>
-          {a.title || 'COORDONNÉES DU CLIENT'}
+          <EditableLabel
+            value={a.title ?? ''}
+            placeholder="COORDONNÉES DU CLIENT"
+            onCommit={(v) => updateAttributes({ title: v })}
+          />
         </div>
         <NodeViewContent className="form-fields-body" style={{ fontSize: '10pt', lineHeight: 2 }} />
       </div>
@@ -375,7 +494,7 @@ export const FormFieldsBlock = Node.create({
 // 6. CHECKBOX BLOCK
 // ═════════════════════════════════════════════════════════════════════════════
 
-function CheckboxView({ node }: NodeViewProps) {
+function CheckboxView({ node, updateAttributes }: NodeViewProps) {
   const a = node.attrs as Record<string, string>
   const bodyBg      = a.blockBg    || 'transparent'
   const accentColor = a.blockAccent || '#0f172a'
@@ -384,7 +503,11 @@ function CheckboxView({ node }: NodeViewProps) {
     <NodeViewWrapper>
       <div style={{ margin: '12px 0', padding: '14px', border: `1px solid ${borderColor}`, borderRadius: '6px', background: bodyBg }}>
         <div contentEditable={false} style={{ fontSize: '9pt', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', color: accentColor }}>
-          {a.title || 'OPTIONS'}
+          <EditableLabel
+            value={a.title ?? ''}
+            placeholder="OPTIONS"
+            onCommit={(v) => updateAttributes({ title: v })}
+          />
         </div>
         <NodeViewContent className="checkbox-body" style={{ fontSize: '10pt', lineHeight: 1.9 }} />
       </div>
@@ -428,7 +551,24 @@ function SignatureView({ node, updateAttributes }: NodeViewProps) {
     <NodeViewWrapper>
       <div contentEditable={false} style={{ margin: '20px 0', background: a.blockBg || 'transparent' }}>
         <div style={{ fontSize: '10pt', color: '#475569', marginBottom: '20px' }}>
-          Fait à <VarChip name={a.cityVar} attrKey="cityVar" small onClear={() => updateAttributes({ cityVar: '' })} />, le <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} />.
+          <EditableLabel
+            value={a.labelPlace ?? ''}
+            placeholder="Fait à"
+            display="inline"
+            onCommit={(v) => updateAttributes({ labelPlace: v })}
+          />
+          {' '}
+          <VarChip name={a.cityVar} attrKey="cityVar" small onClear={() => updateAttributes({ cityVar: '' })} />
+          {', '}
+          <EditableLabel
+            value={a.labelDate ?? ''}
+            placeholder="le"
+            display="inline"
+            onCommit={(v) => updateAttributes({ labelDate: v })}
+          />
+          {' '}
+          <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} />
+          {'.'}
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           {labels.map((label, i) => {
@@ -436,9 +576,24 @@ function SignatureView({ node, updateAttributes }: NodeViewProps) {
             return (
               <div key={label} style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ height: '50px', borderBottom: `1px solid ${lineColor}`, marginBottom: '6px' }} />
-                <div style={{ fontSize: '8.5pt', color: '#475569', fontWeight: 600 }}>Signature du {label}</div>
+                <div style={{ fontSize: '8.5pt', color: '#475569', fontWeight: 600 }}>
+                  <EditableLabel
+                    value={a.labelSignedBy ?? ''}
+                    placeholder="Signature du"
+                    display="inline"
+                    onCommit={(v) => updateAttributes({ labelSignedBy: v })}
+                  />
+                  {' '}{label}
+                </div>
                 <div style={{ fontSize: '8pt', color: '#94a3b8', marginTop: '4px' }}>
-                  Nom : <VarChip name={a[nameKey] ?? ''} attrKey={nameKey} small onClear={() => updateAttributes({ [nameKey]: '' })} />
+                  <EditableLabel
+                    value={a.labelName ?? ''}
+                    placeholder="Nom :"
+                    display="inline"
+                    onCommit={(v) => updateAttributes({ labelName: v })}
+                  />
+                  {' '}
+                  <VarChip name={a[nameKey] ?? ''} attrKey={nameKey} small onClear={() => updateAttributes({ [nameKey]: '' })} />
                 </div>
               </div>
             )
@@ -456,29 +611,37 @@ export const SignatureBlock = Node.create({
   draggable: true,
   addAttributes() {
     return {
-      cityVar:     { default: 'ville_signature' },
-      dateVar:     { default: 'date_signature' },
-      columns:     { default: 'Prestataire,Client' },
-      nameVar0:    { default: 'prestataire_nom' },
-      nameVar1:    { default: 'client_nom' },
-      nameVar2:    { default: '' },
-      blockBg:     { default: '' },
-      blockAccent: { default: '' },
+      cityVar:       { default: 'ville_signature' },
+      dateVar:       { default: 'date_signature' },
+      columns:       { default: 'Prestataire,Client' },
+      nameVar0:      { default: 'prestataire_nom' },
+      nameVar1:      { default: 'client_nom' },
+      nameVar2:      { default: '' },
+      labelPlace:    { default: 'Fait à' },
+      labelDate:     { default: 'le' },
+      labelSignedBy: { default: 'Signature du' },
+      labelName:     { default: 'Nom :' },
+      blockBg:       { default: '' },
+      blockAccent:   { default: '' },
     }
   },
   parseHTML() { return [{ tag: 'div[data-signature-block]' }] },
   renderHTML({ node, HTMLAttributes }) {
     const a = node.attrs
     return ['div', mergeAttributes(HTMLAttributes, {
-      'data-signature-block': '',
-      'data-city-var':     a.cityVar,
-      'data-date-var':     a.dateVar,
-      'data-columns':      a.columns,
-      'data-name-var-0':   a.nameVar0,
-      'data-name-var-1':   a.nameVar1,
-      'data-name-var-2':   a.nameVar2,
-      'data-block-bg':     a.blockBg,
-      'data-block-accent': a.blockAccent,
+      'data-signature-block':  '',
+      'data-city-var':         a.cityVar,
+      'data-date-var':         a.dateVar,
+      'data-columns':          a.columns,
+      'data-name-var-0':       a.nameVar0,
+      'data-name-var-1':       a.nameVar1,
+      'data-name-var-2':       a.nameVar2,
+      'data-label-place':      a.labelPlace,
+      'data-label-date':       a.labelDate,
+      'data-label-signed-by':  a.labelSignedBy,
+      'data-label-name':       a.labelName,
+      'data-block-bg':         a.blockBg,
+      'data-block-accent':     a.blockAccent,
     })]
   },
   addNodeView() { return ReactNodeViewRenderer(SignatureView) },
@@ -497,32 +660,92 @@ function SepaView({ node, updateAttributes }: NodeViewProps) {
     <NodeViewWrapper>
       <div contentEditable={false} style={{ margin: '14px 0', border: `2px solid ${borderColor}`, borderRadius: '4px', overflow: 'hidden' }}>
         <div style={{ background: headerBg, color: 'white', textAlign: 'center', padding: '8px', fontSize: '11pt', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Mandat de prélèvement SEPA
+          <EditableLabel
+            value={a.title ?? ''}
+            placeholder="Mandat de prélèvement SEPA"
+            onCommit={(v) => updateAttributes({ title: v })}
+            style={{ textAlign: 'center' }}
+          />
         </div>
         <div style={{ padding: '12px', fontSize: '9.5pt', color: '#1e293b', background: bodyBg }}>
           <p style={{ margin: '0 0 10px' }}>
             En signant ce formulaire, vous autorisez <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} /> à envoyer des instructions à votre banque pour débiter votre compte.
           </p>
           <div style={{ marginBottom: '6px' }}>
-            <strong>Créancier :</strong> <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} />
-            <span style={{ marginLeft: '20px' }}><strong>ICS :</strong> <VarChip name={a.icsVar} attrKey="icsVar" small onClear={() => updateAttributes({ icsVar: '' })} /></span>
+            <strong>
+              <EditableLabel
+                value={a.labelCreditor ?? ''}
+                placeholder="Créancier :"
+                display="inline"
+                onCommit={(v) => updateAttributes({ labelCreditor: v })}
+              />
+            </strong>
+            {' '}
+            <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} />
+            <span style={{ marginLeft: '20px' }}>
+              <strong>
+                <EditableLabel
+                  value={a.labelIcs ?? ''}
+                  placeholder="ICS :"
+                  display="inline"
+                  onCommit={(v) => updateAttributes({ labelIcs: v })}
+                />
+              </strong>
+              {' '}
+              <VarChip name={a.icsVar} attrKey="icsVar" small onClear={() => updateAttributes({ icsVar: '' })} />
+            </span>
           </div>
           <div style={{ marginBottom: '10px' }}>
-            <strong>Adresse :</strong> <VarChip name={a.addressVar} attrKey="addressVar" small onClear={() => updateAttributes({ addressVar: '' })} />
+            <strong>
+              <EditableLabel
+                value={a.labelAddress ?? ''}
+                placeholder="Adresse :"
+                display="inline"
+                onCommit={(v) => updateAttributes({ labelAddress: v })}
+              />
+            </strong>
+            {' '}
+            <VarChip name={a.addressVar} attrKey="addressVar" small onClear={() => updateAttributes({ addressVar: '' })} />
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <div style={{ flex: 1, border: '1px solid #cbd5e1', padding: '6px 8px', borderRadius: '4px' }}>
-              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a', marginBottom: '4px' }}>IBAN</div>
+              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a', marginBottom: '4px' }}>
+                <EditableLabel
+                  value={a.labelIban ?? ''}
+                  placeholder="IBAN"
+                  onCommit={(v) => updateAttributes({ labelIban: v })}
+                />
+              </div>
               <VarChip name={a.ibanVar} attrKey="ibanVar" small onClear={() => updateAttributes({ ibanVar: '' })} />
             </div>
             <div style={{ flex: 0.6, border: '1px solid #cbd5e1', padding: '6px 8px', borderRadius: '4px' }}>
-              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a', marginBottom: '4px' }}>BIC</div>
+              <div style={{ fontWeight: 700, fontSize: '8pt', color: '#0f172a', marginBottom: '4px' }}>
+                <EditableLabel
+                  value={a.labelBic ?? ''}
+                  placeholder="BIC"
+                  onCommit={(v) => updateAttributes({ labelBic: v })}
+                />
+              </div>
               <VarChip name={a.bicVar} attrKey="bicVar" small onClear={() => updateAttributes({ bicVar: '' })} />
             </div>
           </div>
           <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '8.5pt' }}>
-            <span><strong>Type :</strong> Récurrent / répétitif</span>
-            <span style={{ borderBottom: `1px solid ${borderColor}`, minWidth: '120px', textAlign: 'right' }}>Signature</span>
+            <span>
+              <EditableLabel
+                value={a.labelType ?? ''}
+                placeholder="Type : Récurrent / répétitif"
+                display="inline"
+                onCommit={(v) => updateAttributes({ labelType: v })}
+              />
+            </span>
+            <span style={{ borderBottom: `1px solid ${borderColor}`, minWidth: '120px', textAlign: 'right' }}>
+              <EditableLabel
+                value={a.labelSignature ?? ''}
+                placeholder="Signature"
+                display="inline"
+                onCommit={(v) => updateAttributes({ labelSignature: v })}
+              />
+            </span>
           </div>
         </div>
       </div>
@@ -537,27 +760,43 @@ export const SepaBlock = Node.create({
   draggable: true,
   addAttributes() {
     return {
-      creditorVar: { default: 'prestataire_nom' },
-      addressVar:  { default: 'prestataire_adresse' },
-      icsVar:      { default: 'ics_creancier' },
-      ibanVar:     { default: 'iban_client' },
-      bicVar:      { default: 'bic_client' },
-      blockBg:     { default: '' },
-      blockAccent: { default: '' },
+      title:          { default: 'Mandat de prélèvement SEPA' },
+      creditorVar:    { default: 'prestataire_nom' },
+      addressVar:     { default: 'prestataire_adresse' },
+      icsVar:         { default: 'ics_creancier' },
+      ibanVar:        { default: 'iban_client' },
+      bicVar:         { default: 'bic_client' },
+      labelCreditor:  { default: 'Créancier :' },
+      labelIcs:       { default: 'ICS :' },
+      labelAddress:   { default: 'Adresse :' },
+      labelIban:      { default: 'IBAN' },
+      labelBic:       { default: 'BIC' },
+      labelType:      { default: 'Type : Récurrent / répétitif' },
+      labelSignature: { default: 'Signature' },
+      blockBg:        { default: '' },
+      blockAccent:    { default: '' },
     }
   },
   parseHTML() { return [{ tag: 'div[data-sepa-block]' }] },
   renderHTML({ node, HTMLAttributes }) {
     const a = node.attrs
     return ['div', mergeAttributes(HTMLAttributes, {
-      'data-sepa-block':    '',
-      'data-creditor-var':  a.creditorVar,
-      'data-address-var':   a.addressVar,
-      'data-ics-var':       a.icsVar,
-      'data-iban-var':      a.ibanVar,
-      'data-bic-var':       a.bicVar,
-      'data-block-bg':      a.blockBg,
-      'data-block-accent':  a.blockAccent,
+      'data-sepa-block':      '',
+      'data-title':           a.title,
+      'data-creditor-var':    a.creditorVar,
+      'data-address-var':     a.addressVar,
+      'data-ics-var':         a.icsVar,
+      'data-iban-var':        a.ibanVar,
+      'data-bic-var':         a.bicVar,
+      'data-label-creditor':  a.labelCreditor,
+      'data-label-ics':       a.labelIcs,
+      'data-label-address':   a.labelAddress,
+      'data-label-iban':      a.labelIban,
+      'data-label-bic':       a.labelBic,
+      'data-label-type':      a.labelType,
+      'data-label-signature': a.labelSignature,
+      'data-block-bg':        a.blockBg,
+      'data-block-accent':    a.blockAccent,
     })]
   },
   addNodeView() { return ReactNodeViewRenderer(SepaView) },
@@ -576,7 +815,12 @@ function RetractView({ node, updateAttributes }: NodeViewProps) {
     <NodeViewWrapper>
       <div contentEditable={false} style={{ margin: '14px 0', padding: '14px', border: `1px solid ${borderColor}`, borderRadius: '4px', background: bodyBg }}>
         <div style={{ textAlign: 'center', fontSize: '9pt', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', color: accentColor }}>
-          Formulaire de rétractation
+          <EditableLabel
+            value={a.title ?? ''}
+            placeholder="Formulaire de rétractation"
+            onCommit={(v) => updateAttributes({ title: v })}
+            style={{ textAlign: 'center' }}
+          />
         </div>
         <p style={{ fontSize: '9pt', lineHeight: 1.7, color: '#475569', margin: '0 0 8px' }}>
           Je soussigné(e) <VarChip name={a.firstNameVar} attrKey="firstNameVar" small onClear={() => updateAttributes({ firstNameVar: '' })} /> <VarChip name={a.lastNameVar} attrKey="lastNameVar" small onClear={() => updateAttributes({ lastNameVar: '' })} />, déclare renoncer au contrat conclu auprès de <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} /> le <VarChip name={a.dateVar} attrKey="dateVar" small onClear={() => updateAttributes({ dateVar: '' })} /> (N° contrat : <VarChip name={a.numberVar} attrKey="numberVar" small onClear={() => updateAttributes({ numberVar: '' })} />).
@@ -585,9 +829,34 @@ function RetractView({ node, updateAttributes }: NodeViewProps) {
           À renvoyer dans un délai de 14 jours par lettre recommandée avec AR à : <VarChip name={a.creditorVar} attrKey="creditorVar" small onClear={() => updateAttributes({ creditorVar: '' })} /> — Service Rétractation — <VarChip name={a.addressVar} attrKey="addressVar" small onClear={() => updateAttributes({ addressVar: '' })} />.
         </p>
         <div style={{ display: 'flex', gap: '12px', marginTop: '10px', fontSize: '9pt', alignItems: 'center' }}>
-          <span>Adresse : <VarChip name={a.signAddressVar} attrKey="signAddressVar" small onClear={() => updateAttributes({ signAddressVar: '' })} /></span>
-          <span>Ville : <VarChip name={a.signCityVar} attrKey="signCityVar" small onClear={() => updateAttributes({ signCityVar: '' })} /></span>
-          <span style={{ marginLeft: 'auto', borderBottom: `1px solid ${accentColor}`, minWidth: '120px', textAlign: 'right' }}>Signature</span>
+          <span>
+            <EditableLabel
+              value={a.labelAddress ?? ''}
+              placeholder="Adresse :"
+              display="inline"
+              onCommit={(v) => updateAttributes({ labelAddress: v })}
+            />
+            {' '}
+            <VarChip name={a.signAddressVar} attrKey="signAddressVar" small onClear={() => updateAttributes({ signAddressVar: '' })} />
+          </span>
+          <span>
+            <EditableLabel
+              value={a.labelCity ?? ''}
+              placeholder="Ville :"
+              display="inline"
+              onCommit={(v) => updateAttributes({ labelCity: v })}
+            />
+            {' '}
+            <VarChip name={a.signCityVar} attrKey="signCityVar" small onClear={() => updateAttributes({ signCityVar: '' })} />
+          </span>
+          <span style={{ marginLeft: 'auto', borderBottom: `1px solid ${accentColor}`, minWidth: '120px', textAlign: 'right' }}>
+            <EditableLabel
+              value={a.labelSignature ?? ''}
+              placeholder="Signature"
+              display="inline"
+              onCommit={(v) => updateAttributes({ labelSignature: v })}
+            />
+          </span>
         </div>
       </div>
     </NodeViewWrapper>
@@ -601,6 +870,7 @@ export const RetractBlock = Node.create({
   draggable: true,
   addAttributes() {
     return {
+      title:           { default: 'Formulaire de rétractation' },
       firstNameVar:    { default: 'client_prenom' },
       lastNameVar:     { default: 'client_nom' },
       creditorVar:     { default: 'prestataire_nom' },
@@ -609,6 +879,9 @@ export const RetractBlock = Node.create({
       numberVar:       { default: 'numero_contrat' },
       signAddressVar:  { default: 'client_adresse' },
       signCityVar:     { default: 'client_ville' },
+      labelAddress:    { default: 'Adresse :' },
+      labelCity:       { default: 'Ville :' },
+      labelSignature:  { default: 'Signature' },
       blockBg:         { default: '' },
       blockAccent:     { default: '' },
     }
@@ -618,6 +891,7 @@ export const RetractBlock = Node.create({
     const a = node.attrs
     return ['div', mergeAttributes(HTMLAttributes, {
       'data-retract-block':    '',
+      'data-title':            a.title,
       'data-first-name-var':   a.firstNameVar,
       'data-last-name-var':    a.lastNameVar,
       'data-creditor-var':     a.creditorVar,
@@ -626,6 +900,9 @@ export const RetractBlock = Node.create({
       'data-number-var':       a.numberVar,
       'data-sign-address-var': a.signAddressVar,
       'data-sign-city-var':    a.signCityVar,
+      'data-label-address':    a.labelAddress,
+      'data-label-city':       a.labelCity,
+      'data-label-signature':  a.labelSignature,
       'data-block-bg':         a.blockBg,
       'data-block-accent':     a.blockAccent,
     })]

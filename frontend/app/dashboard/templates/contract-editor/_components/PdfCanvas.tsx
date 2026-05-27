@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 import type { PdfTemplate, PdfPlacement } from '../_lib/pdf-template';
+import { isTextPlacement, isShapePlacement, EDITOR_PAGE_WIDTH } from '../_lib/pdf-template';
 
 interface PdfCanvasProps {
   readonly template: PdfTemplate;
@@ -12,8 +13,9 @@ interface PdfCanvasProps {
 }
 
 // Target CSS-pixel width of each rendered page. We multiply by devicePixelRatio
-// at rasterization time so the bitmap stays crisp on hi-DPR screens.
-const PAGE_TARGET_WIDTH = 760;
+// at rasterization time so the bitmap stays crisp on hi-DPR screens. Shared with
+// the exporter so stamped font sizes scale to match the editor.
+const PAGE_TARGET_WIDTH = EDITOR_PAGE_WIDTH;
 
 // Minimal subset of the pdfjs-dist types we need — typed this way to avoid
 // importing pdfjs at module scope (it's a browser-only ESM module and would
@@ -219,19 +221,22 @@ function PdfPage({ pdf, meta, placements, selectedId, onSelect, onUpdate, onRemo
           {renderError}
         </div>
       )}
+
       <div className="absolute inset-0 pointer-events-none">
-        {placements.map((p) => (
-          <PlacementChip
-            key={p.id}
-            placement={p}
-            pageWidth={meta.cssWidth}
-            pageHeight={meta.cssHeight}
-            selected={selectedId === p.id}
-            onSelect={() => onSelect(p.id)}
-            onUpdate={(patch) => onUpdate(p.id, patch)}
-            onRemove={() => onRemove(p.id)}
-          />
-        ))}
+        {placements.map((p) => {
+          const common = {
+            placement: p,
+            pageWidth: meta.cssWidth,
+            pageHeight: meta.cssHeight,
+            selected: selectedId === p.id,
+            onSelect: () => onSelect(p.id),
+            onUpdate: (patch: Partial<PdfPlacement>) => onUpdate(p.id, patch),
+            onRemove: () => onRemove(p.id),
+          };
+          return isShapePlacement(p)
+            ? <ShapeChip key={p.id} {...common} />
+            : <PlacementChip key={p.id} {...common} />;
+        })}
       </div>
       <div className="absolute top-1.5 left-2 text-[10px] text-slate-400 font-mono select-none pointer-events-none">
         p.{meta.pageNumber}
@@ -254,10 +259,13 @@ function PlacementChip({ placement, pageWidth, pageHeight, selected, onSelect, o
   const left = placement.x * pageWidth;
   const top  = placement.y * pageHeight;
   const width = placement.width * pageWidth;
+  const isText = isTextPlacement(placement);
+  const [editing, setEditing] = useState(false);
 
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
 
   const startDrag = (e: React.MouseEvent) => {
+    if (editing) return;
     e.stopPropagation();
     onSelect();
     dragState.current = {
@@ -300,28 +308,54 @@ function PlacementChip({ placement, pageWidth, pageHeight, selected, onSelect, o
   };
 
   const label = placement.label ?? placement.variableName;
+  const height = Math.max(18, placement.fontSize * 1.5);
+  const justify = placement.align === 'center' ? 'center' : placement.align === 'right' ? 'flex-end' : 'flex-start';
+
+  // Visual: a 'text' chip previews the actual stamped text in near-black over
+  // its (optional) white-out fill, mirroring the export. A 'variable' chip
+  // keeps the blue {{token}} affordance.
+  const fill = placement.whiteout ? (placement.whiteoutColor || '#ffffff') : undefined;
+  const borderClass = selected
+    ? 'border-2 border-indigo-500 shadow-md'
+    : isText
+      ? 'border border-dashed border-slate-300 hover:border-slate-500'
+      : 'border border-blue-300 hover:border-blue-500';
 
   return (
     <div
       onMouseDown={startDrag}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
-      className={`absolute pointer-events-auto cursor-move select-none rounded-md flex items-center px-2 ${
-        selected
-          ? 'bg-indigo-100 border-2 border-indigo-500 shadow-md'
-          : 'bg-blue-50/95 border border-blue-300 hover:border-blue-500'
-      }`}
+      onDoubleClick={(e) => { if (isText) { e.stopPropagation(); onSelect(); setEditing(true); } }}
+      className={`absolute pointer-events-auto select-none rounded-md flex items-center px-2 ${editing ? 'cursor-text' : 'cursor-move'} ${borderClass} ${!fill && !selected ? (isText ? 'bg-white/80' : 'bg-blue-50/95') : ''}`}
       style={{
-        left, top, width,
-        height: Math.max(18, placement.fontSize * 1.5),
+        left, top, width, height,
+        backgroundColor: selected && !fill ? undefined : fill,
         fontSize: placement.fontSize,
-        color: '#1d4ed8', fontWeight: 600,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-        justifyContent: placement.align === 'center' ? 'center' : placement.align === 'right' ? 'flex-end' : 'flex-start',
+        color: isText ? '#1a1a1a' : '#1d4ed8',
+        fontWeight: placement.bold ? 700 : isText ? 400 : 600,
+        fontStyle: placement.italic ? 'italic' : 'normal',
+        fontFamily: isText ? 'inherit' : 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        justifyContent: justify,
       }}
-      title={`{{${placement.variableName}}}`}
+      title={isText ? placement.text : `{{${placement.variableName}}}`}
     >
-      <span className="truncate text-[0.85em]">{`{{${label}}}`}</span>
-      {selected && (
+      {editing ? (
+        <input
+          autoFocus
+          value={placement.text ?? ''}
+          onChange={(e) => onUpdate({ text: e.target.value })}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); setEditing(false); } }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="w-full bg-transparent outline-none"
+          style={{ fontSize: placement.fontSize, color: '#1a1a1a', textAlign: placement.align ?? 'left' }}
+        />
+      ) : (
+        <span className="truncate text-[0.85em]">
+          {isText ? (placement.text || 'Texte vide') : `{{${label}}}`}
+        </span>
+      )}
+      {selected && !editing && (
         <>
           <button
             type="button"
@@ -348,43 +382,294 @@ function clamp01(v: number): number {
   return v;
 }
 
-export function PdfPlacementInspector({ placement, onChange }: {
+function ShapeChip({ placement, pageWidth, pageHeight, selected, onSelect, onUpdate, onRemove }: PlacementChipProps) {
+  const left = placement.x * pageWidth;
+  const top  = placement.y * pageHeight;
+  const width  = placement.width * pageWidth;
+  const height = (placement.height ?? 0.05) * pageHeight;
+  const stroke = placement.strokeWidth ?? 0;
+  const isLine = placement.shape === 'line';
+
+  const startDrag = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSelect();
+    const startX = e.clientX, startY = e.clientY;
+    const origX = placement.x, origY = placement.y;
+    const onMove = (mv: MouseEvent) => {
+      onUpdate({
+        x: clamp01(origX + (mv.clientX - startX) / pageWidth),
+        y: clamp01(origY + (mv.clientY - startY) / pageHeight),
+      });
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  const startResize = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const startX = e.clientX, startY = e.clientY;
+    const origW = placement.width, origH = placement.height ?? 0.05;
+    const onMove = (mv: MouseEvent) => {
+      onUpdate({
+        width:  Math.max(0.02, Math.min(1 - placement.x, origW + (mv.clientX - startX) / pageWidth)),
+        height: Math.max(0.01, Math.min(1 - placement.y, origH + (mv.clientY - startY) / pageHeight)),
+      });
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  return (
+    <div
+      onMouseDown={startDrag}
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      className="absolute pointer-events-auto cursor-move"
+      style={{
+        left, top, width, height,
+        outline: selected ? '2px solid #6366f1' : undefined,
+        outlineOffset: 2,
+      }}
+      title={placement.shape}
+    >
+      {isLine ? (
+        <div
+          className="absolute left-0 right-0"
+          style={{
+            top: '50%',
+            transform: 'translateY(-50%)',
+            height: Math.max(1, stroke),
+            backgroundColor: placement.strokeColor || '#000000',
+          }}
+        />
+      ) : (
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundColor: placement.noFill ? 'transparent' : (placement.fillColor || '#ffffff'),
+            border: stroke > 0 ? `${stroke}px solid ${placement.strokeColor || '#000000'}` : undefined,
+            borderRadius: placement.shape === 'ellipse' ? '50%' : undefined,
+          }}
+        />
+      )}
+      {selected && (
+        <>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
+            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow hover:bg-red-600 z-10"
+            title="Supprimer"
+          >
+            <Trash2 size={10} />
+          </button>
+          <div
+            onMouseDown={startResize}
+            className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-indigo-500 border border-white rounded-sm cursor-nwse-resize z-10"
+            title="Redimensionner"
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+export function PdfPlacementInspector({ placement, onChange, onReorder }: {
+  readonly placement: PdfPlacement;
+  readonly onChange: (patch: Partial<PdfPlacement>) => void;
+  readonly onReorder?: (dir: 'front' | 'back' | 'forward' | 'backward') => void;
+}) {
+  const isText = isTextPlacement(placement);
+  const isShape = isShapePlacement(placement);
+  return (
+    <div className="space-y-3 text-xs">
+      {isShape ? (
+        <ShapeInspector placement={placement} onChange={onChange} />
+      ) : (
+        <>
+          {isText ? (
+            <div>
+              <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Texte</label>
+              <textarea
+                rows={2}
+                value={placement.text ?? ''}
+                onChange={(e) => onChange({ text: e.target.value })}
+                className="w-full rounded border border-slate-200 px-2 py-1.5 text-xs resize-y"
+                placeholder="Texte à afficher…"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Variable</label>
+              <div className="font-mono text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded">
+                {`{{${placement.variableName}}}`}
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Taille (pt)</label>
+            <input
+              type="number" min={6} max={48} step={1}
+              value={placement.fontSize}
+              onChange={(e) => onChange({ fontSize: Math.max(6, Math.min(48, Number(e.target.value) || 11)) })}
+              className="w-full h-8 rounded border border-slate-200 px-2 text-xs"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Style</label>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => onChange({ bold: !placement.bold })}
+                className={`flex-1 h-8 rounded border text-xs font-bold ${placement.bold ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange({ italic: !placement.italic })}
+                className={`flex-1 h-8 rounded border text-xs italic ${placement.italic ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+              >
+                I
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Alignement</label>
+            <div className="flex gap-1">
+              {(['left', 'center', 'right'] as const).map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => onChange({ align: a })}
+                  className={`flex-1 h-8 rounded border text-xs capitalize ${placement.align === a ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="pt-1 border-t border-slate-100">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Masquer le fond</span>
+              <input
+                type="checkbox"
+                checked={!!placement.whiteout}
+                onChange={(e) => onChange({ whiteout: e.target.checked })}
+                className="h-3.5 w-3.5 accent-indigo-600"
+              />
+            </label>
+            <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+              Recouvre le contenu d&apos;origine du PDF derrière ce texte.
+            </p>
+            {placement.whiteout && (
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="color"
+                  value={placement.whiteoutColor || '#ffffff'}
+                  onChange={(e) => onChange({ whiteoutColor: e.target.value })}
+                  className="h-7 w-9 rounded border border-slate-200 p-0.5 cursor-pointer"
+                  title="Couleur du masque"
+                />
+                <span className="font-mono text-[11px] text-slate-500">{placement.whiteoutColor || '#ffffff'}</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {onReorder && (
+        <div className="pt-2 border-t border-slate-100">
+          <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Calque</label>
+          <div className="flex gap-1">
+            <button type="button" onClick={() => onReorder('back')}
+              className="flex-1 h-8 rounded border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center gap-1" title="Arrière-plan">
+              <ArrowDownToLine size={13} />
+            </button>
+            <button type="button" onClick={() => onReorder('backward')}
+              className="flex-1 h-8 rounded border border-slate-200 bg-white hover:bg-slate-50 text-[11px]" title="Reculer">
+              −1
+            </button>
+            <button type="button" onClick={() => onReorder('forward')}
+              className="flex-1 h-8 rounded border border-slate-200 bg-white hover:bg-slate-50 text-[11px]" title="Avancer">
+              +1
+            </button>
+            <button type="button" onClick={() => onReorder('front')}
+              className="flex-1 h-8 rounded border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center gap-1" title="Premier plan">
+              <ArrowUpToLine size={13} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShapeInspector({ placement, onChange }: {
   readonly placement: PdfPlacement;
   readonly onChange: (patch: Partial<PdfPlacement>) => void;
 }) {
+  const isLine = placement.shape === 'line';
   return (
-    <div className="space-y-3 text-xs">
+    <>
       <div>
-        <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Variable</label>
-        <div className="font-mono text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded">
-          {`{{${placement.variableName}}}`}
+        <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Forme</label>
+        <div className="font-mono text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded capitalize">
+          {placement.shape}
         </div>
       </div>
+      {!isLine && (
+        <div className="pt-1">
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Remplissage</span>
+            <input
+              type="checkbox"
+              checked={!placement.noFill}
+              onChange={(e) => onChange({ noFill: !e.target.checked })}
+              className="h-3.5 w-3.5 accent-indigo-600"
+            />
+          </label>
+          {!placement.noFill && (
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="color"
+                value={placement.fillColor || '#ffffff'}
+                onChange={(e) => onChange({ fillColor: e.target.value })}
+                className="h-7 w-9 rounded border border-slate-200 p-0.5 cursor-pointer"
+                title="Couleur de remplissage"
+              />
+              <span className="font-mono text-[11px] text-slate-500">{placement.fillColor || '#ffffff'}</span>
+            </div>
+          )}
+        </div>
+      )}
       <div>
-        <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Taille (pt)</label>
-        <input
-          type="number" min={6} max={48} step={1}
-          value={placement.fontSize}
-          onChange={(e) => onChange({ fontSize: Math.max(6, Math.min(48, Number(e.target.value) || 11)) })}
-          className="w-full h-8 rounded border border-slate-200 px-2 text-xs"
-        />
-      </div>
-      <div>
-        <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Alignement</label>
-        <div className="flex gap-1">
-          {(['left', 'center', 'right'] as const).map((a) => (
-            <button
-              key={a}
-              type="button"
-              onClick={() => onChange({ align: a })}
-              className={`flex-1 h-8 rounded border text-xs capitalize ${placement.align === a ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
-            >
-              {a}
-            </button>
-          ))}
+        <label className="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">
+          {isLine ? 'Épaisseur (px)' : 'Bordure (px)'}
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={placement.strokeColor || '#000000'}
+            onChange={(e) => onChange({ strokeColor: e.target.value })}
+            className="h-8 w-9 rounded border border-slate-200 p-0.5 cursor-pointer"
+            title="Couleur du trait"
+          />
+          <input
+            type="number" min={0} max={40} step={1}
+            value={placement.strokeWidth ?? 0}
+            onChange={(e) => onChange({ strokeWidth: Math.max(0, Math.min(40, Number(e.target.value) || 0)) })}
+            className="flex-1 h-8 rounded border border-slate-200 px-2 text-xs"
+          />
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

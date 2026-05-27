@@ -5,7 +5,8 @@
 // inside pdf-lib's standard fonts, so we don't have to embed custom faces.
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import type { PdfTemplate, PdfPlacement } from './pdf-template';
+import type { PdfTemplate } from './pdf-template';
+import { isTextPlacement, isShapePlacement, EDITOR_PAGE_WIDTH } from './pdf-template';
 
 interface ExportOptions {
   /** Final filename suggested to the user in the download dialog. */
@@ -34,27 +35,70 @@ export async function exportPdfTemplateWithValues(
     if (!page) continue;
 
     const { width: pageW, height: pageH } = page.getSize();
-    const value = opts.values[placement.variableName] ?? '';
+    // Editor px → PDF points: everything is authored at a fixed page width.
+    const pxToPt = pageW / EDITOR_PAGE_WIDTH;
+    const sizePt = placement.fontSize * pxToPt;
+
+    // Shapes draw their own primitive and skip the text path entirely.
+    if (isShapePlacement(placement)) {
+      const sx = placement.x * pageW;
+      const sw = placement.width * pageW;
+      const sh = (placement.height ?? 0) * pageH;
+      const topDown = placement.y * pageH;
+      const yBottom = pageH - topDown - sh;
+      const strokePt = (placement.strokeWidth ?? 0) * pxToPt;
+      const fill = placement.noFill ? undefined : hexToRgb(placement.fillColor);
+      const stroke = strokePt > 0
+        ? { borderColor: hexToRgb(placement.strokeColor), borderWidth: strokePt }
+        : {};
+      if (placement.shape === 'ellipse') {
+        page.drawEllipse({ x: sx + sw / 2, y: yBottom + sh / 2, xScale: sw / 2, yScale: sh / 2, color: fill, ...stroke });
+      } else if (placement.shape === 'line') {
+        const yMid = pageH - topDown - sh / 2;
+        page.drawLine({ start: { x: sx, y: yMid }, end: { x: sx + sw, y: yMid }, thickness: strokePt || 1, color: hexToRgb(placement.strokeColor) });
+      } else {
+        page.drawRectangle({ x: sx, y: yBottom, width: sw, height: sh, color: fill, ...stroke });
+      }
+      continue;
+    }
+
+    // 'text' placements stamp their literal content; 'variable' placements
+    // resolve against the supplied values map.
+    const value = isTextPlacement(placement)
+      ? (placement.text ?? '')
+      : (opts.values[placement.variableName] ?? '');
+
+    const boxWidth = placement.width * pageW;
+    const xLeft = placement.x * pageW;
+    // pdf-lib uses bottom-left origin; placement.y is top-down in editor space.
+    // The chip the user sees is ~1.5× the font size tall, anchored at its top.
+    const boxHeight = sizePt * 1.5;
+    const boxBottom = pageH - (placement.y * pageH) - boxHeight;
+
+    // Mask the original content first so stamped text sits on top of the fill.
+    if (placement.whiteout) {
+      page.drawRectangle({
+        x: xLeft,
+        y: boxBottom,
+        width: boxWidth,
+        height: boxHeight,
+        color: hexToRgb(placement.whiteoutColor),
+      });
+    }
+
     if (!value) continue;
 
     const font = pickFont(placement, { helvetica, helveticaBold, helveticaOblique, helveticaBoldOblique });
-    // pdf-lib uses bottom-left origin; placement.y is top-down in editor space.
-    const boxWidth = placement.width * pageW;
-    const textWidth = font.widthOfTextAtSize(value, placement.fontSize);
-    const xLeft = placement.x * pageW;
-    const xOffset =
-      placement.align === 'center' ? (boxWidth - textWidth) / 2 :
-      placement.align === 'right'  ? (boxWidth - textWidth) :
-      0;
-    const xFinal = xLeft + xOffset;
+    const textWidth = font.widthOfTextAtSize(value, sizePt);
+    const xFinal = xLeft + alignOffset(placement.align, boxWidth, textWidth);
     // Drop the baseline by ~fontSize so the rendered text sits visually at the
     // top-left of the chip the user placed (matches WYSIWYG expectations).
-    const yFinal = pageH - (placement.y * pageH) - placement.fontSize;
+    const yFinal = pageH - (placement.y * pageH) - sizePt;
 
     page.drawText(value, {
       x: xFinal,
       y: yFinal,
-      size: placement.fontSize,
+      size: sizePt,
       font,
       color: rgb(0.1, 0.1, 0.1),
     });
@@ -74,9 +118,27 @@ type Fonts = {
   helveticaBoldOblique: import('pdf-lib').PDFFont;
 };
 
-function pickFont(p: PdfPlacement, fonts: Fonts) {
+function pickFont(p: { bold?: boolean; italic?: boolean }, fonts: Fonts) {
   if (p.bold && p.italic) return fonts.helveticaBoldOblique;
   if (p.bold)             return fonts.helveticaBold;
   if (p.italic)           return fonts.helveticaOblique;
   return fonts.helvetica;
+}
+
+function alignOffset(align: 'left' | 'center' | 'right' | undefined, boxWidth: number, textWidth: number): number {
+  if (align === 'center') return (boxWidth - textWidth) / 2;
+  if (align === 'right')  return  boxWidth - textWidth;
+  return 0;
+}
+
+/** Parse a #rrggbb / #rgb hex string into a pdf-lib rgb color (default white). */
+function hexToRgb(hex: string | undefined) {
+  const fallback = rgb(1, 1, 1);
+  if (!hex) return fallback;
+  let h = hex.trim().replace(/^#/, '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (h.length !== 6) return fallback;
+  const n = Number.parseInt(h, 16);
+  if (Number.isNaN(n)) return fallback;
+  return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 }
