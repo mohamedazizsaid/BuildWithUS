@@ -34,6 +34,7 @@ export class GenerateApiClientHandler implements ICommandHandler<GenerateApiClie
       clientSecretHash,
       scopes: command.scopes,
       expiresAt: null,
+      allowedReturnUrls: null,
       createdAt: new Date(),
     });
 

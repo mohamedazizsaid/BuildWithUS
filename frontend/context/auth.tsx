@@ -38,15 +38,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isEmbedMode()) {
       const tok = getEmbedToken();
       const claims = tok ? decodeJwtPayload(tok) : null;
-      const tenantId = (claims?.tenantId ?? claims?.tenant_id ?? '') as string;
+      const tenantId = (claims?.tenantId ?? claims?.tenant_id ?? claims?.sub ?? '') as string;
+      const tokenType = (claims?.type ?? '') as string;
+      const isIntegrationSession = tokenType === 'integration_session';
       setUser({
-        id: 'embed-m2m',
+        id: isIntegrationSession ? 'integration-session' : 'embed-m2m',
         tenant_id: tenantId,
-        tenant_name: 'Embedded session',
-        email: 'embed@m2m',
-        first_name: 'Embed',
+        tenant_name: isIntegrationSession ? 'Session intégration' : 'Embedded session',
+        email: isIntegrationSession ? '' : 'embed@m2m',
+        first_name: isIntegrationSession ? 'Intégration' : 'Embed',
         last_name: 'Session',
-        role: 'm2m',
+        role: isIntegrationSession ? 'editor' : 'm2m',
       });
       setLoading(false);
       return;

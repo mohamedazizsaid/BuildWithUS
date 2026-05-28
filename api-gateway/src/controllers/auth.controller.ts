@@ -322,3 +322,65 @@ export class OAuthController implements OnModuleInit {
     );
   }
 }
+
+@Controller()
+export class DevelopersController implements OnModuleInit {
+  private authService: any;
+
+  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
+
+  onModuleInit() {
+    this.authService = this.client.getService("AuthService");
+  }
+
+  @Post("developers/register")
+  @HttpCode(201)
+  async registerDeveloper(@Body() body: any) {
+    return firstValueFrom(
+      this.authService.RegisterDeveloper({
+        name: body.name,
+        email: body.email,
+      }),
+    );
+  }
+
+  @Post("developers/return-urls")
+  @HttpCode(200)
+  async updateReturnUrls(@Body() body: any) {
+    return firstValueFrom(
+      this.authService.UpdateAllowedReturnUrls({
+        client_id: body.client_id,
+        client_secret: body.client_secret,
+        urls: Array.isArray(body.urls) ? body.urls : [],
+      }),
+    );
+  }
+
+  @Post("api/builder-sessions")
+  @HttpCode(201)
+  async mintSession(@Body() body: any) {
+    const result: any = await firstValueFrom(
+      this.authService.MintBuilderSession({
+        client_id: body.client_id,
+        client_secret: body.client_secret,
+        mode: body.mode || "new",
+        return_url: body.return_url,
+        template_id: body.template_id || "",
+        user_ref: body.user_ref || "",
+      }),
+    );
+    const frontend = process.env.FRONTEND_PUBLIC_URL || "http://localhost:3001";
+    return {
+      url: `${frontend}/s/${result.token}`,
+      expires_at: result.expires_at,
+    };
+  }
+
+  @Post("s/exchange")
+  @HttpCode(200)
+  async exchangeSession(@Body() body: any) {
+    return firstValueFrom(
+      this.authService.ExchangeBuilderSession({ token: body.token }),
+    );
+  }
+}

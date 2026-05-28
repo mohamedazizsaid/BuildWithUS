@@ -21,6 +21,9 @@ export class ApiClientOrmEntity {
   @Column({ name: 'expires_at', type: 'timestamp', nullable: true })
   expiresAt: Date | null;
 
+  @Column({ name: 'allowed_return_urls', type: 'text', nullable: true })
+  allowedReturnUrls: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 }

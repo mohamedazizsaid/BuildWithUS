@@ -8,6 +8,7 @@ import { TenantOrmEntity } from './infrastructure/persistence/entities/tenant.or
 import { UserOrmEntity } from './infrastructure/persistence/entities/user.orm-entity';
 import { InviteOrmEntity } from './infrastructure/persistence/entities/invite.orm-entity';
 import { ApiClientOrmEntity } from './infrastructure/persistence/entities/api-client.orm-entity';
+import { BuilderSessionOrmEntity } from './infrastructure/persistence/entities/builder-session.orm-entity';
 
 // Infrastructure - gRPC controller
 import { AuthGrpcController } from './infrastructure/grpc/auth.grpc-controller';
@@ -17,6 +18,7 @@ import { TenantRepositoryImpl } from './infrastructure/persistence/repositories/
 import { UserRepositoryImpl } from './infrastructure/persistence/repositories/user.repository.impl';
 import { InviteRepositoryImpl } from './infrastructure/persistence/repositories/invite.repository.impl';
 import { ApiClientRepositoryImpl } from './infrastructure/persistence/repositories/api-client.repository.impl';
+import { BuilderSessionRepositoryImpl } from './infrastructure/persistence/repositories/builder-session.repository.impl';
 
 // Domain - repository interfaces
 import { UserRepository } from './domain/repositories/user.repository';
@@ -34,6 +36,10 @@ import { AcceptInviteHandler } from './application/commands/handlers/accept-invi
 import { GenerateApiClientHandler } from './application/commands/handlers/generate-api-client.handler';
 import { IssueClientTokenHandler } from './application/commands/handlers/issue-client-token.handler';
 import { RegisterApiClientHandler } from './application/commands/handlers/register-api-client.handler';
+import { RegisterDeveloperHandler } from './application/commands/handlers/register-developer.handler';
+import { MintBuilderSessionHandler } from './application/commands/handlers/mint-builder-session.handler';
+import { ExchangeBuilderSessionHandler } from './application/commands/handlers/exchange-builder-session.handler';
+import { UpdateAllowedReturnUrlsHandler } from './application/commands/handlers/update-allowed-return-urls.handler';
 
 const CommandHandlers = [
   RegisterHandler,
@@ -43,13 +49,23 @@ const CommandHandlers = [
   GenerateApiClientHandler,
   IssueClientTokenHandler,
   RegisterApiClientHandler,
+  RegisterDeveloperHandler,
+  MintBuilderSessionHandler,
+  ExchangeBuilderSessionHandler,
+  UpdateAllowedReturnUrlsHandler,
 ];
 
 @Module({
   imports: [
     CqrsModule,
     ConfigModule,
-    TypeOrmModule.forFeature([TenantOrmEntity, UserOrmEntity, InviteOrmEntity, ApiClientOrmEntity]),
+    TypeOrmModule.forFeature([
+      TenantOrmEntity,
+      UserOrmEntity,
+      InviteOrmEntity,
+      ApiClientOrmEntity,
+      BuilderSessionOrmEntity,
+    ]),
   ],
   controllers: [AuthGrpcController],
   providers: [
@@ -71,6 +87,10 @@ const CommandHandlers = [
     {
       provide: 'API_CLIENT_REPOSITORY',
       useClass: ApiClientRepositoryImpl,
+    },
+    {
+      provide: 'BUILDER_SESSION_REPOSITORY',
+      useClass: BuilderSessionRepositoryImpl,
     },
     {
       provide: UserRepository,

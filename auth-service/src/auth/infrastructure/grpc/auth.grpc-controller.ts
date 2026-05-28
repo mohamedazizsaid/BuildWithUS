@@ -8,6 +8,11 @@ import { AcceptInviteCommand } from '../../application/commands/accept-invite.co
 import { GenerateApiClientCommand } from '../../application/commands/generate-api-client.command';
 import { IssueClientTokenCommand } from '../../application/commands/issue-client-token.command';
 import { RegisterApiClientCommand } from '../../application/commands/register-api-client.command';
+import { RegisterDeveloperCommand } from '../../application/commands/register-developer.command';
+import { UpdateAllowedReturnUrlsCommand } from '../../application/commands/update-allowed-return-urls.command';
+import { MintBuilderSessionCommand } from '../../application/commands/mint-builder-session.command';
+import { ExchangeBuilderSessionCommand } from '../../application/commands/exchange-builder-session.command';
+import { BuilderSessionMode } from '../../domain/repositories/builder-session.repository';
 import { JwtService } from '../../application/services/jwt.service';
 import { UserRepository } from '../../domain/repositories/user.repository';
 import { TenantRepository } from '../../domain/repositories/tenant.repository';
@@ -54,7 +59,26 @@ export class AuthGrpcController {
   @GrpcMethod('AuthService', 'ValidateToken')
   async validateToken(request: { token: string }) {
     try {
-      // Try M2M token first (type: "m2m")
+      // Try integration_session token first
+      try {
+        const sess = this.jwtService.verifyIntegrationSession(request.token);
+        return {
+          valid: true,
+          token_type: 'integration_session',
+          user: {
+            id: 'integration-session',
+            tenant_id: sess.tenant_id,
+            email: '',
+            role: 'editor',
+          },
+          organisation_id: '',
+          scopes: sess.scopes ?? [],
+        };
+      } catch {
+        // Not an integration_session — keep trying
+      }
+
+      // Try M2M token (type: "m2m")
       try {
         const m2m = this.jwtService.verifyM2M(request.token);
         return {
@@ -248,5 +272,45 @@ export class AuthGrpcController {
   async revokeApiClient(request: any) {
     await this.apiClientRepository.deleteById(request.id);
     return { success: true };
+  }
+
+  @GrpcMethod('AuthService', 'RegisterDeveloper')
+  async registerDeveloper(request: any) {
+    const command = new RegisterDeveloperCommand(request.name, request.email);
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'UpdateAllowedReturnUrls')
+  async updateAllowedReturnUrls(request: any) {
+    const clientId = request.clientId || request.client_id;
+    const clientSecret = request.clientSecret || request.client_secret;
+    const urls: string[] = Array.isArray(request.urls) ? request.urls : [];
+    const command = new UpdateAllowedReturnUrlsCommand(clientId, clientSecret, urls);
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'MintBuilderSession')
+  async mintBuilderSession(request: any) {
+    const clientId = request.clientId || request.client_id;
+    const clientSecret = request.clientSecret || request.client_secret;
+    const mode = (request.mode || 'new') as BuilderSessionMode;
+    const returnUrl = request.returnUrl || request.return_url;
+    const templateId = request.templateId || request.template_id || null;
+    const userRef = request.userRef || request.user_ref || null;
+    const command = new MintBuilderSessionCommand(
+      clientId,
+      clientSecret,
+      mode,
+      returnUrl,
+      templateId || null,
+      userRef || null,
+    );
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'ExchangeBuilderSession')
+  async exchangeBuilderSession(request: any) {
+    const command = new ExchangeBuilderSessionCommand(request.token);
+    return this.commandBus.execute(command);
   }
 }

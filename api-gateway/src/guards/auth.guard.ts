@@ -66,6 +66,15 @@ export class AuthGuard implements CanActivate, OnModuleInit {
           scopes: result.scopes || [],
           role: "m2m",
         };
+      } else if (result.token_type === "integration_session") {
+        request.user = {
+          id: result.user?.id || "integration-session",
+          tenant_id: result.user?.tenant_id || "",
+          organisation_id: "",
+          email: "",
+          scopes: result.scopes || [],
+          role: result.user?.role || "editor",
+        };
       } else {
         request.user = result.user;
       }

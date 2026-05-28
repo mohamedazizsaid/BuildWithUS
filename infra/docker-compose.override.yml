@@ -6,6 +6,9 @@ services:
       - ../auth-service/src:/app/src
       - ../auth-service/tsconfig.json:/app/tsconfig.json
       - ../auth-service/nest-cli.json:/app/nest-cli.json
+      # proto is read at gRPC server startup — mount it so edits don't require
+      # a full image rebuild (a `docker compose restart auth-service` is enough)
+      - ../auth-service/proto:/app/proto:ro
       # anonymous volume prevents host node_modules from clobbering container's
       - /app/node_modules
     environment:

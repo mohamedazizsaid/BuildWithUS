@@ -15,7 +15,7 @@ import {
 import { AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-import { templates, contractVariables, media, getEmbedReturnOrigin, isEmbedMode } from '@/lib/api';
+import { templates, contractVariables, media, getEmbedReturnOrigin, isEmbedMode, getBuilderReturnUrl, setBuilderReturnUrl } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { VariableNode, extractVariablesFromTiptap, renderTiptapToHtml } from '@/lib/tiptap/variable-node';
 import { buildVariableMapping, type MappingSource } from '@/lib/variable-mapper';
@@ -670,6 +670,13 @@ export function ContractEditorContent() {
       setLastSavedAt(new Date());
       toast.success('Template enregistré');
       postToHost({ event: 'saved', templateId: currentTemplateId, name });
+
+      const returnUrl = getBuilderReturnUrl();
+      if (returnUrl && currentTemplateId) {
+        setBuilderReturnUrl(null);
+        const sep = returnUrl.includes('?') ? '&' : '?';
+        window.location.href = `${returnUrl}${sep}template_id=${encodeURIComponent(currentTemplateId)}`;
+      }
     } else {
       setSaveStatus('error');
       toast.error("Échec de l'enregistrement");

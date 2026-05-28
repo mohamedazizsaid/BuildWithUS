@@ -23,6 +23,15 @@ export interface M2MTokenPayload {
   scopes: string[];
 }
 
+export interface IntegrationSessionPayload {
+  tenantId: string;
+  clientId: string;
+  mode: string;
+  templateId: string | null;
+  returnUrl: string;
+  userRef: string | null;
+}
+
 @Injectable()
 export class JwtService {
   private readonly secret: string;
@@ -75,6 +84,32 @@ export class JwtService {
   verifyM2M(token: string): M2MTokenPayload & { sub: string; type: string } {
     const decoded = jwt.verify(token, this.secret) as any;
     if (decoded.type !== 'm2m') {
+      throw new Error('Invalid token type');
+    }
+    return decoded;
+  }
+
+  signIntegrationSession(payload: IntegrationSessionPayload, ttlSeconds: number): string {
+    return jwt.sign(
+      {
+        sub: payload.tenantId,
+        tenant_id: payload.tenantId,
+        client_id: payload.clientId,
+        mode: payload.mode,
+        template_id: payload.templateId,
+        return_url: payload.returnUrl,
+        user_ref: payload.userRef,
+        scopes: ['templates:read', 'templates:write'],
+        type: 'integration_session',
+      },
+      this.secret,
+      { expiresIn: ttlSeconds } as jwt.SignOptions,
+    );
+  }
+
+  verifyIntegrationSession(token: string): any {
+    const decoded = jwt.verify(token, this.secret) as any;
+    if (decoded.type !== 'integration_session') {
       throw new Error('Invalid token type');
     }
     return decoded;

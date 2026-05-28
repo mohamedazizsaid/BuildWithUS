@@ -68,11 +68,15 @@ export async function exportPdfTemplateWithValues(
       ? (placement.text ?? '')
       : (opts.values[placement.variableName] ?? '');
 
+    // Split multi-line text zones into individual lines, stamped top-down.
+    const lines = value.split('\n');
+    const lineHeight = sizePt * 1.5;
+
     const boxWidth = placement.width * pageW;
     const xLeft = placement.x * pageW;
     // pdf-lib uses bottom-left origin; placement.y is top-down in editor space.
-    // The chip the user sees is ~1.5× the font size tall, anchored at its top.
-    const boxHeight = sizePt * 1.5;
+    // Each line is ~1.5× the font size tall, anchored at the chip's top.
+    const boxHeight = lineHeight * Math.max(1, lines.length);
     const boxBottom = pageH - (placement.y * pageH) - boxHeight;
 
     // Mask the original content first so stamped text sits on top of the fill.
@@ -89,18 +93,21 @@ export async function exportPdfTemplateWithValues(
     if (!value) continue;
 
     const font = pickFont(placement, { helvetica, helveticaBold, helveticaOblique, helveticaBoldOblique });
-    const textWidth = font.widthOfTextAtSize(value, sizePt);
-    const xFinal = xLeft + alignOffset(placement.align, boxWidth, textWidth);
-    // Drop the baseline by ~fontSize so the rendered text sits visually at the
-    // top-left of the chip the user placed (matches WYSIWYG expectations).
-    const yFinal = pageH - (placement.y * pageH) - sizePt;
-
-    page.drawText(value, {
-      x: xFinal,
-      y: yFinal,
-      size: sizePt,
-      font,
-      color: rgb(0.1, 0.1, 0.1),
+    // Drop the baseline by ~fontSize so the first line sits visually at the
+    // top-left of the chip the user placed (matches WYSIWYG expectations), then
+    // step each subsequent line down by one line-height.
+    const yTop = pageH - (placement.y * pageH) - sizePt;
+    lines.forEach((line, i) => {
+      if (!line) return;
+      const textWidth = font.widthOfTextAtSize(line, sizePt);
+      const xFinal = xLeft + alignOffset(placement.align, boxWidth, textWidth);
+      page.drawText(line, {
+        x: xFinal,
+        y: yTop - i * lineHeight,
+        size: sizePt,
+        font,
+        color: rgb(0.1, 0.1, 0.1),
+      });
     });
   }
 

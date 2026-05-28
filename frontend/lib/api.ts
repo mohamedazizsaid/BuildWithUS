@@ -116,6 +116,30 @@ export const auth = {
         request('/auth/members'),
 };
 
+// ------- DEVELOPERS (public integration endpoints) ---------
+const RETURN_URL_KEY = 'winaity_builder_return_url';
+
+export function setBuilderReturnUrl(url: string | null): void {
+    if (typeof window === 'undefined') return;
+    try {
+        if (url) sessionStorage.setItem(RETURN_URL_KEY, url);
+        else sessionStorage.removeItem(RETURN_URL_KEY);
+    } catch { /* ignore */ }
+}
+
+export function getBuilderReturnUrl(): string | null {
+    if (typeof window === 'undefined') return null;
+    try { return sessionStorage.getItem(RETURN_URL_KEY); } catch { return null; }
+}
+
+export const developers = {
+    register: (body: { name: string; email: string }) =>
+        request('/developers/register', { method: 'POST', body: JSON.stringify(body) }),
+
+    exchangeSession: (token: string) =>
+        request('/s/exchange', { method: 'POST', body: JSON.stringify({ token }) }),
+};
+
 //----- Templates ----
 export const templates = {
     create: (body: { name: string; description?: string; type: number; subject?: string; content: string; isPredefinedOverride?: boolean; predefinedTemplateId?: string }) =>

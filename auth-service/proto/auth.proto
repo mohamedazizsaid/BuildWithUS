@@ -17,6 +17,10 @@ service AuthService{
     rpc ListAllTenants (ListAllTenantsRequest) returns (ListAllTenantsResponse);
     rpc ListApiClients (ListApiClientsRequest) returns (ListApiClientsResponse);
     rpc RevokeApiClient (RevokeApiClientRequest) returns (RevokeApiClientResponse);
+    rpc RegisterDeveloper (RegisterDeveloperRequest) returns (RegisterDeveloperResponse);
+    rpc UpdateAllowedReturnUrls (UpdateAllowedReturnUrlsRequest) returns (UpdateAllowedReturnUrlsResponse);
+    rpc MintBuilderSession (MintBuilderSessionRequest) returns (MintBuilderSessionResponse);
+    rpc ExchangeBuilderSession (ExchangeBuilderSessionRequest) returns (ExchangeBuilderSessionResponse);
 }
 
 message RegisterRequest {
@@ -181,4 +185,53 @@ message RevokeApiClientRequest {
 
 message RevokeApiClientResponse {
     bool success = 1;
+}
+
+message RegisterDeveloperRequest {
+    string name = 1;
+    string email = 2;
+}
+
+message RegisterDeveloperResponse {
+    string tenant_id = 1;
+    string client_id = 2;
+    string client_secret = 3;
+    string scopes = 4;
+}
+
+message UpdateAllowedReturnUrlsRequest {
+    string client_id = 1;
+    string client_secret = 2;
+    repeated string urls = 3;
+}
+
+message UpdateAllowedReturnUrlsResponse {
+    string client_id = 1;
+    repeated string allowed_return_urls = 2;
+}
+
+message MintBuilderSessionRequest {
+    string client_id = 1;
+    string client_secret = 2;
+    string mode = 3;
+    string return_url = 4;
+    string template_id = 5;
+    string user_ref = 6;
+}
+
+message MintBuilderSessionResponse {
+    string token = 1;
+    string expires_at = 2;
+}
+
+message ExchangeBuilderSessionRequest {
+    string token = 1;
+}
+
+message ExchangeBuilderSessionResponse {
+    string access_token = 1;
+    int32 expires_in = 2;
+    string mode = 3;
+    string template_id = 4;
+    string return_url = 5;
 }

@@ -10,7 +10,7 @@ import EditorToolbar from "@/components/editor/EditorToolbar";
 import Canvas from "@/components/editor/Canvas";
 import { LeftPanel, PropertiesPanel } from "@/components/editor/RightPanel";
 import toast from "react-hot-toast";
-import { templates } from "@/lib/api";
+import { templates, getBuilderReturnUrl, setBuilderReturnUrl } from "@/lib/api";
 import {
   BlockType,
   TemplateData,
@@ -242,13 +242,22 @@ function EditorContent() {
         content: mjml,
         ...(presetId && !savedId ? { isPredefinedOverride: true, predefinedTemplateId: presetId } : {}),
       };
+      let resultId: string | null = savedId;
       if (savedId) {
         await templates.update(savedId, body);
         toast.success("Brouillon enregistré !");
       } else {
         const created = await templates.create(body);
-        setSavedId(created.id ?? created.template?.id ?? null);
+        resultId = created.id ?? created.template?.id ?? null;
+        setSavedId(resultId);
         toast.success("Brouillon enregistré !");
+      }
+
+      const returnUrl = getBuilderReturnUrl();
+      if (returnUrl && resultId) {
+        setBuilderReturnUrl(null);
+        const sep = returnUrl.includes('?') ? '&' : '?';
+        window.location.href = `${returnUrl}${sep}template_id=${encodeURIComponent(resultId)}`;
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Échec de l'enregistrement";
@@ -304,13 +313,24 @@ function EditorContent() {
         ...(presetId && !isEditMode ? { isPredefinedOverride: true, predefinedTemplateId: presetId } : {}),
       };
 
+      let resultId: string | null = isEditMode ? editId : null;
       if (isEditMode && editId) {
         await templates.update(editId, body);
         toast.success("Modèle enregistré !");
       } else {
-        await templates.create(body);
+        const created = await templates.create(body);
+        resultId = created.id ?? created.template?.id ?? null;
         toast.success(presetId ? "Nouveau modèle créé à partir du template prédéfini !" : "Modèle créé avec succès !");
       }
+
+      const returnUrl = getBuilderReturnUrl();
+      if (returnUrl && resultId) {
+        setBuilderReturnUrl(null);
+        const sep = returnUrl.includes('?') ? '&' : '?';
+        window.location.href = `${returnUrl}${sep}template_id=${encodeURIComponent(resultId)}`;
+        return;
+      }
+
       router.push("/dashboard/templates");
     } catch (error: unknown) {
       const message =

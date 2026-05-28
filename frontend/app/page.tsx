@@ -57,6 +57,9 @@ function Navbar() {
               {item}
             </a>
           ))}
+          <Link href="/developers" className="text-white/70 text-sm hover:text-white transition-colors">
+            Developers
+          </Link>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/login" className="text-white/80 text-sm hover:text-white transition-colors">

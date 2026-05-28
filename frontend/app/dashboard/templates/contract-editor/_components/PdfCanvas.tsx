@@ -213,7 +213,8 @@ function PdfPage({ pdf, meta, placements, selectedId, onSelect, onUpdate, onRemo
         }
       }}
       onDrop={onDrop}
-      onClick={(e) => { if (e.target === e.currentTarget) onSelect(null); }}
+      // Chips stop click propagation, so any click reaching here is empty space → deselect.
+      onClick={() => onSelect(null)}
     >
       <canvas ref={canvasRef} className="absolute inset-0 block" aria-hidden />
       {renderError && (
@@ -308,7 +309,10 @@ function PlacementChip({ placement, pageWidth, pageHeight, selected, onSelect, o
   };
 
   const label = placement.label ?? placement.variableName;
-  const height = Math.max(18, placement.fontSize * 1.5);
+  // Text zones grow vertically with their line count so multi-line content is
+  // fully visible; variables / empty text stay one line tall.
+  const lineCount = isText ? Math.max(1, (placement.text ?? '').split('\n').length) : 1;
+  const height = Math.max(18, placement.fontSize * 1.5 * lineCount);
   const justify = placement.align === 'center' ? 'center' : placement.align === 'right' ? 'flex-end' : 'flex-start';
 
   // Visual: a 'text' chip previews the actual stamped text in near-black over
@@ -326,7 +330,7 @@ function PlacementChip({ placement, pageWidth, pageHeight, selected, onSelect, o
       onMouseDown={startDrag}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
       onDoubleClick={(e) => { if (isText) { e.stopPropagation(); onSelect(); setEditing(true); } }}
-      className={`absolute pointer-events-auto select-none rounded-md flex items-center px-2 ${editing ? 'cursor-text' : 'cursor-move'} ${borderClass} ${!fill && !selected ? (isText ? 'bg-white/80' : 'bg-blue-50/95') : ''}`}
+      className={`absolute pointer-events-auto select-none rounded-md flex px-2 ${isText ? 'items-start py-0.5' : 'items-center'} ${editing ? 'cursor-text' : 'cursor-move'} ${borderClass} ${!fill && !selected ? (isText ? 'bg-white/80' : 'bg-blue-50/95') : ''}`}
       style={{
         left, top, width, height,
         backgroundColor: selected && !fill ? undefined : fill,
@@ -340,18 +344,20 @@ function PlacementChip({ placement, pageWidth, pageHeight, selected, onSelect, o
       title={isText ? placement.text : `{{${placement.variableName}}}`}
     >
       {editing ? (
-        <input
+        <textarea
           autoFocus
+          rows={lineCount}
           value={placement.text ?? ''}
           onChange={(e) => onUpdate({ text: e.target.value })}
           onBlur={() => setEditing(false)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); setEditing(false); } }}
+          // Enter inserts a new line; Escape finishes editing.
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setEditing(false); } }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="w-full bg-transparent outline-none"
+          className="w-full h-full bg-transparent outline-none resize-none overflow-hidden whitespace-pre-wrap leading-[1.5]"
           style={{ fontSize: placement.fontSize, color: '#1a1a1a', textAlign: placement.align ?? 'left' }}
         />
       ) : (
-        <span className="truncate text-[0.85em]">
+        <span className="w-full whitespace-pre-wrap break-words leading-[1.5] text-[0.85em]">
           {isText ? (placement.text || 'Texte vide') : `{{${label}}}`}
         </span>
       )}

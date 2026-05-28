@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Save, Download, ChevronDown, FileDown } from 'lucide-react';
-import { templates, contractVariables } from '@/lib/api';
+import { templates, contractVariables, getBuilderReturnUrl, setBuilderReturnUrl } from '@/lib/api';
 import toast from 'react-hot-toast';
 import type { Invoice, InvoiceData, ClientRelation } from '@/lib/invoice/types';
 import { defaultInvoice } from '@/lib/invoice/defaults';
@@ -187,13 +187,24 @@ function InvoiceEditorContent() {
         type: 2,
         content: serialize(templated),
       };
+      let resultId: string | null = isEditMode ? templateId : null;
       if (isEditMode && templateId) {
         await templates.update(templateId, body);
         toast.success('Facture enregistrée');
       } else {
-        await templates.create(body);
+        const created = await templates.create(body);
+        resultId = created.id ?? created.template?.id ?? null;
         toast.success('Facture créée');
       }
+
+      const returnUrl = getBuilderReturnUrl();
+      if (returnUrl && resultId) {
+        setBuilderReturnUrl(null);
+        const sep = returnUrl.includes('?') ? '&' : '?';
+        window.location.href = `${returnUrl}${sep}template_id=${encodeURIComponent(resultId)}`;
+        return;
+      }
+
       router.push('/dashboard/templates');
     } catch {
       toast.error('Échec de l\'enregistrement');

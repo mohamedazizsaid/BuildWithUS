@@ -23,6 +23,7 @@ export class ApiClientRepositoryImpl extends ApiClientRepository {
       clientSecretHash: entity.clientSecretHash,
       scopes: entity.scopes,
       expiresAt: entity.expiresAt,
+      allowedReturnUrls: entity.allowedReturnUrls,
       createdAt: entity.createdAt,
     };
   }
@@ -36,6 +37,7 @@ export class ApiClientRepositoryImpl extends ApiClientRepository {
       clientSecretHash: e.clientSecretHash,
       scopes: e.scopes,
       expiresAt: e.expiresAt,
+      allowedReturnUrls: e.allowedReturnUrls,
       createdAt: e.createdAt,
     }));
   }
@@ -52,7 +54,12 @@ export class ApiClientRepositoryImpl extends ApiClientRepository {
       clientSecretHash: client.clientSecretHash,
       scopes: client.scopes,
       expiresAt: client.expiresAt,
+      allowedReturnUrls: client.allowedReturnUrls,
       createdAt: client.createdAt,
     });
+  }
+
+  async updateAllowedReturnUrls(clientId: string, urls: string | null): Promise<void> {
+    await this.repo.update({ clientId }, { allowedReturnUrls: urls });
   }
 }
