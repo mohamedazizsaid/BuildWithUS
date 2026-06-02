@@ -87,6 +87,47 @@ export function FormatBar({
   };
 
   const insertEmoji = (emoji: string) => {
+    const selection = window.getSelection();
+
+    // Restore last caret/selection if the toolbar click collapsed or cleared it
+    if (
+      selection &&
+      (selection.isCollapsed || selection.rangeCount === 0) &&
+      lastRangeRef.current
+    ) {
+      selection.removeAllRanges();
+      selection.addRange(lastRangeRef.current);
+    }
+
+    const anchor = selection?.anchorNode as HTMLElement | null;
+    const editable = (anchor
+      ? (anchor.nodeType === 1 ? (anchor as HTMLElement) : anchor.parentElement)?.closest('[contenteditable="true"]')
+      : null) as HTMLElement | null;
+
+    // Insert at the caret in the live editable so the DOM and state stay in sync
+    // (the editable's innerHTML is the source of truth while editing — see CanvasBlock).
+    if (editable && selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      if (editable.contains(range.commonAncestorContainer)) {
+        range.deleteContents();
+        const node = document.createTextNode(emoji);
+        range.insertNode(node);
+
+        // Place caret right after the inserted emoji
+        const after = document.createRange();
+        after.setStartAfter(node);
+        after.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(after);
+        lastRangeRef.current = after.cloneRange();
+
+        onUpdate({ content: { ...block.content, text: editable.innerHTML } });
+        setShowEmoji(false);
+        return;
+      }
+    }
+
+    // Fallback: no live selection (e.g. picker opened without a caret) — append.
     const text = (block.content.text as string) || "";
     onUpdate({ content: { ...block.content, text: text + emoji } });
     setShowEmoji(false);
@@ -498,6 +539,7 @@ export function FormatBar({
       </FmtBtn>
       <FmtBtn
         active={showEmoji}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
         onClick={() => {
           setShowEmoji(!showEmoji);
           setShowLink(false);
@@ -519,6 +561,7 @@ export function FormatBar({
             {EMOJI_CATS.map((c, i) => (
               <button
                 key={i}
+                onMouseDown={(ev) => ev.preventDefault()}
                 onClick={() => setEmojiPage(i)}
                 className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center transition-all ${i === emojiPage ? "bg-accent scale-110" : "hover:bg-accent/50"}`}
               >
@@ -531,6 +574,7 @@ export function FormatBar({
               {EMOJI_CATS[emojiPage].emojis.map((e, i) => (
                 <button
                   key={i}
+                  onMouseDown={(ev) => ev.preventDefault()}
                   onClick={() => insertEmoji(e)}
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-accent hover:scale-110 transition-all"
                 >

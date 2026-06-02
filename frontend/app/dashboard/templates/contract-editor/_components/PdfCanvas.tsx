@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Trash2, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 import type { PdfTemplate, PdfPlacement } from '../_lib/pdf-template';
-import { isTextPlacement, isShapePlacement, EDITOR_PAGE_WIDTH } from '../_lib/pdf-template';
+import { isTextPlacement, isShapePlacement, EDITOR_PAGE_WIDTH, PDF_LINE_HEIGHT } from '../_lib/pdf-template';
 
 interface PdfCanvasProps {
   readonly template: PdfTemplate;
@@ -106,6 +106,32 @@ export function PdfCanvas({ template, onChange, selectedId, onSelect }: PdfCanva
     if (selectedId === id) onSelect(null);
   }, [template, onChange, selectedId, onSelect]);
 
+  // Arrow-key nudging of the selected placement — lets you reach tight lines
+  // that are hard to fine-tune with the mouse. Shift = coarse 10px step.
+  // Ignored while typing so it never fights text/inspector inputs.
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+      const placement = template.placements.find((p) => p.id === selectedId);
+      if (!placement) return;
+      const meta = pages.find((m) => m.pageNumber === placement.page);
+      if (!meta) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+      const dy = e.key === 'ArrowUp'   ? -step : e.key === 'ArrowDown'  ? step : 0;
+      updatePlacement(selectedId, {
+        x: clamp01(placement.x + dx / meta.cssWidth),
+        y: clamp01(placement.y + dy / meta.cssHeight),
+      });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedId, template.placements, pages, updatePlacement]);
+
   const handlePageDrop = useCallback((e: React.DragEvent<HTMLDivElement>, pageNumber: number) => {
     const name = e.dataTransfer.getData('variable-name');
     if (!name) return;
@@ -166,6 +192,8 @@ interface PdfPageProps {
 function PdfPage({ pdf, meta, placements, selectedId, onSelect, onUpdate, onRemove, onDrop }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+  // Alignment guides shown while a chip on this page is being dragged.
+  const [guides, setGuides] = useState<SnapGuides | null>(null);
 
   // Rasterize this page once we have a canvas ref. The dependency on
   // pdf + pageNumber means a PDF swap forces a fresh paint without
@@ -204,6 +232,7 @@ function PdfPage({ pdf, meta, placements, selectedId, onSelect, onUpdate, onRemo
 
   return (
     <div
+      data-pdf-page={meta.pageNumber}
       className="relative shadow-md bg-white rounded-sm"
       style={{ width: meta.cssWidth, height: meta.cssHeight }}
       onDragOver={(e) => {
@@ -230,15 +259,29 @@ function PdfPage({ pdf, meta, placements, selectedId, onSelect, onUpdate, onRemo
             pageWidth: meta.cssWidth,
             pageHeight: meta.cssHeight,
             selected: selectedId === p.id,
+            siblings: placements.filter((s) => s.id !== p.id),
             onSelect: () => onSelect(p.id),
             onUpdate: (patch: Partial<PdfPlacement>) => onUpdate(p.id, patch),
             onRemove: () => onRemove(p.id),
+            onGuides: setGuides,
           };
           return isShapePlacement(p)
             ? <ShapeChip key={p.id} {...common} />
             : <PlacementChip key={p.id} {...common} />;
         })}
       </div>
+      {/* Smart alignment guides — drawn above chips while dragging. */}
+      {guides && (guides.v.length > 0 || guides.h.length > 0) && (
+        <div className="absolute inset-0 pointer-events-none z-30">
+          {guides.v.map((x, i) => (
+            <div key={`gv${i}`} className="absolute top-0 bottom-0" style={{ left: x, width: 1, backgroundColor: '#ec4899' }} />
+          ))}
+          {guides.h.map((y, i) => (
+            <div key={`gh${i}`} className="absolute left-0 right-0" style={{ top: y, height: 1, backgroundColor: '#ec4899' }} />
+          ))}
+        </div>
+      )}
+
       <div className="absolute top-1.5 left-2 text-[10px] text-slate-400 font-mono select-none pointer-events-none">
         p.{meta.pageNumber}
       </div>
@@ -251,40 +294,54 @@ interface PlacementChipProps {
   readonly pageWidth: number;
   readonly pageHeight: number;
   readonly selected: boolean;
+  /** Other placements on the same page — snap targets for smart guides. */
+  readonly siblings: PdfPlacement[];
   readonly onSelect: () => void;
   readonly onUpdate: (patch: Partial<PdfPlacement>) => void;
   readonly onRemove: () => void;
+  /** Report active alignment guides while dragging (null clears them). */
+  readonly onGuides: (g: SnapGuides | null) => void;
 }
 
-function PlacementChip({ placement, pageWidth, pageHeight, selected, onSelect, onUpdate, onRemove }: PlacementChipProps) {
+function PlacementChip({ placement, pageWidth, pageHeight, selected, siblings, onSelect, onUpdate, onRemove, onGuides }: PlacementChipProps) {
   const left = placement.x * pageWidth;
   const top  = placement.y * pageHeight;
   const width = placement.width * pageWidth;
   const isText = isTextPlacement(placement);
   const [editing, setEditing] = useState(false);
 
-  const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
-
   const startDrag = (e: React.MouseEvent) => {
     if (editing) return;
     e.stopPropagation();
     onSelect();
-    dragState.current = {
-      startX: e.clientX, startY: e.clientY,
-      origX: placement.x, origY: placement.y,
-    };
+    // Capture the cursor's offset within the chip so the chip "sticks" to the
+    // same grab point as the cursor crosses page boundaries.
+    const chipRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const grabDX = e.clientX - chipRect.left;
+    const grabDY = e.clientY - chipRect.top;
+    const dragW = placement.width * pageWidth;
     const onMove = (mv: MouseEvent) => {
-      const s = dragState.current;
-      if (!s) return;
-      const dx = (mv.clientX - s.startX) / pageWidth;
-      const dy = (mv.clientY - s.startY) / pageHeight;
-      onUpdate({
-        x: clamp01(s.origX + dx),
-        y: clamp01(s.origY + dy),
-      });
+      const target = pickPageAt(mv.clientY);
+      if (!target) return;
+      const lpx = (mv.clientX - grabDX) - target.rect.left;
+      const tpx = (mv.clientY - grabDY) - target.rect.top;
+      // Smart guides only apply while the chip stays on its own page (snap
+      // targets are this page's other placements + its centre lines).
+      if (target.pageNumber === placement.page) {
+        const snap = computeSnap(lpx, tpx, dragW, height, siblings, pageWidth, pageHeight);
+        onGuides(snap.guides);
+        onUpdate({ page: target.pageNumber, x: clamp01(snap.left / pageWidth), y: clamp01(snap.top / pageHeight) });
+      } else {
+        onGuides(null);
+        onUpdate({
+          page: target.pageNumber,
+          x: clamp01(lpx / target.rect.width),
+          y: clamp01(tpx / target.rect.height),
+        });
+      }
     };
     const onUp = () => {
-      dragState.current = null;
+      onGuides(null);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
@@ -309,38 +366,45 @@ function PlacementChip({ placement, pageWidth, pageHeight, selected, onSelect, o
   };
 
   const label = placement.label ?? placement.variableName;
-  // Text zones grow vertically with their line count so multi-line content is
-  // fully visible; variables / empty text stay one line tall.
+  // Mirror the exporter's box model exactly so the editor is WYSIWYG:
+  //   • each line is fontSize × PDF_LINE_HEIGHT tall (same as pdf-export.ts),
+  //   • text is top-anchored with no inner padding, so the browser's line box
+  //     drops the first baseline at the same spot the exporter targets
+  //     (PDF_FIRST_BASELINE),
+  //   • the affordance is an outline (drawn outside the box) so text never
+  //     shifts between states or vs. the exported PDF.
   const lineCount = isText ? Math.max(1, (placement.text ?? '').split('\n').length) : 1;
-  const height = Math.max(18, placement.fontSize * 1.5 * lineCount);
-  const justify = placement.align === 'center' ? 'center' : placement.align === 'right' ? 'flex-end' : 'flex-start';
+  const height = placement.fontSize * PDF_LINE_HEIGHT * lineCount;
+  const align = placement.align ?? 'left';
 
-  // Visual: a 'text' chip previews the actual stamped text in near-black over
-  // its (optional) white-out fill, mirroring the export. A 'variable' chip
-  // keeps the blue {{token}} affordance.
   const fill = placement.whiteout ? (placement.whiteoutColor || '#ffffff') : undefined;
-  const borderClass = selected
-    ? 'border-2 border-indigo-500 shadow-md'
+  const outline = selected
+    ? '2px solid #6366f1'
     : isText
-      ? 'border border-dashed border-slate-300 hover:border-slate-500'
-      : 'border border-blue-300 hover:border-blue-500';
+      ? '1px dashed #cbd5e1'
+      : '1px solid #93c5fd';
+  // Faint editor-only fill keeps empty chips visible over the PDF (not exported).
+  const bg = fill ?? (selected ? undefined : isText ? 'rgba(255,255,255,0.7)' : 'rgba(239,246,255,0.92)');
+  const textStyle: React.CSSProperties = {
+    fontSize: placement.fontSize,
+    lineHeight: PDF_LINE_HEIGHT,
+    textAlign: align,
+    color: isText ? '#1a1a1a' : '#1d4ed8',
+    fontWeight: placement.bold ? 700 : isText ? 400 : 600,
+    fontStyle: placement.italic ? 'italic' : 'normal',
+    // Text previews in a Helvetica-like face to match the stamped font; the
+    // variable token keeps a monospace affordance (its value, not the token,
+    // is what gets stamped).
+    fontFamily: isText ? 'Helvetica, Arial, sans-serif' : 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  };
 
   return (
     <div
       onMouseDown={startDrag}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
       onDoubleClick={(e) => { if (isText) { e.stopPropagation(); onSelect(); setEditing(true); } }}
-      className={`absolute pointer-events-auto select-none rounded-md flex px-2 ${isText ? 'items-start py-0.5' : 'items-center'} ${editing ? 'cursor-text' : 'cursor-move'} ${borderClass} ${!fill && !selected ? (isText ? 'bg-white/80' : 'bg-blue-50/95') : ''}`}
-      style={{
-        left, top, width, height,
-        backgroundColor: selected && !fill ? undefined : fill,
-        fontSize: placement.fontSize,
-        color: isText ? '#1a1a1a' : '#1d4ed8',
-        fontWeight: placement.bold ? 700 : isText ? 400 : 600,
-        fontStyle: placement.italic ? 'italic' : 'normal',
-        fontFamily: isText ? 'inherit' : 'ui-monospace, SFMono-Regular, Menlo, monospace',
-        justifyContent: justify,
-      }}
+      className={`absolute pointer-events-auto select-none ${editing ? 'cursor-text' : 'cursor-move'}`}
+      style={{ left, top, width, height, outline, outlineOffset: 0, backgroundColor: bg }}
       title={isText ? placement.text : `{{${placement.variableName}}}`}
     >
       {editing ? (
@@ -353,13 +417,16 @@ function PlacementChip({ placement, pageWidth, pageHeight, selected, onSelect, o
           // Enter inserts a new line; Escape finishes editing.
           onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setEditing(false); } }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="w-full h-full bg-transparent outline-none resize-none overflow-hidden whitespace-pre-wrap leading-[1.5]"
-          style={{ fontSize: placement.fontSize, color: '#1a1a1a', textAlign: placement.align ?? 'left' }}
+          className="w-full h-full bg-transparent outline-none resize-none overflow-hidden block"
+          style={{ ...textStyle, padding: 0, border: 0, whiteSpace: 'pre-wrap' }}
         />
       ) : (
-        <span className="w-full whitespace-pre-wrap break-words leading-[1.5] text-[0.85em]">
+        <div
+          className="w-full h-full overflow-hidden"
+          style={{ ...textStyle, whiteSpace: isText ? 'pre-wrap' : 'nowrap', wordBreak: 'break-word' }}
+        >
           {isText ? (placement.text || 'Texte vide') : `{{${label}}}`}
-        </span>
+        </div>
       )}
       {selected && !editing && (
         <>
@@ -388,7 +455,89 @@ function clamp01(v: number): number {
   return v;
 }
 
-function ShapeChip({ placement, pageWidth, pageHeight, selected, onSelect, onUpdate, onRemove }: PlacementChipProps) {
+/** Active smart-guide lines, in page px. `v` = vertical lines (x), `h` = horizontal (y). */
+interface SnapGuides { v: number[]; h: number[]; }
+
+/** Pixel height a placement occupies in the editor — mirrors the chip render so
+ *  snap targets line up with what the user sees. */
+function chipPixelHeight(p: PdfPlacement, pageHeight: number): number {
+  if (isShapePlacement(p)) return (p.height ?? 0.05) * pageHeight;
+  const lineCount = isTextPlacement(p) ? Math.max(1, (p.text ?? '').split('\n').length) : 1;
+  return p.fontSize * PDF_LINE_HEIGHT * lineCount;
+}
+
+// Canva-style smart guides: snap the dragged box's left / centre / right and
+// top / centre / bottom edges to any sibling's matching edge or the page centre,
+// within a small pixel threshold. Returns the (possibly snapped) top-left in
+// page px plus the guide lines to draw.
+function computeSnap(
+  dragLeft: number,
+  dragTop: number,
+  dragW: number,
+  dragH: number,
+  siblings: PdfPlacement[],
+  pageW: number,
+  pageH: number,
+): { left: number; top: number; guides: SnapGuides } {
+  const THRESHOLD = 6;
+  const vTargets: number[] = [pageW / 2];
+  const hTargets: number[] = [pageH / 2];
+  for (const s of siblings) {
+    const sL = s.x * pageW;
+    const sT = s.y * pageH;
+    const sW = s.width * pageW;
+    const sH = chipPixelHeight(s, pageH);
+    vTargets.push(sL, sL + sW / 2, sL + sW);
+    hTargets.push(sT, sT + sH / 2, sT + sH);
+  }
+
+  const guides: SnapGuides = { v: [], h: [] };
+  let left = dragLeft;
+  let top = dragTop;
+
+  // Offsets of each candidate edge from the box's top-left corner.
+  let bestV: { delta: number; pos: number; offset: number } | null = null;
+  for (const offset of [0, dragW / 2, dragW]) {
+    const edge = dragLeft + offset;
+    for (const t of vTargets) {
+      const delta = Math.abs(edge - t);
+      if (delta <= THRESHOLD && (!bestV || delta < bestV.delta)) bestV = { delta, pos: t, offset };
+    }
+  }
+  if (bestV) { left = bestV.pos - bestV.offset; guides.v.push(bestV.pos); }
+
+  let bestH: { delta: number; pos: number; offset: number } | null = null;
+  for (const offset of [0, dragH / 2, dragH]) {
+    const edge = dragTop + offset;
+    for (const t of hTargets) {
+      const delta = Math.abs(edge - t);
+      if (delta <= THRESHOLD && (!bestH || delta < bestH.delta)) bestH = { delta, pos: t, offset };
+    }
+  }
+  if (bestH) { top = bestH.pos - bestH.offset; guides.h.push(bestH.pos); }
+
+  return { left, top, guides };
+}
+
+// Pick the page wrapper the cursor is currently over, or — when the cursor is
+// in the gutter between pages or outside all pages — the page closest in Y.
+// Why: chips drag in document-level mousemove handlers; without this, a chip's
+// page stays whatever it was at mousedown and clamp01(y) traps it on that page.
+function pickPageAt(clientY: number): { pageNumber: number; rect: DOMRect } | null {
+  const els = document.querySelectorAll<HTMLElement>('[data-pdf-page]');
+  if (els.length === 0) return null;
+  let best: { pageNumber: number; rect: DOMRect; dist: number } | null = null;
+  for (const el of els) {
+    const rect = el.getBoundingClientRect();
+    const pageNumber = Number(el.dataset.pdfPage);
+    if (clientY >= rect.top && clientY <= rect.bottom) return { pageNumber, rect };
+    const dist = clientY < rect.top ? rect.top - clientY : clientY - rect.bottom;
+    if (!best || dist < best.dist) best = { pageNumber, rect, dist };
+  }
+  return best ? { pageNumber: best.pageNumber, rect: best.rect } : null;
+}
+
+function ShapeChip({ placement, pageWidth, pageHeight, selected, siblings, onSelect, onUpdate, onRemove, onGuides }: PlacementChipProps) {
   const left = placement.x * pageWidth;
   const top  = placement.y * pageHeight;
   const width  = placement.width * pageWidth;
@@ -399,15 +548,29 @@ function ShapeChip({ placement, pageWidth, pageHeight, selected, onSelect, onUpd
   const startDrag = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect();
-    const startX = e.clientX, startY = e.clientY;
-    const origX = placement.x, origY = placement.y;
+    const chipRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const grabDX = e.clientX - chipRect.left;
+    const grabDY = e.clientY - chipRect.top;
     const onMove = (mv: MouseEvent) => {
-      onUpdate({
-        x: clamp01(origX + (mv.clientX - startX) / pageWidth),
-        y: clamp01(origY + (mv.clientY - startY) / pageHeight),
-      });
+      const target = pickPageAt(mv.clientY);
+      if (!target) return;
+      const lpx = (mv.clientX - grabDX) - target.rect.left;
+      const tpx = (mv.clientY - grabDY) - target.rect.top;
+      if (target.pageNumber === placement.page) {
+        const snap = computeSnap(lpx, tpx, width, height, siblings, pageWidth, pageHeight);
+        onGuides(snap.guides);
+        onUpdate({ page: target.pageNumber, x: clamp01(snap.left / pageWidth), y: clamp01(snap.top / pageHeight) });
+      } else {
+        onGuides(null);
+        onUpdate({
+          page: target.pageNumber,
+          x: clamp01(lpx / target.rect.width),
+          y: clamp01(tpx / target.rect.height),
+        });
+      }
     };
     const onUp = () => {
+      onGuides(null);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };

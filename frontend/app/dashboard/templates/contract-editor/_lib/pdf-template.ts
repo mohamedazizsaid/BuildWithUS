@@ -17,6 +17,22 @@
  */
 export const EDITOR_PAGE_WIDTH = 760;
 
+/**
+ * Line-height multiple applied to every stamped text line, in BOTH the editor
+ * preview and the PDF export. Keeping it in one place is what makes the two
+ * agree.
+ */
+export const PDF_LINE_HEIGHT = 1.5;
+
+/**
+ * Distance (× fontSize) from a text box's top edge to its FIRST baseline.
+ * This mirrors where a browser line box (at PDF_LINE_HEIGHT) drops the baseline
+ * for the editor's sans-serif face: ≈ lineHeight/2 + (ascent − descent)/2 for
+ * Helvetica/Arial metrics ≈ 1.1. The exporter draws at this same offset so the
+ * downloaded PDF lines up with what the user aligned in the editor.
+ */
+export const PDF_FIRST_BASELINE = 1.1;
+
 export interface PdfPlacement {
   /** Stable id so React can key chips through reorders without remounts. */
   id: string;

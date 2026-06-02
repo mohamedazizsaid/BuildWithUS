@@ -6,7 +6,7 @@
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { PdfTemplate } from './pdf-template';
-import { isTextPlacement, isShapePlacement, EDITOR_PAGE_WIDTH } from './pdf-template';
+import { isTextPlacement, isShapePlacement, EDITOR_PAGE_WIDTH, PDF_LINE_HEIGHT, PDF_FIRST_BASELINE } from './pdf-template';
 
 interface ExportOptions {
   /** Final filename suggested to the user in the download dialog. */
@@ -70,7 +70,7 @@ export async function exportPdfTemplateWithValues(
 
     // Split multi-line text zones into individual lines, stamped top-down.
     const lines = value.split('\n');
-    const lineHeight = sizePt * 1.5;
+    const lineHeight = sizePt * PDF_LINE_HEIGHT;
 
     const boxWidth = placement.width * pageW;
     const xLeft = placement.x * pageW;
@@ -93,10 +93,11 @@ export async function exportPdfTemplateWithValues(
     if (!value) continue;
 
     const font = pickFont(placement, { helvetica, helveticaBold, helveticaOblique, helveticaBoldOblique });
-    // Drop the baseline by ~fontSize so the first line sits visually at the
-    // top-left of the chip the user placed (matches WYSIWYG expectations), then
-    // step each subsequent line down by one line-height.
-    const yTop = pageH - (placement.y * pageH) - sizePt;
+    // Drop the first baseline to the same spot the editor's line box puts it
+    // (≈1.1×fontSize below the chip top — see PDF_FIRST_BASELINE), so the stamp
+    // lines up with the editor preview the user aligned against. Subsequent
+    // lines step down by one line-height.
+    const yTop = pageH - (placement.y * pageH) - sizePt * PDF_FIRST_BASELINE;
     lines.forEach((line, i) => {
       if (!line) return;
       const textWidth = font.widthOfTextAtSize(line, sizePt);
