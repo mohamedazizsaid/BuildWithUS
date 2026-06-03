@@ -1,5 +1,8 @@
 'use client';
 
+// Uses useSearchParams — render on demand instead of static prerender.
+export const dynamic = 'force-dynamic';
+
 import { Suspense, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useEditor } from '@tiptap/react';
@@ -276,8 +279,15 @@ export function ContractEditorContent() {
   });
 
   const runAiMappingForDataset = useCallback(async (dataset: CsvDataset) => {
-    if (!editor) return;
-    const templateVars = extractVariablesFromTiptap(editor.getJSON() as Record<string, unknown>);
+    // PDF-template mode keeps its variables in pdfTemplate.placements (the
+    // TipTap doc stays empty), so extract from there; otherwise read the doc.
+    const templateVars = pdfTemplate
+      ? Array.from(new Set(
+          pdfTemplate.placements.filter((p) => p.type !== 'text' && p.variableName).map((p) => p.variableName),
+        )).sort()
+      : editor
+        ? extractVariablesFromTiptap(editor.getJSON() as Record<string, unknown>)
+        : [];
     if (templateVars.length === 0) {
       toast('Aucune variable dans le template — ajoutez-en pour mapper le CSV', { icon: 'ℹ️' });
       return;
@@ -308,7 +318,7 @@ export function ContractEditorContent() {
     } finally {
       setIsMappingLoading(false);
     }
-  }, [editor]);
+  }, [editor, pdfTemplate]);
 
   const handleImportCsv = useCallback((filename: string, headers: string[], rows: Record<string, string>[]) => {
     const dataset: CsvDataset = { filename, headers, rows };
@@ -351,6 +361,11 @@ export function ContractEditorContent() {
         const pdfTpl = tryParsePdfTemplate(raw);
         if (pdfTpl) {
           setPdfTemplate(pdfTpl);
+          // Restore the CSV datasets/mappings persisted alongside the PDF template.
+          try {
+            const parsedPdf = JSON.parse(raw);
+            if (Array.isArray(parsedPdf.csvDatasets)) setCsvDatasets(parsedPdf.csvDatasets as CsvDataset[]);
+          } catch { /* no datasets */ }
           return;
         }
         // Otherwise: legacy / current TipTap-based contract.
@@ -483,7 +498,8 @@ export function ContractEditorContent() {
     const update = () => setUsedVars(extractVariablesFromTiptap(editor.getJSON() as Record<string, unknown>));
     editor.on('update', update);
     update();
-    return () => editor.off('update', update);
+    // Wrap in braces so the cleanup returns void (editor.off returns the Editor).
+    return () => { editor.off('update', update); };
   }, [editor]);
 
   const allKnownVarNames = useMemo(() => {
@@ -519,7 +535,10 @@ export function ContractEditorContent() {
     // PDF mode: payload is the PdfTemplate JSON. Skip the TipTap branch
     // entirely so empty editors don't blow away the saved PDF.
     if (pdfTemplate) {
-      const content = serializePdfTemplate(pdfTemplate);
+      // Carry the CSV column→variable mappings alongside the PDF template so
+      // the generate page can reuse them (kind stays 'pdf-template', so the
+      // parser still recognizes it; the extra field is ignored by PDF consumers).
+      const content = JSON.stringify({ ...JSON.parse(serializePdfTemplate(pdfTemplate)), csvDatasets });
       try {
         if (currentTemplateId) {
           await templates.update(currentTemplateId, { name, description, type: 3, content });
@@ -708,7 +727,7 @@ export function ContractEditorContent() {
     const toastId = toast.loading('Génération du PDF…');
     const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, {}, { docName: name, bgColor: docBgColor, floatingImages, floatingSignatures });
     try {
-      const res = await fetch('http://localhost:3000/templates/render-pdf', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/templates/render-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -772,7 +791,7 @@ export function ContractEditorContent() {
     const toastId = toast.loading('Génération du PDF…');
     const html = renderTiptapToHtml(editor.getJSON() as Record<string, unknown>, values, { docName: name, bgColor: docBgColor, floatingImages, floatingSignatures });
     try {
-      const res = await fetch('http://localhost:3000/templates/render-pdf', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/templates/render-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

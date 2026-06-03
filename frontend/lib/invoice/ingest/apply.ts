@@ -71,7 +71,7 @@ function assign(data: Invoice['data'], line: InvoiceLine, path: string, value: u
   // Line-level paths
   if (path.startsWith('data.lines[].')) {
     const field = path.slice('data.lines[].'.length) as keyof InvoiceLine;
-    (line as Record<string, unknown>)[field as string] = value;
+    (line as unknown as Record<string, unknown>)[field as string] = value;
     return;
   }
   // Nested client paths

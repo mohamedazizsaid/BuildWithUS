@@ -10,7 +10,7 @@ import {
 import { auth } from '@/lib/api';
 import toast from 'react-hot-toast';
 
-const API = 'http://localhost:3000';
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 interface Tenant {
   id: string;

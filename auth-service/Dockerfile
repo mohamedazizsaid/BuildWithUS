@@ -30,7 +30,11 @@ RUN groupadd -r nodejs && useradd -r -g nodejs -m nestjs
 COPY --from=prod-deps --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/package.json ./package.json
+# main.js loads ../proto/auth.proto at startup (relative to /app/dist),
+# so the proto folder must be present in the runtime image too.
+COPY --from=builder --chown=nestjs:nodejs /app/proto ./proto
 
 USER nestjs
 EXPOSE 50055
-CMD ["node", "dist/src/main.js"]
+# nest build outputs to dist/ (src as root), so the entry is dist/main.js.
+CMD ["node", "dist/main.js"]

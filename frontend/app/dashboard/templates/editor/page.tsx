@@ -1,5 +1,8 @@
 ﻿"use client";
 
+// Uses useSearchParams — render on demand instead of static prerender.
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useLayoutEffect, useRef, Suspense } from "react";
 import { flushSync } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";

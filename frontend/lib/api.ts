@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:3000';
+// Dev: env var unset → uses localhost. Prod: Docker build arg sets the real URL.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 // ─── Embed-mode Bearer auth ────────────────────────────────────────────────
 // When the app is loaded inside an <iframe> via /embed, the host (Tool X)
@@ -193,7 +194,7 @@ export const contractVariables = {
 };
 
 // ─── Media ───
-const API_URL_RAW = 'http://localhost:3000';
+const API_URL_RAW = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export const media = {
     upload: async (file: File): Promise<{ url: string; fileName: string; size: number; type: string }> => {
@@ -224,7 +225,7 @@ export const media = {
 };
 
 // ─── AI Template Generation ───
-const AI_SERVICE_URL = 'http://127.0.0.1:8001';
+const AI_SERVICE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL ?? 'http://127.0.0.1:8001';
 const IMAGE_SEARCH_URL = process.env.NEXT_PUBLIC_IMAGE_SEARCH_API ?? 'http://localhost:8002';
 
 /**

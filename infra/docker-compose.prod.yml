@@ -1,0 +1,249 @@
+# ============================================================
+# Winaity Template Builder — PRODUCTION compose (server only)
+# ------------------------------------------------------------
+# This is a STANDALONE file. On the server, run ONLY this file:
+#
+#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Your laptop keeps using docker-compose.yml + docker-compose.override.yml.
+# Nothing here touches your dev workflow.
+#
+# PORTS: only 3 services publish a host port (the ones a browser touches):
+#   - frontend  (the website)
+#   - api-gateway (the REST API the browser calls)
+#   - minio (so the browser can load uploaded images)
+# Everything else has NO host port = private, reachable only inside the
+# Docker network. Map the 3 public host ports into the range your IT gave you.
+# ============================================================
+
+services:
+  # ---------- Internal infrastructure (NO public ports) ----------
+  postgres:
+    image: postgres:18
+    container_name: winaity-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # Postgres 18+ stores data in a version subdir, so mount the parent dir
+      # (/var/lib/postgresql) rather than the old /var/lib/postgresql/data path.
+      - pg_data:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - winaity-net
+
+  minio:
+    image: minio/minio:latest
+    container_name: winaity-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Only the S3 port (9000) is published so browsers can fetch images.
+    # The admin console (9001) stays private — reach it via SSH tunnel if needed.
+    # Better long-term: put MinIO behind the reverse proxy and remove this.
+    ports:
+      - "${MINIO_PUBLIC_PORT:-4402}:9000"
+    networks:
+      - winaity-net
+
+  nats:
+    image: nats:2-alpine
+    container_name: winaity-nats
+    restart: unless-stopped
+    command: ["-js", "-m", "8222"]
+    networks:
+      - winaity-net
+
+  # ---------- gRPC microservices (NO public ports) ----------
+  auth-service:
+    build:
+      context: ../auth-service
+      dockerfile: Dockerfile          # production recipe (compiled JS)
+    image: winaity/auth-service:prod
+    container_name: winaity-auth-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      GRPC_PORT: 50055
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: auth_db
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 24h
+      # Keep "false" normally. Set to "true" in .env ONLY for the very first
+      # deploy (empty DB) to create the auth tables, then change back to false.
+      DB_SYNC: ${DB_SYNC:-false}
+    networks:
+      - winaity-net
+
+  template-service:
+    build:
+      context: ..
+      dockerfile: template-service/Dockerfile   # production recipe (compiled JS)
+    image: winaity/template-service:prod
+    container_name: winaity-template-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      GRPC_PORT: 50054
+      SERVICE_HOST: template-service
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: templates_db
+      # Keep "false" normally. "true" on the first deploy builds the schema from
+      # the entities (the committed migrations are stale). Then set back to false.
+      DB_SYNC: ${DB_SYNC:-false}
+      TYPEORM_LOGGING: "false"
+      NATS_URL: nats://nats:4222
+      NATS_STREAM_NAME: TEMPLATE_EVENTS
+      NATS_CONSUMER_GROUP: template-service-consumers
+      PROTO_ROOT: ../packages/proto
+    networks:
+      - winaity-net
+
+  # ---------- API Gateway (PUBLIC: browser calls its REST API) ----------
+  api-gateway:
+    build:
+      context: ..                      # repo root, so it can copy proto files
+      dockerfile: api-gateway/Dockerfile
+    image: winaity/api-gateway:prod
+    container_name: winaity-api-gateway
+    restart: unless-stopped
+    depends_on:
+      auth-service:
+        condition: service_started
+      template-service:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      AUTH_SERVICE_URL: auth-service:50055
+      TEMPLATE_SERVICE_URL: template-service:50054
+      # MinIO: server-to-server uses the internal name...
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: templates
+      MINIO_USE_SSL: "false"
+      # ...but the browser needs a PUBLIC URL to load images. Set in .env.
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      JWT_SECRET: ${JWT_SECRET}
+      PRINT_TOKEN_SECRET: ${PRINT_TOKEN_SECRET}
+      FRONTEND_URL: http://frontend:3000
+      # Browser origin(s) allowed by CORS (the public frontend URL).
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+    ports:
+      - "${GATEWAY_PUBLIC_PORT:-4401}:3000"
+    networks:
+      - winaity-net
+
+  # ---------- Frontend (PUBLIC: the website users open) ----------
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile           # production recipe (next build + start)
+      args:
+        # Baked into the browser JS at build time — must be the PUBLIC server URLs.
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+        NEXT_PUBLIC_MINIO_URL: ${MINIO_PUBLIC_URL}
+        NEXT_PUBLIC_AI_SERVICE_URL: ${PUBLIC_AI_SERVICE_URL}
+        NEXT_PUBLIC_IMAGE_SEARCH_API: ${PUBLIC_IMAGE_SEARCH_URL}
+        NEXT_PUBLIC_CONVEX_URL: ${NEXT_PUBLIC_CONVEX_URL}
+        NEXT_PUBLIC_CONVEX_SITE_URL: ${NEXT_PUBLIC_CONVEX_SITE_URL}
+    image: winaity/frontend:prod
+    container_name: winaity-frontend
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    environment:
+      NODE_ENV: production
+      # Server-side calls (inside the network) use the internal name.
+      INTERNAL_API_URL: http://api-gateway:3000
+      PRINT_TOKEN_SECRET: ${PRINT_TOKEN_SECRET}
+    ports:
+      - "${FRONTEND_PUBLIC_PORT:-4400}:3000"
+    networks:
+      - winaity-net
+
+  # ---------- AI + image services (PUBLIC: browser calls them directly) ----------
+  ai-template-service:
+    build:
+      context: ../ai-template-service
+      dockerfile: Dockerfile
+    image: winaity/ai-template-service:prod
+    container_name: ai-template-service
+    restart: unless-stopped
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      PORT: 8001
+      IMAGE_SEARCH_API: http://image-pipeline:8002
+      # Which browser origin is allowed to call this service (the frontend).
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+    ports:
+      - "${AI_PUBLIC_PORT:-4403}:8001"
+    networks:
+      - winaity-net
+
+  image-pipeline:
+    build:
+      context: ../image-pipeline
+      dockerfile: Dockerfile
+    image: winaity/image-pipeline:prod
+    container_name: image-pipeline
+    restart: unless-stopped
+    environment:
+      PEXELS_API_KEY: ${PEXELS_API_KEY}
+      IMAGE_SEARCH_PORT: 8002
+    ports:
+      - "${IMAGE_PUBLIC_PORT:-4404}:8002"
+    networks:
+      - winaity-net
+
+volumes:
+  pg_data:
+  minio_data:
+
+networks:
+  winaity-net:
+    driver: bridge

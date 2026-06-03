@@ -19,8 +19,11 @@ COPY packages ./packages
 COPY --from=deps /workspace/template-service/node_modules ./template-service/node_modules
 COPY template-service ./template-service
 WORKDIR /workspace/template-service
-# prebuild runs proto:clean + proto:generate, then nest build && tsc-alias
-RUN npm run build
+# The committed proto/generated/* files are the source of truth. The package's
+# "prebuild" hook would delete them and try to regenerate from
+# packages/proto/gen/ts (not generated in this repo), which fails. So we run the
+# compiler directly (skipping prebuild) and keep the committed proto files.
+RUN npx nest build && npx tsc-alias
 
 # ===== Stage 3: install only production deps =====
 FROM node:20-bookworm-slim AS prod-deps

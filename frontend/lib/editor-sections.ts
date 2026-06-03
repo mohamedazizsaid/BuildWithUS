@@ -29,7 +29,7 @@ export interface LayoutRow {
 }
 
 // Pool of real HD stock images from MinIO (Pexels collection)
-const MINIO = 'http://localhost:9000/stock-images';
+const MINIO = (process.env.NEXT_PUBLIC_MINIO_URL ?? 'http://localhost:9000') + '/stock-images';
 const P = (id: number) => `${MINIO}/pexels_${id}.jpg`;
 
 // Curated image pools per theme

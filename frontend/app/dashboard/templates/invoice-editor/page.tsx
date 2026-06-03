@@ -1,5 +1,8 @@
 'use client';
 
+// Uses useSearchParams — render on demand instead of static prerender.
+export const dynamic = 'force-dynamic';
+
 import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
@@ -219,7 +222,7 @@ function InvoiceEditorContent() {
     const toastId = toast.loading('Génération du PDF...');
     try {
       const html = renderInvoiceHtml(invoice);
-      const res = await fetch('http://localhost:3000/templates/render-pdf', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/templates/render-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -274,7 +277,7 @@ function InvoiceEditorContent() {
       if (validation.errors.length > 0) errorRows++;
       try {
         const html = renderInvoiceHtml(filledInvoice);
-        const res = await fetch('http://localhost:3000/templates/render-pdf', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/templates/render-pdf`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',

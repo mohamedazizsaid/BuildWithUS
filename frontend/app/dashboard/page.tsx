@@ -69,15 +69,20 @@ export default function DashboardPage() {
 
         const results = await Promise.allSettled(calls);
 
+        // The calls array is typed as unknown[] (heterogeneous), so narrow the
+        // settled values to the shapes we actually read here.
+        type ListResp = { pagination?: { total?: number }; templates?: RecentTemplate[] };
+        type MembersResp = { members?: unknown[] };
+
         const totalTemplates =
-          results[0].status === 'fulfilled' ? results[0].value?.pagination?.total ?? 0 : 0;
+          results[0].status === 'fulfilled' ? (results[0].value as ListResp).pagination?.total ?? 0 : 0;
         const totalFavourites =
-          results[1].status === 'fulfilled' ? results[1].value?.pagination?.total ?? 0 : 0;
+          results[1].status === 'fulfilled' ? (results[1].value as ListResp).pagination?.total ?? 0 : 0;
         const recent =
-          results[2].status === 'fulfilled' ? results[2].value?.templates ?? [] : [];
+          results[2].status === 'fulfilled' ? (results[2].value as ListResp).templates ?? [] : [];
         const totalMembers =
           isAdmin && results[3]?.status === 'fulfilled'
-            ? (results[3].value?.members?.length ?? 1)
+            ? ((results[3].value as MembersResp).members?.length ?? 1)
             : 1;
 
         setCounts({ templates: totalTemplates, favourites: totalFavourites, members: totalMembers });

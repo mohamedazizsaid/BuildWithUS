@@ -21,7 +21,12 @@ export function createTypeOrmConfig(dbConfig: DatabaseConfig): DataSourceOptions
     database: dbConfig.database,
     entities: ['dist/src/**/*.orm-entity.{ts,js}'],
     migrations: ['dist/src/**/infrastructure/persistence/migrations/*-*.{ts,js}'],
-    synchronize: process.env.NODE_ENV === 'development',
+    // The committed migrations are stale (they predate tenant_id / multi-tenancy
+    // columns), so we build the schema from the entities via synchronize — in dev
+    // always, and in prod on the first deploy (DB_SYNC=true). Set DB_SYNC=false
+    // after the first successful deploy to freeze the schema. Mirrors auth-service.
+    synchronize: process.env.NODE_ENV === 'development' || process.env.DB_SYNC === 'true',
+    migrationsRun: false,
     logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : false,
   };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Mail, Pencil, Trash2, Copy, Eye, Clock, Star, Play, Layers } from 'lucide-react';
@@ -22,7 +22,7 @@ import { DeleteModal } from './_components/DeleteModal';
 import { PreviewModal } from './_components/PreviewModal';
 import { PredefinedGallery } from './_components/PredefinedGallery';
 
-export default function TemplatesPage() {
+function TemplatesPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -383,5 +383,13 @@ export default function TemplatesPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function TemplatesPage() {
+  return (
+    <Suspense fallback={null}>
+      <TemplatesPageInner />
+    </Suspense>
   );
 }

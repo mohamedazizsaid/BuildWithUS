@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -15,7 +15,7 @@ interface InviteForm {
   password: string;
 }
 
-export default function InvitePage() {
+function InvitePageInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
@@ -131,5 +131,13 @@ export default function InvitePage() {
         </button>
       </form>
     </motion.div>
+  );
+}
+
+export default function InvitePage() {
+  return (
+    <Suspense fallback={null}>
+      <InvitePageInner />
+    </Suspense>
   );
 }

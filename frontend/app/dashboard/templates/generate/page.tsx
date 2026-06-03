@@ -1,5 +1,8 @@
 'use client';
 
+// Uses useSearchParams — render on demand instead of static prerender.
+export const dynamic = 'force-dynamic';
+
 import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -105,17 +108,16 @@ function GenerateContent() {
 
         // Reuse the column→variable mapping the user already configured in the
         // editor (stored on the template's CSV datasets) so the generate page
-        // doesn't ask them to map again.
-        if (!pdf) {
-          try {
-            const parsed = JSON.parse(content);
-            const saved: Record<string, string> = {};
-            for (const ds of (parsed.csvDatasets ?? []) as { mapping?: Record<string, string | null> }[]) {
-              for (const [v, h] of Object.entries(ds.mapping ?? {})) if (h) saved[v] = h;
-            }
-            setSavedMapping(saved);
-          } catch { /* no datasets */ }
-        }
+        // doesn't ask them to map again. PDF templates now persist csvDatasets
+        // alongside the PDF JSON, so read it for both kinds.
+        try {
+          const parsed = JSON.parse(content);
+          const saved: Record<string, string> = {};
+          for (const ds of (parsed.csvDatasets ?? []) as { mapping?: Record<string, string | null> }[]) {
+            for (const [v, h] of Object.entries(ds.mapping ?? {})) if (h) saved[v] = h;
+          }
+          setSavedMapping(saved);
+        } catch { /* no datasets */ }
       })
       .catch(() => toast.error('Erreur chargement du template'))
       .finally(() => setLoading(false));
@@ -230,7 +232,7 @@ function GenerateContent() {
       return exportPdfTemplateWithValues(pdfTpl, { values: vars });
     }
     const html = buildPrintHtml(vars, templateName);
-    const res = await fetch('http://localhost:3000/templates/render-pdf', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/templates/render-pdf`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

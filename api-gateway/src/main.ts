@@ -14,9 +14,18 @@ async function bootstrap() {
   // Cookies (JWT)
   app.use(cookieParser());
 
-  // CORS
+  // CORS — allow the dev frontends, plus any production origin(s) from env.
+  // FRONTEND_ORIGIN can be a comma-separated list (e.g. the server URL).
+  const corsOrigins = [
+    'http://localhost:3001',
+    'http://localhost:5173',
+    ...(process.env.FRONTEND_ORIGIN ?? '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
+  ];
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://localhost:5173'],
+    origin: corsOrigins,
     credentials: true,
   });
 
