@@ -55,6 +55,12 @@ export default function EmbedPage() {
   const [templateCount, setTemplateCount] = useState<number | null>(null);
 
   useEffect(() => {
+    // The params come from window.location.hash — client-only state invisible
+    // during SSR — and this effect must also run real post-mount side effects
+    // (token handoff, fragment scrub, postMessage, navigation). So the state
+    // sync genuinely belongs here, not in a render-time initializer (which
+    // would break hydration). The synchronous setState below is intentional.
+    /* eslint-disable react-hooks/set-state-in-effect */
     const p = parseHash();
     if (!p) {
       setError('Aucun token reçu. Cette page doit être chargée depuis Tool X (iframe).');
@@ -65,6 +71,7 @@ export default function EmbedPage() {
     setEmbedToken(p.token);
     setEmbedReturnOrigin(p.returnOrigin);
     setParams(p);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Step 2: scrub the fragment from the URL.
     try {

@@ -41,6 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const tenantId = (claims?.tenantId ?? claims?.tenant_id ?? claims?.sub ?? '') as string;
       const tokenType = (claims?.type ?? '') as string;
       const isIntegrationSession = tokenType === 'integration_session';
+      // Synchronous setState here is intentional. The embed user is derived from
+      // sessionStorage (client-only), which is invisible during SSR, and the token
+      // is written right after the /embed page mounts — so this can only run as a
+      // post-mount sync, not a render-time initializer (that would break hydration).
+      /* eslint-disable react-hooks/set-state-in-effect */
       setUser({
         id: isIntegrationSession ? 'integration-session' : 'embed-m2m',
         tenant_id: tenantId,
@@ -51,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: isIntegrationSession ? 'editor' : 'm2m',
       });
       setLoading(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
       return;
     }
     auth.getMe()

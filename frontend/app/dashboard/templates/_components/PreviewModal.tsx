@@ -19,8 +19,6 @@ function PdfTemplatePreview({ template }: { template: PdfTemplate }) {
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
-    setUrl(null);
-    setFailed(false);
 
     (async () => {
       try {
@@ -58,7 +56,9 @@ function ModalContractInvoicePreview({ template }: { template: Template }) {
   if (type === 'contrat') {
     // PDF-template contracts: render the real stamped PDF rather than TipTap/blocks.
     const pdfTpl = tryParsePdfTemplate(template.content);
-    if (pdfTpl) return <PdfTemplatePreview template={pdfTpl} />;
+    // Key by template identity so a different template remounts the preview
+    // (resetting url/failed) instead of resetting state inside the effect.
+    if (pdfTpl) return <PdfTemplatePreview key={`${template.id}:${template.updated_at}`} template={pdfTpl} />;
 
     try {
       const data = JSON.parse(template.content);

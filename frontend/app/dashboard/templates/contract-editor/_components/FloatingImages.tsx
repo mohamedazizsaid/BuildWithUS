@@ -47,7 +47,7 @@ export function FloatingImages({
       if (d.kind === 'move') {
         onUpdate(d.id, { x: d.origX + dx, y: d.origY + dy });
       } else {
-        let newW = Math.max(8, d.origW + dx);
+        const newW = Math.max(8, d.origW + dx);
         let newH = Math.max(8, d.origH + dy);
         if (d.keepAspect) {
           newH = newW / d.ratio;

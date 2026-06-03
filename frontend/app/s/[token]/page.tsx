@@ -7,14 +7,11 @@ import { developers, setEmbedToken, setBuilderReturnUrl } from '@/lib/api';
 export default function SessionExchangePage() {
   const router = useRouter();
   const params = useParams<{ token: string }>();
+  const token = params?.token;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = params?.token;
-    if (!token) {
-      setError('Token de session manquant.');
-      return;
-    }
+    if (!token) return;
 
     let cancelled = false;
     (async () => {
@@ -53,14 +50,17 @@ export default function SessionExchangePage() {
     })();
 
     return () => { cancelled = true; };
-  }, [params?.token, router]);
+  }, [token, router]);
 
-  if (error) {
+  // Missing token is derivable at render time — no effect/setState needed.
+  const displayError = error ?? (!token ? 'Token de session manquant.' : null);
+
+  if (displayError) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
         <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
           <h1 className="text-xl font-semibold mb-2">Session impossible</h1>
-          <p className="text-white/60 text-sm mb-6">{error}</p>
+          <p className="text-white/60 text-sm mb-6">{displayError}</p>
           <p className="text-white/40 text-xs">
             Demande à l&apos;application qui t&apos;a redirigé de réessayer.
           </p>

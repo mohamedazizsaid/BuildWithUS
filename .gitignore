@@ -1,5 +1,8 @@
 node_modules/
 dist/
 .env*
+# keep example/template env files in git (they contain no real secrets)
+!.env.example
+!*.env.example
 *.js.map
 /image-pipeline\images/
