@@ -18,6 +18,12 @@ WORKDIR /workspace
 COPY packages ./packages
 COPY --from=deps /workspace/template-service/node_modules ./template-service/node_modules
 COPY template-service ./template-service
+# shared-kernel ships NO built dist/ in git (it's gitignored) and is consumed as a
+# `file:` dependency. Build it here so its dist/index.{js,d.ts} exist — otherwise
+# `nest build` can't resolve '@winaity/shared-kernel' (works on a dev laptop only
+# because dist/ happens to exist there on disk).
+WORKDIR /workspace/packages/shared-kernel
+RUN npm install && npm run build
 WORKDIR /workspace/template-service
 # The committed proto/generated/* files are the source of truth. The package's
 # "prebuild" hook would delete them and try to regenerate from
