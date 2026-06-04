@@ -9,12 +9,13 @@
 # Your laptop keeps using docker-compose.yml + docker-compose.override.yml.
 # Nothing here touches your dev workflow.
 #
-# PORTS: only 3 services publish a host port (the ones a browser touches):
-#   - frontend  (the website)
-#   - api-gateway (the REST API the browser calls)
-#   - minio (so the browser can load uploaded images)
-# Everything else has NO host port = private, reachable only inside the
-# Docker network. Map the 3 public host ports into the range your IT gave you.
+# NETWORKING: the browser-facing services (frontend, api-gateway, minio,
+# ai-template-service, image-pipeline) are reachable two ways:
+#   1. Over the Internet through the cloudflared service (by container name).
+#   2. Directly on the host via published ports in the 4400-4499 range.
+# Host ports stay inside 4400-4499 (NEVER 9000/9001) so MinIO never collides
+# with another MinIO already running on the host. Everything else (postgres,
+# nats, auth-service, template-service) is private to the Docker network.
 # ============================================================
 
 services:
@@ -55,11 +56,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # Only the S3 port (9000) is published so browsers can fetch images.
-    # The admin console (9001) stays private — reach it via SSH tunnel if needed.
-    # Better long-term: put MinIO behind the reverse proxy and remove this.
+    # Published on the host in the 4400-4499 range (NEVER 9000/9001), so it never
+    # collides with another MinIO already using host ports 9000/9001. The tunnel
+    # still reaches it internally by name (http://minio:9000).
+    #   4402 -> S3 API (9000)   |   4405 -> admin console (9001)
     ports:
       - "${MINIO_PUBLIC_PORT:-4402}:9000"
+      - "${MINIO_CONSOLE_PORT:-4405}:9001"
     networks:
       - winaity-net
 
@@ -173,6 +176,8 @@ services:
       FRONTEND_URL: http://frontend:3000
       # Browser origin(s) allowed by CORS (the public frontend URL).
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+    # Reached by the tunnel internally (http://api-gateway:3000) AND published on
+    # the host for direct IP:port access.
     ports:
       - "${GATEWAY_PUBLIC_PORT:-4401}:3000"
     networks:
@@ -201,6 +206,8 @@ services:
       # Server-side calls (inside the network) use the internal name.
       INTERNAL_API_URL: http://api-gateway:3000
       PRINT_TOKEN_SECRET: ${PRINT_TOKEN_SECRET}
+    # Reached by the tunnel internally (http://frontend:3000) AND published on
+    # the host for direct IP:port access.
     ports:
       - "${FRONTEND_PUBLIC_PORT:-4400}:3000"
     networks:
@@ -220,6 +227,8 @@ services:
       IMAGE_SEARCH_API: http://image-pipeline:8002
       # Which browser origin is allowed to call this service (the frontend).
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+    # Reached by the tunnel internally (http://ai-template-service:8001) AND
+    # published on the host for direct IP:port access.
     ports:
       - "${AI_PUBLIC_PORT:-4403}:8001"
     networks:
@@ -235,8 +244,35 @@ services:
     environment:
       PEXELS_API_KEY: ${PEXELS_API_KEY}
       IMAGE_SEARCH_PORT: 8002
+    # Reached by the tunnel internally (http://image-pipeline:8002) AND published
+    # on the host for direct IP:port access.
     ports:
       - "${IMAGE_PUBLIC_PORT:-4404}:8002"
+    networks:
+      - winaity-net
+
+  # ---------- Cloudflare Tunnel (exposes the public services to the Internet) ----------
+  # Runs on the SAME bridge network, so it reaches services by container name —
+  # no host networking, no published ports needed for the tunnel itself.
+  # In the Cloudflare dashboard, point each public hostname at:
+  #   frontend             -> http://frontend:3000
+  #   api-gateway          -> http://api-gateway:3000
+  #   minio (images)       -> http://minio:9000
+  #   ai-template-service  -> http://ai-template-service:8001
+  #   image-pipeline       -> http://image-pipeline:8002
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: winaity-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - frontend
+      - api-gateway
+      - minio
+      - ai-template-service
+      - image-pipeline
     networks:
       - winaity-net
 

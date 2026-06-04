@@ -33,13 +33,35 @@ using the dev setup (`docker compose up`); the server uses the files below.
 ### Port map (assigned range 4400–4499)
 | Port | Service | Reached by |
 |---|---|---|
-| 4400 | frontend | browser |
+| 4400 | frontend | browser (direct IP:port) |
 | 4401 | api-gateway | browser (REST API) |
-| 4402 | minio | browser (images) |
+| 4402 | minio S3 | browser (images) |
 | 4403 | ai-template-service | browser (AI generation) |
 | 4404 | image-pipeline | browser (image search) |
+| 4405 | minio console | admin UI |
 
-Postgres, NATS, auth, template are **internal only** (no public port).
+Host ports stay inside 4400–4499 (**never 9000/9001**) so MinIO never collides
+with another MinIO already running on the server. Postgres, NATS, auth, template
+are **internal only** (no public port).
+
+### Public access — Cloudflare Tunnel
+The public site is served through a **Cloudflare Tunnel** (`cloudflared` service),
+not the host ports. cloudflared makes an **outbound** connection to Cloudflare, so
+**no inbound firewall port is required** (HTTPS is handled by Cloudflare). The host
+ports above are an optional second access path (direct IP:port on the LAN).
+
+| Public hostname | → service (in the tunnel dashboard) |
+|---|---|
+| builder-template.winaity.com | http://frontend:3000 |
+| api-template-builder.winaity.com | http://api-gateway:3000 |
+| minio-template-builder.winaity.com | http://minio:9000 |
+| ai-template-builder.winaity.com | http://ai-template-service:8001 |
+| image-template-builder.winaity.com | http://image-pipeline:8002 |
+
+> ⚠️ One tunnel token = one active location at a time. Do **not** run the stack on
+> your laptop and the server simultaneously — Cloudflare would split traffic
+> between them. Stop the laptop stack (`docker compose -f docker-compose.prod.yml
+> down`) before bringing the server up.
 
 ---
 
@@ -73,23 +95,27 @@ SMTP_HOST=...  SMTP_PORT=...  SMTP_USER=...  SMTP_PASS=...
 OPENROUTER_API_KEY=...
 PEXELS_API_KEY=...
 
-# --- ports (your assigned range) ---
+# --- ports (your assigned range; never 9000/9001) ---
 FRONTEND_PUBLIC_PORT=4400
 GATEWAY_PUBLIC_PORT=4401
 MINIO_PUBLIC_PORT=4402
 AI_PUBLIC_PORT=4403
 IMAGE_PUBLIC_PORT=4404
+MINIO_CONSOLE_PORT=4405
 
-# --- PUBLIC URLs: replace SERVER with your domain or IP, keep the ports ---
-PUBLIC_API_URL=http://SERVER:4401
-MINIO_PUBLIC_URL=http://SERVER:4402
-PUBLIC_AI_SERVICE_URL=http://SERVER:4403
-PUBLIC_IMAGE_SEARCH_URL=http://SERVER:4404
-FRONTEND_ORIGIN=http://SERVER:4400        # the URL users open (used by CORS)
+# --- PUBLIC URLs: the Cloudflare tunnel public hostnames (https) ---
+PUBLIC_API_URL=https://api-template-builder.winaity.com
+MINIO_PUBLIC_URL=https://minio-template-builder.winaity.com
+PUBLIC_AI_SERVICE_URL=https://ai-template-builder.winaity.com
+PUBLIC_IMAGE_SEARCH_URL=https://image-template-builder.winaity.com
+FRONTEND_ORIGIN=https://builder-template.winaity.com   # the URL users open (CORS)
 
 # --- Convex (real-time) ---
 NEXT_PUBLIC_CONVEX_URL=...
 NEXT_PUBLIC_CONVEX_SITE_URL=...
+
+# --- Cloudflare Tunnel token (Zero Trust dashboard) ---
+CLOUDFLARE_TUNNEL_TOKEN=...
 
 # --- schema bootstrap: true ONLY for the first deploy, then false ---
 DB_SYNC=true
@@ -131,9 +157,9 @@ then on.
 - **Frontend type errors are skipped** (`typescript.ignoreBuildErrors`). To clean
   up: in `frontend/`, run `npm run build`, fix the listed type errors, then remove
   that flag from `next.config.ts`.
-- **HTTPS**: add a reverse proxy (e.g. Caddy) in front so users get `https://`.
-  Then point `FRONTEND_ORIGIN` / `PUBLIC_*` URLs at the `https://` domain and
-  rebuild the frontend.
+- **HTTPS**: handled by the Cloudflare Tunnel (no reverse proxy needed). The
+  `PUBLIC_*` / `FRONTEND_ORIGIN` URLs already point at the `https://` tunnel
+  hostnames.
 - **Schema is managed by `synchronize`** (the committed migrations are stale). If
   you change entities later, the schema follows the code on a `DB_SYNC=true` run.
 - A few editor pages still carry a harmless `export const dynamic = 'force-dynamic'`
