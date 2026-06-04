@@ -10,8 +10,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"                       # -> infra/
 
-# Load DB credentials from .env
-set -a; . ./.env; set +a
+# Read ONLY the DB credentials from .env (don't `source` the whole file — some
+# values, e.g. an app password with spaces, would be executed as shell commands).
+read_env() { grep -E "^$1=" .env | head -1 | cut -d= -f2- | sed 's/^"\(.*\)"$/\1/; s/^'"'"'\(.*\)'"'"'$/\1/'; }
+POSTGRES_USER="$(read_env POSTGRES_USER)"
+POSTGRES_PASSWORD="$(read_env POSTGRES_PASSWORD)"
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 DIR="./backups"
