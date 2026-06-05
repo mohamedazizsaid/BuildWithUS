@@ -90,6 +90,7 @@ export default function InviteMemberPage() {
                 className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all bg-white"
               >
                 <option value="editor">Éditeur — peut créer et modifier des modèles</option>
+                <option value="marketing">Marketing — peut créer des templates prédéfinis</option>
                 <option value="member">Membre — accès en lecture seule</option>
               </select>
             </div>

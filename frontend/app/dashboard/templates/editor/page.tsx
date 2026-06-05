@@ -34,6 +34,10 @@ function EditorContent() {
   // Create mode: ?name=xxx&type=1 creates a new one
   const editId   = searchParams.get("id");
   const presetId = searchParams.get("preset");
+  // Marketing-only: creating a brand-new predefined gallery entry inside a category.
+  const predefinedCategory = searchParams.get("predefinedCategory");
+  // Start a NEW personal template from an existing one's content (no edit, no flag).
+  const cloneFrom = searchParams.get("cloneFrom");
   const isEditMode = !!editId;
   // Tracks the saved template ID — starts from URL param, updated after first silent save
   const [savedId, setSavedId] = useState<string | null>(editId);
@@ -120,6 +124,37 @@ function EditorContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presetId]);
 
+  // Clone mode — load an existing template's content into a fresh, unsaved canvas.
+  // Used by "Utiliser ce template" on a tenant predefined entry: it spawns a NEW
+  // personal model (no edit-in-place, no predefined flag).
+  useEffect(() => {
+    if (!cloneFrom) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await templates.get(cloneFrom);
+        if (cancelled) return;
+        const tmpl = data.template || data;
+        if (tmpl.content) {
+          const parsed = parseMjmlToTemplate(tmpl.content, editorState.template.globalStyles);
+          if (parsed) {
+            editorState.setTemplate({
+              ...editorState.template,
+              rows: parsed.rows,
+              globalStyles: parsed.globalStyles,
+            });
+          }
+        }
+        if (!searchParams.get("name")) setTemplateName(`${tmpl.name || "Modèle"} (copie)`);
+        if (!searchParams.get("subject")) setTemplateSubject(tmpl.subject || "");
+      } catch {
+        toast.error("Échec du chargement du template");
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloneFrom]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -196,39 +231,55 @@ function EditorContent() {
     return mjml;
   }, [editorState.template]);
 
+  // Parse the code editor's MJML into the canvas. Returns true on success.
+  const applyCodeToCanvas = useCallback((): boolean => {
+    if (!codeValue.trim()) {
+      toast.error("Le code est vide");
+      return false;
+    }
+    let parsed: ReturnType<typeof parseMjmlToTemplate> = null;
+    try {
+      parsed = parseMjmlToTemplate(codeValue, editorState.template.globalStyles);
+    } catch {
+      parsed = null;
+    }
+    if (parsed && parsed.rows.length > 0) {
+      editorState.setTemplate({
+        ...editorState.template,
+        rows: parsed.rows,
+        globalStyles: parsed.globalStyles,
+      });
+      setCodeWasEdited(false);
+      return true;
+    }
+    toast.error("MJML invalide ou structure non reconnue");
+    return false;
+  }, [codeValue, editorState]);
+
   // Sync code ↔ canvas when switching tabs
   const handleTabSwitch = useCallback(
     (tab: "canvas" | "code") => {
       if (tab === "code") {
-        // Going to code → generate fresh MJML from canvas state
-        setCodeValue(generateMjml());
-        setCodeWasEdited(false);
-      } else if (tab === "canvas" && codeValue && codeWasEdited) {
-        // Going to canvas → only parse if user actually edited the code
-        try {
-          const parsed = parseMjmlToTemplate(
-            codeValue,
-            editorState.template.globalStyles,
-          );
-          if (parsed) {
-            editorState.setTemplate({
-              ...editorState.template,
-              rows: parsed.rows,
-              globalStyles: parsed.globalStyles,
-            });
-          }
-        } catch {
-          toast.error("Impossible d'analyser le MJML");
+        // Going to code → regenerate from canvas ONLY if the user hasn't typed/
+        // pasted unsaved code (otherwise we'd clobber what they just pasted).
+        if (!codeWasEdited) {
+          setCodeValue(generateMjml());
         }
-        setCodeWasEdited(false);
+      } else if (tab === "canvas" && codeValue && codeWasEdited) {
+        // Going to canvas → apply edited code; stay on Code if it can't be parsed
+        // so the user doesn't silently lose their work.
+        if (!applyCodeToCanvas()) {
+          toast.error("Restez en mode Code pour corriger le MJML");
+          return;
+        }
       }
       setActiveTab(tab);
     },
-    [generateMjml, codeValue, codeWasEdited, editorState],
+    [generateMjml, codeValue, codeWasEdited, applyCodeToCanvas],
   );
 
   const handleSave = async () => {
-    if (editorState.template.rows.length === 0) {
+    if (editorState.template.rows.length === 0 && !(activeTab === "code" && codeValue.trim())) {
       toast.error("Ajoutez au moins une ligne à votre modèle");
       return;
     }
@@ -236,14 +287,19 @@ function EditorContent() {
     try {
       // Commit any in-flight contenteditable text into React state before reading it.
       flushPendingEdits();
-      const mjml = generateMjml(templateRef.current);
+      // If the user edited/pasted MJML in the Code tab, that is the source of truth.
+      const mjml = activeTab === "code" && codeWasEdited && codeValue.trim()
+        ? codeValue
+        : generateMjml(templateRef.current);
       const body = {
         name: templateName,
         description: templateDescription,
         type: templateType,
-        subject: templateSubject,
+        // Email templates require a subject. For a predefined entry the user only
+        // fills the title, so use it as the subject when none was set.
+        subject: templateSubject || (predefinedCategory ? templateName : templateSubject),
         content: mjml,
-        ...(presetId && !savedId ? { isPredefinedOverride: true, predefinedTemplateId: presetId } : {}),
+        ...(predefinedCategory && !savedId ? { isPredefinedOverride: true, predefinedTemplateId: predefinedCategory } : {}),
       };
       let resultId: string | null = savedId;
       if (savedId) {
@@ -298,7 +354,7 @@ function EditorContent() {
   };
 
   const handleSaveOrCreate = async () => {
-    if (editorState.template.rows.length === 0) {
+    if (editorState.template.rows.length === 0 && !(activeTab === "code" && codeValue.trim())) {
       toast.error("Ajoutez au moins une ligne à votre modèle");
       return;
     }
@@ -306,24 +362,35 @@ function EditorContent() {
     setIsSaving(true);
     try {
       flushPendingEdits();
-      const mjml = generateMjml(templateRef.current);
+      // If the user edited/pasted MJML in the Code tab, that is the source of truth.
+      const mjml = activeTab === "code" && codeWasEdited && codeValue.trim()
+        ? codeValue
+        : generateMjml(templateRef.current);
       const body = {
         name: templateName,
         description: templateDescription,
         type: templateType,
-        subject: templateSubject,
+        // Email templates require a subject. For a predefined entry the user only
+        // fills the title, so use it as the subject when none was set.
+        subject: templateSubject || (predefinedCategory ? templateName : templateSubject),
         content: mjml,
-        ...(presetId && !isEditMode ? { isPredefinedOverride: true, predefinedTemplateId: presetId } : {}),
+        ...(predefinedCategory && !isEditMode ? { isPredefinedOverride: true, predefinedTemplateId: predefinedCategory } : {}),
       };
 
       let resultId: string | null = isEditMode ? editId : null;
       if (isEditMode && editId) {
         await templates.update(editId, body);
-        toast.success("Modèle enregistré !");
+        toast.success(predefinedCategory ? "Template prédéfini enregistré !" : "Modèle enregistré !");
       } else {
         const created = await templates.create(body);
         resultId = created.id ?? created.template?.id ?? null;
-        toast.success(presetId ? "Nouveau modèle créé à partir du template prédéfini !" : "Modèle créé avec succès !");
+        toast.success(
+          predefinedCategory
+            ? "Template prédéfini créé !"
+            : presetId
+              ? "Nouveau modèle créé à partir du template prédéfini !"
+              : "Modèle créé avec succès !",
+        );
       }
 
       const returnUrl = getBuilderReturnUrl();
@@ -334,7 +401,9 @@ function EditorContent() {
         return;
       }
 
-      router.push("/dashboard/templates");
+      // Predefined creation/edit returns to the gallery; personal copies (preset/clone) go to Mes modèles.
+      const backToPredefinis = !!predefinedCategory || searchParams.get("from") === "predifinis";
+      router.push(backToPredefinis ? "/dashboard/templates?view=predifinis" : "/dashboard/templates");
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Échec de l'enregistrement";
@@ -367,7 +436,7 @@ function EditorContent() {
         editDevice={editDevice}
         setEditDevice={setEditDevice}
         onBack={() => {
-          const fromPredefinis = presetId || searchParams.get("from") === "predifinis";
+          const fromPredefinis = presetId || predefinedCategory || cloneFrom || searchParams.get("from") === "predifinis";
           router.push(
             fromPredefinis
               ? "/dashboard/templates?view=predifinis"
@@ -525,7 +594,19 @@ function EditorContent() {
               onCursorMove={updateCursor}
             />
           ) : (
-            <div className="h-full">
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40 shrink-0">
+                <p className="text-xs text-muted-foreground">
+                  Collez votre MJML puis cliquez sur <span className="font-medium text-foreground">Appliquer</span> pour le voir dans le canvas.
+                </p>
+                <button
+                  onClick={applyCodeToCanvas}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  Appliquer au canvas
+                </button>
+              </div>
+              <div className="flex-1 min-h-0">
               <Editor
                 height="100%"
                 language="html"
@@ -549,6 +630,7 @@ function EditorContent() {
                   scrollBeyondLastLine: false,
                 }}
               />
+              </div>
             </div>
           )}
         </div>

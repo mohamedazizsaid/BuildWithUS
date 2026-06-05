@@ -178,7 +178,7 @@ export default function FavouritesPage() {
   const [templateList, setTemplateList] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const canEdit = user?.role === 'admin' || user?.role === 'editor';
+  const canEdit = user?.role === 'admin' || user?.role === 'editor' || user?.role === 'marketing';
 
   useEffect(() => {
     loadFavourites();

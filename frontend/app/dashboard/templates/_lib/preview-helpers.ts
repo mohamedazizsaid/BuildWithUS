@@ -1,4 +1,5 @@
 import { renderTiptapToHtml, type RenderFloatingImage, type RenderFloatingSignature } from '@/lib/tiptap/variable-node';
+import { normalizeMjml } from '../editor/_lib/mjml-parser';
 
 export function tiptapDocToPreviewHtml(
   doc: unknown,
@@ -61,11 +62,19 @@ export function relativeTime(dateStr: string): string {
 
 export function mjmlToPreviewHtml(mjml: string): string {
   try {
+    // Normalize pasted/external MJML (self-close voids, strip head/comments/raw)
+    // so the strict XML pass below doesn't bail out and return an empty preview.
+    mjml = normalizeMjml(mjml);
     const textContents: string[] = [];
-    const sanitized = mjml.replace(/(<mj-text[^>]*>)([\s\S]*?)(<\/mj-text>)/g, (_m, open, content, close) => {
+    // Stash rich text content (mj-text/mj-button) so its inline HTML and entities
+    // (e.g. &nbsp;) don't have to be valid XML — restored verbatim when rendering.
+    let sanitized = mjml.replace(/(<(?:mj-text|mj-button)[^>]*>)([\s\S]*?)(<\/(?:mj-text|mj-button)>)/g, (_m, open, content, close) => {
       textContents.push(content);
       return `${open}__PLACEHOLDER_${textContents.length - 1}__${close}`;
     });
+    // Escape stray ampersands (e.g. "&" in image-URL query strings like
+    // ?auto=compress&cs=...) that would otherwise break strict XML parsing.
+    sanitized = sanitized.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\w+;)/g, '&amp;');
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(sanitized, 'text/xml');

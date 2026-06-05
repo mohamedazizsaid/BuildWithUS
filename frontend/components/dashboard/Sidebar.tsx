@@ -57,7 +57,7 @@ export default function AppSidebar() {
   const { user, logout } = useAuth();
 
   const isAdmin = user?.role === 'admin';
-  const canEdit = user?.role === 'admin' || user?.role === 'editor';
+  const canEdit = user?.role === 'admin' || user?.role === 'editor' || user?.role === 'marketing';
 
   const mainLinks = [
     { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },

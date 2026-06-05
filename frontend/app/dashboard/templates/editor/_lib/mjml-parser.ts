@@ -1,6 +1,32 @@
 import { v4 as uuid } from 'uuid';
 import type { BlockData, GlobalStyles, Row, Column } from '@/lib/editor-types';
 
+// MJML void (self-closing) elements. People often paste them as open tags
+// (`<mj-image ...>`) which is valid MJML but invalid XML — normalize them so the
+// strict XML parser below doesn't choke on otherwise-correct pasted MJML.
+const VOID_MJML_TAGS = [
+  'mj-image', 'mj-divider', 'mj-spacer', 'mj-social-element',
+  'mj-carousel-image', 'mj-navbar-link', 'mj-accordion-element',
+];
+
+/**
+ * Make real-world / pasted MJML safe for the strict XML parser:
+ *  - drop comments, <mj-head> (styles/attrs we don't map) and <mj-raw> blocks
+ *  - force void elements to be self-closed
+ */
+export function normalizeMjml(mjml: string): string {
+  let s = mjml;
+  s = s.replace(/<!--[\s\S]*?-->/g, '');
+  s = s.replace(/<mj-head\b[\s\S]*?<\/mj-head>/gi, '');
+  s = s.replace(/<mj-raw\b[\s\S]*?<\/mj-raw>/gi, '');
+  for (const tag of VOID_MJML_TAGS) {
+    // remove any explicit closing tag, then self-close the open tag
+    s = s.replace(new RegExp(`</${tag}\\s*>`, 'gi'), '');
+    s = s.replace(new RegExp(`<${tag}\\b([^>]*?)\\s*/?>`, 'gi'), `<${tag}$1 />`);
+  }
+  return s;
+}
+
 function sanitizeMjmlForXml(mjml: string): { sanitized: string; textMap: Map<string, string> } {
   const textMap = new Map<string, string>();
   let counter = 0;
@@ -228,7 +254,7 @@ export function parseMjmlToTemplate(
   mjml: string,
   currentGlobalStyles: GlobalStyles,
 ): { rows: Row[]; globalStyles: GlobalStyles } | null {
-  const { sanitized, textMap } = sanitizeMjmlForXml(mjml);
+  const { sanitized, textMap } = sanitizeMjmlForXml(normalizeMjml(mjml));
   const parser = new DOMParser();
   const doc = parser.parseFromString(sanitized, "text/xml");
 

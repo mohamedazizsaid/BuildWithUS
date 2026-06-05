@@ -12,6 +12,7 @@ import {
   Inject,
   OnModuleInit,
   UseGuards,
+  ForbiddenException,
 } from "@nestjs/common";
 import { ClientGrpc } from "@nestjs/microservices";
 import { firstValueFrom } from "rxjs";
@@ -61,7 +62,7 @@ export class TemplateController implements OnModuleInit {
    * Receives rendered HTML, returns a proper A4 PDF binary via Playwright.
    */
   @Post("render-pdf")
-  @Roles("admin", "editor", "viewer")
+  @Roles("admin", "editor", "viewer", "marketing")
   async renderPdf(
     @Body() body: { html: string; name?: string },
     @Res() res: Response,
@@ -95,7 +96,7 @@ export class TemplateController implements OnModuleInit {
    * }
    */
   @Get(":id/schema")
-  @Roles("admin", "editor", "viewer")
+  @Roles("admin", "editor", "viewer", "marketing")
   @Scopes("templates:read")
   async getSchema(@Param("id") id: string, @Req() req: any) {
     const result = (await firstValueFrom(
@@ -121,7 +122,7 @@ export class TemplateController implements OnModuleInit {
    * Returns: PDF binary (application/pdf)
    */
   @Post(":id/generate")
-  @Roles("admin", "editor", "viewer")
+  @Roles("admin", "editor", "viewer", "marketing")
   @Scopes("templates:read")
   async generateDocument(
     @Param("id") id: string,
@@ -159,9 +160,16 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
    * Gateway adds: user_id and tenant_id from JWT (req.user)
    */
   @Post()
-  @Roles("admin", "editor")
+  @Roles("admin", "editor", "marketing")
   @Scopes("templates:write")
   async create(@Req() req: any, @Body() body: any) {
+    // Predefined gallery entries (is_predefined_override) can only be created by
+    // the marketing team (or an admin). Regular editors create normal templates.
+    if (body.isPredefinedOverride && !["marketing", "admin"].includes(req.user.role)) {
+      throw new ForbiddenException(
+        "Only marketing members can create predefined templates",
+      );
+    }
     const result = await firstValueFrom(
       this.commandService.CreateTemplate({
         user_id: req.user.id, // from JWT — who is creating
@@ -232,7 +240,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
    * Frontend sends the fields to update (name, content, subject, etc.)
    */
   @Put(":id")
-  @Roles("admin", "editor")
+  @Roles("admin", "editor", "marketing")
   @Scopes("templates:write")
   async update(@Req() req: any, @Param("id") id: string, @Body() body: any) {
     const result = await firstValueFrom(
@@ -256,7 +264,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
    * Sets deleted_at timestamp — template is hidden but not destroyed.
    */
   @Delete(":id")
-  @Roles("admin", "editor")
+  @Roles("admin", "editor", "marketing")
   @Scopes("templates:write")
   async delete(@Req() req: any, @Param("id") id: string) {
     const result = await firstValueFrom(
@@ -274,7 +282,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
    * Body: { isFavorite: true | false }
    */
   @Put(":id/favorite")
-  @Roles("admin", "editor")
+  @Roles("admin", "editor", "marketing")
   @Scopes("templates:write")
   async toggleFavorite(
     @Req() req: any,
@@ -297,7 +305,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
    * Creates a copy with a new name (e.g. "Invoice Template (copy)").
    */
   @Post(":id/duplicate")
-  @Roles("admin", "editor")
+  @Roles("admin", "editor", "marketing")
   @Scopes("templates:write")
   async duplicate(@Req() req: any, @Param("id") id: string, @Body() body: any) {
     const result = await firstValueFrom(
@@ -333,7 +341,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
   }
 
   @Get("settings/custom-variables")
-  @Roles("admin", "editor", "viewer", "super_admin")
+  @Roles("admin", "editor", "viewer", "super_admin", "marketing")
   async getCustomVariables(@Req() req: any) {
     const result: any = await firstValueFrom(
       this.queryService.GetTenantVariables({ tenant_id: req.user.tenant_id }),
@@ -348,7 +356,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
   }
 
   @Post("settings/custom-variables")
-  @Roles("admin", "editor", "super_admin")
+  @Roles("admin", "editor", "super_admin", "marketing")
   async addCustomVariable(@Req() req: any, @Body() body: { category: string; name: string }) {
     await firstValueFrom(
       this.commandService.AddTenantVariable({
@@ -361,7 +369,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
   }
 
   @Delete("settings/custom-variables/:name")
-  @Roles("admin", "editor", "super_admin")
+  @Roles("admin", "editor", "super_admin", "marketing")
   async deleteCustomVariable(@Req() req: any, @Param("name") name: string) {
     await firstValueFrom(
       this.commandService.DeleteTenantVariable({

@@ -37,7 +37,8 @@ function TemplatesPageInner() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [previewTarget, setPreviewTarget] = useState<Template | null>(null);
 
-  const canEdit = user?.role === 'admin' || user?.role === 'editor';
+  const canEdit = user?.role === 'admin' || user?.role === 'editor' || user?.role === 'marketing';
+  const isMarketing = user?.role === 'marketing';
   const { query } = useSearch();
 
   const viewFiltered = viewMode === 'favoris'
@@ -73,7 +74,9 @@ function TemplatesPageInner() {
 
   const loadTemplates = async () => {
     try {
-      const regular = await templates.list({ page: 1, limit: 100 });
+      // Predefined gallery entries (created by marketing) live in the
+      // "Templates prédéfinis" view only — never mixed with "Mes modèles".
+      const regular = await templates.list({ page: 1, limit: 100, excludePredefinedOverrides: true });
       setTemplateList(regular.templates || []);
     } catch {
       toast.error('Échec du chargement des modèles');

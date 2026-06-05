@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 
-export type UserRole = 'admin' | 'editor' | 'viewer';
+export type UserRole = 'admin' | 'editor' | 'viewer' | 'marketing';
 
 export class User {
   private constructor(

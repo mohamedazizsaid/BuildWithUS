@@ -172,8 +172,15 @@ export class AuthController implements OnModuleInit {
       }),
     );
 
-    // Send invite email via Gmail
-    const inviteLink = `http://localhost:3001/invite?token=${result.invite.token}`;
+    // Send invite email via Gmail. Use the public frontend URL in prod, falling
+    // back to localhost only in dev. FRONTEND_PUBLIC_URL wins if set; otherwise
+    // use the first origin from FRONTEND_ORIGIN (already set to the prod URL).
+    const frontendUrl = (
+      process.env.FRONTEND_PUBLIC_URL ||
+      (process.env.FRONTEND_ORIGIN || "").split(",")[0].trim() ||
+      "http://localhost:3001"
+    ).replace(/\/+$/, "");
+    const inviteLink = `${frontendUrl}/invite?token=${result.invite.token}`;
     console.log("Sending invite email to:", body.email);
     try {
       const emailResult = await this.transporter.sendMail({
