@@ -82,7 +82,7 @@ function InvitePageInner() {
             <input
               {...register('firstName', { required: 'Obligatoire' })}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
-              placeholder="Sara"
+              placeholder="Votre prénom"
             />
             {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
           </div>
@@ -91,7 +91,7 @@ function InvitePageInner() {
             <input
               {...register('lastName', { required: 'Obligatoire' })}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
-              placeholder="Boughdiri"
+              placeholder="Votre nom"
             />
             {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
           </div>
