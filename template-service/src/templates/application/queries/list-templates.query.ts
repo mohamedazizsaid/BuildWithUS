@@ -19,5 +19,6 @@ export class ListTemplatesQuery implements ListTemplatesRequest {
     public readonly favoritesOnly: boolean = false,
     public readonly excludePredefinedOverrides: boolean = false,
     public readonly predefinedOverridesOnly: boolean = false,
+    public readonly externalOrgRef: string | null = null,
   ) {}
 }

@@ -111,6 +111,7 @@ export class CreateTemplateHandler implements ICommandHandler<CreateTemplateComm
       undefined,
       command.isPredefinedOverride || false,
       command.predefinedTemplateId || null,
+      command.externalOrgRef || null,
     );
 
     // Save to repository

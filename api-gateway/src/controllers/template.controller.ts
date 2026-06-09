@@ -100,7 +100,7 @@ export class TemplateController implements OnModuleInit {
   @Scopes("templates:read")
   async getSchema(@Param("id") id: string, @Req() req: any) {
     const result = (await firstValueFrom(
-      this.queryService.GetTemplate({ id, tenant_id: req.user.tenant_id }),
+      this.queryService.GetTemplate({ id, tenant_id: req.user.tenant_id, external_org_ref: req.user.external_org_ref || "" }),
     )) as any;
     const variables = this.renderer.extractVariables(result.content ?? "");
     return {
@@ -131,9 +131,9 @@ export class TemplateController implements OnModuleInit {
     @Res() res: Response,
   ) {
     const result = (await firstValueFrom(
-      this.queryService.GetTemplate({ id, tenant_id: req.user.tenant_id }),
+      this.queryService.GetTemplate({ id, tenant_id: req.user.tenant_id, external_org_ref: req.user.external_org_ref || "" }),
     )) as any;
-    
+
 
     const variables = body.variables ?? {};
     const template = result.template;
@@ -173,7 +173,8 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
     const result = await firstValueFrom(
       this.commandService.CreateTemplate({
         user_id: req.user.id, // from JWT — who is creating
-        tenant_id: req.user.tenant_id, // from JWT — which organization
+        tenant_id: req.user.tenant_id, // from JWT — which tenant (= which tool)
+        external_org_ref: req.user.external_org_ref || "", // which org inside that tool (integration/M2M only)
         name: body.name,
         description: body.description,
         type: body.type, // 1=EMAIL, 2=FACTURE, 3=CONTRAT
@@ -201,6 +202,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
       this.queryService.ListTemplates({
         user_id: req.user.id,
         tenant_id: req.user.tenant_id,
+        external_org_ref: req.user.external_org_ref || "", // integration/M2M: only this org's templates; human: empty → all tenant templates
         page: parseInt(query.page) || 1,
         limit: parseInt(query.limit) || 10,
         type: query.type || "",
@@ -230,6 +232,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
         id, // template ID from URL
         user_id: req.user.id,
         tenant_id: req.user.tenant_id,
+        external_org_ref: req.user.external_org_ref || "",
       }),
     );
     return result;

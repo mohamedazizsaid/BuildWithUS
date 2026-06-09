@@ -66,6 +66,7 @@ export class TemplateGrpcMapper {
       is_favorite: primitives.isFavorite ?? false,
       is_predefined_override: primitives.isPredefinedOverride ?? false,
       predefined_template_id: primitives.predefinedTemplateId ?? '',
+      external_org_ref: primitives.externalOrgRef ?? '',
     } as unknown as TemplateDTO;
   }
 
@@ -92,6 +93,7 @@ export class TemplateGrpcMapper {
       is_favorite: entity.isFavorite ?? false,
       is_predefined_override: entity.isPredefinedOverride ?? false,
       predefined_template_id: entity.predefinedTemplateId ?? '',
+      external_org_ref: entity.externalOrgRef ?? '',
     } as unknown as TemplateDTO;
   }
 }

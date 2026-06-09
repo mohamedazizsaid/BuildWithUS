@@ -25,9 +25,10 @@ export class TemplateRepositoryImpl extends TemplateRepository {
   /**
    * Find a template by ID
    */
-  async findById(id: string, tenantId?: string): Promise<Template | null> {
+  async findById(id: string, tenantId?: string, externalOrgRef?: string | null): Promise<Template | null> {
     const where: any = { id, deletedAt: IsNull() };
     if (tenantId) where.tenantId = tenantId;
+    if (externalOrgRef) where.externalOrgRef = externalOrgRef;
     const entity = await this.repository.findOne({ where });
 
     if (!entity) {
@@ -47,6 +48,10 @@ export class TemplateRepositoryImpl extends TemplateRepository {
     // Apply filters
     if (options?.tenantId) {
       queryBuilder.andWhere('template.tenantId = :tenantId', { tenantId: options.tenantId });
+    }
+
+    if (options?.externalOrgRef) {
+      queryBuilder.andWhere('template.externalOrgRef = :externalOrgRef', { externalOrgRef: options.externalOrgRef });
     }
 
     if (options?.type) {
@@ -134,6 +139,7 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       isFavorite: primitives.isFavorite ?? false,
       isPredefinedOverride: primitives.isPredefinedOverride ?? false,
       predefinedTemplateId: primitives.predefinedTemplateId ?? null,
+      externalOrgRef: primitives.externalOrgRef ?? null,
     };
 
     await this.repository.save(entity);
@@ -233,6 +239,7 @@ export class TemplateRepositoryImpl extends TemplateRepository {
       entity.isFavorite ?? false,
       entity.isPredefinedOverride ?? false,
       entity.predefinedTemplateId ?? null,
+      entity.externalOrgRef ?? null,
     );
   }
 }

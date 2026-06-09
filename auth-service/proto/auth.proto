@@ -65,6 +65,7 @@ message ValidateTokenResponse{
     string token_type = 3;
     string organisation_id = 4;
     repeated string scopes = 5;
+    string user_ref = 6;
 }
 
 message InviteUserResponse {

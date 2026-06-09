@@ -63,6 +63,8 @@ export class AuthGuard implements CanActivate, OnModuleInit {
           id: result.user?.id || "",
           tenant_id: result.user?.tenant_id || "",
           organisation_id: result.organisation_id || "",
+          // For M2M the org scope is carried in organisation_id.
+          external_org_ref: result.organisation_id || undefined,
           scopes: result.scopes || [],
           role: "m2m",
         };
@@ -71,11 +73,15 @@ export class AuthGuard implements CanActivate, OnModuleInit {
           id: result.user?.id || "integration-session",
           tenant_id: result.user?.tenant_id || "",
           organisation_id: "",
+          // For integration sessions the org scope is carried in user_ref.
+          external_org_ref: result.user_ref || undefined,
           email: "",
           scopes: result.scopes || [],
           role: result.user?.role || "editor",
         };
       } else {
+        // Human dashboard users carry no org ref → no org filter (see all
+        // templates in their tenant, unchanged behavior).
         request.user = result.user;
       }
 

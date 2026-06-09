@@ -12,6 +12,7 @@ import {
   OnModuleInit,
   UseGuards,
   HttpCode,
+  BadRequestException,
 } from "@nestjs/common";
 import { ClientGrpc } from "@nestjs/microservices";
 import { firstValueFrom } from "rxjs";
@@ -307,12 +308,24 @@ export class OAuthController implements OnModuleInit {
   @Post("oauth/token")
   @HttpCode(200)
   async issueToken(@Body() body: any) {
+    // M2M tokens are scoped to a single org of the calling tool. The org id rides
+    // in custom_champ.external_org_ref (or organisation_id for backwards-compat)
+    // and is baked into the token so /templates is auto-filtered to that org.
+    const externalOrgRef =
+      body?.custom_champ?.external_org_ref ||
+      body?.external_org_ref ||
+      body?.organisation_id;
+    if (!externalOrgRef) {
+      throw new BadRequestException(
+        "custom_champ.external_org_ref is required to scope the token to an organization",
+      );
+    }
     return firstValueFrom(
       this.authService.IssueClientToken({
         client_id: body.client_id,
         client_secret: body.client_secret,
         user_id: body.user_id || "",
-        organisation_id: body.organisation_id || "",
+        organisation_id: externalOrgRef,
       }),
     );
   }
@@ -366,6 +379,18 @@ export class DevelopersController implements OnModuleInit {
   @Post("api/builder-sessions")
   @HttpCode(201)
   async mintSession(@Body() body: any) {
+    // The integrating tool tells us which of ITS organizations this session is
+    // for, via a generic custom_champ object carrying a reserved external_org_ref
+    // key (top-level external_org_ref also accepted as a convenience). This is the
+    // isolation key stored on every template created in the session — required so
+    // one tool's orgs never share a template pool.
+    const externalOrgRef =
+      body?.custom_champ?.external_org_ref || body?.external_org_ref;
+    if (!externalOrgRef) {
+      throw new BadRequestException(
+        "custom_champ.external_org_ref is required to scope the session to an organization",
+      );
+    }
     const result: any = await firstValueFrom(
       this.authService.MintBuilderSession({
         client_id: body.client_id,
@@ -373,7 +398,7 @@ export class DevelopersController implements OnModuleInit {
         mode: body.mode || "new",
         return_url: body.return_url,
         template_id: body.template_id || "",
-        user_ref: body.user_ref || "",
+        user_ref: externalOrgRef,
       }),
     );
     const frontend = process.env.FRONTEND_PUBLIC_URL || "http://localhost:3001";

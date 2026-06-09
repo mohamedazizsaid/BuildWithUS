@@ -51,7 +51,13 @@ export class TemplatesQueriesGrpcController implements TemplateQueryServiceContr
    * Get a single template by ID
    */
   async getTemplate(request: GetTemplateRequest): Promise<TemplateResponse> {
-    const query = new GetTemplateQuery(request.id, request.userId, (request as any).tenantId || (request as any).tenant_id || '');
+    const req = request as any;
+    const query = new GetTemplateQuery(
+      request.id,
+      request.userId,
+      req.tenantId || req.tenant_id || '',
+      req.externalOrgRef || req.external_org_ref || null,
+    );
     const template = await this.queryBus.execute<GetTemplateQuery, Template>(query);
 
     return {
@@ -76,6 +82,7 @@ export class TemplatesQueriesGrpcController implements TemplateQueryServiceContr
       req.favorites_only || req.favoritesOnly || false,
       req.exclude_predefined_overrides || req.excludePredefinedOverrides || false,
       req.predefined_overrides_only || req.predefinedOverridesOnly || false,
+      req.external_org_ref || req.externalOrgRef || null,
     );
 
     return this.queryBus.execute<ListTemplatesQuery, ListTemplatesResponse>(query);

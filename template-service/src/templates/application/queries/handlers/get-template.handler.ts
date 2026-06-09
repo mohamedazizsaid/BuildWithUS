@@ -22,7 +22,11 @@ export class GetTemplateHandler implements IQueryHandler<GetTemplateQuery, Templ
   async execute(query: GetTemplateQuery): Promise<Template> {
     this.logger.debug(`Getting template: ${query.id}`);
 
-    const template = await this.templateRepository.findById(query.id, query.tenantId);
+    const template = await this.templateRepository.findById(
+      query.id,
+      query.tenantId,
+      query.externalOrgRef,
+    );
 
     if (!template) {
       throw new NotFoundException('Template', query.id);

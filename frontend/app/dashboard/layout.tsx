@@ -21,6 +21,10 @@ export default function DashboardLayout({ children }: { readonly children: React
     pathname?.startsWith('/dashboard/templates/invoice-editor') ||
     pathname?.startsWith('/dashboard/templates/generate');
 
+  // Integration sessions (opened by a third-party tool via /s/<token>) are
+  // create-only: no sidebar, no navbar — just the type chooser + editor chrome.
+  const inIntegration = isEmbedMode();
+
   useEffect(() => {
     // In embed mode the AuthProvider stubs a user from the M2M token, so
     // `user` is non-null. Skip the redirect either way — extra safety.
@@ -39,8 +43,8 @@ export default function DashboardLayout({ children }: { readonly children: React
 
   if (!user) return null;
 
-  // Editor page: full screen, no sidebar/navbar
-  if (isEditorPage) {
+  // Editor page OR integration session: full screen, no sidebar/navbar
+  if (isEditorPage || inIntegration) {
     return (
       <div className="h-screen overflow-hidden">
         {children}

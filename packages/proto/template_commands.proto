@@ -29,6 +29,7 @@ message CreateTemplateRequest {
   repeated TemplateType channels = 8;
   bool is_predefined_override = 10;
   string predefined_template_id = 11;
+  optional string external_org_ref = 12;
 }
 
 message UpdateTemplateRequest {
@@ -98,6 +99,7 @@ message TemplateDTO {
   bool is_favorite = 16;
   bool is_predefined_override = 17;
   string predefined_template_id = 18;
+  string external_org_ref = 19;
 }
 
 message ToggleFavoriteRequest {

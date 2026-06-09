@@ -24,6 +24,7 @@ export class ListTemplatesHandler implements IQueryHandler<ListTemplatesQuery, L
 
     const { templates, total } = await this.templateRepository.findAll({
       tenantId: query.tenantId || undefined,
+      externalOrgRef: query.externalOrgRef || undefined,
       type: query.type ? query.type.toLowerCase() : undefined,
       search: query.search || undefined,
       page: query.page,

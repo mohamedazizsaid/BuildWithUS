@@ -51,6 +51,7 @@ export class Template extends AggregateRoot {
   private isFavorite: boolean;
   private isPredefinedOverride: boolean;
   private predefinedTemplateId: string | null;
+  private externalOrgRef: string | null;
 
   /**
    * Private constructor - use factory methods
@@ -74,6 +75,7 @@ export class Template extends AggregateRoot {
     isFavorite: boolean = false,
     isPredefinedOverride: boolean = false,
     predefinedTemplateId: string | null = null,
+    externalOrgRef: string | null = null,
   ) {
     super();
     this.id = id;
@@ -94,6 +96,7 @@ export class Template extends AggregateRoot {
     this.isFavorite = isFavorite;
     this.isPredefinedOverride = isPredefinedOverride;
     this.predefinedTemplateId = predefinedTemplateId;
+    this.externalOrgRef = externalOrgRef;
   }
 
   /**
@@ -112,6 +115,7 @@ export class Template extends AggregateRoot {
     variants?: Record<string, string>,
     isPredefinedOverride: boolean = false,
     predefinedTemplateId: string | null = null,
+    externalOrgRef: string | null = null,
   ): Template {
     // Business rule: subject is required for EMAIL, forbidden for others
     const includesEmail = (channels && channels.includes('email')) || type.isEmail();
@@ -165,6 +169,7 @@ export class Template extends AggregateRoot {
       false,
       isPredefinedOverride,
       predefinedTemplateId,
+      externalOrgRef,
     );
 
     // Raise domain event
@@ -204,6 +209,7 @@ export class Template extends AggregateRoot {
     isFavorite: boolean = false,
     isPredefinedOverride: boolean = false,
     predefinedTemplateId: string | null = null,
+    externalOrgRef: string | null = null,
   ): Template {
     const resolvedChannels = (channels && channels.length > 0
       ? channels
@@ -240,6 +246,7 @@ export class Template extends AggregateRoot {
       isFavorite,
       isPredefinedOverride,
       predefinedTemplateId,
+      externalOrgRef,
     );
   }
 
@@ -421,6 +428,7 @@ export class Template extends AggregateRoot {
       isFavorite: this.isFavorite,
       isPredefinedOverride: this.isPredefinedOverride,
       predefinedTemplateId: this.predefinedTemplateId,
+      externalOrgRef: this.externalOrgRef,
     };
   }
 
@@ -497,5 +505,9 @@ export class Template extends AggregateRoot {
 
   public getPredefinedTemplateId(): string | null {
     return this.predefinedTemplateId;
+  }
+
+  public getExternalOrgRef(): string | null {
+    return this.externalOrgRef;
   }
 }

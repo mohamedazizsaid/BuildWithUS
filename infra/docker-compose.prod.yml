@@ -176,6 +176,8 @@ services:
       FRONTEND_URL: http://frontend:3000
       # Browser origin(s) allowed by CORS (the public frontend URL).
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      # Public builder URL used to build integration redirect links (/s/<token>).
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL}
     # Reached by the tunnel internally (http://api-gateway:3000) AND published on
     # the host for direct IP:port access.
     ports:

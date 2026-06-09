@@ -73,6 +73,9 @@ export class AuthGrpcController {
           },
           organisation_id: '',
           scopes: sess.scopes ?? [],
+          // The org id the integrating tool sent at mint time (carried as user_ref);
+          // the gateway surfaces this as req.user.external_org_ref to scope templates.
+          user_ref: sess.user_ref ?? '',
         };
       } catch {
         // Not an integration_session — keep trying
@@ -80,12 +83,13 @@ export class AuthGrpcController {
 
       // Try M2M token (type: "m2m")
       try {
-        const m2m = this.jwtService.verifyM2M(request.token);
+        const m2m = this.jwtService.verifyM2M(request.token) as any;
         return {
           valid: true,
           token_type: 'm2m',
-          user: { id: m2m.userId || '', tenant_id: m2m.sub, email: '', role: '' },
-          organisation_id: m2m.organisationId || '',
+          // signM2M stores claims as snake_case (user_id / organisation_id).
+          user: { id: m2m.user_id || m2m.userId || '', tenant_id: m2m.sub, email: '', role: '' },
+          organisation_id: m2m.organisation_id || m2m.organisationId || '',
           scopes: m2m.scopes,
         };
       } catch {

@@ -9,6 +9,12 @@ const BUILDER_API   = process.env.BUILDER_API_URL || 'http://localhost:3000';
 const CLIENT_ID     = process.env.BUILDER_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.BUILDER_CLIENT_SECRET || '';
 const RETURN_URL    = process.env.TOOL_X_RETURN_URL || `http://localhost:${PORT}/callback`;
+const RETURN_URL_PROD = process.env.TOOL_X_RETURN_URL_PROD || '';
+// Which of THIS tool's organizations we are acting as. Sent on every call so the
+// builder isolates templates per org. Change to simulate different orgs (A1, A2…).
+const ORG_REF       = process.env.TOOL_X_ORG_REF || 'A1';
+// Register both dev + prod callbacks so the integration works against either.
+const RETURN_URLS   = [RETURN_URL, RETURN_URL_PROD].filter(Boolean);
 
 const app = express();
 app.use(express.json());
@@ -81,7 +87,9 @@ app.get('/settings', (_req, res) => {
       <pre>BUILDER_API_URL     = ${BUILDER_API}
 BUILDER_CLIENT_ID   = ${CLIENT_ID || '(missing)'}
 BUILDER_CLIENT_SECRET = ${CLIENT_SECRET ? '••••••••' : '(missing)'}
-TOOL_X_RETURN_URL   = ${RETURN_URL}</pre>
+TOOL_X_RETURN_URL   = ${RETURN_URL}
+TOOL_X_RETURN_URL_PROD = ${RETURN_URL_PROD || '(none)'}
+TOOL_X_ORG_REF      = ${ORG_REF}</pre>
     </div>
     <div class="card">
       <h2>Allowlist tes return URLs</h2>
@@ -111,7 +119,7 @@ app.post('/register-return-url', async (_req, res) => {
       body: JSON.stringify({
         client_id: CLIENT_ID,
         client_secret: CLIENT_SECRET,
-        urls: [RETURN_URL],
+        urls: RETURN_URLS,
       }),
     });
     const body = await r.json();
@@ -134,7 +142,8 @@ app.post('/create-template', async (_req, res) => {
         client_secret: CLIENT_SECRET,
         mode: 'new',
         return_url: RETURN_URL,
-        user_ref: 'demo-user-1',
+        // Tell the builder which of OUR organizations this session is for.
+        custom_champ: { external_org_ref: ORG_REF },
       }),
     });
     const body = await r.json();
@@ -155,7 +164,12 @@ app.post('/list-templates', async (_req, res) => {
     const t = await fetch(`${BUILDER_API}/oauth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET }),
+      body: JSON.stringify({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        // Scope the M2M token to our org so the list is filtered to it.
+        custom_champ: { external_org_ref: ORG_REF },
+      }),
     });
     const tokenBody = await t.json();
     log('oauth/token', { status: t.status, body: tokenBody });

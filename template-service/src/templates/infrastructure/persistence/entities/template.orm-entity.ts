@@ -24,6 +24,10 @@ export class TemplateOrmEntity {
   @Index()
   tenantId: string;
 
+  @Column({ name: 'external_org_ref', type: 'varchar', length: 255, nullable: true })
+  @Index()
+  externalOrgRef: string | null;
+
   @Column({ type: 'varchar', length: 255 })
   name: string;
 

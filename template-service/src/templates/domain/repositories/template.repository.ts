@@ -5,6 +5,7 @@ import { Template } from '../entities/template.aggregate.js';
  */
 export interface TemplateFilterOptions {
   tenantId?: string;
+  externalOrgRef?: string;
   type?: string;
   search?: string;
   page?: number;
@@ -26,7 +27,11 @@ export abstract class TemplateRepository {
   /**
    * Find a template by ID
    */
-  abstract findById(id: string, tenantId?: string): Promise<Template | null>;
+  abstract findById(
+    id: string,
+    tenantId?: string,
+    externalOrgRef?: string | null,
+  ): Promise<Template | null>;
 
   /**
    * Find all templates with optional filters
