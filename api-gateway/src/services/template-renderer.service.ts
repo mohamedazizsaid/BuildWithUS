@@ -25,7 +25,7 @@ export class TemplateRendererService {
   // MJML engine. If the content is already plain HTML (no <mjml> root), we just
   // return it after variable substitution.
   async renderEmailHtml(content: string, variables: Record<string, string> = {}): Promise<string> {
-    const filled = this.injectVars(content ?? '', variables);
+    const filled = this.normalizeMjmlForCompile(this.injectVars(content ?? '', variables));
     if (!/<mjml[\s>]/i.test(filled)) {
       return filled;
     }
@@ -41,6 +41,15 @@ export class TemplateRendererService {
       // the caller still gets usable content.
       return filled;
     }
+  }
+
+  // The builder emits <mj-image width="100%">, but MJML treats mj-image width as
+  // PIXELS — it strips the "%" and renders a literal 100px-wide image. Drop
+  // percentage widths on mj-image so MJML computes the correct column-based pixel
+  // width instead (the builder's own preview tolerates "100%" as CSS, which is
+  // why it looked right there but not in the compiled HTML).
+  private normalizeMjmlForCompile(mjml: string): string {
+    return mjml.replace(/(<mj-image\b[^>]*?)\swidth="\d+(?:\.\d+)?%"/gi, '$1');
   }
 
   // ─── Extract all {{variable}} names from a template ────────────────────────
