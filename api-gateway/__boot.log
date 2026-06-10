@@ -1,0 +1,81 @@
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +39ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +6ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +19ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +10ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/logout, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/me, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/profile, PUT} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/invite, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/accept-invite, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/members, GET} route[39m[38;5;3m +21ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/admin/tenants, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/admin/tenants/:tenantId/api-clients, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/admin/tenants/:tenantId/api-clients, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/admin/api-clients/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOAuthController {/}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/oauth/token, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/oauth/register, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDevelopersController {/}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/developers/register, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/developers/return-urls, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/builder-sessions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/s/exchange, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTemplateController {/templates}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/render-pdf, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/:id/schema, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/:id/generate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/:id, PUT} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/:id/favorite, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/:id/duplicate, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/:id/render, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/settings/custom-variables, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/settings/custom-variables, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/settings/custom-variables/:name, DELETE} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/templates/test-email, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mMediaController {/media}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/media/upload, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/media/:tenantId/:fileName, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/media/:tenantId/:fileName, DELETE} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6064  - [39m10/06/2026 11:48:48 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +28ms[39m
+API Gateway running on http://localhost:3000
+MinIO bucket "templates" ready (public read)
+Consul not available, skipping registration
+[31m[Nest] 6064  - [39m10/06/2026 11:53:46 [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39mError: 2 UNKNOWN: Internal server error
+    at callErrorFromStatus [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4m@grpc\grpc-js[24m\src\call.ts:84:17[90m)[39m
+    at Object.onReceiveStatus [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4m@grpc\grpc-js[24m\src\client.ts:360:55[90m)[39m
+    at Object.onReceiveStatus [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4m@grpc\grpc-js[24m\src\client-interceptors.ts:466:34[90m)[39m
+    at Object.onReceiveStatus [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4m@grpc\grpc-js[24m\src\client-interceptors.ts:424:48[90m)[39m
+    at [90mC:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4m@grpc\grpc-js[24m\src\resolving-call.ts:170:24
+[90m    at processTicksAndRejections (node:internal/process/task_queues:84:11)[39m
+for call at
+    at ServiceClientImpl.makeUnaryRequest [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4m@grpc\grpc-js[24m\src\client.ts:325:42[90m)[39m
+    at ServiceClientImpl.<anonymous> [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4m@grpc\grpc-js[24m\src\make-client.ts:189:15[90m)[39m
+    at Observable._subscribe [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4m@nestjs\microservices[24m\client\client-grpc.js:198:48[90m)[39m
+    at Observable._trySubscribe [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4mrxjs[24m\src\internal\Observable.ts:235:19[90m)[39m
+    at [90mC:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4mrxjs[24m\src\internal\Observable.ts:225:18
+    at Object.errorContext [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4mrxjs[24m\src\internal\util\errorContext.ts:29:5[90m)[39m
+    at Observable.subscribe [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4mrxjs[24m\src\internal\Observable.ts:211:5[90m)[39m
+    at [90mC:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4mrxjs[24m\src\internal\firstValueFrom.ts:73:12
+    at new Promise (<anonymous>)
+    at firstValueFrom [90m(C:\Users\Ahmed Boughdiri\Documents\winaity-template-builder\api-gateway\[39mnode_modules\[4mrxjs[24m\src\internal\firstValueFrom.ts:58:10[90m)[39m {
+  code: [33m2[39m,
+  details: [32m'Internal server error'[39m,
+  metadata: Metadata {
+    internalRepr: Map(2) {
+      [32m'content-type'[39m => [
+        [32m'application/grpc+proto'[39m
+      ],
+      [32m'date'[39m => [
+        [32m'Wed, 10 Jun 2026 09:53:46 GMT'[39m
+      ]
+    },
+    opaqueData: Map(0) {},
+    options: {}
+  }
+}

@@ -188,6 +188,25 @@ app.post('/create-template', async (req, res) => {
   }
 });
 
+// Mint an M2M access token scoped to ONE org (external_org_ref). Returns the
+// token string, or throws with the API's error body.
+async function getOrgToken(orgRef) {
+  const t = await fetch(`${BUILDER_API}/oauth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      custom_champ: { external_org_ref: orgRef },
+    }),
+  });
+  const body = await t.json();
+  if (!t.ok || !body.access_token) {
+    throw new Error(`oauth/token ${t.status}: ${JSON.stringify(body)}`);
+  }
+  return body.access_token;
+}
+
 app.post('/list-templates', async (req, res) => {
   if (!configured()) return res.redirect('/');
   const org = currentOrg(req);
@@ -213,7 +232,7 @@ app.post('/list-templates', async (req, res) => {
     const listBody = await list.json();
     const templates = Array.isArray(listBody?.templates) ? listBody.templates : [];
     log('templates.list', { org: org.ref, status: list.status, count: templates.length });
-    const rows = templates.map((tpl) => `<li><strong>${esc(tpl.name)}</strong> <small>(${esc(tpl.type)}) — ${esc(tpl.id)}</small></li>`).join('') || '<li><small>(none yet for this org)</small></li>';
+    const rows = templates.map((tpl) => `<li style="margin-bottom:8px"><strong>${esc(tpl.name)}</strong> <small>(${esc(tpl.type)}) — ${esc(tpl.id)}</small> &nbsp; <a class="btn ghost" href="/render/${encodeURIComponent(tpl.id)}" style="padding:3px 12px;font-size:12px">Preview rendered →</a></li>`).join('') || '<li><small>(none yet for this org)</small></li>';
     res.send(page('Templates', `
       <h1>Templates for ${esc(org.label)}</h1>
       <p><small>Fetched via M2M Bearer from <code>${esc(BUILDER_API)}/templates</code>, scoped to <code>${esc(org.ref)}</code>.</small></p>
@@ -223,6 +242,61 @@ app.post('/list-templates', async (req, res) => {
   } catch (err) {
     log('templates.list.error', { message: String(err) });
     res.status(500).send(page('Error', `<div class="card bad">${esc(err)}</div>`));
+  }
+});
+
+// ── render preview ──────────────────────────────────────────────────────────
+// Proves the integrating tool can DISPLAY a template, not just store its id.
+// We mint an org-scoped M2M token, call GET /templates/:id/render to get the
+// builder-compiled HTML (MJML → HTML), and show it in an iframe. The iframe
+// loads the raw HTML same-origin from /render/:id/raw.
+app.get('/render/:id', async (req, res) => {
+  if (!configured()) return res.redirect('/');
+  const org = currentOrg(req);
+  try {
+    const token = await getOrgToken(org.ref);
+    const r = await fetch(`${BUILDER_API}/templates/${encodeURIComponent(req.params.id)}/render`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await r.json();
+    log('render', { org: org.ref, id: req.params.id, status: r.status, name: body && body.name });
+    if (!r.ok) {
+      return res.status(r.status).send(page('Render error', `
+        <h1 class="bad">Render failed (HTTP ${r.status})</h1>
+        <div class="card bad"><pre>${esc(JSON.stringify(body, null, 2))}</pre></div>
+        <p><small>A 404 usually means this template was not created under <code>${esc(org.ref)}</code> — switch org or use an id from this org's list.</small></p>
+        <a class="btn" href="/">← Dashboard</a>`));
+    }
+    res.send(page('Render', `
+      <h1>Rendered template</h1>
+      <div class="card">
+        <p><strong>${esc(body.name || '')}</strong> &nbsp;<span class="pill">${esc(body.type || '')}</span></p>
+        <p><small>subject: ${esc(body.subject || '(none)')} &nbsp;·&nbsp; org <code>${esc(org.ref)}</code></small></p>
+        <p><small>Exact HTML the builder produces (MJML compiled by the API). Shown in the iframe below — this is what you'd display or email from your platform.</small></p>
+      </div>
+      <iframe src="/render/${encodeURIComponent(req.params.id)}/raw" style="width:100%;height:640px;border:1px solid #222;border-radius:12px;background:white"></iframe>
+      <p style="margin-top:16px"><a class="btn" href="/">← Dashboard</a></p>
+    `));
+  } catch (err) {
+    log('render.error', { message: String(err) });
+    res.status(500).send(page('Render error', `<div class="card bad">${esc(err)}</div><a class="btn" href="/">← Back</a>`));
+  }
+});
+
+// Raw compiled HTML for the iframe above.
+app.get('/render/:id/raw', async (req, res) => {
+  if (!configured()) return res.status(400).send('not configured');
+  const org = currentOrg(req);
+  try {
+    const token = await getOrgToken(org.ref);
+    const r = await fetch(`${BUILDER_API}/templates/${encodeURIComponent(req.params.id)}/render`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await r.json();
+    if (!r.ok) return res.status(r.status).type('html').send(`<pre>${esc(JSON.stringify(body, null, 2))}</pre>`);
+    res.type('html').send(body.html || '<p>(empty)</p>');
+  } catch (err) {
+    res.status(500).type('html').send(`<pre>${esc(String(err))}</pre>`);
   }
 });
 
