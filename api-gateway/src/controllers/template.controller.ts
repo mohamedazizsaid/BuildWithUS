@@ -348,7 +348,7 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
   @Get(":id/render")
   @Scopes("templates:read")
   async render(@Req() req: any, @Param("id") id: string) {
-    const template = (await firstValueFrom(
+    const result = (await firstValueFrom(
       this.queryService.GetTemplate({
         id,
         user_id: req.user.id,
@@ -357,6 +357,8 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
       }),
     )) as any;
 
+    // GetTemplate wraps the payload in a `template` field (TemplateResponse).
+    const template = result?.template ?? result;
     const content: string = template.content ?? "";
     const html = await this.renderer.renderEmailHtml(content);
 
