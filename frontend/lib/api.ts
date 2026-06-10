@@ -174,8 +174,8 @@ export const templates = {
     toggleFavorite: (id: string, isFavorite: boolean) =>
         request(`/templates/${id}/favorite`, { method: 'PUT', body: JSON.stringify({ isFavorite }) }),
 
-    render:(id: string, variables: Record<string, string>) =>
-        request(`/templates/${id}/render`, { method: 'POST', body: JSON.stringify(variables) }),
+    render: (id: string) =>
+        request(`/templates/${id}/render`, { method: 'GET' }),
 
     sendTestEmail: (body: { to?: string; subject?: string; content: string }) =>
         request('/templates/test-email', { method: 'POST', body: JSON.stringify(body) }),

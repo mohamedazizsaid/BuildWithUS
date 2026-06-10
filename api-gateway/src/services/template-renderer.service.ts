@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+
+// mjml 5.x is async and ships as CommonJS (module.exports = fn, with no
+// `.default`), so import-equals is the reliable interop under our commonjs config.
+import mjml2html = require('mjml');
 
 export interface Block {
   id?: string;
@@ -8,6 +12,36 @@ export interface Block {
 
 @Injectable()
 export class TemplateRendererService {
+  private readonly logger = new Logger(TemplateRendererService.name);
+
+  // ─── Fill {{variable}} placeholders in any text (public) ───────────────────
+  fillVariables(text: string, variables: Record<string, string> = {}): string {
+    return this.injectVars(text, variables);
+  }
+
+  // ─── Compile an email template to ready-to-use HTML ────────────────────────
+  // Email templates are stored as a full <mjml> document. We optionally fill
+  // {{placeholders}}, then compile to email-client-safe HTML via the official
+  // MJML engine. If the content is already plain HTML (no <mjml> root), we just
+  // return it after variable substitution.
+  async renderEmailHtml(content: string, variables: Record<string, string> = {}): Promise<string> {
+    const filled = this.injectVars(content ?? '', variables);
+    if (!/<mjml[\s>]/i.test(filled)) {
+      return filled;
+    }
+    try {
+      const { html, errors } = await mjml2html(filled, { validationLevel: 'soft' });
+      if (errors?.length) {
+        this.logger.warn(`MJML compiled with ${errors.length} soft warning(s)`);
+      }
+      return html;
+    } catch (err) {
+      this.logger.error(`MJML compilation failed: ${String(err)}`);
+      // Fall back to the raw (variable-filled) MJML rather than throwing —
+      // the caller still gets usable content.
+      return filled;
+    }
+  }
 
   // ─── Extract all {{variable}} names from a template ────────────────────────
   extractVariables(content: string): string[] {

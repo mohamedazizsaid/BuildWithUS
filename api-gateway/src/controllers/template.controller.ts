@@ -323,24 +323,64 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
   }
 
   /**
-   * POST /templates/:id/render — Fill in template variables with real values.
-   * Takes: { variables: { "first_name": "Ahmed", "company": "Winaity" } }
-   * Returns: rendered HTML with variables replaced.
+   * GET /templates/:id/render — Compile a template to ready-to-use HTML.
    *
-   * Template: "Hello {{first_name}} from {{company}}"
-   * Rendered: "Hello Ahmed from Winaity"
+   * Built for integrating tools: pass the template_id you received in the
+   * builder callback (with your M2M Bearer token) to get back email-client-safe
+   * HTML you can display or send from your own platform — exactly the same HTML
+   * the builder dashboard previews.
+   *
+   * Email templates are stored as MJML; this compiles them via the official MJML
+   * engine and returns plain HTML. (No variable substitution for now.)
+   *
+   * Response:
+   * {
+   *   "id":      "tpl_123",
+   *   "name":    "Relance facture",
+   *   "type":    "email",
+   *   "subject": "Votre relance",
+   *   "html":    "<!doctype html>…"   // ready to render / send
+   * }
+   *
+   * Scoping: the template is fetched with the tenant_id + external_org_ref from
+   * the token, so an organization can only render its own templates (404 otherwise).
    */
-  @Post(":id/render")
+  @Get(":id/render")
   @Scopes("templates:read")
-  async render(@Req() req: any, @Param("id") id: string, @Body() body: any) {
-    const result = await firstValueFrom(
-      this.queryService.RenderTemplate({
+  async render(@Req() req: any, @Param("id") id: string) {
+    const template = (await firstValueFrom(
+      this.queryService.GetTemplate({
         id,
         user_id: req.user.id,
-        variables: body.variables || {},
+        tenant_id: req.user.tenant_id,
+        external_org_ref: req.user.external_org_ref || "",
       }),
-    );
-    return result;
+    )) as any;
+
+    const content: string = template.content ?? "";
+    const html = await this.renderer.renderEmailHtml(content);
+
+    return {
+      id: template.id,
+      name: template.name,
+      type: this.normalizeTemplateType(template.type),
+      subject: template.subject ?? "",
+      html,
+    };
+  }
+
+  // proto-loader returns the enum name (e.g. "EMAIL"); expose a friendly lowercase
+  // type. Falls back to a lowercased value for forward-compat.
+  private normalizeTemplateType(type: unknown): string {
+    const map: Record<string, string> = {
+      EMAIL: "email",
+      FACTURE: "facture",
+      CONTRAT: "contrat",
+      "1": "email",
+      "2": "facture",
+      "3": "contrat",
+    };
+    return map[String(type)] ?? String(type ?? "").toLowerCase();
   }
 
   @Get("settings/custom-variables")
