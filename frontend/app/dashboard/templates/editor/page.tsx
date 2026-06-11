@@ -469,16 +469,17 @@ function EditorContent() {
               onAddBlock={editorState.addBlock}
               onAddBlockToNewRow={editorState.addBlockToNewRow}
               onAddSection={editorState.addSection}
-              onAiGenerate={(mjml: string) => {
+              onAiApply={(mjml: string) => {
+                // Chat returns the FULL updated template each turn — replace the
+                // canvas rows wholesale (not append) so iterative edits apply cleanly.
                 try {
                   const parsed = parseMjmlToTemplate(mjml, editorState.template.globalStyles);
                   if (parsed) {
                     editorState.setTemplate({
                       ...editorState.template,
-                      rows: [...editorState.template.rows, ...parsed.rows],
+                      rows: parsed.rows,
                       globalStyles: { ...editorState.template.globalStyles, ...parsed.globalStyles },
                     });
-                    toast.success('Modèle IA ajouté au canevas !');
                   } else {
                     toast.error('Impossible de parser le MJML généré');
                   }
@@ -486,6 +487,7 @@ function EditorContent() {
                   toast.error('Erreur lors du parsing du MJML');
                 }
               }}
+              getCurrentMjml={generateMjml}
               activeColumnId={activeColumnId}
             />
           </div>

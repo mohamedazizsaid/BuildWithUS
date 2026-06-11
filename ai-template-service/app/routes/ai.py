@@ -7,16 +7,55 @@ router = APIRouter()
 ai_service = AiService()
 
 class GenerateRequest(BaseModel):
-    prompt: str
+    prompt: str = ""
     tenant_id: str
     user_id: str
     examples: list = []
+    brief: dict | None = None
 
 @router.post("/generate")
 async def generate(request: GenerateRequest):
     try:
-        result = await ai_service.generate_template(prompt=request.prompt)
+        result = await ai_service.generate_template(prompt=request.prompt, brief=request.brief)
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class ChatMessage(BaseModel):
+    role: str          # 'user' | 'assistant'
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+    current_mjml: str | None = None
+    tenant_id: str
+    user_id: str
+
+@router.post("/chat")
+async def chat(request: ChatRequest):
+    try:
+        result = await ai_service.chat_template(
+            messages=[m.model_dump() for m in request.messages],
+            current_mjml=request.current_mjml,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class SuggestPalettesRequest(BaseModel):
+    email_type: str
+    vibe: str | None = None
+
+@router.post("/suggest-palettes")
+async def suggest_palettes(request: SuggestPalettesRequest):
+    try:
+        palettes = await ai_service.suggest_palettes(
+            email_type=request.email_type,
+            vibe=request.vibe,
+        )
+        return {"palettes": palettes}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

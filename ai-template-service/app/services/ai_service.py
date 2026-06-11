@@ -5,7 +5,7 @@ import re
 
 import httpx
 
-from app.utils.prompt_builder import build_prompt
+from app.utils.prompt_builder import build_brief_prompt, build_chat_prompt, build_prompt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -13,6 +13,36 @@ logging.basicConfig(level=logging.INFO)
 IMAGE_SEARCH_API = os.getenv("IMAGE_SEARCH_API", "http://localhost:8002")
 
 _GENERIC_ALT_WORDS = {"image", "photo", "picture", "placeholder", "avatar"}
+
+# Curated palettes used instantly while the AI suggestion loads, and as a
+# robust fallback when OpenRouter is unavailable or returns junk. Keyed by
+# email type; "generic" is the catch-all.
+_FALLBACK_PALETTES: dict[str, list[dict]] = {
+    "generic": [
+        {"name": "Slate",   "primary": "#0f172a", "accent": "#3b82f6", "background": "#f8fafc", "text": "#1e293b"},
+        {"name": "Emerald", "primary": "#065f46", "accent": "#10b981", "background": "#f0fdf4", "text": "#064e3b"},
+        {"name": "Indigo",  "primary": "#3730a3", "accent": "#6366f1", "background": "#eef2ff", "text": "#1e1b4b"},
+        {"name": "Amber",   "primary": "#92400e", "accent": "#f59e0b", "background": "#fffbeb", "text": "#451a03"},
+    ],
+    "promo": [
+        {"name": "Sunset",  "primary": "#be123c", "accent": "#fb7185", "background": "#fff1f2", "text": "#4c0519"},
+        {"name": "Electric","primary": "#7c3aed", "accent": "#a78bfa", "background": "#f5f3ff", "text": "#2e1065"},
+        {"name": "Citrus",  "primary": "#ea580c", "accent": "#fdba74", "background": "#fff7ed", "text": "#431407"},
+        {"name": "Mint",    "primary": "#0d9488", "accent": "#5eead4", "background": "#f0fdfa", "text": "#042f2e"},
+    ],
+    "invoice": [
+        {"name": "Corporate","primary": "#1e3a8a", "accent": "#3b82f6", "background": "#f8fafc", "text": "#0f172a"},
+        {"name": "Neutral",  "primary": "#334155", "accent": "#64748b", "background": "#ffffff", "text": "#1e293b"},
+        {"name": "Forest",   "primary": "#14532d", "accent": "#22c55e", "background": "#f7fee7", "text": "#052e16"},
+        {"name": "Graphite", "primary": "#111827", "accent": "#6b7280", "background": "#f9fafb", "text": "#111827"},
+    ],
+    "welcome": [
+        {"name": "Sky",     "primary": "#0369a1", "accent": "#38bdf8", "background": "#f0f9ff", "text": "#082f49"},
+        {"name": "Bloom",   "primary": "#9d174d", "accent": "#f472b6", "background": "#fdf2f8", "text": "#500724"},
+        {"name": "Sunrise", "primary": "#c2410c", "accent": "#fb923c", "background": "#fff7ed", "text": "#431407"},
+        {"name": "Lagoon",  "primary": "#0e7490", "accent": "#22d3ee", "background": "#ecfeff", "text": "#083344"},
+    ],
+}
 
 def _fix_image_tag_width(tag_match: re.Match) -> str:
     """Convert non-100% percentage widths inside an mj-image tag to px."""
@@ -32,10 +62,34 @@ class AiService:
         self.url = "https://openrouter.ai/api/v1/chat/completions"
         self.model = os.getenv("AI_MODEL", "deepseek/deepseek-v3.2")
 
-    async def generate_template(self, prompt: str, **_kwargs):
-        logger.info(f"[AI] Generating template — type detection running for: '{prompt[:80]}'")
+        # Ordered fallback chain for the chat builder. Free models are each
+        # served by a single upstream provider that rate-limits hard (429); when
+        # one is throttled we transparently retry the next. Override/extend with
+        # AI_MODEL_FALLBACKS (comma-separated). The primary AI_MODEL goes first.
+        default_fallbacks = [
+            "openai/gpt-oss-120b:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "qwen/qwen3-next-80b-a3b-instruct:free",
+        ]
+        env_fallbacks = [
+            m.strip() for m in os.getenv("AI_MODEL_FALLBACKS", "").split(",") if m.strip()
+        ]
+        chain = [self.model, *(env_fallbacks or default_fallbacks)]
+        # De-dupe while preserving order.
+        self.chat_models = list(dict.fromkeys(chain))
 
-        messages_payload = build_prompt(prompt)
+    async def generate_template(self, prompt: str = "", brief: dict | None = None, **_kwargs):
+        if brief:
+            logger.info(f"[AI] Generating template from brief — type: {brief.get('email_type', '?')}")
+            messages_payload = build_brief_prompt(brief)
+            # Fallback query for Pexels: headline → free_text → raw prompt
+            content = brief.get("content") or {}
+            image_query = (content.get("headline") or brief.get("free_text") or prompt or "").strip()
+        else:
+            logger.info(f"[AI] Generating template — type detection running for: '{prompt[:80]}'")
+            messages_payload = build_prompt(prompt)
+            image_query = prompt
+
         messages = [
             {"role": "system", "content": messages_payload["system"]},
             {"role": "user",   "content": messages_payload["user"]},
@@ -44,7 +98,7 @@ class AiService:
         payload = {
             "model": self.model,
             "messages": messages,
-            "max_tokens": 4096,
+            "max_tokens": 8000,   # richer, art-directed templates run long — don't truncate mid-output
             "temperature": 0.4,   # low enough for consistent structure, enough for variety
         }
 
@@ -101,10 +155,196 @@ class AiService:
         mjml = self._style_tables(mjml)
 
         # Replace placeholder image URLs with real Pexels photos
-        mjml = await self._inject_stock_images(mjml, prompt)
+        mjml = await self._inject_stock_images(mjml, image_query)
 
         logger.info("[AI] Template generation complete")
         return {"mjml": mjml}
+
+    # ── Conversational chat generation ─────────────────────────────────────────
+
+    async def _chat_completion(
+        self,
+        messages: list[dict],
+        max_tokens: int,
+        temperature: float,
+    ) -> tuple[str, str | None]:
+        """
+        Call OpenRouter, walking the fallback model chain on rate-limit / provider
+        errors. Returns (content, error) — exactly one is meaningful.
+        """
+        last_error = "AI service unavailable"
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            for model in self.chat_models:
+                payload = {
+                    "model": model,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                }
+                try:
+                    response = await client.post(
+                        self.url,
+                        headers={
+                            "Authorization": f"Bearer {self.api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        content=json.dumps(payload),
+                    )
+                except Exception as e:
+                    logger.warning(f"[AI chat] HTTP error on {model}: {e}")
+                    last_error = str(e)
+                    continue
+
+                logger.info(f"[AI chat] {model} → status {response.status_code}")
+                try:
+                    data = response.json()
+                except json.JSONDecodeError:
+                    last_error = "OpenRouter API returned invalid response"
+                    continue
+
+                if "error" in data:
+                    err = data["error"]
+                    code = err.get("code") if isinstance(err, dict) else None
+                    last_error = (err.get("message") if isinstance(err, dict) else str(err)) or last_error
+                    # 429 / provider issues → try the next model in the chain.
+                    if code in (429, 502, 503) or response.status_code in (429, 502, 503):
+                        logger.warning(f"[AI chat] {model} rate-limited/unavailable, trying next")
+                        continue
+                    return "", last_error
+
+                content = "".join(
+                    choice["message"]["content"]
+                    for choice in data.get("choices", [])
+                    if choice.get("message") and choice["message"].get("content")
+                )
+                if content.strip():
+                    return content, None
+                last_error = "AI returned empty response"
+
+        logger.error(f"[AI chat] all models exhausted: {last_error}")
+        return "", last_error
+
+    async def chat_template(
+        self,
+        messages: list[dict],
+        current_mjml: str | None = None,
+    ) -> dict:
+        """
+        One turn of the conversational builder. Returns {"message", "mjml"} where
+        `message` is a short assistant sentence for the chat bubble and `mjml` is
+        the full updated template. On failure returns {"error": ...}.
+        """
+        if not messages:
+            return {"error": "No messages provided"}
+
+        chat_messages = build_chat_prompt(messages, current_mjml)
+        # Fallback image query: the user's newest request.
+        image_query = (messages[-1].get("content") or "").strip()
+
+        raw, err = await self._chat_completion(chat_messages, max_tokens=8000, temperature=0.4)
+        if err:
+            return {"error": err}
+        if not raw.strip():
+            return {"error": "AI returned empty response"}
+
+        # Split the reply: prose before <mjml> is the chat message, the block is the template.
+        raw = re.sub(r"```(?:mjml|xml|html)?\s*", "", raw).replace("```", "")
+        mjml_match = re.search(r"<mjml[\s\S]*?</mjml>", raw, re.IGNORECASE)
+        if not mjml_match:
+            # No template in the reply — treat the whole thing as a chat message.
+            return {"message": raw.strip()[:500], "mjml": ""}
+
+        mjml = mjml_match.group(0)
+        message = raw[: mjml_match.start()].strip() or "Voici votre modèle."
+
+        mjml = self._sanitize_mjml(mjml)
+        mjml = self._style_tables(mjml)
+        mjml = await self._inject_stock_images(mjml, image_query)
+
+        logger.info("[AI chat] Turn complete")
+        return {"message": message, "mjml": mjml}
+
+    # ── Palette suggestion ───────────────────────────────────────────────────
+
+    @staticmethod
+    def _validate_palettes(raw: list) -> list[dict]:
+        """Keep only well-formed palettes with valid hex colors."""
+        hex_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+        keys = ("primary", "accent", "background", "text")
+        out: list[dict] = []
+        for p in raw if isinstance(raw, list) else []:
+            if not isinstance(p, dict):
+                continue
+            if all(isinstance(p.get(k), str) and hex_re.match(p[k]) for k in keys):
+                out.append({
+                    "name": str(p.get("name", "Palette"))[:30],
+                    **{k: p[k] for k in keys},
+                })
+        return out[:4]
+
+    async def suggest_palettes(self, email_type: str, vibe: str | None = None) -> list[dict]:
+        """
+        Suggest 4 cohesive color palettes for an email type. Falls back to a
+        curated static set on any error so the wizard never blocks.
+        """
+        fallback = _FALLBACK_PALETTES.get(email_type, _FALLBACK_PALETTES["generic"])
+
+        vibe_line = f" The brand vibe is: {vibe}." if vibe else ""
+        system = (
+            "You are a brand color expert. Return STRICT JSON only — no markdown, no prose. "
+            "Each palette must use harmonious, accessible colors."
+        )
+        user = (
+            f"Suggest 4 distinct color palettes for a '{email_type}' marketing email.{vibe_line} "
+            'Return JSON of the form: {"palettes": [{"name": "...", "primary": "#rrggbb", '
+            '"accent": "#rrggbb", "background": "#rrggbb", "text": "#rrggbb"}, ...]}. '
+            "primary = buttons/headers, accent = highlights, background = body, text = body text. "
+            "Use 6-digit lowercase hex. Ensure text is readable on background."
+        )
+
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "max_tokens": 500,
+            "temperature": 0.6,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(
+                    self.url,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    content=json.dumps(payload),
+                )
+                data = response.json()
+                if "error" in data:
+                    logger.warning(f"[AI palettes] OpenRouter error: {data['error']}")
+                    return fallback
+                content = "".join(
+                    choice["message"]["content"]
+                    for choice in data.get("choices", [])
+                    if choice.get("message") and choice["message"].get("content")
+                )
+        except Exception as e:
+            logger.warning(f"[AI palettes] HTTP error, using fallback: {e}")
+            return fallback
+
+        json_match = re.search(r"\{[\s\S]*\}", content)
+        if not json_match:
+            return fallback
+        try:
+            parsed = json.loads(json_match.group(0))
+        except json.JSONDecodeError:
+            return fallback
+
+        palettes = self._validate_palettes(parsed.get("palettes", []))
+        return palettes if palettes else fallback
 
     # ── Variable mapping ─────────────────────────────────────────────────────
 
@@ -393,12 +633,20 @@ class AiService:
     # ── Image injection ───────────────────────────────────────────────────────
 
     async def _inject_stock_images(self, mjml: str, prompt: str) -> str:
-        """Replace placeholder src values with real Pexels photos."""
+        """Replace placeholder src values with real Pexels photos.
+
+        Only placeholder/empty srcs are touched — any src that is already a real
+        URL (http/https) is left alone. This keeps existing images stable across
+        conversational edit turns instead of re-rolling them every message.
+        """
         src_pattern = re.compile(
             r'(<mj-image\b[^>]*?\bsrc=")([^"]*?)("[^>]*/?>)',
             re.IGNORECASE | re.DOTALL,
         )
-        matches = list(src_pattern.finditer(mjml))
+        matches = [
+            m for m in src_pattern.finditer(mjml)
+            if not m.group(2).strip().lower().startswith(("http://", "https://"))
+        ]
         if not matches:
             return mjml
 

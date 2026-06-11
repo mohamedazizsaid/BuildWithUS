@@ -296,11 +296,16 @@ async function enrichImagesWithPexels(mjml: string, fallbackQuery: string): Prom
 }
 
 export const ai = {
-    generate: async (body: { prompt: string; tenant_id: string; user_id: string }): Promise<{ mjml: string }> => {
+    generate: async (body: {
+        prompt?: string;
+        tenant_id: string;
+        user_id: string;
+        brief?: import('./ai-brief').AiBrief;
+    }): Promise<{ mjml: string }> => {
         const res = await fetch(`${AI_SERVICE_URL}/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+            body: JSON.stringify({ prompt: '', ...body }),
         });
         const text = await res.text();
         let data;
@@ -320,10 +325,58 @@ export const ai = {
         mjml = mjml.replace(/<mj-image([^>]*[^/])>/g, '<mj-image$1 />');
         mjml = mjml.replace(/<mj-divider([^>]*[^/])>/g, '<mj-divider$1 />');
 
-        // Swap placeholder image srcs with real Pexels photos
-        mjml = await enrichImagesWithPexels(mjml, body.prompt);
+        // Swap placeholder image srcs with real Pexels photos.
+        // Fallback query: brief headline → free text → raw prompt.
+        const fallbackQuery =
+            body.brief?.content?.headline ||
+            body.brief?.free_text ||
+            body.prompt ||
+            '';
+        mjml = await enrichImagesWithPexels(mjml, fallbackQuery);
 
         return { mjml };
+    },
+
+    chat: async (body: {
+        messages: { role: 'user' | 'assistant'; content: string }[];
+        current_mjml?: string | null;
+        tenant_id: string;
+        user_id: string;
+    }): Promise<{ message: string; mjml: string }> => {
+        const res = await fetch(`${AI_SERVICE_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error(`AI service error: ${res.status}`);
+        }
+        if (data.error) throw new Error(data.error);
+
+        // The backend already injects stock images; just normalise the block.
+        let mjml: string = data.mjml || '';
+        if (mjml) {
+            const mjmlMatch = mjml.match(/<mjml[\s\S]*<\/mjml>/i);
+            if (mjmlMatch) mjml = mjmlMatch[0];
+        }
+        return { message: data.message || '', mjml };
+    },
+
+    suggestPalettes: async (body: {
+        email_type: string;
+        vibe?: string;
+    }): Promise<{ palettes: import('./ai-brief').Palette[] }> => {
+        const res = await fetch(`${AI_SERVICE_URL}/suggest-palettes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`Palette suggestion failed: ${res.status}`);
+        return res.json();
     },
 
     mapVariables: async (body: {

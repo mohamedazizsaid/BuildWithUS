@@ -19,7 +19,7 @@ import { Row } from '@/lib/editor-types';
 import { ColorPicker, SectionHeader, NumericInput, Toggle, AccordionSection, resolveBlockPadding, resolveBlockMargin } from './panels/shared';
 import { FontWeightSelector, AlignmentSelector, StyledSelect, LineHeightSelector, LetterSpacingSelector, TextStyleFields } from './panels/FontSelectors';
 import { PhotosPanel } from './panels/PhotosPanel';
-import { AiPanel } from './panels/AiPanel';
+import { AiChatPanel } from './ai-chat/AiChatPanel';
 import { SectionsPanel } from './panels/SectionsPanel';
 import { CorpsPanel } from './panels/CorpsPanel';
 import { SectionProperties } from './panels/SectionProperties';
@@ -38,7 +38,8 @@ interface LeftPanelProps {
   onAddBlock: (columnId: string, type: BlockType) => void;
   onAddBlockToNewRow: (type: BlockType) => void;
   onAddSection: (rows: Row[]) => void;
-  onAiGenerate: (mjml: string) => void;
+  onAiApply: (mjml: string) => void;
+  getCurrentMjml: () => string;
   activeColumnId: string | null;
 }
 
@@ -73,7 +74,8 @@ export function LeftPanel({
   onAddBlock,
   onAddBlockToNewRow,
   onAddSection,
-  onAiGenerate,
+  onAiApply,
+  getCurrentMjml,
   activeColumnId,
 }: LeftPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('contenu');
@@ -116,31 +118,35 @@ export function LeftPanel({
         ))}
       </div>
 
-      {/* Panel content — hidden when collapsed */}
+      {/* Panel content — hidden when collapsed. The AI chat fills the full
+          height and owns its own scroll; the other tabs scroll inside p-4. */}
       {!collapsed && (
-        <div className="flex-1 bg-background overflow-y-auto min-w-0">
-          <div className="p-4">
-            {activeTab === 'contenu' && (
-              <ContenuPanel
-                onAddBlock={onAddBlock}
-                onAddBlockToNewRow={onAddBlockToNewRow}
-                activeColumnId={activeColumnId}
-              />
-            )}
-            {activeTab === 'blocs' && (
-              <BlocsPanel onAddRow={onAddRow} />
-            )}
-            {activeTab === 'photos' && (
-              <PhotosPanel />
-            )}
-            {activeTab === 'sections' && (
-              <SectionsPanel onAddSection={onAddSection} />
-            )}
-            {activeTab === 'ai' && (
-              <AiPanel onGenerate={onAiGenerate} />
-            )}
+        activeTab === 'ai' ? (
+          <div className="flex-1 min-w-0 flex flex-col">
+            <AiChatPanel onApply={onAiApply} getCurrentMjml={getCurrentMjml} />
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 bg-background overflow-y-auto min-w-0">
+            <div className="p-4">
+              {activeTab === 'contenu' && (
+                <ContenuPanel
+                  onAddBlock={onAddBlock}
+                  onAddBlockToNewRow={onAddBlockToNewRow}
+                  activeColumnId={activeColumnId}
+                />
+              )}
+              {activeTab === 'blocs' && (
+                <BlocsPanel onAddRow={onAddRow} />
+              )}
+              {activeTab === 'photos' && (
+                <PhotosPanel />
+              )}
+              {activeTab === 'sections' && (
+                <SectionsPanel onAddSection={onAddSection} />
+              )}
+            </div>
+          </div>
+        )
       )}
     </div>
   );
