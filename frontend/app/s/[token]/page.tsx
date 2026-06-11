@@ -31,12 +31,10 @@ export default function SessionExchangePage() {
           // in sessionStorage so save-and-return works from any editor.
           router.replace('/dashboard/templates/new');
         } else if (mode === 'edit' && templateId) {
-          // For 'edit' we still need to know the type to pick an editor.
-          // /dashboard/templates already has a typed router (handleEdit) but
-          // it expects a Template object. Safest: send the user to the list,
-          // they click the template; integration callers wanting deep-edit
-          // can pass mode=list with a templateId hint later.
-          router.replace(`/dashboard/templates?edit=${encodeURIComponent(templateId)}`);
+          // Open the template directly in the editor. The editor loads the
+          // template by id and derives its type from the loaded data, so we
+          // don't need to know the type up front.
+          router.replace(`/dashboard/templates/editor?id=${encodeURIComponent(templateId)}`);
         } else if (mode === 'list') {
           router.replace('/dashboard/templates');
         } else {
