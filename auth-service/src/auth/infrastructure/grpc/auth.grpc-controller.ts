@@ -5,6 +5,8 @@ import { RegisterCommand } from '../../application/commands/register.command';
 import { LoginCommand } from '../../application/commands/login.comand';
 import { InviteUserCommand } from '../../application/commands/invite-user.command';
 import { AcceptInviteCommand } from '../../application/commands/accept-invite.command';
+import { RequestPasswordResetCommand } from '../../application/commands/request-password-reset.command';
+import { ResetPasswordCommand } from '../../application/commands/reset-password.command';
 import { GenerateApiClientCommand } from '../../application/commands/generate-api-client.command';
 import { IssueClientTokenCommand } from '../../application/commands/issue-client-token.command';
 import { RegisterApiClientCommand } from '../../application/commands/register-api-client.command';
@@ -213,6 +215,18 @@ export class AuthGrpcController {
       lastName,
     );
 
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'RequestPasswordReset')
+  async requestPasswordReset(request: any) {
+    const command = new RequestPasswordResetCommand(request.email);
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'ResetPassword')
+  async resetPassword(request: any) {
+    const command = new ResetPasswordCommand(request.token, request.password);
     return this.commandBus.execute(command);
   }
 

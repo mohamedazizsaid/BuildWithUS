@@ -51,9 +51,13 @@ export default function RegisterPage() {
       transition={{ duration: 0.4 }}
     >
       <div className="mb-8">
-        <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center mb-6">
+        <Link
+          href="/"
+          aria-label="Retour à l'accueil"
+          className="inline-flex w-10 h-10 bg-slate-900 rounded-lg items-center justify-center mb-6 transition-transform hover:scale-105 active:scale-95"
+        >
           <span className="text-white font-bold text-lg">W</span>
-        </div>
+        </Link>
         <h1 className="text-2xl font-bold text-slate-900">Bienvenue sur Winaity Template Builder</h1>
         <p className="text-slate-500 mt-1">
           Vous avez déjà un compte ?{' '}

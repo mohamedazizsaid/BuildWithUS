@@ -29,13 +29,25 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
       throw new Error('Email already registered');
     }
 
-    // Create tenant (or find existing)
-    let tenant = await this.tenantRepository.findByName(command.tenantName);
-    if (!tenant) {
-      tenant = Tenant.create(command.tenantName);
-      await this.tenantRepository.save(tenant);
-      this.logger.log(`Tenant created: ${tenant.getId()}`);
+    // Always create a BRAND-NEW tenant for a registration. We must NOT reuse an
+    // existing tenant that happens to share the same name: registration always
+    // makes the user an admin, so reusing a tenant would silently drop the new
+    // account into someone else's organization as a second admin (a cross-tenant
+    // breach). Joining an existing organization is invite-only (see AcceptInvite).
+    //
+    // Tenant names carry a UNIQUE constraint, so a clashing name must be rejected
+    // with a clear message rather than blindly inserting (raw DB error) or — far
+    // worse — reusing the existing org.
+    const existingTenant = await this.tenantRepository.findByName(command.tenantName);
+    if (existingTenant) {
+      throw new Error(
+        'An organization with this name already exists. Please choose a different name.',
+      );
     }
+
+    const tenant = Tenant.create(command.tenantName);
+    await this.tenantRepository.save(tenant);
+    this.logger.log(`Tenant created: ${tenant.getId()}`);
 
     // Hash password and create user
     const hashedPassword = await this.passwordService.hash(command.password);

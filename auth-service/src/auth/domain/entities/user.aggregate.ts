@@ -63,6 +63,14 @@ export class User {
     this.updatedAt = new Date();
   }
 
+  public changePassword(hashedPassword: string): void {
+    if (!hashedPassword) {
+      throw new Error('Password is required');
+    }
+    this.password = hashedPassword;
+    this.updatedAt = new Date();
+  }
+
   public updateRole(role: UserRole): void {
     this.role = role;
     this.updatedAt = new Date();

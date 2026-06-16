@@ -16,6 +16,11 @@ export interface InviteTokenPayload {
   role: string;
 }
 
+export interface PasswordResetTokenPayload {
+  userId: string;
+  email: string;
+}
+
 export interface M2MTokenPayload {
   tenantId: string;
   userId?: string;
@@ -65,6 +70,20 @@ export class JwtService {
       throw new Error('Invalid token type');
     }
     return decoded as InviteTokenPayload;
+  }
+
+  signPasswordReset(payload: PasswordResetTokenPayload): string {
+    return jwt.sign({ ...payload, type: 'password_reset' }, this.secret, {
+      expiresIn: '15m',
+    } as jwt.SignOptions);
+  }
+
+  verifyPasswordReset(token: string): PasswordResetTokenPayload {
+    const decoded = jwt.verify(token, this.secret) as any;
+    if (decoded.type !== 'password_reset') {
+      throw new Error('Invalid token type');
+    }
+    return decoded as PasswordResetTokenPayload;
   }
 
   signM2M(payload: M2MTokenPayload): string {

@@ -113,6 +113,12 @@ export const auth = {
     acceptInvite: (body: { token: string; password: string; firstName: string; lastName: string}) =>
         request('/auth/accept-invite', { method: 'POST', body: JSON.stringify(body) }),
 
+    forgotPassword: (body: { email: string }) =>
+        request('/auth/forgot-password', { method: 'POST', body: JSON.stringify(body) }),
+
+    resetPassword: (body: { token: string; password: string }) =>
+        request('/auth/reset-password', { method: 'POST', body: JSON.stringify(body) }),
+
     listMembers:() =>
         request('/auth/members'),
 };

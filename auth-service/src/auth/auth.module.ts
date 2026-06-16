@@ -33,6 +33,8 @@ import { RegisterHandler } from './application/commands/handlers/register.handle
 import { LoginHandler } from './application/commands/handlers/login.handler';
 import { InviteUserHandler } from './application/commands/handlers/invite-user.handler';
 import { AcceptInviteHandler } from './application/commands/handlers/accept-invite.handler';
+import { RequestPasswordResetHandler } from './application/commands/handlers/request-password-reset.handler';
+import { ResetPasswordHandler } from './application/commands/handlers/reset-password.handler';
 import { GenerateApiClientHandler } from './application/commands/handlers/generate-api-client.handler';
 import { IssueClientTokenHandler } from './application/commands/handlers/issue-client-token.handler';
 import { RegisterApiClientHandler } from './application/commands/handlers/register-api-client.handler';
@@ -46,6 +48,8 @@ const CommandHandlers = [
   LoginHandler,
   InviteUserHandler,
   AcceptInviteHandler,
+  RequestPasswordResetHandler,
+  ResetPasswordHandler,
   GenerateApiClientHandler,
   IssueClientTokenHandler,
   RegisterApiClientHandler,

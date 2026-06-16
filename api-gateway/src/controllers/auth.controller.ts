@@ -242,6 +242,84 @@ export class AuthController implements OnModuleInit {
   }
 
   /**
+   * POST /auth/forgot-password — PUBLIC
+   * Sends a password reset link (expires in 15min) to the given email.
+   * Always returns a generic success — we never reveal whether the account
+   * exists. The auth-service only returns a token when a user is found, and
+   * we only send the email in that case.
+   */
+  @Post("forgot-password")
+  @HttpCode(200)
+  async forgotPassword(@Body() body: any) {
+    const email = (body.email || "").trim();
+    const result: any = await firstValueFrom(
+      this.authService.RequestPasswordReset({ email }),
+    );
+
+    if (result?.email_exists && result?.token) {
+      // Use the public frontend URL in prod, falling back to localhost in dev.
+      // FRONTEND_PUBLIC_URL wins if set; otherwise the first FRONTEND_ORIGIN.
+      const frontendUrl = (
+        process.env.FRONTEND_PUBLIC_URL ||
+        (process.env.FRONTEND_ORIGIN || "").split(",")[0].trim() ||
+        "http://localhost:3001"
+      ).replace(/\/+$/, "");
+      const resetLink = `${frontendUrl}/reset-password?token=${result.token}`;
+      console.log("Sending password reset email to:", result.email);
+      try {
+        const emailResult = await this.transporter.sendMail({
+          from: `Winaity <${process.env.GMAIL_USER}>`,
+          to: result.email,
+          subject: "Reset your Winaity password",
+          html: `
+            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
+              <div style="background: #0f172a; border-radius: 8px; padding: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+                <span style="color: white; font-weight: bold; font-size: 18px;">W</span>
+              </div>
+              <h1 style="color: #0f172a; font-size: 24px; margin-bottom: 8px;">Reset your password</h1>
+              <p style="color: #64748b; font-size: 14px; line-height: 1.6;">
+                ${result.first_name ? `Hi ${result.first_name},<br/>` : ""}
+                We received a request to reset your Winaity password. Click the button below to choose a new one.
+              </p>
+              <a href="${resetLink}" style="display: inline-block; margin-top: 24px; padding: 12px 32px; background: #0f172a; color: white; text-decoration: none; border-radius: 50px; font-weight: 500; font-size: 14px;">
+                Reset password
+              </a>
+              <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
+                This link expires in 15 minutes. If you didn't request a password reset, you can safely ignore this email.
+              </p>
+            </div>
+          `,
+        });
+        console.log("Reset email sent:", emailResult.messageId);
+      } catch (emailError) {
+        console.error("Failed to send password reset email:", emailError);
+      }
+    }
+
+    // Generic response regardless of whether the account exists.
+    return {
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    };
+  }
+
+  /**
+   * POST /auth/reset-password — PUBLIC
+   * Sets a new password using the reset token from the email link.
+   */
+  @Post("reset-password")
+  @HttpCode(200)
+  async resetPassword(@Body() body: any) {
+    const result: any = await firstValueFrom(
+      this.authService.ResetPassword({
+        token: body.token,
+        password: body.password,
+      }),
+    );
+    return result;
+  }
+
+  /**
    * GET /auth/members — PROTECTED
    * Lists all users in the same organization (tenant).
    * Used by admin to see who's in their team.
