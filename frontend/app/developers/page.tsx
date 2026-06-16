@@ -232,7 +232,7 @@ export default function DevelopersPage() {
             steps={[
               ['Token', 'Ton serveur appelle /oauth/token avec external_org_ref → reçoit un access_token.'],
               ['Read', 'GET /templates (Bearer) → liste filtrée automatiquement à cette org.'],
-              ['Render', 'GET /templates/:id/render → HTML compilé prêt à afficher/envoyer (le même que prévisualise le builder).'],
+              ['Render', 'GET /templates/:id/render → HTML compilé (email) ; POST /templates/:id/render-sms → texte + segments (SMS). Prêt à afficher/envoyer.'],
             ]}
           />
         </div>
@@ -443,6 +443,31 @@ export default function DevelopersPage() {
   "type":    "email",
   "subject": "Votre relance",
   "html":    "<!doctype html>…"       // ← prêt à afficher / envoyer
+}`}
+          />
+
+          <Endpoint
+            method="POST"
+            path="/templates/:id/render-sms"
+            auth="Bearer (M2M)"
+            summary="Rend un template SMS en texte brut, variables injectées — l'endpoint à utiliser pour obtenir un SMS prêt à envoyer. Renvoie aussi l'encodage (GSM-7 / UCS-2) et le nombre de segments, pour ta passerelle SMS. 404 si l'id n'appartient pas à l'org du token."
+            request={`Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "variables": { "firstName": "Sarah", "code": "4821" }
+}
+
+# variables est optionnel — sans valeur, les {{placeholders}} restent intacts`}
+            response={`{
+  "id":             "tpl_123",
+  "name":           "Code de connexion",
+  "type":           "sms",
+  "text":           "Bonjour Sarah, votre code est 4821",
+  "encoding":       "GSM-7",        // ou "UCS-2" (hors alphabet GSM)
+  "characters":     34,
+  "segments":       1,              // nb de SMS réellement envoyés
+  "variables_used": ["firstName", "code"]
 }`}
           />
         </div>

@@ -564,7 +564,94 @@ GUIDE D'INTÉGRATION RAPIDE
 ─────────────────────────────────────────────────────────────────
 ```
 
-Voilà. C'est ça, tout le contrat public.
+## 8.1 Rendre un template prêt à l'emploi (HTML email ou texte SMS)
+
+`GET /templates/:id` renvoie le template **brut** (le contenu stocké, avec ses `{{variables}}`). La plupart des outils veulent plutôt le **rendu final** : du HTML compilé pour un email, ou du texte avec variables remplacées pour un SMS. Deux endpoints sont faits pour ça.
+
+Les deux :
+- s'authentifient avec un **token M2M** (`POST /oauth/token`, scope `templates:read`) ;
+- sont **cloisonnés par organisation** : le template est cherché avec le `tenant_id` + `external_org_ref` du token, donc une organisation ne peut rendre que **ses** templates (sinon `404`).
+
+### Email → HTML compilé
+
+```http
+GET /templates/{id}/render
+Authorization: Bearer <access_token>
+```
+
+Réponse :
+
+```json
+{
+  "id":      "tpl_123",
+  "name":    "Relance facture",
+  "type":    "email",
+  "subject": "Votre relance",
+  "html":    "<!doctype html>…"
+}
+```
+
+Le MJML stocké est compilé en HTML compatible boîtes mail (le même HTML que l'aperçu du builder). Prêt à afficher ou à envoyer depuis votre plateforme.
+
+### SMS → texte + encodage + nombre de segments
+
+Les templates SMS sont du **texte simple** (pas de HTML), donc ils ont leur propre endpoint. Il est en **POST** parce qu'il accepte une table de variables à injecter.
+
+```http
+POST /templates/{id}/render-sms
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "variables": { "firstName": "Sarah", "code": "4821" }
+}
+```
+
+- `variables` est **optionnel** : sans lui (ou `{}`), les `{{placeholders}}` restent tels quels.
+- Toute variable non fournie reste sous la forme `{{nom}}` dans le texte.
+
+Réponse :
+
+```json
+{
+  "id":             "tpl_123",
+  "name":           "Code de connexion",
+  "type":           "sms",
+  "text":           "Bonjour Sarah, votre code est 4821",
+  "encoding":       "GSM-7",
+  "characters":     34,
+  "segments":       1,
+  "variables_used": ["firstName", "code"]
+}
+```
+
+| Champ | Sens |
+|---|---|
+| `text` | Le SMS final, variables injectées — **prêt à envoyer** via votre passerelle SMS. |
+| `encoding` | `GSM-7` (alphabet standard) ou `UCS-2` (dès qu'un caractère sort du GSM, ex. emoji). |
+| `characters` | Nombre d'unités facturées (septets en GSM-7, code points en UCS-2). |
+| `segments` | Nombre de SMS réellement envoyés (160 car. par segment en GSM-7, 70 en UCS-2 ; 153/67 au-delà à cause de l'en-tête multipart). |
+| `variables_used` | Les variables effectivement remplacées par une valeur fournie. |
+
+> Astuce : pour connaître à l'avance les variables attendues par un template (afin de construire votre table `variables`), appelez `GET /templates/:id/schema` → `{ "required_variables": ["firstName", "code"] }`.
+
+Exemple complet (cURL) :
+
+```bash
+# 1. Token M2M (éventuellement scopé à une organisation via custom_champ)
+TOKEN=$(curl -s -X POST http://localhost:3000/oauth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"client_id":"...","client_secret":"...","custom_champ":{"external_org_ref":"org-alpha"}}' \
+  | jq -r .access_token)
+
+# 2. Rendre le SMS avec des valeurs réelles
+curl -s -X POST http://localhost:3000/templates/tpl_123/render-sms \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"variables":{"firstName":"Sarah","code":"4821"}}'
+```
+
+Voilà. C'est ça, tout le contrat public — inscription, sessions, liste, et rendu (HTML email ou texte SMS).
 
 ---
 
