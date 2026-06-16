@@ -186,14 +186,16 @@ function SmsEditorContent() {
         const created = await templates.create({ name, description, type: 4, content: body }) as
           { id?: string; template?: { id?: string } };
         resultId = created.id ?? created.template?.id ?? null;
-        if (resultId) adoptNewTemplateId(resultId);
       }
       setSaveStatus('saved');
       setLastSavedAt(new Date());
       toast.success('SMS enregistré');
       postToHost({ event: 'saved', templateId: resultId, name });
 
-      // Embed/integration session: hand the id back to the host tool.
+      // Embed/integration session: hand the id back to the host tool. Do this
+      // BEFORE adopting the new id (which does a router.replace) so the
+      // full-page redirect isn't pre-empted by a client-side navigation —
+      // this matches what the email/contract/invoice builders do.
       const returnUrl = getBuilderReturnUrl();
       if (returnUrl && resultId) {
         setBuilderReturnUrl(null);
@@ -202,7 +204,9 @@ function SmsEditorContent() {
         return;
       }
 
-      // Normal dashboard session: return to the templates list like the other builders.
+      // Not returning to a host: adopt the new id so further edits update in
+      // place, and in a normal dashboard session go back to the list.
+      if (resultId && !currentTemplateId) adoptNewTemplateId(resultId);
       if (!isEmbed) router.push('/dashboard/templates');
     } catch {
       setSaveStatus('error');

@@ -20,7 +20,7 @@ Copy `client_id` and `client_secret` from the response.
 cd crm-demo
 cp .env.example .env       # paste BUILDER_CLIENT_ID / BUILDER_CLIENT_SECRET
 npm install
-npm start                  # → http://localhost:5555
+npm start                  # → http://localhost:5556
 ```
 
 `BUILDER_API_URL` defaults to prod (`https://api-template-builder.winaity.com`).
@@ -28,7 +28,7 @@ To test the prod stack *on the server* instead, set it to `http://localhost:4401
 
 ## 3. Allowlist your return URL (once)
 
-Open **Settings → Register return URL**. This adds `http://localhost:5555/callback`
+Open **Settings → Register return URL**. This adds `http://localhost:5556/callback`
 to your client's allowlist (required before minting sessions).
 
 ## 4. Prove isolation
