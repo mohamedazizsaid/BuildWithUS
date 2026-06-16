@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Children, isValidElement, useEffect, useRef, useState } from 'react';
 import {
   motion,
   useMotionValue,
@@ -26,110 +26,213 @@ const REPEL_RADIUS = 240;
 const REPEL_STRENGTH = 180;
 
 const CARDS: CardConfig[] = [
+  // ── Email template ─────────────────────────────────────────────
   {
     id: 1,
-    left: 7,
-    top: 11,
-    w: 182,
-    h: 244,
+    left: 5,
+    top: 28,
+    w: 212,
+    h: 256,
     rot: -4,
     dur: 6,
     delay: 0.1,
     content: (
       <>
-        <div className="mb-2 h-3 w-full rounded bg-blue-400/50" />
-        <div className="mb-4 h-3 w-3/4 rounded bg-white/25" />
-        <div className="mb-2 h-20 w-full rounded bg-blue-400/20" />
-        <div className="mb-1 h-3 w-full rounded bg-white/15" />
-        <div className="h-3 w-2/3 rounded bg-white/15" />
+        <div className="mb-3 flex items-center gap-1.5">
+          <div className="h-5 w-5 rounded bg-sky-400/50" />
+          <div className="h-2.5 w-16 rounded bg-white/25" />
+        </div>
+        <div className="mb-3 h-9 w-full rounded-lg bg-gradient-to-r from-sky-400/40 to-blue-400/25" />
+        <div className="mb-2 text-[10px] font-semibold text-sky-100/80">{'Bienvenue {{prenom}} !'}</div>
+        <div className="mb-1.5 h-2 w-full rounded bg-white/15" />
+        <div className="mb-1.5 h-2 w-5/6 rounded bg-white/15" />
+        <div className="mb-4 h-2 w-2/3 rounded bg-white/15" />
+        <div className="flex justify-center">
+          <div className="rounded-full bg-sky-500 px-4 py-1.5 text-[9px] font-bold text-white shadow-lg shadow-sky-500/30">
+            Commencer →
+          </div>
+        </div>
       </>
     ),
   },
+  // ── Invoice ────────────────────────────────────────────────────
   {
     id: 2,
-    left: 51,
-    top: 7,
-    w: 192,
-    h: 272,
+    left: 52,
+    top: 26,
+    w: 216,
+    h: 288,
     rot: 4,
     dur: 7,
     delay: 0.25,
     content: (
       <>
-        <div className="mb-3 h-8 w-full rounded bg-sky-400/30" />
-        <div className="mb-1 h-3 w-full rounded bg-white/20" />
-        <div className="mb-1 h-3 w-full rounded bg-white/20" />
-        <div className="mb-4 h-3 w-1/2 rounded bg-white/20" />
-        <div className="mb-2 flex h-16 w-full items-center justify-center rounded border border-dashed border-white/20 bg-white/5">
-          <span className="text-xs text-white/30">LOGO</span>
+        <div className="mb-1 flex items-start justify-between">
+          <div className="text-sm font-black tracking-tight text-white">FACTURE</div>
+          <div className="text-[8px] text-white/40">F2026-001</div>
         </div>
-        <div className="mb-1 h-3 w-full rounded bg-white/15" />
-        <div className="h-3 w-3/4 rounded bg-white/15" />
+        <div className="mb-2.5 h-px w-full bg-white/20" />
+        <div className="mb-1.5 flex justify-between text-[8px] text-white/60">
+          <span>Développement web</span><span>2 500 €</span>
+        </div>
+        <div className="mb-1.5 flex justify-between text-[8px] text-white/45">
+          <span>Maintenance</span><span>400 €</span>
+        </div>
+        <div className="mb-3 flex justify-between text-[8px] text-white/45">
+          <span>Hébergement</span><span>120 €</span>
+        </div>
+        <div className="rounded-md bg-white/5 p-2 text-[8px]">
+          <div className="flex justify-between text-white/40"><span>HT</span><span>3 020 €</span></div>
+          <div className="mb-1 flex justify-between text-white/40"><span>TVA 20%</span><span>604 €</span></div>
+          <div className="flex justify-between rounded bg-sky-500/40 px-1.5 py-1 font-bold text-white">
+            <span>TTC</span><span>3 624 €</span>
+          </div>
+        </div>
       </>
     ),
   },
+  // ── Contract ───────────────────────────────────────────────────
   {
     id: 3,
-    left: 15,
-    top: 55,
-    w: 172,
-    h: 222,
+    left: 8,
+    top: 58,
+    w: 204,
+    h: 248,
     rot: -3,
     dur: 6.5,
     delay: 0.4,
     content: (
       <>
-        <div className="mb-3 h-12 w-12 rounded-full bg-cyan-400/30" />
-        <div className="mb-1 h-3 w-full rounded bg-white/20" />
-        <div className="mb-4 h-3 w-2/3 rounded bg-white/20" />
-        <div className="mb-1 h-3 w-full rounded bg-white/15" />
-        <div className="mb-1 h-3 w-full rounded bg-white/15" />
-        <div className="mb-1 h-3 w-full rounded bg-white/15" />
-        <div className="h-3 w-1/2 rounded bg-white/15" />
+        <div className="mb-2 text-center text-[9px] font-black uppercase tracking-wide text-white/80">
+          Contrat de prestation
+        </div>
+        <div className="mb-2 h-px w-full bg-white/15" />
+        <div className="mb-1.5 text-[9px] font-bold text-sky-100/80">Article 1 — Objet</div>
+        <div className="mb-1 h-2 w-full rounded bg-white/15" />
+        <div className="mb-2 h-2 w-4/5 rounded bg-white/15" />
+        <div className="mb-2.5 inline-block rounded bg-sky-400/20 px-1.5 py-0.5 text-[8px] text-sky-100/80">
+          {'{{client_nom}}'}
+        </div>
+        <div className="mb-1.5 text-[9px] font-bold text-sky-100/80">Article 2 — Durée</div>
+        <div className="mb-1 h-2 w-full rounded bg-white/15" />
+        <div className="mb-4 h-2 w-3/5 rounded bg-white/15" />
+        <div className="flex items-end justify-between">
+          <div className="h-px w-14 bg-white/30" />
+          <span className="text-[7px] text-white/40">Signature</span>
+        </div>
       </>
     ),
   },
+  // ── Analytics ──────────────────────────────────────────────────
   {
     id: 4,
-    left: 54,
-    top: 53,
-    w: 188,
-    h: 204,
+    left: 55,
+    top: 60,
+    w: 212,
+    h: 196,
     rot: 5,
     dur: 8,
     delay: 0.55,
     content: (
       <>
-        <div className="mb-3 h-3 w-1/2 rounded bg-indigo-400/50" />
-        <div className="flex h-24 items-end gap-2">
-          <div className="h-1/2 w-full rounded-t bg-blue-400/30" />
-          <div className="h-3/4 w-full rounded-t bg-blue-400/40" />
-          <div className="h-1/3 w-full rounded-t bg-blue-400/25" />
-          <div className="h-full w-full rounded-t bg-blue-400/50" />
+        <div className="mb-1 text-[9px] text-white/50">Taux d&apos;ouverture</div>
+        <div className="mb-3 text-3xl font-black leading-none text-white">
+          68<span className="text-lg text-sky-300">%</span>
         </div>
-        <div className="mt-3 h-3 w-2/3 rounded bg-white/15" />
+        <div className="flex h-16 items-end gap-1.5">
+          <div className="h-1/3 w-full rounded-t bg-sky-400/30" />
+          <div className="h-2/3 w-full rounded-t bg-sky-400/50" />
+          <div className="h-1/2 w-full rounded-t bg-blue-400/40" />
+          <div className="h-full w-full rounded-t bg-sky-400/70" />
+          <div className="h-3/4 w-full rounded-t bg-cyan-400/50" />
+        </div>
       </>
     ),
   },
+  // ── SMS ────────────────────────────────────────────────────────
   {
     id: 5,
     left: 33,
-    top: 33,
-    w: 162,
-    h: 184,
+    top: 44,
+    w: 188,
+    h: 188,
     rot: -6,
     dur: 5.5,
     delay: 0.7,
     content: (
       <>
-        <div className="mb-2 h-3 w-3/4 rounded bg-sky-400/40" />
-        <div className="mb-1 h-3 w-full rounded bg-white/15" />
-        <div className="mb-3 h-3 w-5/6 rounded bg-white/15" />
-        <div className="h-8 w-full rounded-full bg-blue-500/40" />
+        <div className="mb-3 flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-full bg-emerald-400" />
+          <div className="text-[8px] uppercase tracking-wide text-white/40">SMS</div>
+        </div>
+        <div className="mb-2 w-fit rounded-2xl rounded-bl-sm bg-white/10 px-2.5 py-1.5 text-[9px] text-white/70">
+          {'Bonjour {{prenom}} 👋'}
+        </div>
+        <div className="mb-1 ml-auto w-fit rounded-2xl rounded-br-sm bg-sky-500/60 px-2.5 py-1.5 text-[9px] text-white">
+          Code : 4829
+        </div>
+        <div className="ml-auto text-[7px] text-sky-200/50">Envoyé ✓✓</div>
       </>
     ),
   },
 ];
+
+// ── "Self-building" template animation ─────────────────────────────────────
+// Reveals a card's content line-by-line (like the template is being typed out),
+// then remounts and replays on a loop so the panel always feels alive.
+const buildContainer = {
+  hidden: {},
+  show: (delay = 0) => ({
+    transition: { staggerChildren: 0.22, delayChildren: delay },
+  }),
+};
+const buildItem = {
+  hidden: { opacity: 0, x: -8 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
+};
+
+function BuildSequence({
+  content,
+  baseDelay,
+}: {
+  content: React.ReactNode;
+  baseDelay: number;
+}) {
+  // The card content is authored as a fragment; each top-level child is one
+  // "line" of the template that we reveal in sequence.
+  const steps = Children.toArray(
+    isValidElement(content)
+      ? (content.props as { children?: React.ReactNode }).children
+      : content,
+  );
+
+  const [cycle, setCycle] = useState(0);
+  const stagger = 0.22;
+  const buildMs = (baseDelay + steps.length * stagger + 0.5) * 1000;
+  const holdMs = 2600; // pause on the finished template before rebuilding
+
+  useEffect(() => {
+    const period = buildMs + holdMs;
+    const t = setInterval(() => setCycle((c) => c + 1), period);
+    return () => clearInterval(t);
+  }, [buildMs]);
+
+  return (
+    <motion.div
+      key={cycle}
+      custom={baseDelay}
+      variants={buildContainer}
+      initial="hidden"
+      animate="show"
+    >
+      {steps.map((step, i) => (
+        <motion.div key={i} variants={buildItem}>
+          {step}
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+}
 
 function RepelCard({
   cfg,
@@ -184,7 +287,7 @@ function RepelCard({
         animate={{ y: [0, -16, 0], rotate: [cfg.rot, cfg.rot + 2.5, cfg.rot] }}
         transition={{ duration: cfg.dur, repeat: Infinity, ease: 'easeInOut', delay: cfg.delay }}
       >
-        {cfg.content}
+        <BuildSequence content={cfg.content} baseDelay={cfg.delay + 0.4} />
       </motion.div>
     </motion.div>
   );
@@ -224,14 +327,26 @@ export default function AuthImage() {
       ref={containerRef}
       onMouseMove={handleMove}
       onMouseLeave={handleLeave}
-      className="relative h-full w-full overflow-hidden bg-[#040b22]"
+      className="relative h-full w-full overflow-hidden bg-[#04162e]"
     >
-      {/* Deep dark-blue gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0a2472] via-[#0a1538] to-[#02060f]" />
+      {/* Sky-blue gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0b6fb8] via-[#0a3a78] to-[#03142e]" />
 
-      {/* Soft blue glows for depth */}
-      <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-blue-600/25 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 right-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
+      {/* Soft sky-blue glows for depth */}
+      <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-sky-500/30 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 right-0 h-96 w-96 rounded-full bg-sky-600/20 blur-3xl" />
+
+      {/* Big white title above the floating cards */}
+      <motion.h1
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.2 }}
+        className="pointer-events-none absolute left-10 right-10 top-10 z-20 select-none font-black uppercase leading-[0.9] tracking-tight text-white text-[clamp(2.25rem,6vw,4.5rem)]"
+      >
+        Template
+        <br />
+        Builder
+      </motion.h1>
 
       {/* Magnetic, bouncing template cards */}
       {CARDS.map((cfg) => (
@@ -240,7 +355,7 @@ export default function AuthImage() {
 
       {/* Glowing orbs */}
       <div className="pointer-events-none absolute right-[25%] top-[20%] h-4 w-4 rounded-full bg-sky-400 shadow-lg shadow-sky-400/60" />
-      <div className="pointer-events-none absolute bottom-[30%] left-[12%] h-3 w-3 rounded-full bg-indigo-400 shadow-lg shadow-indigo-400/60" />
+      <div className="pointer-events-none absolute bottom-[30%] left-[12%] h-3 w-3 rounded-full bg-blue-400 shadow-lg shadow-blue-400/60" />
       <div className="pointer-events-none absolute right-[15%] top-[62%] h-2 w-2 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/60" />
 
       {/* Bottom text */}
