@@ -371,6 +371,67 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
     };
   }
 
+  /**
+   * POST /templates/:id/render-sms
+   * Render an SMS template to its final text with variables injected.
+   * Mirrors GET /templates/:id/render (same auth + tenant scoping) but, since
+   * SMS is text-only, it accepts a variables map and returns plain text plus
+   * GSM-7/UCS-2 encoding and segment count.
+   *
+   * This is the endpoint external tools (CRM, Winlead...) call to get a
+   * ready-to-send SMS body.
+   *
+   * Request body:
+   * { "variables": { "firstName": "Jean", "code": "4821" } }
+   *
+   * Example response:
+   * {
+   *   "id": "abc-123",
+   *   "name": "Code de connexion",
+   *   "type": "sms",
+   *   "text": "Bonjour Jean, votre code est 4821",
+   *   "encoding": "GSM-7",
+   *   "characters": 33,
+   *   "segments": 1,
+   *   "variables_used": ["firstName", "code"]
+   * }
+   *
+   * Scoping: fetched with the tenant_id + external_org_ref from the token, so an
+   * organization can only render its own templates (404 otherwise).
+   */
+  @Post(":id/render-sms")
+  @Scopes("templates:read")
+  async renderSms(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() body: { variables?: Record<string, string> },
+  ) {
+    const result = (await firstValueFrom(
+      this.queryService.GetTemplate({
+        id,
+        user_id: req.user.id,
+        tenant_id: req.user.tenant_id,
+        external_org_ref: req.user.external_org_ref || "",
+      }),
+    )) as any;
+
+    // GetTemplate wraps the payload in a `template` field (TemplateResponse).
+    const template = result?.template ?? result;
+    const content: string = template.content ?? "";
+    const sms = this.renderer.renderSms(content, body.variables ?? {});
+
+    return {
+      id: template.id,
+      name: template.name,
+      type: this.normalizeTemplateType(template.type),
+      text: sms.text,
+      encoding: sms.encoding,
+      characters: sms.characters,
+      segments: sms.segments,
+      variables_used: sms.variablesUsed,
+    };
+  }
+
   // proto-loader returns the enum name (e.g. "EMAIL"); expose a friendly lowercase
   // type. Falls back to a lowercased value for forward-compat.
   private normalizeTemplateType(type: unknown): string {
@@ -378,9 +439,11 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
       EMAIL: "email",
       FACTURE: "facture",
       CONTRAT: "contrat",
+      SMS: "sms",
       "1": "email",
       "2": "facture",
       "3": "contrat",
+      "4": "sms",
     };
     return map[String(type)] ?? String(type ?? "").toLowerCase();
   }

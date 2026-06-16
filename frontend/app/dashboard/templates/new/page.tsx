@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Mail, FileText, ScrollText, ArrowRight } from 'lucide-react';
+import { Mail, FileText, ScrollText, MessageSquare, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,6 +36,15 @@ const TEMPLATE_TYPES = [
     color: 'bg-amber-50 text-amber-600 border-amber-200',
     activeColor: 'bg-amber-100 border-amber-500 ring-2 ring-amber-500',
   },
+  {
+    type: 'sms',
+    value: 4,
+    label: 'SMS',
+    description: 'Messages texte courts avec variables',
+    icon: MessageSquare,
+    color: 'bg-violet-50 text-violet-600 border-violet-200',
+    activeColor: 'bg-violet-100 border-violet-500 ring-2 ring-violet-500',
+  },
 ];
 
 export default function NewTemplatePage() {
@@ -59,6 +68,8 @@ export default function NewTemplatePage() {
       router.push(`/dashboard/templates/invoice-editor?${params.toString()}`);
     } else if (selectedType === 3) {
       router.push(`/dashboard/templates/contract-editor?${params.toString()}`);
+    } else if (selectedType === 4) {
+      router.push(`/dashboard/templates/sms-editor?${params.toString()}`);
     } else {
       router.push(`/dashboard/templates/editor?${params.toString()}`);
     }
@@ -77,7 +88,7 @@ export default function NewTemplatePage() {
         {/* Type Selection */}
         <div className="mb-6">
           <Label className="text-sm font-medium mb-3 block">Type de modèle</Label>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {TEMPLATE_TYPES.map((t) => (
               <button
                 key={t.value}

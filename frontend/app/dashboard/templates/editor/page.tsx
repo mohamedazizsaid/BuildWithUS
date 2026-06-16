@@ -12,6 +12,7 @@ import { useAuth } from "@/context/auth";
 import EditorToolbar from "@/components/editor/EditorToolbar";
 import Canvas from "@/components/editor/Canvas";
 import { LeftPanel, PropertiesPanel } from "@/components/editor/RightPanel";
+import { useAiChatState } from "@/components/editor/ai-chat/useAiChatState";
 import toast from "react-hot-toast";
 import { templates, getBuilderReturnUrl, setBuilderReturnUrl } from "@/lib/api";
 import {
@@ -28,6 +29,9 @@ function EditorContent() {
   const searchParams = useSearchParams();
   const editorState = useEditor();
   const { user } = useAuth();
+  // AI chat conversation state — owned here (a stable, always-mounted parent)
+  // so the history survives switching to Preview/Code and back to the AI tab.
+  const aiChat = useAiChatState();
 
   // Edit mode: ?id=xxx loads existing template
   // Preset mode: ?preset=newsletter-classique pre-loads a predefined template
@@ -489,6 +493,7 @@ function EditorContent() {
               }}
               getCurrentMjml={generateMjml}
               activeColumnId={activeColumnId}
+              aiChat={aiChat}
             />
           </div>
         )}

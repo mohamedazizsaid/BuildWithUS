@@ -14,8 +14,8 @@ import { TemplateType, ChannelContent as ProtoChannelContent } from 'proto/gener
 
 /**
  * Convert TemplateType enum to lowercase string for CampaignType value object
- * TemplateType enum: 1 = EMAIL, 2 = FACTURE, 3 = CONTRAT
- * CampaignType expects: 'email', 'facture', 'contrat'
+ * TemplateType enum: 1 = EMAIL, 2 = FACTURE, 3 = CONTRAT, 4 = SMS
+ * CampaignType expects: 'email', 'facture', 'contrat', 'sms'
  */
 function templateTypeToString(type: TemplateType | string): string {
   // Handle string representation (gRPC may send enum as string)
@@ -24,9 +24,10 @@ function templateTypeToString(type: TemplateType | string): string {
     if (strType === 'EMAIL') return 'email';
     if (strType === 'FACTURE') return 'facture';
     if (strType === 'CONTRAT') return 'contrat';
-    throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), or CONTRAT (3).`);
+    if (strType === 'SMS') return 'sms';
+    throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), or SMS (4).`);
   }
-  
+
   // Handle number representation (enum value)
   switch (type) {
     case TemplateType.EMAIL:
@@ -35,8 +36,10 @@ function templateTypeToString(type: TemplateType | string): string {
       return 'facture';
     case TemplateType.CONTRAT:
       return 'contrat';
+    case TemplateType.SMS:
+      return 'sms';
     default:
-      throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), or CONTRAT (3).`);
+      throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), or SMS (4).`);
   }
 }
 
@@ -78,12 +81,14 @@ export class CreateTemplateHandler implements ICommandHandler<CreateTemplateComm
         if (strChannel === 'EMAIL') return 'email';
         if (strChannel === 'FACTURE') return 'facture';
         if (strChannel === 'CONTRAT') return 'contrat';
+        if (strChannel === 'SMS') return 'sms';
         throw new Error(`Invalid channel type: \${channel}`);
       }
       const channelMap: Record<number, string> = {
         [TemplateType.EMAIL]: 'email',
         [TemplateType.FACTURE]: 'facture',
         [TemplateType.CONTRAT]: 'contrat',
+        [TemplateType.SMS]: 'sms',
       };
       const mapped = channelMap[channel];
       if (!mapped) {

@@ -15,6 +15,7 @@ export class TemplateGrpcMapper {
       email: TemplateType.EMAIL,
       facture: TemplateType.FACTURE,
       contrat: TemplateType.CONTRAT,
+      sms: TemplateType.SMS,
     };
     return map[type.toLowerCase()] ?? TemplateType.TEMPLATE_TYPE_UNSPECIFIED;
   }

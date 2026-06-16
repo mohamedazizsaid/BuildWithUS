@@ -17,6 +17,7 @@ import {
 import { relativeTime } from './_lib/preview-helpers';
 import { ContractPreview } from './_components/ContractPreview';
 import { InvoicePreview } from './_components/InvoicePreview';
+import { SmsPreview } from './_components/SmsPreview';
 import { TemplatePreview } from './_components/TemplatePreview';
 import { DeleteModal } from './_components/DeleteModal';
 import { PreviewModal } from './_components/PreviewModal';
@@ -62,6 +63,7 @@ function TemplatesPageInner() {
     email:   viewFiltered.filter((t) => TAB_TYPES.email.includes(t.type)).length,
     contrat: viewFiltered.filter((t) => TAB_TYPES.contrat.includes(t.type)).length,
     facture: viewFiltered.filter((t) => TAB_TYPES.facture.includes(t.type)).length,
+    sms:     viewFiltered.filter((t) => TAB_TYPES.sms.includes(t.type)).length,
   };
 
   const handleUsePreset = (presetId: string, presetName: string) => {
@@ -92,6 +94,8 @@ function TemplatesPageInner() {
       router.push(`/dashboard/templates/contract-editor?${params.toString()}&type=3`);
     } else if (type === 'facture') {
       router.push(`/dashboard/templates/invoice-editor?${params.toString()}&type=2`);
+    } else if (type === 'sms') {
+      router.push(`/dashboard/templates/sms-editor?${params.toString()}&type=4`);
     } else {
       router.push(`/dashboard/templates/editor?id=${tmpl.id}`);
     }
@@ -255,6 +259,7 @@ function TemplatesPageInner() {
               const Icon = config.icon;
               const isContract = tmpl.type?.toLowerCase() === 'contrat';
               const isInvoice = tmpl.type?.toLowerCase() === 'facture';
+              const isSms = tmpl.type?.toLowerCase() === 'sms';
 
               return (
                 <motion.div
@@ -269,6 +274,8 @@ function TemplatesPageInner() {
                       <ContractPreview content={tmpl.content} />
                     ) : isInvoice ? (
                       <InvoicePreview content={tmpl.content} />
+                    ) : isSms ? (
+                      <SmsPreview content={tmpl.content} />
                     ) : (
                       <TemplatePreview content={tmpl.content} type={tmpl.type} />
                     )}

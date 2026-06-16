@@ -18,6 +18,7 @@ export enum TemplateType {
   EMAIL = 1,
   FACTURE = 2,
   CONTRAT = 3,
+  SMS = 4,
   UNRECOGNIZED = -1,
 }
 

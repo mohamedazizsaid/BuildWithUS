@@ -23,7 +23,15 @@ services:
       - ../template-service/tsconfig.json:/workspace/template-service/tsconfig.json
       - ../template-service/nest-cli.json:/workspace/template-service/nest-cli.json
       - ../template-service/ormconfig.ts:/workspace/template-service/ormconfig.ts
+      # generated proto TS is compiled into the service — mount it so proto edits
+      # (e.g. adding the SMS enum) don't require a full image rebuild, matching
+      # how auth-service mounts its proto dir
+      - ../template-service/proto:/workspace/template-service/proto:ro
       - ../packages/proto:/workspace/packages/proto:ro
+      # shared-kernel is consumed as compiled dist — mount the rebuilt output so
+      # value-object changes (e.g. the SMS campaign type) reach the container
+      # without a full image rebuild (run `npm run build` in packages/shared-kernel)
+      - ../packages/shared-kernel/dist:/workspace/packages/shared-kernel/dist:ro
       - /workspace/template-service/node_modules
     environment:
       CHOKIDAR_USEPOLLING: "true"

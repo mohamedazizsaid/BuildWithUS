@@ -177,6 +177,12 @@ export const templates = {
     render: (id: string) =>
         request(`/templates/${id}/render`, { method: 'GET' }),
 
+    renderSms: (id: string, variables: Record<string, string> = {}): Promise<{
+        id: string; name: string; type: string; text: string;
+        encoding: 'GSM-7' | 'UCS-2'; characters: number; segments: number; variables_used: string[];
+    }> =>
+        request(`/templates/${id}/render-sms`, { method: 'POST', body: JSON.stringify({ variables }) }),
+
     sendTestEmail: (body: { to?: string; subject?: string; content: string }) =>
         request('/templates/test-email', { method: 'POST', body: JSON.stringify(body) }),
 };
@@ -364,6 +370,80 @@ export const ai = {
             if (mjmlMatch) mjml = mjmlMatch[0];
         }
         return { message: data.message || '', mjml };
+    },
+
+    /**
+     * Streaming chat turn. The short assistant sentence arrives token-by-token
+     * via `onDelta` (visible in ~1-2s); the full MJML lands once in the final
+     * result. `onStatus('template')` fires when the model starts emitting the
+     * template block. Resolves with the authoritative { message, mjml }.
+     */
+    chatStream: async (
+        body: {
+            messages: { role: 'user' | 'assistant'; content: string }[];
+            current_mjml?: string | null;
+            tenant_id: string;
+            user_id: string;
+        },
+        handlers: {
+            onDelta?: (text: string) => void;
+            onStatus?: (stage: string) => void;
+        } = {},
+    ): Promise<{ message: string; mjml: string }> => {
+        const res = await fetch(`${AI_SERVICE_URL}/chat/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok || !res.body) {
+            throw new Error(`AI service error: ${res.status}`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let result: { message: string; mjml: string } = { message: '', mjml: '' };
+        let streamError = '';
+
+        const handleEvent = (line: string) => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            let evt: { type?: string; text?: string; stage?: string; message?: string; mjml?: string; error?: string };
+            try {
+                evt = JSON.parse(trimmed);
+            } catch {
+                return;
+            }
+            if (evt.type === 'delta') {
+                if (evt.text) handlers.onDelta?.(evt.text);
+            } else if (evt.type === 'status') {
+                if (evt.stage) handlers.onStatus?.(evt.stage);
+            } else if (evt.type === 'done') {
+                let mjml = evt.mjml || '';
+                if (mjml) {
+                    const m = mjml.match(/<mjml[\s\S]*<\/mjml>/i);
+                    if (m) mjml = m[0];
+                }
+                result = { message: evt.message || '', mjml };
+            } else if (evt.type === 'error') {
+                streamError = evt.error || 'Erreur de génération';
+            }
+        };
+
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let nl: number;
+            while ((nl = buffer.indexOf('\n')) >= 0) {
+                handleEvent(buffer.slice(0, nl));
+                buffer = buffer.slice(nl + 1);
+            }
+        }
+        if (buffer.trim()) handleEvent(buffer);
+
+        if (streamError) throw new Error(streamError);
+        return result;
     },
 
     suggestPalettes: async (body: {

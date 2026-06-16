@@ -264,6 +264,157 @@ class AiService:
         logger.info("[AI chat] Turn complete")
         return {"message": message, "mjml": mjml}
 
+    # ── Streaming conversational chat ──────────────────────────────────────────
+
+    async def _stream_chat_completion(
+        self,
+        messages: list[dict],
+        max_tokens: int,
+        temperature: float,
+    ):
+        """
+        Async generator yielding ("delta", text) tuples as tokens arrive from
+        OpenRouter. Walks the fallback chain only until the first token of a
+        model lands, then commits to it. Yields ("error", message) if every
+        model in the chain fails before producing output.
+        """
+        last_error = "AI service unavailable"
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            for model in self.chat_models:
+                payload = {
+                    "model": model,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "stream": True,
+                }
+                try:
+                    async with client.stream(
+                        "POST",
+                        self.url,
+                        headers={
+                            "Authorization": f"Bearer {self.api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        content=json.dumps(payload),
+                    ) as response:
+                        if response.status_code != 200:
+                            body = await response.aread()
+                            last_error = body.decode(errors="ignore")[:200] or f"status {response.status_code}"
+                            logger.warning(
+                                f"[AI chat stream] {model} → status {response.status_code}, trying next"
+                            )
+                            continue
+
+                        got_token = False
+                        async for line in response.aiter_lines():
+                            if not line or not line.startswith("data:"):
+                                continue
+                            data_str = line[len("data:"):].strip()
+                            if data_str == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data_str)
+                            except json.JSONDecodeError:
+                                continue
+                            choices = chunk.get("choices") or []
+                            if not choices:
+                                continue
+                            piece = (choices[0].get("delta") or {}).get("content")
+                            if piece:
+                                got_token = True
+                                yield ("delta", piece)
+                        if got_token:
+                            logger.info(f"[AI chat stream] {model} completed")
+                            return
+                        last_error = "AI returned empty response"
+                except Exception as e:  # noqa: BLE001 — network/stream errors → next model
+                    logger.warning(f"[AI chat stream] error on {model}: {e}")
+                    last_error = str(e)
+                    continue
+
+        logger.error(f"[AI chat stream] all models exhausted: {last_error}")
+        yield ("error", last_error)
+
+    async def chat_template_stream(
+        self,
+        messages: list[dict],
+        current_mjml: str | None = None,
+    ):
+        """
+        Streaming variant of `chat_template`. Yields event dicts:
+          {"type": "delta", "text": ...}      incremental chat-bubble prose
+          {"type": "status", "stage": "template"}  model began emitting MJML
+          {"type": "done", "message": ..., "mjml": ...}  final processed result
+          {"type": "error", "error": ...}
+
+        The model is prompted to reply with a short sentence FIRST, then the
+        full <mjml> block — so the prose streams live (visible in ~1-2s) while
+        the heavy MJML is held back and only applied once fully generated and
+        post-processed (sanitised, tables styled, stock images injected).
+        """
+        if not messages:
+            yield {"type": "error", "error": "No messages provided"}
+            return
+
+        chat_messages = build_chat_prompt(messages, current_mjml)
+        image_query = (messages[-1].get("content") or "").strip()
+
+        raw_parts: list[str] = []
+        emitted_prose = 0          # chars of prose already streamed to the client
+        prose_done = False         # have we reached the <mjml> block yet?
+        # Hold back a small tail so a "<mjml" tag split across chunks is never
+        # streamed as prose then retracted. 7 = len("```mjml") covers fences too.
+        SAFE_TAIL = 7
+
+        async for kind, piece in self._stream_chat_completion(
+            chat_messages, max_tokens=8000, temperature=0.4
+        ):
+            if kind == "error":
+                yield {"type": "error", "error": piece}
+                return
+
+            raw_parts.append(piece)
+            if prose_done:
+                continue  # past the prose — just accumulate for the final parse
+
+            full = "".join(raw_parts)
+            lower = full.lower()
+            idx = lower.find("<mjml")
+            if idx != -1:
+                # Flush any remaining prose before the block, then switch modes.
+                prose = re.sub(r"```(?:mjml|xml|html)?\s*", "", full[:idx]).replace("```", "")
+                if len(prose) > emitted_prose:
+                    yield {"type": "delta", "text": prose[emitted_prose:]}
+                prose_done = True
+                yield {"type": "status", "stage": "template"}
+                continue
+
+            # No block yet — stream prose up to a safe boundary.
+            prose = re.sub(r"```(?:mjml|xml|html)?\s*", "", full).replace("```", "")
+            safe_len = max(0, len(prose) - SAFE_TAIL)
+            if safe_len > emitted_prose:
+                yield {"type": "delta", "text": prose[emitted_prose:safe_len]}
+                emitted_prose = safe_len
+
+        # Stream finished — assemble the final result like the non-streaming path.
+        raw = "".join(raw_parts)
+        raw = re.sub(r"```(?:mjml|xml|html)?\s*", "", raw).replace("```", "")
+        mjml_match = re.search(r"<mjml[\s\S]*?</mjml>", raw, re.IGNORECASE)
+        if not mjml_match:
+            yield {"type": "done", "message": raw.strip()[:500], "mjml": ""}
+            return
+
+        mjml = mjml_match.group(0)
+        message = raw[: mjml_match.start()].strip() or "Voici votre modèle."
+
+        mjml = self._sanitize_mjml(mjml)
+        mjml = self._style_tables(mjml)
+        mjml = await self._inject_stock_images(mjml, image_query)
+
+        logger.info("[AI chat stream] Turn complete")
+        yield {"type": "done", "message": message, "mjml": mjml}
+
     # ── Palette suggestion ───────────────────────────────────────────────────
 
     @staticmethod

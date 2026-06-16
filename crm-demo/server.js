@@ -232,7 +232,11 @@ app.post('/list-templates', async (req, res) => {
     const listBody = await list.json();
     const templates = Array.isArray(listBody?.templates) ? listBody.templates : [];
     log('templates.list', { org: org.ref, status: list.status, count: templates.length });
-    const rows = templates.map((tpl) => `<li style="margin-bottom:8px"><strong>${esc(tpl.name)}</strong> <small>(${esc(tpl.type)}) — ${esc(tpl.id)}</small> &nbsp; <a class="btn ghost" href="/render/${encodeURIComponent(tpl.id)}" style="padding:3px 12px;font-size:12px">Preview rendered →</a></li>`).join('') || '<li><small>(none yet for this org)</small></li>';
+    const rows = templates.map((tpl) => {
+      const isSms = String(tpl.type).toLowerCase() === 'sms';
+      const label = isSms ? 'Render SMS →' : 'Preview rendered →';
+      return `<li style="margin-bottom:8px"><strong>${esc(tpl.name)}</strong> <small>(${esc(tpl.type)}) — ${esc(tpl.id)}</small> &nbsp; <a class="btn ghost" href="/render/${encodeURIComponent(tpl.id)}?type=${encodeURIComponent(tpl.type)}" style="padding:3px 12px;font-size:12px">${label}</a></li>`;
+    }).join('') || '<li><small>(none yet for this org)</small></li>';
     res.send(page('Templates', `
       <h1>Templates for ${esc(org.label)}</h1>
       <p><small>Fetched via M2M Bearer from <code>${esc(BUILDER_API)}/templates</code>, scoped to <code>${esc(org.ref)}</code>.</small></p>
@@ -253,6 +257,14 @@ app.post('/list-templates', async (req, res) => {
 app.get('/render/:id', async (req, res) => {
   if (!configured()) return res.redirect('/');
   const org = currentOrg(req);
+
+  // SMS templates are plain text, not MJML/HTML — render via the dedicated
+  // POST /templates/:id/render-sms endpoint and show the resolved text plus
+  // GSM-7/UCS-2 encoding and segment count (what an SMS gateway needs).
+  if (String(req.query.type || '').toLowerCase() === 'sms') {
+    return renderSmsPreview(req, res, org);
+  }
+
   try {
     const token = await getOrgToken(org.ref);
     const r = await fetch(`${BUILDER_API}/templates/${encodeURIComponent(req.params.id)}/render`, {
@@ -299,6 +311,97 @@ app.get('/render/:id/raw', async (req, res) => {
     res.status(500).type('html').send(`<pre>${esc(String(err))}</pre>`);
   }
 });
+
+// SMS render preview — calls POST /templates/:id/render-sms with any sample
+// values the user typed and shows the resolved text + encoding + segment count.
+// This is the endpoint an integrating CRM calls to get a ready-to-send SMS body.
+async function renderSmsPreview(req, res, org) {
+  const id = req.params.id;
+  try {
+    const token = await getOrgToken(org.ref);
+    const auth = { Authorization: `Bearer ${token}` };
+
+    // 1) Discover the template's variables so we can offer a fill-in form.
+    let varNames = [];
+    try {
+      const sres = await fetch(`${BUILDER_API}/templates/${encodeURIComponent(id)}/schema`, { headers: auth });
+      const sbody = await sres.json();
+      if (sres.ok && Array.isArray(sbody.required_variables)) varNames = sbody.required_variables;
+    } catch { /* schema is best-effort */ }
+
+    // 2) Collect sample values the user typed (query string, minus `type`).
+    const variables = {};
+    for (const [k, v] of Object.entries(req.query)) {
+      if (k !== 'type' && typeof v === 'string' && v.trim()) variables[k] = v;
+    }
+
+    // 3) Render the SMS with those values.
+    const r = await fetch(`${BUILDER_API}/templates/${encodeURIComponent(id)}/render-sms`, {
+      method: 'POST',
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variables }),
+    });
+    const body = await r.json();
+    log('render-sms', { org: org.ref, id, status: r.status, encoding: body && body.encoding, segments: body && body.segments });
+
+    if (!r.ok) {
+      return res.status(r.status).send(page('Render SMS error', `
+        <h1 class="bad">Render failed (HTTP ${r.status})</h1>
+        <div class="card bad"><pre>${esc(JSON.stringify(body, null, 2))}</pre></div>
+        <p><small>A 404 usually means this template was not created under <code>${esc(org.ref)}</code> — switch org or use an id from this org's list.</small></p>
+        <a class="btn" href="/">← Dashboard</a>`));
+    }
+
+    // Fall back to placeholders still present in the text if schema gave nothing.
+    if (varNames.length === 0) {
+      const found = new Set();
+      for (const m of String(body.text || '').matchAll(/\{\{(\w+)\}\}/g)) found.add(m[1]);
+      varNames = [...found];
+    }
+
+    const inputs = varNames.map((n) => `
+      <label style="display:block;margin-bottom:8px">
+        <span style="display:inline-block;width:140px;color:#9ca3af;font-size:13px">${esc(n)}</span>
+        <input name="${esc(n)}" value="${esc(variables[n] || '')}" placeholder="valeur…"
+          style="background:#0f0f0f;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;width:240px" />
+      </label>`).join('');
+
+    const multipart = Number(body.segments) > 1;
+    res.send(page('Render SMS', `
+      <h1>SMS rendu</h1>
+      <div class="card">
+        <p><strong>${esc(body.name || '')}</strong> &nbsp;<span class="pill">${esc(body.type || 'sms')}</span></p>
+        <p><small>Texte prêt à l'envoi via <code>POST /templates/${esc(id)}/render-sms</code> — org <code>${esc(org.ref)}</code></small></p>
+      </div>
+
+      <div class="card">
+        <h2>Aperçu</h2>
+        <div style="background:#7c3aed;color:white;display:inline-block;max-width:80%;padding:10px 14px;border-radius:16px 16px 16px 4px;white-space:pre-wrap;word-break:break-word;line-height:1.5">${esc(body.text || '')}</div>
+        <p style="margin-top:14px">
+          <span class="pill">${esc(body.encoding || '')}</span>
+          <span class="pill">${esc(body.characters)} caractères</span>
+          <span class="pill" style="${multipart ? 'background:#422006;color:#fbbf24;border-color:#78350f' : ''}">${esc(body.segments)} segment(s)</span>
+        </p>
+        <p><small>Variables utilisées : ${(body.variables_used || []).map((v) => `<code>${esc(v)}</code>`).join(' ') || '(aucune)'}</small></p>
+      </div>
+
+      <div class="card">
+        <h2>Tester avec des valeurs</h2>
+        <p><small>Renseignez des valeurs d'exemple, puis relancez le rendu pour voir la substitution des variables.</small></p>
+        <form method="GET" action="/render/${encodeURIComponent(id)}">
+          <input type="hidden" name="type" value="sms" />
+          ${inputs || '<p><small>(ce template ne contient pas de variables)</small></p>'}
+          <button type="submit" style="margin-top:8px">Rendre à nouveau</button>
+        </form>
+      </div>
+
+      <a class="btn" href="/">← Dashboard</a>
+    `));
+  } catch (err) {
+    log('render-sms.error', { message: String(err) });
+    res.status(500).send(page('Render SMS error', `<div class="card bad">${esc(err)}</div><a class="btn" href="/">← Back</a>`));
+  }
+}
 
 app.get('/callback', (req, res) => {
   const templateId = req.query.template_id || '';

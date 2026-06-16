@@ -1,4 +1,7 @@
+import json
+
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services.ai_service import AiService
@@ -42,6 +45,31 @@ async def chat(request: ChatRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """
+    Streaming variant of /chat. Emits newline-delimited JSON (NDJSON) events:
+    {"type":"delta","text":...}, {"type":"status",...}, {"type":"done",...},
+    {"type":"error",...}. The short chat sentence streams live; the full MJML
+    arrives in the final "done" event once generated and post-processed.
+    """
+    async def event_stream():
+        try:
+            async for event in ai_service.chat_template_stream(
+                messages=[m.model_dump() for m in request.messages],
+                current_mjml=request.current_mjml,
+            ):
+                yield json.dumps(event) + "\n"
+        except Exception as e:  # noqa: BLE001 — surface as a stream error event
+            yield json.dumps({"type": "error", "error": str(e)}) + "\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 class SuggestPalettesRequest(BaseModel):

@@ -1,14 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Sparkles, ArrowUp, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/context/auth';
-
-type Role = 'user' | 'assistant';
-interface ChatMessage {
-  role: Role;
-  content: string;
-}
+import type { AiChatState, ChatMessage } from './useAiChatState';
 
 const SUGGESTIONS = [
   'Un email de bienvenue avec logo, titre et bouton',
@@ -24,23 +19,20 @@ const SUGGESTIONS = [
  * - `onApply` replaces the canvas template with freshly generated MJML.
  * - `getCurrentMjml` serialises the live canvas, used to seed the first turn
  *   when the user is editing an already-populated template.
+ * - `chat` holds the conversation state, owned by the editor page so the
+ *   history survives switching to Preview/Code and back to the AI tab.
  */
 export function AiChatPanel({
   onApply,
   getCurrentMjml,
+  chat,
 }: {
   onApply: (mjml: string) => void;
   getCurrentMjml: () => string;
+  chat: AiChatState;
 }) {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  // The template the AI is actively iterating on. Seeded from the canvas on the
-  // first turn, then kept as the AI's own output for full fidelity afterwards.
-  const workingMjml = useRef<string | null>(null);
+  const { messages, setMessages, input, setInput, isLoading, setIsLoading, error, setError, workingMjml } = chat;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -52,7 +44,8 @@ export function AiChatPanel({
     if (!trimmed || isLoading) return;
 
     const nextMessages: ChatMessage[] = [...messages, { role: 'user', content: trimmed }];
-    setMessages(nextMessages);
+    // Show the user's message and an empty assistant bubble we stream into.
+    setMessages([...nextMessages, { role: 'assistant', content: '' }]);
     setInput('');
     setIsLoading(true);
     setError('');
@@ -63,28 +56,50 @@ export function AiChatPanel({
       workingMjml.current = live.includes('<mj-section') ? live : null;
     }
 
+    // Append streamed prose to the trailing assistant bubble.
+    const appendToAssistant = (text: string) =>
+      setMessages((m) => {
+        const copy = [...m];
+        const last = copy[copy.length - 1];
+        if (last && last.role === 'assistant') {
+          copy[copy.length - 1] = { ...last, content: last.content + text };
+        }
+        return copy;
+      });
+
     try {
       const { ai } = await import('@/lib/api');
-      const result = await ai.chat({
-        messages: nextMessages,
-        current_mjml: workingMjml.current,
-        tenant_id: user?.tenant_id || '',
-        user_id: user?.id || '',
-      });
+      const result = await ai.chatStream(
+        {
+          messages: nextMessages,
+          current_mjml: workingMjml.current,
+          tenant_id: user?.tenant_id || '',
+          user_id: user?.id || '',
+        },
+        { onDelta: appendToAssistant },
+      );
 
       if (result.mjml) {
         workingMjml.current = result.mjml;
         onApply(result.mjml);
       }
-      setMessages((m) => [
-        ...m,
-        { role: 'assistant', content: result.message || 'Voici votre modèle.' },
-      ]);
+      // Replace the streamed bubble with the authoritative final message.
+      setMessages((m) => {
+        const copy = [...m];
+        const last = copy[copy.length - 1];
+        if (last && last.role === 'assistant') {
+          copy[copy.length - 1] = {
+            role: 'assistant',
+            content: result.message || last.content || 'Voici votre modèle.',
+          };
+        }
+        return copy;
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur de génération';
       setError(msg);
-      // Roll back the user's message so they can retry cleanly.
-      setMessages((m) => m.slice(0, -1));
+      // Roll back the assistant placeholder AND the user message so they can retry cleanly.
+      setMessages((m) => m.slice(0, -2));
       setInput(trimmed);
     } finally {
       setIsLoading(false);
@@ -98,21 +113,29 @@ export function AiChatPanel({
   };
 
   const empty = messages.length === 0;
+  const lastMsg = messages.at(-1);
+  const assistantStreaming = !!lastMsg && lastMsg.role === 'assistant' && lastMsg.content.length > 0;
+  // Phase 1 — waiting for the first token: standalone typing dots.
+  const showTypingDots = isLoading && !assistantStreaming;
+  // Phase 2 — prose shown, MJML still generating (canvas not updated yet): caption.
+  const showTemplateCaption = isLoading && assistantStreaming;
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-linear-to-b from-blue-50/40 to-background dark:from-blue-950/20 dark:to-background">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-blue-100 dark:border-blue-900/40 bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 shrink-0">
         <div className="flex items-center gap-2">
-          <Sparkles size={15} className="text-primary" />
-          <span className="text-sm font-semibold text-foreground">Assistant IA</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 shadow-sm shadow-blue-500/30">
+            <Sparkles size={13} className="text-white" />
+          </span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Assistant IA</span>
         </div>
         {!empty && (
           <button
             onClick={reset}
             disabled={isLoading}
             title="Nouvelle conversation"
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+            className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors disabled:opacity-40"
           >
             <RotateCcw size={12} /> Réinitialiser
           </button>
@@ -124,10 +147,10 @@ export function AiChatPanel({
         {empty ? (
           <div className="flex flex-col gap-4 pt-2">
             <div className="text-center">
-              <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Sparkles size={18} className="text-primary" />
+              <div className="mx-auto mb-3 h-11 w-11 rounded-2xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <Sparkles size={20} className="text-white" />
               </div>
-              <p className="text-sm font-medium text-foreground">Décrivez l&apos;email à créer</p>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Décrivez l&apos;email à créer</p>
               <p className="text-[11px] text-muted-foreground mt-1">
                 Puis affinez-le par message : « rends l&apos;entête plus sombre », « ajoute une section tarifs »…
               </p>
@@ -137,7 +160,7 @@ export function AiChatPanel({
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="text-left text-xs rounded-lg border border-border px-3 py-2 text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-foreground transition-all"
+                  className="text-left text-xs rounded-lg border border-blue-100 dark:border-blue-900/40 bg-white/60 dark:bg-blue-950/20 px-3 py-2 text-slate-600 dark:text-slate-300 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-200 transition-all"
                 >
                   {s}
                 </button>
@@ -145,31 +168,46 @@ export function AiChatPanel({
             </div>
           </div>
         ) : (
-          messages.map((m, i) => (
-            <div
-              key={i}
-              className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
-                  m.role === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-br-sm'
-                    : 'bg-muted text-foreground rounded-bl-sm'
-                }`}
-              >
-                {m.content}
+          messages.map((m, i) =>
+            m.role === 'user' ? (
+              <div key={i} className="flex justify-end">
+                <div className="max-w-[85%] rounded-2xl rounded-br-sm px-3 py-2 text-xs leading-relaxed bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-500/20">
+                  {m.content}
+                </div>
               </div>
-            </div>
-          ))
+            ) : !m.content ? (
+              // Empty placeholder while the reply streams — the typing dots cover this state.
+              null
+            ) : (
+              <div key={i} className="flex justify-start gap-2">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 shadow-sm shadow-blue-500/30 mt-0.5">
+                  <Sparkles size={11} className="text-white" />
+                </span>
+                <div className="max-w-[80%] rounded-2xl rounded-tl-sm px-3 py-2 text-xs leading-relaxed bg-white dark:bg-slate-800 border border-blue-100 dark:border-blue-900/40 text-slate-700 dark:text-slate-200 shadow-sm">
+                  {m.content}
+                </div>
+              </div>
+            ),
+          )
         )}
 
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-muted rounded-2xl rounded-bl-sm px-3 py-2.5 flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce" />
+        {showTypingDots && (
+          <div className="flex justify-start gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 shadow-sm shadow-blue-500/30 mt-0.5">
+              <Sparkles size={11} className="text-white" />
+            </span>
+            <div className="bg-white dark:bg-slate-800 border border-blue-100 dark:border-blue-900/40 rounded-2xl rounded-tl-sm px-3 py-2.5 flex items-center gap-1 shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" />
             </div>
+          </div>
+        )}
+
+        {showTemplateCaption && (
+          <div className="flex items-center gap-2 pl-8 text-[11px] text-blue-600 dark:text-blue-400">
+            <Sparkles size={12} className="animate-pulse" />
+            <span>Génération du modèle…</span>
           </div>
         )}
 
@@ -181,7 +219,7 @@ export function AiChatPanel({
       </div>
 
       {/* Composer */}
-      <div className="border-t border-border p-3 shrink-0">
+      <div className="border-t border-blue-100 dark:border-blue-900/40 bg-linear-to-r from-blue-50/60 to-indigo-50/60 dark:from-blue-950/30 dark:to-indigo-950/30 p-3 shrink-0">
         <div className="relative">
           <textarea
             value={input}
@@ -195,13 +233,13 @@ export function AiChatPanel({
             placeholder={empty ? 'Décrivez votre email…' : 'Demandez une modification…'}
             rows={2}
             disabled={isLoading}
-            className="w-full resize-none rounded-xl border border-border bg-background text-xs p-3 pr-11 focus:outline-none focus:ring-1 focus:ring-ring/20 focus:border-ring transition-all disabled:opacity-60"
+            className="w-full resize-none rounded-xl border border-blue-200 dark:border-blue-900/50 bg-white dark:bg-slate-900 text-xs p-3 pr-11 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all disabled:opacity-60"
           />
           <button
             onClick={() => send(input)}
             disabled={isLoading || !input.trim()}
             title="Envoyer"
-            className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-sm shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ArrowUp size={15} />
           </button>

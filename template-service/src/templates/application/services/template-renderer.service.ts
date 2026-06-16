@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Template } from '../../domain/entities/template.aggregate.js';
 
-type Channel = 'email' | 'facture' | 'contrat';
+type Channel = 'email' | 'facture' | 'contrat' | 'sms';
 
 interface RenderResult {
   subject: string;
@@ -41,7 +41,21 @@ export class TemplateRendererService {
       return this.renderFacture(resolvedBody, format, variablesUsed);
     }
 
+    if (channel === 'sms') {
+      return this.renderSms(resolvedBody, variablesUsed);
+    }
+
     return this.renderContrat(resolvedBody, format, variablesUsed);
+  }
+
+  // SMS is text-only: no subject, no HTML. The body is returned verbatim with
+  // its {{variables}} already substituted upstream.
+  private renderSms(body: string, variablesUsed: string[]): RenderResult {
+    return {
+      subject: '',
+      textBody: body,
+      variablesUsed: [...new Set(variablesUsed)],
+    };
   }
 
   private renderEmail(

@@ -10,6 +10,14 @@ export interface Block {
   content: string;
 }
 
+export interface SmsRenderResult {
+  text: string;
+  variablesUsed: string[];
+  encoding: "GSM-7" | "UCS-2";
+  characters: number;
+  segments: number;
+}
+
 @Injectable()
 export class TemplateRendererService {
   private readonly logger = new Logger(TemplateRendererService.name);
@@ -50,6 +58,52 @@ export class TemplateRendererService {
   // why it looked right there but not in the compiled HTML).
   private normalizeMjmlForCompile(mjml: string): string {
     return mjml.replace(/(<mj-image\b[^>]*?)\swidth="\d+(?:\.\d+)?%"/gi, '$1');
+  }
+
+  // ─── Render an SMS template to its final text ──────────────────────────────
+  // SMS is plain text: fill {{placeholders}}, then report the GSM-7/UCS-2
+  // encoding and segment count so integrators know how many SMS will be sent.
+  renderSms(content: string, variables: Record<string, string> = {}): SmsRenderResult {
+    const text = this.injectVars(content ?? "", variables);
+    const provided = new Set(Object.keys(variables));
+    const variablesUsed = this.extractVariables(content ?? "").filter((v) =>
+      provided.has(v),
+    );
+    return { text, variablesUsed, ...this.countSmsSegments(text) };
+  }
+
+  // GSM 03.38 basic charset (1 septet each). Anything outside this set forces
+  // the whole message into UCS-2 (Unicode). A handful of GSM chars cost 2
+  // septets (the extension table): ^ { } \ [ ] ~ | and €.
+  private static readonly GSM_BASIC =
+    "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ ÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+  private static readonly GSM_EXTENDED = String.raw`^{}\[]~|€`;
+
+  private countSmsSegments(text: string): {
+    encoding: "GSM-7" | "UCS-2";
+    characters: number;
+    segments: number;
+  } {
+    const chars = [...text];
+    const isGsm = chars.every(
+      (c) =>
+        TemplateRendererService.GSM_BASIC.includes(c) ||
+        TemplateRendererService.GSM_EXTENDED.includes(c),
+    );
+
+    if (isGsm) {
+      const septets = chars.reduce(
+        (n, c) => n + (TemplateRendererService.GSM_EXTENDED.includes(c) ? 2 : 1),
+        0,
+      );
+      const segments = septets <= 160 ? Math.max(1, Math.ceil(septets / 153)) : Math.ceil(septets / 153);
+      return { encoding: "GSM-7", characters: septets, segments };
+    }
+
+    // UCS-2: each code point is one unit; 70 per single, 67 per concatenated part.
+    const units = chars.length;
+    const segments = units <= 70 ? 1 : Math.ceil(units / 67);
+    return { encoding: "UCS-2", characters: units, segments };
   }
 
   // ─── Extract all {{variable}} names from a template ────────────────────────

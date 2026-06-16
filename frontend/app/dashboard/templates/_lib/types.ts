@@ -1,6 +1,6 @@
-import { Mail, FileText, ScrollText, Receipt } from 'lucide-react';
+import { Mail, FileText, ScrollText, Receipt, MessageSquare } from 'lucide-react';
 
-export type TabType = 'email' | 'contrat' | 'facture';
+export type TabType = 'email' | 'contrat' | 'facture' | 'sms';
 export type ViewMode = 'modeles' | 'favoris' | 'predifinis';
 
 export interface Template {
@@ -23,9 +23,11 @@ export const TYPE_CONFIG: Record<string, { label: string; icon: typeof Mail; col
   EMAIL:   { label: 'Email',   icon: Mail,       color: 'text-blue-600',    bg: 'bg-blue-50',    gradient: 'from-blue-100 to-blue-50' },
   FACTURE: { label: 'Facture', icon: FileText,   color: 'text-emerald-600', bg: 'bg-emerald-50', gradient: 'from-emerald-100 to-emerald-50' },
   CONTRAT: { label: 'Contrat', icon: ScrollText, color: 'text-amber-600',   bg: 'bg-amber-50',  gradient: 'from-amber-100 to-amber-50' },
+  SMS:     { label: 'SMS',     icon: MessageSquare, color: 'text-violet-600', bg: 'bg-violet-50', gradient: 'from-violet-100 to-violet-50' },
   email:   { label: 'Email',   icon: Mail,       color: 'text-blue-600',    bg: 'bg-blue-50',    gradient: 'from-blue-100 to-blue-50' },
   facture: { label: 'Facture', icon: FileText,   color: 'text-emerald-600', bg: 'bg-emerald-50', gradient: 'from-emerald-100 to-emerald-50' },
   contrat: { label: 'Contrat', icon: ScrollText, color: 'text-amber-600',   bg: 'bg-amber-50',  gradient: 'from-amber-100 to-amber-50' },
+  sms:     { label: 'SMS',     icon: MessageSquare, color: 'text-violet-600', bg: 'bg-violet-50', gradient: 'from-violet-100 to-violet-50' },
 };
 
 export function getTypeConfig(type: string) {
@@ -33,13 +35,15 @@ export function getTypeConfig(type: string) {
 }
 
 export const TABS: { key: TabType; label: string; icon: typeof Mail; newRoute: string }[] = [
-  { key: 'email',   label: 'Emails',   icon: Mail,       newRoute: '/dashboard/templates/new?preselect=email'   },
-  { key: 'contrat', label: 'Contrats', icon: ScrollText, newRoute: '/dashboard/templates/new?preselect=contrat' },
-  { key: 'facture', label: 'Factures', icon: Receipt,    newRoute: '/dashboard/templates/new?preselect=facture' },
+  { key: 'email',   label: 'Emails',   icon: Mail,          newRoute: '/dashboard/templates/new?preselect=email'   },
+  { key: 'contrat', label: 'Contrats', icon: ScrollText,    newRoute: '/dashboard/templates/new?preselect=contrat' },
+  { key: 'facture', label: 'Factures', icon: Receipt,       newRoute: '/dashboard/templates/new?preselect=facture' },
+  { key: 'sms',     label: 'SMS',      icon: MessageSquare, newRoute: '/dashboard/templates/new?preselect=sms'     },
 ];
 
 export const TAB_TYPES: Record<TabType, string[]> = {
   email:   ['email', 'EMAIL'],
   contrat: ['contrat', 'CONTRAT'],
   facture: ['facture', 'FACTURE'],
+  sms:     ['sms', 'SMS'],
 };

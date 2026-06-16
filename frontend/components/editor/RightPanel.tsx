@@ -20,6 +20,7 @@ import { ColorPicker, SectionHeader, NumericInput, Toggle, AccordionSection, res
 import { FontWeightSelector, AlignmentSelector, StyledSelect, LineHeightSelector, LetterSpacingSelector, TextStyleFields } from './panels/FontSelectors';
 import { PhotosPanel } from './panels/PhotosPanel';
 import { AiChatPanel } from './ai-chat/AiChatPanel';
+import type { AiChatState } from './ai-chat/useAiChatState';
 import { SectionsPanel } from './panels/SectionsPanel';
 import { CorpsPanel } from './panels/CorpsPanel';
 import { SectionProperties } from './panels/SectionProperties';
@@ -41,6 +42,7 @@ interface LeftPanelProps {
   onAiApply: (mjml: string) => void;
   getCurrentMjml: () => string;
   activeColumnId: string | null;
+  aiChat: AiChatState;
 }
 
 interface PropertiesPanelProps {
@@ -77,6 +79,7 @@ export function LeftPanel({
   onAiApply,
   getCurrentMjml,
   activeColumnId,
+  aiChat,
 }: LeftPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('contenu');
   const [collapsed, setCollapsed] = useState(false);
@@ -123,7 +126,7 @@ export function LeftPanel({
       {!collapsed && (
         activeTab === 'ai' ? (
           <div className="flex-1 min-w-0 flex flex-col">
-            <AiChatPanel onApply={onAiApply} getCurrentMjml={getCurrentMjml} />
+            <AiChatPanel onApply={onAiApply} getCurrentMjml={getCurrentMjml} chat={aiChat} />
           </div>
         ) : (
           <div className="flex-1 bg-background overflow-y-auto min-w-0">

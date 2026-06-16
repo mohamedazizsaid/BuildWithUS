@@ -30,7 +30,7 @@ export class RenderTemplateHandler implements IQueryHandler<RenderTemplateQuery,
       throw new NotFoundException('Template', query.id);
     }
 
-    const channel = template.getType().getValue() as 'email' | 'facture' | 'contrat';
+    const channel = template.getType().getValue() as 'email' | 'facture' | 'contrat' | 'sms';
     const rendered = this.renderer.render(
       template,
       channel,

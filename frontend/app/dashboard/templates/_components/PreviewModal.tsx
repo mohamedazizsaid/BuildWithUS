@@ -230,6 +230,7 @@ export function PreviewModal({
 }) {
   const config = getTypeConfig(template.type);
   const isContractOrInvoice = ['contrat', 'CONTRAT', 'facture', 'FACTURE'].includes(template.type);
+  const isSms = template.type?.toLowerCase() === 'sms';
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -270,10 +271,20 @@ export function PreviewModal({
         </div>
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
           <div className={`mx-auto shadow-sm rounded-lg overflow-hidden ${
-            isContractOrInvoice ? 'max-w-[700px]' : 'max-w-[600px] bg-white'
+            isContractOrInvoice ? 'max-w-[700px]' : isSms ? 'max-w-[420px] bg-transparent shadow-none' : 'max-w-[600px] bg-white'
           }`}>
             {isContractOrInvoice ? (
               <ModalContractInvoicePreview template={template} />
+            ) : isSms ? (
+              template.content?.trim() ? (
+                <div className="flex justify-start p-2">
+                  <div className="rounded-2xl rounded-bl-sm bg-violet-600 px-4 py-2.5 text-sm leading-relaxed text-white whitespace-pre-wrap break-words shadow-sm">
+                    {template.content}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-12 text-center text-slate-400 text-sm">SMS vide</div>
+              )
             ) : template.content ? (
               <div dangerouslySetInnerHTML={{ __html: mjmlToPreviewHtml(template.content) }} />
             ) : (
