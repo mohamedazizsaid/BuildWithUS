@@ -41,6 +41,7 @@ export class RegisterDeveloperHandler implements ICommandHandler<RegisterDevelop
       clientId,
       clientSecretHash,
       scopes,
+      label: null,
       expiresAt: null,
       allowedReturnUrls: null,
       createdAt: new Date(),

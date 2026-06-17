@@ -35,6 +35,7 @@ export class RegisterApiClientHandler implements ICommandHandler<RegisterApiClie
       clientId,
       clientSecretHash,
       scopes: defaultScopes,
+      label: null,
       expiresAt: null,
       allowedReturnUrls: null,
       createdAt: new Date(),

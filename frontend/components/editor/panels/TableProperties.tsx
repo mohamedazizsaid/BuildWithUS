@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { ColorPicker, AccordionSection } from './shared';
+import { ColorPicker, AccordionSection, Toggle } from './shared';
 import { FontSizeSelector, StyledSelect } from './FontSelectors';
 
 // ─── Table Properties ───
@@ -101,9 +101,16 @@ export function TableBlockProperties({
 
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="style" title="Style">
         <FontSizeSelector value={block.styles.fontSize || '14px'} onChange={(v) => updateStyle('fontSize', v)} />
-        <ColorPicker label="Couleur du texte" value={block.styles.color || '#333333'} onChange={(c) => updateStyle('color', c)} />
+        <ColorPicker label="Couleur du texte" value={block.styles.color || '#334155'} onChange={(c) => updateStyle('color', c)} />
         <ColorPicker label="Fond de l'en-tête" value={block.styles.headerBg || '#f1f5f9'} onChange={(c) => updateStyle('headerBg', c)} />
-        <ColorPicker label="Couleur de bordure" value={block.styles.tableBorderColor || '#dddddd'} onChange={(c) => updateStyle('tableBorderColor', c)} />
+        <ColorPicker label="Texte de l'en-tête" value={block.styles.headerColor || '#0f172a'} onChange={(c) => updateStyle('headerColor', c)} />
+        <ColorPicker label="Lignes (séparateurs)" value={block.styles.tableBorderColor || '#e5e7eb'} onChange={(c) => updateStyle('tableBorderColor', c)} />
+        <div className="pt-1">
+          <Toggle label="Lignes alternées" value={block.styles.striped !== 'off'} onChange={(v) => updateStyle('striped', v ? 'on' : 'off')} />
+        </div>
+        {block.styles.striped !== 'off' && (
+          <ColorPicker label="Couleur des lignes alternées" value={block.styles.stripeColor || '#f9fafb'} onChange={(c) => updateStyle('stripeColor', c)} />
+        )}
       </AccordionSection>
 
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">

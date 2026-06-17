@@ -21,6 +21,7 @@ service AuthService{
     rpc RevokeApiClient (RevokeApiClientRequest) returns (RevokeApiClientResponse);
     rpc RegisterDeveloper (RegisterDeveloperRequest) returns (RegisterDeveloperResponse);
     rpc UpdateAllowedReturnUrls (UpdateAllowedReturnUrlsRequest) returns (UpdateAllowedReturnUrlsResponse);
+    rpc SetTenantReturnUrls (SetTenantReturnUrlsRequest) returns (UpdateAllowedReturnUrlsResponse);
     rpc MintBuilderSession (MintBuilderSessionRequest) returns (MintBuilderSessionResponse);
     rpc ExchangeBuilderSession (ExchangeBuilderSessionRequest) returns (ExchangeBuilderSessionResponse);
 }
@@ -144,6 +145,7 @@ message UserInfo {
 message GenerateApiClientRequest {
     string tenant_id = 1;
     string scopes = 2;
+    string label = 3;
 }
 
 message GenerateApiClientResponse {
@@ -196,6 +198,8 @@ message ApiClientInfo {
     string client_id = 3;
     string scopes = 4;
     string created_at = 5;
+    string label = 6;
+    repeated string allowed_return_urls = 7;
 }
 
 message ListApiClientsRequest {
@@ -235,6 +239,12 @@ message UpdateAllowedReturnUrlsRequest {
 message UpdateAllowedReturnUrlsResponse {
     string client_id = 1;
     repeated string allowed_return_urls = 2;
+}
+
+message SetTenantReturnUrlsRequest {
+    string tenant_id = 1;
+    string client_id = 2;
+    repeated string urls = 3;
 }
 
 message MintBuilderSessionRequest {

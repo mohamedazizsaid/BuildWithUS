@@ -1,5 +1,6 @@
 import { BlockData, GlobalStyles, TemplateData, DEFAULT_GLOBAL_STYLES } from './editor-types';
 import { SOCIAL_COLORS, socialIconSvgString } from './social-icons';
+import { resolveTableTheme, tableCss, thCss, tdCss } from './table-theme';
 
 export function generatePreviewHtml(template: TemplateData): string {
   const { rows, globalStyles } = template;
@@ -72,11 +73,12 @@ export function blockToHtml(block: BlockData, globalStyles: GlobalStyles): strin
     case 'table': {
       const headers = (block.content.headers || []) as string[];
       const rows    = (block.content.rows    || []) as string[][];
-      let t = `<table style="width:100%;border-collapse:collapse;font-size:${fontSize};color:${color};padding:${block.styles.padding}">`;
-      t += `<tr>${headers.map(h => `<th style="border:1px solid #ddd;padding:8px;background:#f1f5f9;text-align:left">${h}</th>`).join('')}</tr>`;
-      for (const row of rows) {
-        t += `<tr>${row.map(c => `<td style="border:1px solid #ddd;padding:8px">${c}</td>`).join('')}</tr>`;
-      }
+      const theme   = resolveTableTheme(block.styles);
+      let t = `<table style="${tableCss()};padding:${block.styles.padding}">`;
+      t += `<tr>${headers.map(h => `<th style="${thCss(theme)}">${h}</th>`).join('')}</tr>`;
+      rows.forEach((row, ri) => {
+        t += `<tr>${row.map(c => `<td style="${tdCss(theme, ri)}">${c}</td>`).join('')}</tr>`;
+      });
       t += `</table>`;
       return t;
     }

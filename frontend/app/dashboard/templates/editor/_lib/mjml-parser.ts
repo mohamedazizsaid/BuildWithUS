@@ -232,18 +232,28 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
     }
 
     const tbClass = el.getAttribute("css-class") || "";
-    const tbMatch = tbClass.match(/^tb:(#[0-9a-fA-F]{6}):(#[0-9a-fA-F]{6})$/);
+    // New format: tb:border:headerBg:headerColor:striped(0|1):stripeColor
+    // Old format (back-compat): tb:border:headerBg
+    const tbMatch = tbClass.match(/^tb:(#[0-9a-fA-F]{6}):(#[0-9a-fA-F]{6})(?::(#[0-9a-fA-F]{6}):([01]):(#[0-9a-fA-F]{6}))?$/);
+    const tableStyles: Record<string, string> = {
+      fontSize: el.getAttribute("font-size") || "",
+      color: el.getAttribute("color") || "",
+      padding: el.getAttribute("padding") || "10px",
+    };
+    if (tbMatch) {
+      tableStyles.tableBorderColor = tbMatch[1];
+      tableStyles.headerBg = tbMatch[2];
+      if (tbMatch[3]) {
+        tableStyles.headerColor = tbMatch[3];
+        tableStyles.striped = tbMatch[4] === "1" ? "on" : "off";
+        tableStyles.stripeColor = tbMatch[5];
+      }
+    }
     return {
       id,
       type: "table",
       content: { headers, rows },
-      styles: {
-        fontSize: el.getAttribute("font-size") || "",
-        color: el.getAttribute("color") || "",
-        padding: el.getAttribute("padding") || "10px",
-        tableBorderColor: tbMatch ? tbMatch[1] : "#dddddd",
-        headerBg: tbMatch ? tbMatch[2] : "#f1f5f9",
-      },
+      styles: tableStyles,
     };
   }
 

@@ -1,5 +1,6 @@
 import type { BlockData, GlobalStyles, TemplateData } from '@/lib/editor-types';
 import { SOCIAL_COLORS, socialIconSvgString } from '@/lib/social-icons';
+import { resolveTableTheme, tableCss, thCss, tdCss, encodeTableClass } from '@/lib/table-theme';
 
 export function blockToMjml(block: BlockData, g: GlobalStyles) {
   const color = block.styles.color || g.textColor;
@@ -64,13 +65,12 @@ export function blockToMjml(block: BlockData, g: GlobalStyles) {
     case "table": {
       const tHeaders = (block.content.headers || []) as string[];
       const tRows = (block.content.rows || []) as string[][];
-      const tBorderColor = block.styles.tableBorderColor || '#dddddd';
-      const tHeaderBg = block.styles.headerBg || '#f1f5f9';
-      let table = `        <mj-table font-size="${fontSize}" color="${color}" padding="${block.styles.padding}" css-class="tb:${tBorderColor}:${tHeaderBg}">`;
-      table += `<tr>${tHeaders.map((h: string) => `<th style="border:1px solid ${tBorderColor};padding:8px;background:${tHeaderBg}">${h}</th>`).join("")}</tr>`;
-      for (const row of tRows) {
-        table += `<tr>${row.map((c: string) => `<td style="border:1px solid ${tBorderColor};padding:8px">${c}</td>`).join("")}</tr>`;
-      }
+      const tTheme = resolveTableTheme(block.styles);
+      let table = `        <mj-table font-size="${tTheme.fontSize}" color="${tTheme.color}" padding="${block.styles.padding}" css-class="${encodeTableClass(tTheme)}">`;
+      table += `<tr>${tHeaders.map((h: string) => `<th style="${thCss(tTheme)}">${h}</th>`).join("")}</tr>`;
+      tRows.forEach((row, ri) => {
+        table += `<tr>${row.map((c: string) => `<td style="${tdCss(tTheme, ri)}">${c}</td>`).join("")}</tr>`;
+      });
       table += `</mj-table>\n`;
       return table;
     }
@@ -195,11 +195,12 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
     case "table": {
       const headers = (block.content.headers || []) as string[];
       const rows = (block.content.rows || []) as string[][];
-      let t = `<table style="width:100%;border-collapse:collapse;font-size:${fontSize};color:${color};padding:${block.styles.padding}">`;
-      t += `<tr>${headers.map((h: string) => `<th style="border:1px solid #ddd;padding:8px;background:#f1f5f9;text-align:left">${h}</th>`).join("")}</tr>`;
-      for (const row of rows) {
-        t += `<tr>${row.map((c: string) => `<td style="border:1px solid #ddd;padding:8px">${c}</td>`).join("")}</tr>`;
-      }
+      const hTheme = resolveTableTheme(block.styles);
+      let t = `<table style="${tableCss()};padding:${block.styles.padding}">`;
+      t += `<tr>${headers.map((h: string) => `<th style="${thCss(hTheme)}">${h}</th>`).join("")}</tr>`;
+      rows.forEach((row, ri) => {
+        t += `<tr>${row.map((c: string) => `<td style="${tdCss(hTheme, ri)}">${c}</td>`).join("")}</tr>`;
+      });
       t += `</table>`;
       return t;
     }

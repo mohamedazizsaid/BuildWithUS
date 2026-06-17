@@ -12,6 +12,7 @@ import { IssueClientTokenCommand } from '../../application/commands/issue-client
 import { RegisterApiClientCommand } from '../../application/commands/register-api-client.command';
 import { RegisterDeveloperCommand } from '../../application/commands/register-developer.command';
 import { UpdateAllowedReturnUrlsCommand } from '../../application/commands/update-allowed-return-urls.command';
+import { SetTenantReturnUrlsCommand } from '../../application/commands/set-tenant-return-urls.command';
 import { MintBuilderSessionCommand } from '../../application/commands/mint-builder-session.command';
 import { ExchangeBuilderSessionCommand } from '../../application/commands/exchange-builder-session.command';
 import { BuilderSessionMode } from '../../domain/repositories/builder-session.repository';
@@ -233,7 +234,11 @@ export class AuthGrpcController {
   @GrpcMethod('AuthService', 'GenerateApiClient')
   async generateApiClient(request: any) {
     const tenantId = request.tenantId || request.tenant_id;
-    const command = new GenerateApiClientCommand(tenantId, request.scopes || '');
+    const command = new GenerateApiClientCommand(
+      tenantId,
+      request.scopes || '',
+      request.label || null,
+    );
     return this.commandBus.execute(command);
   }
 
@@ -282,6 +287,11 @@ export class AuthGrpcController {
         client_id: c.clientId,
         scopes: c.scopes,
         created_at: c.createdAt?.toISOString?.() ?? '',
+        label: c.label ?? '',
+        allowed_return_urls: (c.allowedReturnUrls ?? '')
+          .split(',')
+          .map((u) => u.trim())
+          .filter(Boolean),
       })),
     };
   }
@@ -304,6 +314,15 @@ export class AuthGrpcController {
     const clientSecret = request.clientSecret || request.client_secret;
     const urls: string[] = Array.isArray(request.urls) ? request.urls : [];
     const command = new UpdateAllowedReturnUrlsCommand(clientId, clientSecret, urls);
+    return this.commandBus.execute(command);
+  }
+
+  @GrpcMethod('AuthService', 'SetTenantReturnUrls')
+  async setTenantReturnUrls(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const clientId = request.clientId || request.client_id;
+    const urls: string[] = Array.isArray(request.urls) ? request.urls : [];
+    const command = new SetTenantReturnUrlsCommand(tenantId, clientId, urls);
     return this.commandBus.execute(command);
   }
 

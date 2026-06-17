@@ -140,11 +140,34 @@ export function getBuilderReturnUrl(): string | null {
 }
 
 export const developers = {
-    register: (body: { name: string; email: string }) =>
-        request('/developers/register', { method: 'POST', body: JSON.stringify(body) }),
-
     exchangeSession: (token: string) =>
         request('/s/exchange', { method: 'POST', body: JSON.stringify({ token }) }),
+};
+
+// ------- INTEGRATIONS (tenant self-service API keys, dashboard-only) ---------
+// All routes are behind the dashboard session cookie + admin role. The tenant is
+// taken from the JWT server-side — these never send a tenant/client_secret.
+export interface IntegrationKey {
+    id: string;
+    client_id: string;
+    scopes: string;
+    created_at: string;
+    label: string;
+    allowed_return_urls: string[];
+}
+
+export const integrations = {
+    listKeys: (): Promise<{ clients: IntegrationKey[] }> =>
+        request('/integrations/api-keys'),
+
+    createKey: (label?: string): Promise<{ client_id: string; client_secret: string }> =>
+        request('/integrations/api-keys', { method: 'POST', body: JSON.stringify({ label: label ?? '' }) }),
+
+    revokeKey: (id: string): Promise<{ success: boolean }> =>
+        request(`/integrations/api-keys/${id}`, { method: 'DELETE' }),
+
+    setReturnUrls: (clientId: string, urls: string[]): Promise<{ client_id: string; allowed_return_urls: string[] }> =>
+        request('/integrations/return-urls', { method: 'PUT', body: JSON.stringify({ client_id: clientId, urls }) }),
 };
 
 //----- Templates ----

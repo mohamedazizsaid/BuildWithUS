@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/auth';
+import SettingsDialog from '@/components/dashboard/SettingsDialog';
 import {
   LayoutDashboard,
   FileText,
@@ -55,6 +57,7 @@ const NAV_HOVER_FX = [
 export default function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isAdmin = user?.role === 'admin';
   const canEdit = user?.role === 'admin' || user?.role === 'editor' || user?.role === 'marketing';
@@ -72,6 +75,7 @@ export default function AppSidebar() {
   ];
 
   return (
+    <>
     <Sidebar collapsible="icon">
       {/* Header — Logo + Tenant */}
       <SidebarHeader>
@@ -169,11 +173,15 @@ export default function AppSidebar() {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings" className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Paramètres
-                  </Link>
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setSettingsOpen(true);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Paramètres
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-500 focus:text-red-500">
@@ -186,5 +194,7 @@ export default function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+    <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </>
   );
 }

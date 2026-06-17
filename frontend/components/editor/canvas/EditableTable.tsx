@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import { BlockData } from '@/lib/editor-types';
+import { resolveTableTheme, thStyle, tdStyle } from '@/lib/table-theme';
 
 // Renders a contentEditable cell whose innerHTML is set ONCE on mount.
 // Re-rendering the parent must never touch the cell's DOM contents, otherwise
@@ -30,8 +31,7 @@ function EditableCell({ initial, onBlur, style }: { initial: string; onBlur: () 
 
 export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate: (updates: Partial<BlockData>) => void }) {
   const tableRef = useRef<HTMLTableElement>(null);
-  const borderColor = block.styles.tableBorderColor || '#dddddd';
-  const headerBg = block.styles.headerBg || '#f1f5f9';
+  const theme = resolveTableTheme(block.styles);
 
   // Use refs to always have latest data without stale closures
   const dataRef = useRef({
@@ -106,19 +106,12 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
   const headers = (block.content.headers || []) as string[];
   const rows = (block.content.rows || []) as string[][];
 
-  const cellStyle: React.CSSProperties = {
-    border: `1px solid ${borderColor}`,
-    padding: '6px 10px',
-    minWidth: '50px',
-    position: 'relative' as const,
-  };
-
   const editableStyle: React.CSSProperties = {
     outline: 'none',
     minHeight: '1.2em',
-    fontSize: block.styles.fontSize || '13px',
-    color: block.styles.color || 'inherit',
-    fontFamily: block.styles.fontFamily || 'inherit',
+    fontSize: theme.fontSize,
+    color: theme.color,
+    fontFamily: theme.fontFamily,
   };
 
   return (
@@ -127,8 +120,8 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
         <thead>
           <tr>
             {headers.map((h, i) => (
-              <th key={`h-${i}-${headers.length}`} style={{ ...cellStyle, backgroundColor: headerBg, fontWeight: 600 }}>
-                <EditableCell initial={h} onBlur={onCellBlur} style={editableStyle} />
+              <th key={`h-${i}-${headers.length}`} style={{ ...thStyle(theme), minWidth: '50px', position: 'relative' }}>
+                <EditableCell initial={h} onBlur={onCellBlur} style={{ ...editableStyle, color: theme.headerColor, fontWeight: 600 }} />
                 {headers.length > 1 && (
                   <button
                     onClick={() => removeColumn(i)}
@@ -150,7 +143,7 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
           {rows.map((row, ri) => (
             <tr key={`r-${ri}-${rows.length}`} className="group/row">
               {row.map((cell, ci) => (
-                <td key={`c-${ri}-${ci}-${row.length}`} style={cellStyle}>
+                <td key={`c-${ri}-${ci}-${row.length}`} style={{ ...tdStyle(theme, ri), minWidth: '50px', position: 'relative' }}>
                   <EditableCell initial={cell} onBlur={onCellBlur} style={editableStyle} />
                 </td>
               ))}

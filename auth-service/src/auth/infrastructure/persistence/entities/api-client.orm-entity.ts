@@ -18,6 +18,11 @@ export class ApiClientOrmEntity {
   @Column({ type: 'varchar', length: 500, default: '' })
   scopes: string;
 
+  // Human-friendly name the tenant gives a key (e.g. "Production CRM") so they
+  // can tell several keys apart in the dashboard. Nullable — older rows have none.
+  @Column({ name: 'label', type: 'varchar', length: 120, nullable: true })
+  label: string | null;
+
   @Column({ name: 'expires_at', type: 'timestamp', nullable: true })
   expiresAt: Date | null;
 

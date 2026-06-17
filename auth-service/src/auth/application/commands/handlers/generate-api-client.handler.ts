@@ -27,12 +27,15 @@ export class GenerateApiClientHandler implements ICommandHandler<GenerateApiClie
     const clientSecret = crypto.randomBytes(32).toString('base64url');
     const clientSecretHash = await argon2.hash(clientSecret);
 
+    const label = command.label?.trim() || null;
+
     await this.apiClientRepository.save({
       id: crypto.randomUUID(),
       tenantId: command.tenantId,
       clientId,
       clientSecretHash,
       scopes: command.scopes,
+      label,
       expiresAt: null,
       allowedReturnUrls: null,
       createdAt: new Date(),

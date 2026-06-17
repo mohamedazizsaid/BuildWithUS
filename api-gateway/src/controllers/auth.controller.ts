@@ -13,6 +13,7 @@ import {
   UseGuards,
   HttpCode,
   BadRequestException,
+  NotFoundException,
 } from "@nestjs/common";
 import { ClientGrpc } from "@nestjs/microservices";
 import { firstValueFrom } from "rxjs";
@@ -431,16 +432,11 @@ export class DevelopersController implements OnModuleInit {
     this.authService = this.client.getService("AuthService");
   }
 
-  @Post("developers/register")
-  @HttpCode(201)
-  async registerDeveloper(@Body() body: any) {
-    return firstValueFrom(
-      this.authService.RegisterDeveloper({
-        name: body.name,
-        email: body.email,
-      }),
-    );
-  }
+  // NOTE: the old anonymous `POST /developers/register` route was removed.
+  // It minted a brand-new orphan tenant per call (no owning account), which
+  // caused integrations to silently lose their templates when a key was
+  // regenerated. Keys are now issued only from inside a logged-in tenant
+  // account via the tenant-scoped /integrations/* routes below.
 
   @Post("developers/return-urls")
   @HttpCode(200)
@@ -491,6 +487,93 @@ export class DevelopersController implements OnModuleInit {
   async exchangeSession(@Body() body: any) {
     return firstValueFrom(
       this.authService.ExchangeBuilderSession({ token: body.token }),
+    );
+  }
+}
+
+/**
+ * IntegrationsController — tenant self-service API keys (prefix: /integrations).
+ *
+ * Every route is behind the dashboard JWT and restricted to admins. The tenant
+ * is always taken from the token (req.user.tenant_id), never the request body —
+ * this is what replaces the old anonymous /developers/register flow and keeps a
+ * key bound to a real, owning account.
+ */
+@Controller("integrations")
+@UseGuards(AuthGuard, RolesGuard)
+@Roles("admin")
+export class IntegrationsController implements OnModuleInit {
+  // Only these scopes can ever be granted through the dashboard. Whatever the
+  // client sends is ignored — the set is fixed server-side.
+  private static readonly ALLOWED_SCOPES = "templates:read templates:write";
+
+  private authService: any;
+
+  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
+
+  onModuleInit() {
+    this.authService = this.client.getService("AuthService");
+  }
+
+  /** Confirms a client_id belongs to the caller's tenant. Returns the tenant's
+   *  clients so callers can reuse the list without a second round-trip. */
+  private async assertOwnership(tenantId: string, clientId: string) {
+    const data: any = await firstValueFrom(
+      this.authService.ListApiClients({ tenant_id: tenantId }),
+    );
+    const clients = data.clients || [];
+    const owned = clients.find(
+      (c: any) => c.id === clientId || c.client_id === clientId,
+    );
+    if (!owned) {
+      throw new NotFoundException("API key not found for your organization");
+    }
+    return { clients, owned };
+  }
+
+  @Get("api-keys")
+  async listKeys(@Req() req: any) {
+    return firstValueFrom(
+      this.authService.ListApiClients({ tenant_id: req.user.tenant_id }),
+    );
+  }
+
+  @Post("api-keys")
+  @HttpCode(201)
+  async createKey(@Req() req: any, @Body() body: { label?: string }) {
+    return firstValueFrom(
+      this.authService.GenerateApiClient({
+        tenant_id: req.user.tenant_id,
+        scopes: IntegrationsController.ALLOWED_SCOPES,
+        label: (body?.label || "").trim(),
+      }),
+    );
+  }
+
+  @Delete("api-keys/:id")
+  async revokeKey(@Req() req: any, @Param("id") id: string) {
+    await this.assertOwnership(req.user.tenant_id, id);
+    return firstValueFrom(this.authService.RevokeApiClient({ id }));
+  }
+
+  @Put("return-urls")
+  @HttpCode(200)
+  async setReturnUrls(
+    @Req() req: any,
+    @Body() body: { client_id?: string; urls?: string[] },
+  ) {
+    if (!body?.client_id) {
+      throw new BadRequestException("client_id is required");
+    }
+    // Ownership is also re-checked in the handler, but failing fast here gives a
+    // clean 404 before we touch the command bus.
+    await this.assertOwnership(req.user.tenant_id, body.client_id);
+    return firstValueFrom(
+      this.authService.SetTenantReturnUrls({
+        tenant_id: req.user.tenant_id,
+        client_id: body.client_id,
+        urls: Array.isArray(body.urls) ? body.urls : [],
+      }),
     );
   }
 }

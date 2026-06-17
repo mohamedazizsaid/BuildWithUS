@@ -42,6 +42,7 @@ import { RegisterDeveloperHandler } from './application/commands/handlers/regist
 import { MintBuilderSessionHandler } from './application/commands/handlers/mint-builder-session.handler';
 import { ExchangeBuilderSessionHandler } from './application/commands/handlers/exchange-builder-session.handler';
 import { UpdateAllowedReturnUrlsHandler } from './application/commands/handlers/update-allowed-return-urls.handler';
+import { SetTenantReturnUrlsHandler } from './application/commands/handlers/set-tenant-return-urls.handler';
 
 const CommandHandlers = [
   RegisterHandler,
@@ -57,6 +58,7 @@ const CommandHandlers = [
   MintBuilderSessionHandler,
   ExchangeBuilderSessionHandler,
   UpdateAllowedReturnUrlsHandler,
+  SetTenantReturnUrlsHandler,
 ];
 
 @Module({

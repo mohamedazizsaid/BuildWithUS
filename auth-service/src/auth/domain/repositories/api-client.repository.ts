@@ -4,6 +4,7 @@ export interface ApiClient {
   clientId: string;
   clientSecretHash: string;
   scopes: string;
+  label: string | null;
   expiresAt: Date | null;
   allowedReturnUrls: string | null;
   createdAt: Date;

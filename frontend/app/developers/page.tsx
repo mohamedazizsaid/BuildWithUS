@@ -8,8 +8,6 @@ import {
   Building2,
   Check,
   Copy,
-  Eye,
-  EyeOff,
   Key,
   Layers,
   Lock,
@@ -18,16 +16,8 @@ import {
   Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { developers } from '@/lib/api';
 
 const EASE = [0.25, 0.1, 0.25, 1] as const;
-
-interface Credentials {
-  tenant_id?: string;
-  client_id: string;
-  client_secret: string;
-  scopes: string;
-}
 
 const TOC = [
   { id: 'concepts', label: 'Concepts clés' },
@@ -39,30 +29,6 @@ const TOC = [
 ];
 
 export default function DevelopersPage() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [creds, setCreds] = useState<Credentials | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !email.trim()) {
-      toast.error('Nom et e-mail sont requis');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const data = await developers.register({ name: name.trim(), email: email.trim() });
-      setCreds(data);
-      setName('');
-      setEmail('');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Échec de la création');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-black text-white">
       <nav className="border-b border-white/10 bg-black/80 backdrop-blur sticky top-0 z-40">
@@ -271,47 +237,31 @@ export default function DevelopersPage() {
             <Key className="w-6 h-6" />
             <h2 className="text-2xl font-semibold">Récupère tes clés</h2>
           </div>
-          <p className="text-white/60 text-sm mb-6">
-            Pas de mot de passe à gérer. Juste un nom d&apos;application et une adresse e-mail de
-            contact. Le <Mono>client_secret</Mono> ne s&apos;affiche qu&apos;une seule fois.
+          <p className="text-white/60 text-sm mb-6 max-w-xl">
+            Les clés API se génèrent depuis ton compte WinTemplate. Connecte-toi (ou crée un
+            compte), puis ouvre <Mono>Paramètres → Intégrations</Mono> pour générer une paire{' '}
+            <Mono>client_id</Mono> / <Mono>client_secret</Mono>. Le secret ne s&apos;affiche
+            qu&apos;une seule fois.
           </p>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="dev-name" className="block text-sm text-white/70 mb-2">
-                Nom de l&apos;application
-              </label>
-              <input
-                id="dev-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Acme CRM"
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="dev-email" className="block text-sm text-white/70 mb-2">
-                E-mail de contact
-              </label>
-              <input
-                id="dev-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="dev@acme.com"
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-white/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          <ol className="text-white/60 text-sm space-y-2 mb-6 list-decimal list-inside">
+            <li>Connecte-toi à ton compte (administrateur de l&apos;organisation).</li>
+            <li>Ouvre <Mono>Paramètres → Intégrations</Mono> depuis la barre latérale.</li>
+            <li>Génère une clé, déclare tes <Mono>return_url</Mono>, et copie le secret.</li>
+          </ol>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/login"
+              className="bg-white text-black text-sm font-medium px-5 py-2.5 rounded-full hover:bg-white/90 transition-all flex items-center gap-2"
             >
-              {submitting ? 'Création...' : (<>Générer mes clés <ArrowRight className="w-4 h-4" /></>)}
-            </button>
-          </form>
+              Se connecter <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/register"
+              className="border border-white/15 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-white/5 transition-all"
+            >
+              Créer un compte
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -606,8 +556,6 @@ app.get('/builder/callback', (req, res) => {
           <Mono>templates:write</Mono>
         </div>
       </footer>
-
-      {creds && <CredentialsModal creds={creds} onClose={() => setCreds(null)} />}
     </div>
   );
 }
@@ -799,119 +747,6 @@ function CodeBlock({ code }: { readonly code: string }) {
       <pre className="bg-zinc-950 border border-white/10 rounded-xl p-5 text-xs overflow-x-auto text-white/80 leading-relaxed">
 {code}
       </pre>
-    </div>
-  );
-}
-
-/* ── Credentials modal ────────────────────────────────────────────────────── */
-
-function CredentialsModal({ creds, onClose }: { readonly creds: Credentials; readonly onClose: () => void }) {
-  const [showSecret, setShowSecret] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-
-  const copy = (label: string, value: string) => {
-    navigator.clipboard.writeText(value).then(
-      () => toast.success(`${label} copié`),
-      () => toast.error('Échec de la copie'),
-    );
-  };
-
-  const masked = '•'.repeat(Math.min(32, creds.client_secret.length));
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3, ease: EASE }}
-        className="bg-zinc-950 border border-white/10 rounded-2xl max-w-2xl w-full p-8 shadow-2xl"
-      >
-        <div className="flex items-start gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
-            <Key className="w-5 h-5 text-amber-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold mb-1">Tes clés API</h2>
-            <p className="text-white/60 text-sm">
-              Sauvegarde-les dans ton <code className="bg-white/10 px-1 rounded">.env</code> maintenant.
-              Le <strong>client_secret</strong> ne sera plus jamais affiché.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <CredentialField label="BUILDER_CLIENT_ID" value={creds.client_id} onCopy={() => copy('client_id', creds.client_id)} />
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-mono text-white/50">BUILDER_CLIENT_SECRET</span>
-              <button
-                type="button"
-                onClick={() => setShowSecret((s) => !s)}
-                className="text-xs text-white/60 hover:text-white flex items-center gap-1"
-              >
-                {showSecret ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                {showSecret ? 'Cacher' : 'Afficher'}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2.5">
-              <code className="text-amber-100 text-xs font-mono flex-1 break-all">
-                {showSecret ? creds.client_secret : masked}
-              </code>
-              <button
-                type="button"
-                onClick={() => copy('client_secret', creds.client_secret)}
-                className="text-white/60 hover:text-white shrink-0"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span className="text-sm text-white/80">
-              J&apos;ai sauvegardé mon <strong>client_secret</strong>. Je comprends qu&apos;il ne sera plus
-              affiché et que je devrai recréer une intégration si je le perds.
-            </span>
-          </label>
-        </div>
-
-        <p className="text-xs text-white/40 mt-6">
-          Prochaine étape : déclare tes <code className="bg-white/10 px-1 rounded">return_url</code> autorisés
-          via <code className="bg-white/10 px-1 rounded">POST /developers/return-urls</code>, puis minte ta
-          première session avec <code className="bg-white/10 px-1 rounded">custom_champ.external_org_ref</code>.
-        </p>
-
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={!confirmed}
-          className="w-full mt-6 bg-white text-black font-medium py-3 rounded-lg hover:bg-white/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          C&apos;est sauvegardé, fermer
-        </button>
-      </motion.div>
-    </div>
-  );
-}
-
-function CredentialField({ label, value, onCopy }: { readonly label: string; readonly value: string; readonly onCopy: () => void }) {
-  return (
-    <div>
-      <div className="text-xs font-mono text-white/50 mb-1.5">{label}</div>
-      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2.5">
-        <code className="text-white/80 text-xs font-mono flex-1 break-all">{value}</code>
-        <button type="button" onClick={onCopy} className="text-white/60 hover:text-white shrink-0">
-          <Copy className="w-4 h-4" />
-        </button>
-      </div>
     </div>
   );
 }

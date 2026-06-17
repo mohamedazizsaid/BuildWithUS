@@ -2,6 +2,7 @@
 
 import { BlockData, GlobalStyles } from '@/lib/editor-types';
 import { SOCIAL_COLORS, getSvgPaths } from '@/lib/social-icons';
+import { resolveTableTheme, thStyle, tdStyle } from '@/lib/table-theme';
 
 export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
   // Use inherit to let global styles cascade, unless block has a specific override
@@ -173,17 +174,13 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
     case 'table': {
       const tHeaders = (block.content.headers || []) as string[];
       const tRows = (block.content.rows || []) as string[][];
-      const tBorderColor = block.styles.tableBorderColor || '#dddddd';
-      const tHeaderBg = block.styles.headerBg || '#f1f5f9';
-      const tFontSize = block.styles.fontSize || '13px';
-      const tColor = block.styles.color || 'inherit';
-      const tFontFamily = block.styles.fontFamily || 'inherit';
+      const theme = resolveTableTheme(block.styles);
       return (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               {tHeaders.map((h, i) => (
-                <th key={i} style={{ border: `1px solid ${tBorderColor}`, backgroundColor: tHeaderBg, padding: '8px 12px', textAlign: 'left', fontSize: tFontSize, fontWeight: 600, color: tColor, fontFamily: tFontFamily }}>{h}</th>
+                <th key={i} style={thStyle(theme)}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -191,7 +188,7 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
             {tRows.map((row, ri) => (
               <tr key={ri}>
                 {row.map((cell, ci) => (
-                  <td key={ci} style={{ border: `1px solid ${tBorderColor}`, padding: '8px 12px', fontSize: tFontSize, color: tColor, fontFamily: tFontFamily }}>{cell}</td>
+                  <td key={ci} style={tdStyle(theme, ri)}>{cell}</td>
                 ))}
               </tr>
             ))}
