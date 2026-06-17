@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth, isEmbedMode, getEmbedToken, decodeJwtPayload } from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface User {
   id: string;
@@ -25,36 +25,44 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Derive a stubbed user object from the embed M2M / integration-session JWT.
+// Returns null when no embed token is active.
+function deriveEmbedUser(): User | null {
+  if (!isEmbedMode()) return null;
+  const tok = getEmbedToken();
+  const claims = tok ? decodeJwtPayload(tok) : null;
+  const tenantId = (claims?.tenantId ?? claims?.tenant_id ?? claims?.sub ?? '') as string;
+  const isIntegrationSession = (claims?.type ?? '') === 'integration_session';
+  return {
+    id: isIntegrationSession ? 'integration-session' : 'embed-m2m',
+    tenant_id: tenantId,
+    tenant_name: isIntegrationSession ? 'Session intégration' : 'Embedded session',
+    email: isIntegrationSession ? '' : 'embed@m2m',
+    first_name: isIntegrationSession ? 'Intégration' : 'Embed',
+    last_name: 'Session',
+    role: isIntegrationSession ? 'editor' : 'm2m',
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   // On app load, check if user is already logged in (cookie exists).
   // In embed mode we have no cookie session — we have an M2M JWT. Stub a
   // user object from the JWT claims so the dashboard chrome can render
   // without needing /auth/me to succeed.
   useEffect(() => {
-    if (isEmbedMode()) {
-      const tok = getEmbedToken();
-      const claims = tok ? decodeJwtPayload(tok) : null;
-      const tenantId = (claims?.tenantId ?? claims?.tenant_id ?? claims?.sub ?? '') as string;
-      const tokenType = (claims?.type ?? '') as string;
-      const isIntegrationSession = tokenType === 'integration_session';
+    const embedUser = deriveEmbedUser();
+    if (embedUser) {
       // Synchronous setState here is intentional. The embed user is derived from
       // sessionStorage (client-only), which is invisible during SSR, and the token
       // is written right after the /embed page mounts — so this can only run as a
       // post-mount sync, not a render-time initializer (that would break hydration).
       /* eslint-disable react-hooks/set-state-in-effect */
-      setUser({
-        id: isIntegrationSession ? 'integration-session' : 'embed-m2m',
-        tenant_id: tenantId,
-        tenant_name: isIntegrationSession ? 'Session intégration' : 'Embedded session',
-        email: isIntegrationSession ? '' : 'embed@m2m',
-        first_name: isIntegrationSession ? 'Intégration' : 'Embed',
-        last_name: 'Session',
-        role: isIntegrationSession ? 'editor' : 'm2m',
-      });
+      setUser(embedUser);
       setLoading(false);
       /* eslint-enable react-hooks/set-state-in-effect */
       return;
@@ -64,6 +72,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
+
+  // Integration sessions opened via /s/<token> (redirect, not iframe) set the
+  // embed token ASYNC — after the session exchange network call, i.e. AFTER this
+  // provider already mounted and ran the getMe() path above (user=null, because
+  // there is no cookie). setEmbedToken() is a module variable (no re-render), so
+  // the mount effect never sees the token. Re-derive the embed user on navigation
+  // once the token is present. Without this, the dashboard renders blank
+  // (`if (!user) return null`) for redirect-based integration sessions.
+  useEffect(() => {
+    if (user) return;
+    const embedUser = deriveEmbedUser();
+    if (embedUser) {
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setUser(embedUser);
+      setLoading(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
+    }
+  }, [pathname, user]);
 
   const login = async (email: string, password: string) => {
     await auth.login({ email, password });
