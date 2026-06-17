@@ -150,6 +150,8 @@ export function CanvasBlock({
               ref={editRef}
               contentEditable
               suppressContentEditableWarning
+              className="block-editable-placeholder"
+              data-placeholder={block.type === 'heading' ? 'Votre titre' : 'Saisissez votre texte'}
               onInput={(e) => { pendingText.current = e.currentTarget.innerHTML || ''; }}
               onBlur={(e) => {
                 pendingText.current = null;

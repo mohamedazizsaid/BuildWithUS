@@ -134,3 +134,11 @@
     @apply font-sans;
   }
 }
+/* Placeholder for empty inline-editable text/heading blocks in the email builder.
+   Shows greyed hint text while editing an empty block; vanishes as soon as the
+   user types (element is no longer :empty). */
+.block-editable-placeholder:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}

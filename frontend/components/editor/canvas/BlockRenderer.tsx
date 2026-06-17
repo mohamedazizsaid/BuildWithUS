@@ -10,36 +10,42 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
   const resolveFontWeight = (blockWeight: string) => blockWeight || 'inherit';
 
   switch (block.type) {
-    case 'heading':
+    case 'heading': {
+      const headingText = (block.content.text as string) || '';
+      const headingEmpty = !headingText.trim();
       return (
         <div style={{
           fontSize: resolveFontSize(block.styles.fontSize),
           fontWeight: resolveFontWeight(block.styles.fontWeight),
           fontFamily: block.styles.fontFamily || 'inherit',
           fontStyle: block.styles.fontStyle || 'normal', textDecoration: block.styles.textDecoration || 'none',
-          color: resolveColor(block.styles.color),
+          color: headingEmpty ? '#9ca3af' : resolveColor(block.styles.color),
           textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
           lineHeight: block.styles.lineHeight || 'inherit',
           letterSpacing: block.styles.letterSpacing || 'inherit',
         }}
-        dangerouslySetInnerHTML={{ __html: (block.content.text as string) || 'Titre' }}
+        dangerouslySetInnerHTML={{ __html: headingEmpty ? 'Votre titre' : headingText }}
         />
       );
-    case 'text':
+    }
+    case 'text': {
+      const textValue = (block.content.text as string) || '';
+      const textEmpty = !textValue.trim();
       return (
         <div style={{
           fontSize: resolveFontSize(block.styles.fontSize),
           fontWeight: resolveFontWeight(block.styles.fontWeight),
           fontFamily: block.styles.fontFamily || 'inherit',
           fontStyle: block.styles.fontStyle || 'normal', textDecoration: block.styles.textDecoration || 'none',
-          color: resolveColor(block.styles.color),
+          color: textEmpty ? '#9ca3af' : resolveColor(block.styles.color),
           textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
           lineHeight: block.styles.lineHeight || 'inherit',
           letterSpacing: block.styles.letterSpacing || 'inherit',
         }}
-        dangerouslySetInnerHTML={{ __html: (block.content.text as string) || 'Texte' }}
+        dangerouslySetInnerHTML={{ __html: textEmpty ? 'Saisissez votre texte' : textValue }}
         />
       );
+    }
     case 'image': {
       const imgBorderSize = block.styles.borderSize || '0px';
       const imgBorderStyle = block.styles.borderStyle || 'solid';

@@ -86,11 +86,11 @@ export const LAYOUT_OPTIONS: { label: string; value: RowLayout; widths: string[]
 
 export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, string | string[] | string[][]>; styles: Record<string, string> }> = {
   heading: {
-    content: { text: 'Heading' },
+    content: { text: '' },
     styles: { fontSize: '', color: '', fontWeight: 'bold', textAlign: 'left', padding: '10px' },
   },
   text: {
-    content: { text: 'Enter your text here...' },
+    content: { text: '' },
     styles: { fontSize: '', color: '', fontWeight: '', textAlign: 'left', padding: '10px' },
   },
   image: {

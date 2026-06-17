@@ -2,7 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { developers, setEmbedToken, setBuilderReturnUrl } from '@/lib/api';
+import { developers, templates, setEmbedToken, setBuilderReturnUrl } from '@/lib/api';
+
+// Resolve the editor path + query for an "edit" session, matching the editor
+// to the template type like the "new" flow does (2 = facture, 3 = contrat,
+// 4 = sms, else email). Falls back to the email editor if the read fails.
+async function resolveEditDestination(templateId: string): Promise<string> {
+  let route = 'editor';
+  const params = new URLSearchParams({ id: templateId });
+  try {
+    const res = await templates.get(templateId);
+    const template = res?.template ?? res;
+    const t = Number(template?.type);
+    if (t === 4) route = 'sms-editor';
+    else if (t === 2) route = 'invoice-editor';
+    else if (t === 3) route = 'contract-editor';
+    params.set('name', template?.name ?? '');
+    params.set('description', template?.description ?? '');
+    params.set('type', String(template?.type ?? ''));
+  } catch {
+    // Read failed → fall back to the email editor (previous behaviour).
+  }
+  return `/dashboard/templates/${route}?${params.toString()}`;
+}
 
 export default function SessionExchangePage() {
   const router = useRouter();
@@ -31,10 +53,10 @@ export default function SessionExchangePage() {
           // in sessionStorage so save-and-return works from any editor.
           router.replace('/dashboard/templates/new');
         } else if (mode === 'edit' && templateId) {
-          // Open the template directly in the editor. The editor loads the
-          // template by id and derives its type from the loaded data, so we
-          // don't need to know the type up front.
-          router.replace(`/dashboard/templates/editor?id=${encodeURIComponent(templateId)}`);
+          // The embed token is set above, so this read is authenticated.
+          const dest = await resolveEditDestination(templateId);
+          if (cancelled) return;
+          router.replace(dest);
         } else if (mode === 'list') {
           router.replace('/dashboard/templates');
         } else {
