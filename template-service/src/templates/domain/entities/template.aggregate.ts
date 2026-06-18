@@ -117,16 +117,10 @@ export class Template extends AggregateRoot {
     predefinedTemplateId: string | null = null,
     externalOrgRef: string | null = null,
   ): Template {
-    // Business rule: subject is required for EMAIL, forbidden for others
+    // Business rule: subject is optional, but only allowed for EMAIL.
+    // (Integrated/host tools supply their own subject, so the builder must not force one.)
     const includesEmail = (channels && channels.includes('email')) || type.isEmail();
-    const emailSubject = channelContents?.email?.subject;
 
-    if (includesEmail && !subject && !emailSubject) {
-      throw new BusinessRuleException(
-        'Template',
-        'Subject is required for email templates',
-      );
-    }
     if (!includesEmail && subject) {
       throw new BusinessRuleException(
         'Template',
@@ -269,14 +263,8 @@ export class Template extends AggregateRoot {
       const emailChannel = channels && channels.length > 0
         ? channels.includes('email')
         : this.channels.includes('email');
-      const fallbackSubject = channelContents?.email?.subject;
 
-      if (emailChannel && subject === null && !fallbackSubject) {
-        throw new BusinessRuleException(
-          'Template',
-          'Subject is required for email templates',
-        );
-      }
+      // Subject is optional; only reject it when set on a non-email channel.
       if (!emailChannel && subject !== null) {
         throw new BusinessRuleException(
           'Template',
