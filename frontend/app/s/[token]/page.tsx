@@ -9,21 +9,25 @@ import { developers, templates, setEmbedToken, setBuilderReturnUrl } from '@/lib
 // 4 = sms, 5 = rcs, else email). Falls back to the email editor if the read fails.
 async function resolveEditDestination(templateId: string): Promise<string> {
   let route = 'editor';
+  let numericType = 1; // email by default
   const params = new URLSearchParams({ id: templateId });
   try {
     const res = await templates.get(templateId);
     const template = res?.template ?? res;
-    // type may arrive as a number (5) or a string ('rcs') depending on the read
-    // path — match both so editor routing is robust.
+    // type may arrive as a number (5) or the enum NAME ('RCS') depending on the
+    // read path — the builder API serialises it as the enum name because its
+    // proto-loader uses `enums: String`, so Number('RCS') is NaN. Match both.
     const t = Number(template?.type);
     const ts = String(template?.type ?? '').toLowerCase();
-    if (t === 4 || ts === 'sms') route = 'sms-editor';
-    else if (t === 5 || ts === 'rcs') route = 'rcs-editor';
-    else if (t === 2 || ts === 'facture') route = 'invoice-editor';
-    else if (t === 3 || ts === 'contrat') route = 'contract-editor';
+    if (t === 4 || ts === 'sms') { route = 'sms-editor'; numericType = 4; }
+    else if (t === 5 || ts === 'rcs') { route = 'rcs-editor'; numericType = 5; }
+    else if (t === 2 || ts === 'facture') { route = 'invoice-editor'; numericType = 2; }
+    else if (t === 3 || ts === 'contrat') { route = 'contract-editor'; numericType = 3; }
     params.set('name', template?.name ?? '');
     params.set('description', template?.description ?? '');
-    params.set('type', String(template?.type ?? ''));
+    // Pass the NUMERIC type — the editor pages do parseInt(type), so a name
+    // like 'SMS' would break there too.
+    params.set('type', String(numericType));
   } catch {
     // Read failed → fall back to the email editor (previous behaviour).
   }
