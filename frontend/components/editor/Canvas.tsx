@@ -192,14 +192,27 @@ export default function Canvas({
             <p className="text-xs text-muted-foreground">Ou ajoutez une disposition ci-dessous</p>
           </div>
         ) : (
-          template.rows.map((row, index) => (
+          template.rows.map((row, index) => {
+            // If the currently-edited text/heading/button block lives in THIS row,
+            // the row must not be draggable — otherwise mouse-drag text selection
+            // starts a native row drag instead of selecting text.
+            const editingTextInRow =
+              selectedBlockId !== null &&
+              row.columns.some((c) =>
+                c.blocks.some(
+                  (b) =>
+                    b.id === selectedBlockId &&
+                    (b.type === 'text' || b.type === 'heading' || b.type === 'button'),
+                ),
+              );
+            return (
             <div key={row.id}>
               {/* Drop indicator line — above this row */}
               {isExternalDrag && dropIndicatorIndex === index && (
                 <div className="h-0.5 bg-blue-500 mx-2 rounded-full" />
               )}
               <div
-                draggable
+                draggable={!editingTextInRow}
                 onDragStart={(e) => {
                   if (e.dataTransfer.types.includes('blocktype')) return;
                   setDragRowIndex(index);
@@ -249,7 +262,8 @@ export default function Canvas({
                 <div className="h-0.5 bg-blue-500 mx-2 rounded-full" />
               )}
             </div>
-          ))
+            );
+          })
         )}
 
         {/* Add row button — subtle, at the bottom */}

@@ -46,10 +46,17 @@ export function CanvasColumn({
           <p className="text-xs text-muted-foreground">Déposez du contenu ici</p>
         </div>
       ) : (
-        column.blocks.map((block, index) => (
+        column.blocks.map((block, index) => {
+          // A text/heading/button block that's selected is in edit mode (its
+          // contenteditable is active). Keep the wrapper non-draggable then, or
+          // mouse-drag-selecting text would start a native block drag instead.
+          const isEditing =
+            selectedBlockId === block.id &&
+            (block.type === 'text' || block.type === 'heading' || block.type === 'button');
+          return (
           <div
             key={block.id}
-            draggable
+            draggable={!isEditing}
             onDragStart={(e) => {
               e.stopPropagation();
               setDragBlockIndex(index);
@@ -79,7 +86,8 @@ export function CanvasColumn({
               globalStyles={globalStyles}
             />
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );
