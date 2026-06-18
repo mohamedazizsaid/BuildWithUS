@@ -254,6 +254,11 @@ export const media = {
         return data;
     },
 
+    // Images uploaded by the caller's organisation (tenant), newest first.
+    list: async (): Promise<{ url: string; fileName: string; size: number; lastModified: string }[]> => {
+        return request('/media');
+    },
+
     delete: async (fileName: string): Promise<void> => {
         await request(`/media/${fileName}`, { method: 'DELETE' });
     },

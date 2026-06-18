@@ -40,9 +40,57 @@ async function ensureBucket() {
 }
 ensureBucket();
 
+// Build the browser-facing URL for a stored object. MINIO_PUBLIC_URL is the
+// host the browser uses (dev: http://localhost:9000, prod: the tunnel domain);
+// the MINIO_ENDPOINT/PORT fallback is only for local runs without that var set.
+// Listing and uploading MUST use the same builder so URLs match in dev AND prod.
+function buildPublicUrl(fileName: string): string {
+  const publicBase =
+    process.env.MINIO_PUBLIC_URL ||
+    `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || '9000'}`;
+  return `${publicBase}/${BUCKET}/${fileName}`;
+}
+
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']);
+
 @Controller('media')
 @UseGuards(AuthGuard)
 export class MediaController {
+
+  // List every image uploaded by the caller's organisation (tenant). Objects are
+  // stored under a "<tenantId>/" prefix, so listing that prefix returns exactly
+  // the org's own uploads — one user's import is reusable by the whole org, and
+  // no other tenant's files are ever exposed.
+  @Get()
+  async list(@Req() req: any, @Res() res: Response) {
+    const tenantId = req.user?.tenant_id || 'default';
+    const prefix = `${tenantId}/`;
+    try {
+      const images: { url: string; fileName: string; size: number; lastModified: string }[] = [];
+      await new Promise<void>((resolve, reject) => {
+        const stream = minioClient.listObjectsV2(BUCKET, prefix, true);
+        stream.on('data', (obj: Minio.BucketItem) => {
+          if (!obj.name) return;
+          const ext = obj.name.split('.').pop()?.toLowerCase() || '';
+          if (!IMAGE_EXTENSIONS.has(ext)) return; // images only
+          images.push({
+            url: buildPublicUrl(obj.name),
+            fileName: obj.name,
+            size: obj.size ?? 0,
+            lastModified: obj.lastModified ? new Date(obj.lastModified).toISOString() : '',
+          });
+        });
+        stream.on('end', () => resolve());
+        stream.on('error', (e) => reject(e));
+      });
+      // Newest first
+      images.sort((a, b) => (a.lastModified < b.lastModified ? 1 : -1));
+      return res.json(images);
+    } catch (err) {
+      console.error('List media failed:', err);
+      return res.status(500).json({ error: 'Échec du chargement des images' });
+    }
+  }
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
@@ -78,12 +126,7 @@ export class MediaController {
         'Content-Type': file.mimetype,
       });
 
-      // MINIO_PUBLIC_URL is what the browser uses (host-mapped port);
-      // MINIO_ENDPOINT/MINIO_PORT are for the gateway → MinIO server-to-server call.
-      const publicBase =
-        process.env.MINIO_PUBLIC_URL ||
-        `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || '9000'}`;
-      const url = `${publicBase}/${BUCKET}/${fileName}`;
+      const url = buildPublicUrl(fileName);
 
       return res.json({
         url,
