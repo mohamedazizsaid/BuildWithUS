@@ -130,6 +130,23 @@ export function blockToMjml(block: BlockData, g: GlobalStyles) {
         : `<div style="text-align:${align}">${items.map(([label, url], i) => label ? `<a href="${(url || '#').replace(/&/g, '&amp;')}" style="${linkStyle};display:inline-block;${i < items.length - 1 ? `margin-right:${spacing}` : ''}">${label}</a>` : '').join('')}</div>`;
       return `        <mj-text padding="${pad}" align="${align}">${html}</mj-text>\n`;
     }
+    case "icon-list": {
+      const items = (block.content.items || []) as string[][];
+      const ilAlign = (block.content.align as string) || 'left';
+      const iconColor = block.styles.iconColor || '#16a34a';
+      const iconSize = block.styles.iconSize || '20px';
+      const spacing = block.styles.spacing || '12px';
+      const ilPad = block.styles.padding || '10px';
+      const tableMargin = ilAlign === 'center' ? 'margin:0 auto' : ilAlign === 'right' ? 'margin-left:auto' : 'margin-right:auto';
+      let rowsHtml = '';
+      items.forEach(([glyph, text], i) => {
+        const pb = i < items.length - 1 ? spacing : '0';
+        rowsHtml += `<tr><td style="vertical-align:top;padding:0 8px ${pb} 0;color:${iconColor};font-size:${iconSize};line-height:1.4;white-space:nowrap">${glyph || '&bull;'}</td><td style="vertical-align:top;padding:0 0 ${pb} 0;line-height:1.4">${text || ''}</td></tr>`;
+      });
+      // Round-trip marker: iconlist:align:iconColor:iconSize:spacing(no px)
+      const marker = `iconlist:${ilAlign}:${iconColor}:${iconSize}:${spacing.replace(/px$/, '')}`;
+      return `        <mj-text padding="${ilPad}" color="${color}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="${fontFamily}" css-class="${marker}"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;${tableMargin}"><tbody>${rowsHtml}</tbody></table></mj-text>\n`;
+    }
     case "signature": {
       const sigLineColor = block.styles.lineColor || '#000000';
       const sigLineWidth = block.styles.lineWidth || '200px';
@@ -242,6 +259,23 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
       }
       const linksH = items.map(([label, url]) => label ? `<a href="${url || '#'}" style="${linkStyle};margin:0 ${parseInt(spacing) / 2 || 10}px;display:inline-block">${label}</a>` : '').join('');
       return `<div style="padding:${pad};display:flex;justify-content:${justifyMap[align] || 'center'};flex-wrap:wrap;align-items:center">${linksH}</div>`;
+    }
+    case "icon-list": {
+      const items = (block.content.items || []) as string[][];
+      const ilAlign = (block.content.align as string) || 'left';
+      const iconColor = block.styles.iconColor || '#16a34a';
+      const iconSize = block.styles.iconSize || '20px';
+      const spacing = block.styles.spacing || '12px';
+      const ilColor = block.styles.color || globalStyles.textColor;
+      const ilFontSize = block.styles.fontSize || globalStyles.fontSize;
+      const ilFontWeight = block.styles.fontWeight || globalStyles.fontWeight;
+      const ilFontFamily = block.styles.fontFamily || globalStyles.fontFamily;
+      const tableMargin = ilAlign === 'center' ? 'margin:0 auto' : ilAlign === 'right' ? 'margin-left:auto' : 'margin-right:auto';
+      const rows = items.map(([glyph, text], i) => {
+        const pb = i < items.length - 1 ? spacing : '0';
+        return `<tr><td style="vertical-align:top;padding:0 8px ${pb} 0;color:${iconColor};font-size:${iconSize};line-height:1.4;white-space:nowrap">${glyph || '&bull;'}</td><td style="vertical-align:top;padding:0 0 ${pb} 0;color:${ilColor};font-size:${ilFontSize};font-weight:${ilFontWeight};font-family:${ilFontFamily};line-height:1.4">${text || ''}</td></tr>`;
+      }).join('');
+      return `<div style="padding:${block.styles.padding || '10px'}"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;${tableMargin}"><tbody>${rows}</tbody></table></div>`;
     }
     case "signature":
       return `<div style="padding:${block.styles.padding};font-size:${block.styles.fontSize};color:${block.styles.color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></div>`;

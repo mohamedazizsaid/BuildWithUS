@@ -193,8 +193,8 @@ export default function Canvas({
           </div>
         ) : (
           template.rows.map((row, index) => {
-            // If the currently-edited text/heading/button block lives in THIS row,
-            // the row must not be draggable — otherwise mouse-drag text selection
+            // If a selected block with inline-editable text lives in THIS row, the
+            // row must not be draggable — otherwise mouse-drag text selection
             // starts a native row drag instead of selecting text.
             const editingTextInRow =
               selectedBlockId !== null &&
@@ -202,7 +202,7 @@ export default function Canvas({
                 c.blocks.some(
                   (b) =>
                     b.id === selectedBlockId &&
-                    (b.type === 'text' || b.type === 'heading' || b.type === 'button'),
+                    ['text', 'heading', 'button', 'table', 'icon-list'].includes(b.type),
                 ),
               );
             return (

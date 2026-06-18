@@ -275,6 +275,34 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
         </div>
       );
     }
+    case 'icon-list': {
+      const items = (block.content.items || []) as string[][];
+      const align = (block.content.align as string) || 'left';
+      const iconColor = block.styles.iconColor || '#16a34a';
+      const iconSize = block.styles.iconSize || '20px';
+      const spacing = block.styles.spacing || '12px';
+      const color = block.styles.color || 'inherit';
+      const fontSize = block.styles.fontSize || 'inherit';
+      const fontWeight = block.styles.fontWeight || 'inherit';
+      const fontFamily = block.styles.fontFamily || 'inherit';
+      const justify = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
+      if (items.length === 0) {
+        return <div style={{ padding: block.styles.padding || '10px', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>Aucun élément — ajoutez-en dans les propriétés</div>;
+      }
+      return (
+        <div style={{ padding: block.styles.padding || '10px', display: 'flex', flexDirection: 'column', gap: spacing }}>
+          {items.map(([glyph, text], i) => {
+            const empty = !(text || '').trim();
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: justify, gap: '8px' }}>
+                <span style={{ color: iconColor, fontSize: iconSize, lineHeight: 1.4, flexShrink: 0 }}>{glyph || '•'}</span>
+                <span style={{ color: empty ? '#9ca3af' : color, fontSize, fontWeight, fontFamily, lineHeight: 1.4 }}>{empty ? 'Votre texte' : text}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
     case 'signature': {
       const sLineColor = block.styles.lineColor || '#000000';
       const sLineWidth = block.styles.lineWidth || '200px';

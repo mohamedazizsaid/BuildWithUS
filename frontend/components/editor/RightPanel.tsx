@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Type, LayoutGrid, ImageIcon, ArrowLeft, Trash2, LayoutTemplate, Sparkles, ChevronLeft, ChevronRight, Heading, AlignLeft, Video, MousePointerClick, Minus, Table2, PenLine, Share2, Menu as MenuIcon } from 'lucide-react';
+import { Type, LayoutGrid, ImageIcon, ArrowLeft, Trash2, LayoutTemplate, Sparkles, ChevronLeft, ChevronRight, Heading, AlignLeft, Video, MousePointerClick, Minus, Table2, PenLine, Share2, Menu as MenuIcon, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +31,7 @@ import { SignatureBlockProperties } from './panels/SignatureProperties';
 import { SocialBlockProperties } from './panels/SocialProperties';
 import { DividerBlockProperties } from './panels/DividerProperties';
 import { MenuBlockProperties } from './panels/MenuProperties';
+import { IconListBlockProperties } from './panels/IconListProperties';
 
 type PanelTab = 'contenu' | 'blocs' | 'photos' | 'sections' | 'ai';
 
@@ -67,6 +68,7 @@ const BLOCK_ITEMS: { type: BlockType; label: string; icon: React.ElementType }[]
   { type: 'signature', label: 'Signature',  icon: PenLine           },
   { type: 'social',    label: 'Réseaux',    icon: Share2            },
   { type: 'menu',      label: 'Menu',       icon: MenuIcon          },
+  { type: 'icon-list', label: 'Liste à icônes', icon: ListChecks    },
 ];
 
 // ─── Left Panel (content tabs — sits on the LEFT of the canvas) ───────────────
@@ -405,6 +407,10 @@ function BlockProperties({
 
       {block.type === 'menu' && (
         <MenuBlockProperties block={block} onUpdate={onUpdate} />
+      )}
+
+      {block.type === 'icon-list' && (
+        <IconListBlockProperties block={block} onUpdate={onUpdate} />
       )}
 
       {isHeadingOrText && (

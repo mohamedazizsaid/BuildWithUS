@@ -1,4 +1,4 @@
-export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature' | 'social' | 'menu';
+export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature' | 'social' | 'menu' | 'icon-list';
 
 export type RowLayout =
   | '100'
@@ -141,6 +141,28 @@ export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, 
       fontFamily: '',
       fontWeight: '',
       textDecoration: 'none',
+    },
+  },
+  'icon-list': {
+    content: {
+      // Each item is [glyph, text] — the glyph is an email-safe Unicode symbol.
+      // Text starts empty so the canvas shows an editable placeholder.
+      items: [
+        ['✓', ''],
+        ['✓', ''],
+        ['✓', ''],
+      ] as string[][],
+      align: 'left',
+    },
+    styles: {
+      padding: '10px',
+      spacing: '12px',
+      iconColor: '#16a34a',
+      iconSize: '20px',
+      color: '',
+      fontSize: '',
+      fontWeight: '',
+      fontFamily: '',
     },
   },
 };

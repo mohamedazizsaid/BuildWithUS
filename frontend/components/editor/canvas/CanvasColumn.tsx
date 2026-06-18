@@ -47,12 +47,12 @@ export function CanvasColumn({
         </div>
       ) : (
         column.blocks.map((block, index) => {
-          // A text/heading/button block that's selected is in edit mode (its
+          // A selected block with inline-editable text is in edit mode (its
           // contenteditable is active). Keep the wrapper non-draggable then, or
           // mouse-drag-selecting text would start a native block drag instead.
           const isEditing =
             selectedBlockId === block.id &&
-            (block.type === 'text' || block.type === 'heading' || block.type === 'button');
+            ['text', 'heading', 'button', 'table', 'icon-list'].includes(block.type);
           return (
           <div
             key={block.id}

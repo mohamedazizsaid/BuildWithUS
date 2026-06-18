@@ -80,6 +80,33 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
     }
     const text = rawText;
 
+    // Icon list — encoded as an mj-text whose css-class carries the marker
+    // "iconlist:align:iconColor:iconSize:spacing" and whose body is a 2-col table.
+    const ilCssClass = el.getAttribute("css-class") || "";
+    const ilMatch = ilCssClass.match(/^iconlist:(left|center|right):(#[0-9a-fA-F]{6}):(\d+px):(\d+)$/);
+    if (ilMatch) {
+      const items: string[][] = [];
+      for (const tr of text.matchAll(/<tr>([\s\S]*?)<\/tr>/g)) {
+        const tds = [...tr[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].trim());
+        if (tds.length >= 2) items.push([tds[0], tds[1]]);
+      }
+      return {
+        id,
+        type: "icon-list",
+        content: { items, align: ilMatch[1] },
+        styles: {
+          padding: el.getAttribute("padding") || "10px",
+          iconColor: ilMatch[2],
+          iconSize: ilMatch[3],
+          spacing: `${ilMatch[4]}px`,
+          color: el.getAttribute("color") || "",
+          fontSize: el.getAttribute("font-size") || "",
+          fontWeight: el.getAttribute("font-weight") || "",
+          fontFamily: el.getAttribute("font-family") || "",
+        },
+      };
+    }
+
     const sigCssClass = el.getAttribute("css-class") || "";
     if (text.includes("border-top:1px solid") || sigCssClass.startsWith("sig:")) {
       const nameMatch = text.match(/font-weight:bold">(.*?)<\/p>/);

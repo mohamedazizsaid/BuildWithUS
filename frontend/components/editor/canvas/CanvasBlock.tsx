@@ -7,6 +7,7 @@ import { BlockData, GlobalStyles } from '@/lib/editor-types';
 import { resolvePadding, resolveMargin, resolveBlockAlign } from './utils';
 import { ResizableImage } from './ResizableImage';
 import { EditableTable } from './EditableTable';
+import { EditableIconList } from './EditableIconList';
 import { ResizableButton } from './ResizableButton';
 import { renderBlock } from './BlockRenderer';
 
@@ -139,6 +140,8 @@ export function CanvasBlock({
       <div style={{ overflow: 'hidden', wordBreak: 'break-word' as const }}>
       {isSelected && block.type === 'table' ? (
         <EditableTable block={block} onUpdate={onUpdate} />
+      ) : isSelected && block.type === 'icon-list' ? (
+        <EditableIconList block={block} onUpdate={onUpdate} />
       ) : isSelected && block.type === 'image' && block.content.src ? (
         <ResizableImage block={block} onUpdate={onUpdate} globalStyles={globalStyles} />
       ) : isSelected && isTextBlock ? (
