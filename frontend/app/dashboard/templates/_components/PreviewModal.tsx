@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Pencil, X } from 'lucide-react';
 import { mjmlToPreviewHtml, tiptapDocToPreviewHtml, findContractTitle } from '../_lib/preview-helpers';
+import { RcsPhonePreview } from '../rcs-editor/_components/RcsPhonePreview';
+import { parseRcs } from '../rcs-editor/_lib/rcs-serializer';
 import { getTypeConfig, type Template } from '../_lib/types';
 import { deserialize } from '@/lib/invoice/serialize';
 import { renderInvoiceHtml } from '@/lib/invoice/renderer';
@@ -231,6 +233,7 @@ export function PreviewModal({
   const config = getTypeConfig(template.type);
   const isContractOrInvoice = ['contrat', 'CONTRAT', 'facture', 'FACTURE'].includes(template.type);
   const isSms = template.type?.toLowerCase() === 'sms';
+  const isRcs = template.type?.toLowerCase() === 'rcs';
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -271,10 +274,14 @@ export function PreviewModal({
         </div>
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
           <div className={`mx-auto shadow-sm rounded-lg overflow-hidden ${
-            isContractOrInvoice ? 'max-w-[700px]' : isSms ? 'max-w-[420px] bg-transparent shadow-none' : 'max-w-[600px] bg-white'
+            isContractOrInvoice ? 'max-w-[700px]' : isSms || isRcs ? 'max-w-[420px] bg-transparent shadow-none' : 'max-w-[600px] bg-white'
           }`}>
             {isContractOrInvoice ? (
               <ModalContractInvoicePreview template={template} />
+            ) : isRcs ? (
+              <div className="flex justify-center py-2">
+                <RcsPhonePreview message={parseRcs(template.content)} senderName={template.name} />
+              </div>
             ) : isSms ? (
               template.content?.trim() ? (
                 <div className="flex justify-start p-2">

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Mail, FileText, ScrollText, MessageSquare, ArrowRight } from 'lucide-react';
+import { Mail, FileText, ScrollText, MessageSquare, MessageSquareMore, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +45,15 @@ const TEMPLATE_TYPES = [
     color: 'bg-violet-50 text-violet-600 border-violet-200',
     activeColor: 'bg-violet-100 border-violet-500 ring-2 ring-violet-500',
   },
+  {
+    type: 'rcs',
+    value: 5,
+    label: 'RCS',
+    description: 'Messages riches : cartes, carrousels, boutons',
+    icon: MessageSquareMore,
+    color: 'bg-teal-50 text-teal-600 border-teal-200',
+    activeColor: 'bg-teal-100 border-teal-500 ring-2 ring-teal-500',
+  },
 ];
 
 export default function NewTemplatePage() {
@@ -70,6 +79,8 @@ export default function NewTemplatePage() {
       router.push(`/dashboard/templates/contract-editor?${params.toString()}`);
     } else if (selectedType === 4) {
       router.push(`/dashboard/templates/sms-editor?${params.toString()}`);
+    } else if (selectedType === 5) {
+      router.push(`/dashboard/templates/rcs-editor?${params.toString()}`);
     } else {
       router.push(`/dashboard/templates/editor?${params.toString()}`);
     }

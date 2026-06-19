@@ -440,10 +440,12 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
       FACTURE: "facture",
       CONTRAT: "contrat",
       SMS: "sms",
+      RCS: "rcs",
       "1": "email",
       "2": "facture",
       "3": "contrat",
       "4": "sms",
+      "5": "rcs",
     };
     return map[String(type)] ?? String(type ?? "").toLowerCase();
   }

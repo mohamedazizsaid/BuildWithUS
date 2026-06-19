@@ -18,6 +18,7 @@ import { relativeTime } from './_lib/preview-helpers';
 import { ContractPreview } from './_components/ContractPreview';
 import { InvoicePreview } from './_components/InvoicePreview';
 import { SmsPreview } from './_components/SmsPreview';
+import { RcsPreview } from './_components/RcsPreview';
 import { TemplatePreview } from './_components/TemplatePreview';
 import { DeleteModal } from './_components/DeleteModal';
 import { PreviewModal } from './_components/PreviewModal';
@@ -64,6 +65,7 @@ function TemplatesPageInner() {
     contrat: viewFiltered.filter((t) => TAB_TYPES.contrat.includes(t.type)).length,
     facture: viewFiltered.filter((t) => TAB_TYPES.facture.includes(t.type)).length,
     sms:     viewFiltered.filter((t) => TAB_TYPES.sms.includes(t.type)).length,
+    rcs:     viewFiltered.filter((t) => TAB_TYPES.rcs.includes(t.type)).length,
   };
 
   const handleUsePreset = (presetId: string, presetName: string) => {
@@ -96,6 +98,8 @@ function TemplatesPageInner() {
       router.push(`/dashboard/templates/invoice-editor?${params.toString()}&type=2`);
     } else if (type === 'sms') {
       router.push(`/dashboard/templates/sms-editor?${params.toString()}&type=4`);
+    } else if (type === 'rcs') {
+      router.push(`/dashboard/templates/rcs-editor?${params.toString()}&type=5`);
     } else {
       router.push(`/dashboard/templates/editor?id=${tmpl.id}`);
     }
@@ -260,6 +264,7 @@ function TemplatesPageInner() {
               const isContract = tmpl.type?.toLowerCase() === 'contrat';
               const isInvoice = tmpl.type?.toLowerCase() === 'facture';
               const isSms = tmpl.type?.toLowerCase() === 'sms';
+              const isRcs = tmpl.type?.toLowerCase() === 'rcs';
 
               return (
                 <motion.div
@@ -276,6 +281,8 @@ function TemplatesPageInner() {
                       <InvoicePreview content={tmpl.content} />
                     ) : isSms ? (
                       <SmsPreview content={tmpl.content} />
+                    ) : isRcs ? (
+                      <RcsPreview content={tmpl.content} />
                     ) : (
                       <TemplatePreview content={tmpl.content} type={tmpl.type} />
                     )}

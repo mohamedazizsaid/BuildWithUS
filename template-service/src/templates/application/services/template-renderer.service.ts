@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Template } from '../../domain/entities/template.aggregate.js';
 
-type Channel = 'email' | 'facture' | 'contrat' | 'sms';
+type Channel = 'email' | 'facture' | 'contrat' | 'sms' | 'rcs';
 
 interface RenderResult {
   subject: string;
@@ -45,12 +45,27 @@ export class TemplateRendererService {
       return this.renderSms(resolvedBody, variablesUsed);
     }
 
+    if (channel === 'rcs') {
+      return this.renderRcs(resolvedBody, variablesUsed);
+    }
+
     return this.renderContrat(resolvedBody, format, variablesUsed);
   }
 
   // SMS is text-only: no subject, no HTML. The body is returned verbatim with
   // its {{variables}} already substituted upstream.
   private renderSms(body: string, variablesUsed: string[]): RenderResult {
+    return {
+      subject: '',
+      textBody: body,
+      variablesUsed: [...new Set(variablesUsed)],
+    };
+  }
+
+  // RCS is stored as a JSON payload string. Like SMS, the body is returned
+  // verbatim with its {{variables}} already substituted upstream — the client
+  // parses the JSON to render the rich preview.
+  private renderRcs(body: string, variablesUsed: string[]): RenderResult {
     return {
       subject: '',
       textBody: body,

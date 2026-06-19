@@ -110,7 +110,7 @@ export class TemplateContent {
 }
 
 export class CampaignType {
-  private static readonly VALID_TYPES = ['email', 'facture', 'contrat', 'sms'];
+  private static readonly VALID_TYPES = ['email', 'facture', 'contrat', 'sms', 'rcs'];
 
   private constructor(private readonly value: string) {}
 

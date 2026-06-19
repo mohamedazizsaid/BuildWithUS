@@ -66,16 +66,20 @@ export class UpdateTemplateHandler implements ICommandHandler<UpdateTemplateComm
         if (strChannel === 'EMAIL') return 'email';
         if (strChannel === 'FACTURE') return 'facture';
         if (strChannel === 'CONTRAT') return 'contrat';
-        throw new Error(`Invalid template type: \${channel}. Expected EMAIL (1), FACTURE (2), or CONTRAT (3).`);
+        if (strChannel === 'SMS') return 'sms';
+        if (strChannel === 'RCS') return 'rcs';
+        throw new Error(`Invalid template type: \${channel}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
       }
       const channelMap: Record<number, string> = {
         [TemplateType.EMAIL]: 'email',
         [TemplateType.FACTURE]: 'facture',
         [TemplateType.CONTRAT]: 'contrat',
+        [TemplateType.SMS]: 'sms',
+        [TemplateType.RCS]: 'rcs',
       };
       const mappedChannel = channelMap[channel];
       if (!mappedChannel) {
-        throw new Error(`Invalid template type: \${channel}. Expected EMAIL (1), FACTURE (2), or CONTRAT (3).`);
+        throw new Error(`Invalid template type: \${channel}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
       }
       return mappedChannel;
     }

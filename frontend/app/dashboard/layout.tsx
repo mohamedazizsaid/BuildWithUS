@@ -20,6 +20,7 @@ export default function DashboardLayout({ children }: { readonly children: React
     pathname?.startsWith('/dashboard/templates/contract-editor') ||
     pathname?.startsWith('/dashboard/templates/invoice-editor') ||
     pathname?.startsWith('/dashboard/templates/sms-editor') ||
+    pathname?.startsWith('/dashboard/templates/rcs-editor') ||
     pathname?.startsWith('/dashboard/templates/generate');
 
   // Integration sessions (opened by a third-party tool via /s/<token>) are

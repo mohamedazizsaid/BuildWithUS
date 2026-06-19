@@ -19,6 +19,7 @@ export enum TemplateType {
   FACTURE = 2,
   CONTRAT = 3,
   SMS = 4,
+  RCS = 5,
   UNRECOGNIZED = -1,
 }
 

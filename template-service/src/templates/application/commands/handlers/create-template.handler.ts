@@ -25,7 +25,8 @@ function templateTypeToString(type: TemplateType | string): string {
     if (strType === 'FACTURE') return 'facture';
     if (strType === 'CONTRAT') return 'contrat';
     if (strType === 'SMS') return 'sms';
-    throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), or SMS (4).`);
+    if (strType === 'RCS') return 'rcs';
+    throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
   }
 
   // Handle number representation (enum value)
@@ -38,8 +39,10 @@ function templateTypeToString(type: TemplateType | string): string {
       return 'contrat';
     case TemplateType.SMS:
       return 'sms';
+    case TemplateType.RCS:
+      return 'rcs';
     default:
-      throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), or SMS (4).`);
+      throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
   }
 }
 
@@ -82,6 +85,7 @@ export class CreateTemplateHandler implements ICommandHandler<CreateTemplateComm
         if (strChannel === 'FACTURE') return 'facture';
         if (strChannel === 'CONTRAT') return 'contrat';
         if (strChannel === 'SMS') return 'sms';
+        if (strChannel === 'RCS') return 'rcs';
         throw new Error(`Invalid channel type: \${channel}`);
       }
       const channelMap: Record<number, string> = {
@@ -89,6 +93,7 @@ export class CreateTemplateHandler implements ICommandHandler<CreateTemplateComm
         [TemplateType.FACTURE]: 'facture',
         [TemplateType.CONTRAT]: 'contrat',
         [TemplateType.SMS]: 'sms',
+        [TemplateType.RCS]: 'rcs',
       };
       const mapped = channelMap[channel];
       if (!mapped) {

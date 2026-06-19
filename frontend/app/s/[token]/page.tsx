@@ -6,17 +6,21 @@ import { developers, templates, setEmbedToken, setBuilderReturnUrl } from '@/lib
 
 // Resolve the editor path + query for an "edit" session, matching the editor
 // to the template type like the "new" flow does (2 = facture, 3 = contrat,
-// 4 = sms, else email). Falls back to the email editor if the read fails.
+// 4 = sms, 5 = rcs, else email). Falls back to the email editor if the read fails.
 async function resolveEditDestination(templateId: string): Promise<string> {
   let route = 'editor';
   const params = new URLSearchParams({ id: templateId });
   try {
     const res = await templates.get(templateId);
     const template = res?.template ?? res;
+    // type may arrive as a number (5) or a string ('rcs') depending on the read
+    // path — match both so editor routing is robust.
     const t = Number(template?.type);
-    if (t === 4) route = 'sms-editor';
-    else if (t === 2) route = 'invoice-editor';
-    else if (t === 3) route = 'contract-editor';
+    const ts = String(template?.type ?? '').toLowerCase();
+    if (t === 4 || ts === 'sms') route = 'sms-editor';
+    else if (t === 5 || ts === 'rcs') route = 'rcs-editor';
+    else if (t === 2 || ts === 'facture') route = 'invoice-editor';
+    else if (t === 3 || ts === 'contrat') route = 'contract-editor';
     params.set('name', template?.name ?? '');
     params.set('description', template?.description ?? '');
     params.set('type', String(template?.type ?? ''));
