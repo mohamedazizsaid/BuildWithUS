@@ -15,8 +15,9 @@ set -euo pipefail
 cd "$(dirname "$0")"                       # -> infra/
 COMPOSE="docker compose -f docker-compose.prod.yml"
 
-echo "==> git pull"
-git -C .. pull
+echo "==> sync to origin/main (mirror — the server never keeps local commits)"
+git -C .. fetch origin
+git -C .. reset --hard origin/main
 
 TARGET="${1:-frontend}"
 if [ "$TARGET" = "all" ]; then
