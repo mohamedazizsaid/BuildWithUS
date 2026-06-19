@@ -217,12 +217,29 @@ function EditorContent() {
   const generateMjml = useCallback((override?: TemplateData) => {
     const src = override ?? editorState.template;
     const { rows, globalStyles } = src;
-    let mjml = `<mjml>\n  <mj-body background-color="${globalStyles.bodyColor}" width="${globalStyles.width}">\n`;
+    let mjml = `<mjml>\n`;
+    if (globalStyles.customHead && globalStyles.customHead.trim()) {
+      const head = globalStyles.customHead
+        .split("\n")
+        .map((line) => (line.trim() ? `    ${line}` : line))
+        .join("\n");
+      mjml += `  <mj-head>\n${head}\n  </mj-head>\n`;
+    }
+    mjml += `  <mj-body background-color="${globalStyles.bodyColor}" width="${globalStyles.width}">\n`;
 
     for (const row of rows) {
-      mjml += `    <mj-section background-color="${row.styles.backgroundColor}" padding="${row.styles.padding}">\n`;
+      const secRadius = row.styles.borderRadius ? ` border-radius="${row.styles.borderRadius}"` : "";
+      mjml += `    <mj-section background-color="${row.styles.backgroundColor}" padding="${row.styles.padding}"${secRadius}>\n`;
       for (const col of row.columns) {
-        mjml += `      <mj-column width="${col.width}">\n`;
+        const cs = col.styles || {};
+        const colAttrs = [
+          cs.backgroundColor ? ` background-color="${cs.backgroundColor}"` : "",
+          cs.border ? ` border="${cs.border}"` : "",
+          cs.borderRadius ? ` border-radius="${cs.borderRadius}"` : "",
+          cs.padding ? ` padding="${cs.padding}"` : "",
+          cs.verticalAlign ? ` vertical-align="${cs.verticalAlign}"` : "",
+        ].join("");
+        mjml += `      <mj-column width="${col.width}"${colAttrs}>\n`;
         for (const block of col.blocks) {
           mjml += blockToMjml(block, globalStyles);
         }

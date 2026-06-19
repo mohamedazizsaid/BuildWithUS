@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
-  ArrowLeft, Save, MessageSquareMore, Plus, Loader2, Check, CloudOff, Upload, X, Sparkles,
+  ArrowLeft, Save, MessageSquareMore, Plus, Loader2, Check, CloudOff, Upload, X, Braces,
   Type as TypeIcon, Image as ImageIcon, GalleryHorizontalEnd, Trash2, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -260,7 +260,7 @@ function RcsEditorContent() {
             <ArrowLeft size={15} /> {isEmbed ? 'Fermer' : 'Retour'}
           </button>
           <div className="w-px h-4 bg-border" />
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border bg-teal-50 text-teal-600 border-teal-200">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-border bg-muted text-foreground">
             <MessageSquareMore size={12} /> RCS
           </span>
           <SaveStatusIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
@@ -282,10 +282,10 @@ function RcsEditorContent() {
         {/* Left rail — variables + import */}
         <aside className="w-64 border-r border-border bg-white overflow-y-auto p-4 shrink-0">
           <div className="flex items-center gap-1.5 mb-2">
-            <Sparkles size={12} className="text-teal-500" />
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Variables</span>
+            <Braces size={12} className="text-muted-foreground" />
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Variables</span>
           </div>
-          <p className="text-[11px] text-slate-400 mb-3 leading-snug">
+          <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
             Cliquez dans un champ, puis insérez une variable — ou glissez-la directement.
           </p>
           <div className="space-y-1.5">
@@ -295,10 +295,10 @@ function RcsEditorContent() {
                 draggable
                 onDragStart={(e) => startVariableDrag(e, v.name)}
                 onClick={() => insertVariable(v.name)}
-                className="group w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:border-teal-400 hover:text-teal-700 hover:bg-teal-50 transition-colors cursor-grab active:cursor-grabbing"
+                className="group w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs rounded-md border border-border text-foreground/80 hover:border-foreground/30 hover:bg-accent transition-colors cursor-grab active:cursor-grabbing"
               >
                 <span className="truncate font-medium">{v.label}</span>
-                <span className="flex items-center gap-1 text-[10px] text-slate-400 group-hover:text-teal-500">
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground group-hover:text-foreground">
                   <code>{`{{${v.name}}}`}</code> <Plus size={11} />
                 </span>
               </button>
@@ -308,10 +308,10 @@ function RcsEditorContent() {
           <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.ods,.tsv,.txt" className="hidden" onChange={handleFile} />
           <div className="mt-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Importer</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Importer</span>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border border-emerald-200 transition-colors"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold text-foreground/70 hover:text-foreground hover:bg-accent border border-border transition-colors"
               >
                 <Upload size={9} /> Fichier
               </button>
@@ -319,25 +319,25 @@ function RcsEditorContent() {
             {!imported ? (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex flex-col items-center gap-1.5 py-4 rounded-lg border border-dashed border-slate-200 text-slate-400 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50/50 transition-colors"
+                className="w-full flex flex-col items-center gap-1.5 py-4 rounded-md border border-dashed border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground hover:bg-accent transition-colors"
               >
                 <Upload size={16} />
                 <span className="text-[10px] leading-snug text-center px-2">Importez un CSV / Excel<br />pour utiliser ses colonnes</span>
               </button>
             ) : (
-              <div className="rounded-lg border border-emerald-200 bg-white overflow-hidden">
-                <div className="px-2.5 py-1.5 bg-emerald-50 border-b border-emerald-200 flex items-center gap-1.5">
-                  <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded shrink-0">{imported.headers.length}</span>
-                  <span className="text-[10px] font-semibold text-emerald-800 truncate flex-1" title={imported.filename}>{imported.filename}</span>
-                  <button onClick={() => setImported(null)} title="Retirer le fichier" className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-emerald-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+              <div className="rounded-md border border-border bg-background overflow-hidden">
+                <div className="px-2.5 py-1.5 bg-muted border-b border-border flex items-center gap-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-foreground bg-background border border-border px-1.5 py-0.5 rounded shrink-0">{imported.headers.length}</span>
+                  <span className="text-[10px] font-semibold text-foreground truncate flex-1" title={imported.filename}>{imported.filename}</span>
+                  <button onClick={() => setImported(null)} title="Retirer le fichier" className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors">
                     <X size={10} />
                   </button>
                 </div>
                 <div className="p-1.5 space-y-0.5">
                   {imported.headers.map((h) => (
                     <button key={h} draggable onDragStart={(e) => startVariableDrag(e, h)} onClick={() => insertVariable(h)}
-                      className="w-full flex items-center px-2 py-1.5 rounded-md hover:bg-emerald-50 transition-colors cursor-grab active:cursor-grabbing">
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">{`{{${h}}}`}</span>
+                      className="w-full flex items-center px-2 py-1.5 rounded-md hover:bg-accent transition-colors cursor-grab active:cursor-grabbing">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-muted text-foreground border border-border">{`{{${h}}}`}</span>
                     </button>
                   ))}
                 </div>
@@ -347,10 +347,10 @@ function RcsEditorContent() {
 
           {usedVariables.length > 0 && (
             <div className="mt-5">
-              <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">Utilisées ({usedVariables.length})</div>
+              <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-2">Utilisées ({usedVariables.length})</div>
               <div className="flex flex-wrap gap-1.5">
                 {usedVariables.map((v) => (
-                  <span key={v} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-700 border border-teal-200">{`{{${v}}}`}</span>
+                  <span key={v} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-foreground border border-border">{`{{${v}}}`}</span>
                 ))}
               </div>
             </div>
@@ -358,17 +358,17 @@ function RcsEditorContent() {
         </aside>
 
         {/* Center — form */}
-        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 to-slate-100">
+        <div className="flex-1 overflow-y-auto bg-muted/40">
           <div className="mx-auto max-w-4xl px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
             <div className="min-w-0 space-y-4">
               {/* Message-type switch */}
-              <div className="flex gap-1 p-1 rounded-xl bg-white border border-slate-200 shadow-sm">
+              <div className="flex gap-1 p-1 rounded-lg bg-background border border-border">
                 {MESSAGE_TYPE_TABS.map((t) => (
                   <button
                     key={t.value}
                     onClick={() => switchType(t.value)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg text-xs font-semibold transition-all ${
-                      message.messageType === t.value ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                    className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-md text-xs font-semibold transition-colors ${
+                      message.messageType === t.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'
                     }`}
                   >
                     <t.icon size={14} /> {t.label}
@@ -385,7 +385,7 @@ function RcsEditorContent() {
                     {...register((v) => patch({ text: v }))}
                     placeholder={message.messageType === 'text' ? 'Bonjour {{firstName}}, …' : 'Texte d’accompagnement (optionnel)'}
                     rows={message.messageType === 'text' ? 6 : 3}
-                    className="w-full resize-y rounded-lg border border-slate-200 p-3 text-sm leading-relaxed text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-400 placeholder:text-slate-300"
+                    className="w-full resize-y rounded-lg border border-slate-200 p-3 text-sm leading-relaxed text-slate-800 focus:outline-none focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10 placeholder:text-slate-300"
                   />
                 </Section>
               )}
@@ -397,7 +397,7 @@ function RcsEditorContent() {
                     <span className="text-xs text-slate-500">Orientation</span>
                     {(['vertical', 'horizontal'] as const).map((o) => (
                       <button key={o} onClick={() => patch({ cardOrientation: o })}
-                        className={`px-2.5 h-7 rounded-md text-xs font-medium transition-all ${message.cardOrientation === o ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                        className={`px-2.5 h-7 rounded-md text-xs font-medium transition-all ${message.cardOrientation === o ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
                         {o === 'vertical' ? 'Verticale' : 'Horizontale'}
                       </button>
                     ))}
@@ -413,20 +413,20 @@ function RcsEditorContent() {
                     <span className="text-xs text-slate-500">Largeur des cartes</span>
                     {(['small', 'medium'] as const).map((w) => (
                       <button key={w} onClick={() => patch({ cardWidth: w })}
-                        className={`px-2.5 h-7 rounded-md text-xs font-medium transition-all ${message.cardWidth === w ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                        className={`px-2.5 h-7 rounded-md text-xs font-medium transition-all ${message.cardWidth === w ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
                         {w === 'small' ? 'Petite' : 'Moyenne'}
                       </button>
                     ))}
                   </div>
                   <div className="space-y-3">
                     {message.cards.map((c, i) => (
-                      <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3">
+                      <div key={i} className="rounded-lg border border-border bg-muted/40 p-3">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Carte {i + 1}</span>
+                          <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Carte {i + 1}</span>
                           <div className="flex items-center gap-0.5">
-                            <button onClick={() => moveCard(i, -1)} disabled={i === 0} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:bg-slate-200 disabled:opacity-30"><ChevronUp size={13} /></button>
-                            <button onClick={() => moveCard(i, 1)} disabled={i === message.cards.length - 1} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:bg-slate-200 disabled:opacity-30"><ChevronDown size={13} /></button>
-                            <button onClick={() => removeCard(i)} disabled={message.cards.length <= RCS_LIMITS.carouselMin} title="Supprimer" className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30"><Trash2 size={12} /></button>
+                            <button onClick={() => moveCard(i, -1)} disabled={i === 0} className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"><ChevronUp size={13} /></button>
+                            <button onClick={() => moveCard(i, 1)} disabled={i === message.cards.length - 1} className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"><ChevronDown size={13} /></button>
+                            <button onClick={() => removeCard(i)} disabled={message.cards.length <= RCS_LIMITS.carouselMin} title="Supprimer" className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-red-500 hover:bg-red-50 disabled:opacity-30"><Trash2 size={12} /></button>
                           </div>
                         </div>
                         <CardEditor card={c} onChange={(next) => setCardAt(i, next)} register={register} />
@@ -436,11 +436,11 @@ function RcsEditorContent() {
                   <button
                     onClick={addCard}
                     disabled={message.cards.length >= RCS_LIMITS.carouselMax}
-                    className="mt-3 w-full h-9 rounded-lg border border-dashed border-teal-300 text-xs font-medium text-teal-600 hover:bg-teal-50 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    className="mt-3 w-full h-9 rounded-md border border-dashed border-border text-xs font-medium text-foreground/70 hover:bg-accent hover:border-foreground/30 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
                   >
                     <Plus size={14} /> Ajouter une carte
                   </button>
-                  <p className="mt-1.5 text-[10px] text-slate-400">{RCS_LIMITS.carouselMin}–{RCS_LIMITS.carouselMax} cartes. Les boutons se définissent par carte.</p>
+                  <p className="mt-1.5 text-[10px] text-muted-foreground">{RCS_LIMITS.carouselMin}–{RCS_LIMITS.carouselMax} cartes. Les boutons se définissent par carte.</p>
                 </Section>
               )}
 
@@ -472,8 +472,8 @@ function RcsEditorContent() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
-      <h3 className="text-sm font-semibold text-slate-700 mb-3">{title}</h3>
+    <div className="rounded-lg border border-border bg-background p-4">
+      <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
       {children}
     </div>
   );
@@ -507,7 +507,7 @@ function CardEditor({ card, onChange, register }: { card: RcsCard; onChange: (ne
             value={card.media?.url ?? ''}
             onChange={(e) => onChange({ ...card, media: { url: e.target.value, height: card.media?.height ?? 'medium' } })}
             placeholder="https://…"
-            className="h-8 flex-1 rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
+            className="h-8 flex-1 rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
           />
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
@@ -520,7 +520,7 @@ function CardEditor({ card, onChange, register }: { card: RcsCard; onChange: (ne
           <span className="text-[10px] text-slate-400">Hauteur</span>
           {(['short', 'medium', 'tall'] as const).map((h) => (
             <button key={h} onClick={() => onChange({ ...card, media: { url: card.media?.url ?? '', height: h } })}
-              className={`px-2 h-6 rounded text-[10px] font-medium transition-all ${(card.media?.height ?? 'medium') === h ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+              className={`px-2 h-6 rounded text-[10px] font-medium transition-all ${(card.media?.height ?? 'medium') === h ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
               {h === 'short' ? 'Petite' : h === 'medium' ? 'Moyenne' : 'Grande'}
             </button>
           ))}
@@ -536,7 +536,7 @@ function CardEditor({ card, onChange, register }: { card: RcsCard; onChange: (ne
           {...register((v) => onChange({ ...card, title: v }))}
           maxLength={RCS_LIMITS.cardTitle}
           placeholder="Titre de la carte"
-          className="h-8 w-full mt-1 rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
+          className="h-8 w-full mt-1 rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
         />
       </div>
 
@@ -550,7 +550,7 @@ function CardEditor({ card, onChange, register }: { card: RcsCard; onChange: (ne
           rows={3}
           maxLength={RCS_LIMITS.cardDescription}
           placeholder="Description…"
-          className="w-full mt-1 resize-y rounded-md border border-slate-200 p-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
+          className="w-full mt-1 resize-y rounded-md border border-slate-200 p-2 text-xs focus:outline-none focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
         />
       </div>
 
@@ -583,7 +583,7 @@ function SuggestionsEditor({
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-medium text-slate-500">{label} <span className="text-slate-300">({suggestions.length}/{max})</span></span>
-        <button onClick={add} disabled={suggestions.length >= max} className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 font-medium disabled:opacity-40">
+        <button onClick={add} disabled={suggestions.length >= max} className="flex items-center gap-1 text-xs text-foreground hover:text-foreground/70 font-medium disabled:opacity-40">
           <Plus size={12} /> Ajouter
         </button>
       </div>
@@ -594,7 +594,7 @@ function SuggestionsEditor({
               <select
                 value={s.type}
                 onChange={(e) => setAt(i, normalizeSuggestion(e.target.value as RcsSuggestionType, s))}
-                className="h-7 rounded-md border border-slate-200 text-xs px-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400"
+                className="h-7 rounded-md border border-slate-200 text-xs px-1.5 bg-white focus:outline-none focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
               >
                 <option value="reply">Réponse</option>
                 <option value="openUrl">Ouvrir un lien</option>
@@ -605,7 +605,7 @@ function SuggestionsEditor({
                 onChange={(e) => setAt(i, { text: e.target.value })}
                 {...register((v) => setAt(i, { text: v }))}
                 placeholder="Libellé"
-                className="h-7 flex-1 rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
+                className="h-7 flex-1 rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
               />
               <button onClick={() => remove(i)} title="Supprimer" className="w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 shrink-0">
                 <X size={12} />
@@ -618,7 +618,7 @@ function SuggestionsEditor({
                 {...register((v) => setAt(i, { url: v }))}
                 onBlur={(e) => { const val = e.target.value.trim(); if (val && !/^https?:\/\//.test(val)) setAt(i, { url: `https://${val}` }); }}
                 placeholder="https://…"
-                className="h-7 w-full rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
+                className="h-7 w-full rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
               />
             )}
             {s.type === 'dial' && (
@@ -627,7 +627,7 @@ function SuggestionsEditor({
                 onChange={(e) => setAt(i, { phone: e.target.value })}
                 {...register((v) => setAt(i, { phone: v }))}
                 placeholder="+216 …"
-                className="h-7 w-full rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
+                className="h-7 w-full rounded-md border border-slate-200 px-2 text-xs focus:outline-none focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
               />
             )}
           </div>

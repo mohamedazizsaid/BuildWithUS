@@ -32,6 +32,16 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
     case 'text': {
       const textValue = (block.content.text as string) || '';
       const textEmpty = !textValue.trim();
+      // Spacer / color bar: an mj-text with an explicit height whose only content
+      // is whitespace/&nbsp;. Render it as a thin fixed-height bar (the colour
+      // comes from the wrapper's background) instead of a full-line-height row.
+      const isSpacerBar =
+        !!block.styles.height &&
+        block.styles.height !== 'auto' &&
+        textValue.replace(/&nbsp;|&#160;| |\s/g, '') === '';
+      if (isSpacerBar) {
+        return <div style={{ height: block.styles.height, fontSize: 0, lineHeight: 0 }} />;
+      }
       return (
         <div style={{
           fontSize: resolveFontSize(block.styles.fontSize),
@@ -42,6 +52,7 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
           textAlign: block.styles.textAlign as React.CSSProperties['textAlign'],
           lineHeight: block.styles.lineHeight || 'inherit',
           letterSpacing: block.styles.letterSpacing || 'inherit',
+          minHeight: block.styles.height && block.styles.height !== 'auto' ? block.styles.height : undefined,
         }}
         dangerouslySetInnerHTML={{ __html: textEmpty ? 'Saisissez votre texte' : textValue }}
         />
@@ -291,11 +302,11 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
       }
       return (
         <div style={{ padding: block.styles.padding || '10px', display: 'flex', flexDirection: 'column', gap: spacing }}>
-          {items.map(([glyph, text], i) => {
+          {items.map(([glyph, text, itemColor], i) => {
             const empty = !(text || '').trim();
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: justify, gap: '8px' }}>
-                <span style={{ color: iconColor, fontSize: iconSize, lineHeight: 1.4, flexShrink: 0 }}>{glyph || '•'}</span>
+                <span style={{ color: itemColor || iconColor, fontSize: iconSize, lineHeight: 1.4, flexShrink: 0 }}>{glyph || '•'}</span>
                 <span style={{ color: empty ? '#9ca3af' : color, fontSize, fontWeight, fontFamily, lineHeight: 1.4 }}>{empty ? 'Votre texte' : text}</span>
               </div>
             );

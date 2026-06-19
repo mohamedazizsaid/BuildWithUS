@@ -20,6 +20,10 @@ export interface BlockData {
 export interface Column {
   id: string;
   width: string;
+  // Optional column-level styling carried over from mj-column attributes
+  // (background-color, border, border-radius, padding, vertical-align). Lets
+  // imported "card" layouts keep their box around the blocks.
+  styles?: Record<string, string>;
   blocks: BlockData[];
 }
 
@@ -45,6 +49,10 @@ export interface GlobalStyles {
   backgroundSize: string; // cover | contain | repeat
   // Header
   showBrowserLink: boolean;
+  // Raw <mj-head> content (mj-title / mj-preview / mj-style) carried verbatim
+  // from imported MJML so custom CSS, @media rules and preview text survive a
+  // round-trip through the canvas. Empty when there's nothing to preserve.
+  customHead: string;
   // Text styles
   fontFamily: string;
   fontSize: string;
@@ -182,6 +190,7 @@ export const DEFAULT_GLOBAL_STYLES: GlobalStyles = {
   backgroundSize: 'cover',
   // Header
   showBrowserLink: false,
+  customHead: '',
   // Text
   fontFamily: 'Verdana, sans-serif',
   fontSize: '16px',

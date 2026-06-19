@@ -27,6 +27,71 @@ export function normalizeMjml(mjml: string): string {
   return s;
 }
 
+/**
+ * Pull what we can use out of <mj-head> BEFORE it's stripped for XML parsing:
+ *  - `customHead`: raw mj-title / mj-preview / mj-style kept verbatim for round-trip
+ *  - `attrDefaults`: mj-attributes defaults (mj-all / mj-text / mj-button) by tag
+ * Done with regex (not the XML parser) so a stray `>`/`{` inside mj-style CSS
+ * can never break the whole import.
+ */
+export function extractHead(mjml: string): {
+  customHead: string;
+  attrDefaults: Record<string, Record<string, string>>;
+} {
+  const headMatch = mjml.match(/<mj-head\b[^>]*>([\s\S]*?)<\/mj-head>/i);
+  if (!headMatch) return { customHead: '', attrDefaults: {} };
+  const head = headMatch[1];
+
+  const keep: string[] = [];
+  for (const re of [
+    /<mj-title\b[\s\S]*?<\/mj-title>/gi,
+    /<mj-preview\b[\s\S]*?<\/mj-preview>/gi,
+    /<mj-style\b[\s\S]*?<\/mj-style>/gi,
+  ]) {
+    for (const m of head.matchAll(re)) keep.push(m[0].trim());
+  }
+
+  const attrDefaults: Record<string, Record<string, string>> = {};
+  const attrsBlock = head.match(/<mj-attributes\b[^>]*>([\s\S]*?)<\/mj-attributes>/i);
+  if (attrsBlock) {
+    for (const tagMatch of attrsBlock[1].matchAll(/<(mj-[a-z-]+)\b([^>]*?)\/?>/gi)) {
+      const tagName = tagMatch[1].toLowerCase();
+      const attrs: Record<string, string> = attrDefaults[tagName] || {};
+      for (const a of tagMatch[2].matchAll(/([a-z-]+)="([^"]*)"/gi)) {
+        attrs[a[1].toLowerCase()] = a[2];
+      }
+      attrDefaults[tagName] = attrs;
+    }
+  }
+
+  return { customHead: keep.join('\n'), attrDefaults };
+}
+
+// Fold mj-attributes defaults into the global styles so blocks that rely on
+// document-level defaults (rather than per-element attributes) still look right.
+function applyAttrDefaults(
+  gs: GlobalStyles,
+  d: Record<string, Record<string, string>>,
+): GlobalStyles {
+  const out = { ...gs };
+  const all = d['mj-all'] || {};
+  const text = d['mj-text'] || {};
+  const btn = d['mj-button'] || {};
+  if (all['font-family']) out.fontFamily = all['font-family'];
+  if (text['font-family']) out.fontFamily = text['font-family'];
+  if (text['color']) out.textColor = text['color'];
+  if (text['font-size']) out.fontSize = text['font-size'];
+  if (text['line-height']) out.lineHeight = text['line-height'];
+  if (text['font-weight']) out.fontWeight = text['font-weight'];
+  if (btn['background-color']) out.btnBackgroundColor = btn['background-color'];
+  if (btn['color']) out.btnFontColor = btn['color'];
+  if (btn['font-size']) out.btnFontSize = btn['font-size'];
+  if (btn['font-family']) out.btnFontFamily = btn['font-family'];
+  if (btn['font-weight']) out.btnFontWeight = btn['font-weight'];
+  if (btn['border-radius']) out.btnBorderRadius = btn['border-radius'];
+  return out;
+}
+
 function sanitizeMjmlForXml(mjml: string): { sanitized: string; textMap: Map<string, string> } {
   const textMap = new Map<string, string>();
   let counter = 0;
@@ -60,6 +125,18 @@ function parseBorderAttr(border: string): Record<string, string> {
   return {};
 }
 
+// Pull the first hex colour out of a marker cell's inline styles (the coloured
+// dot's background/color), so a bullet list keeps roughly the right icon colour.
+function extractMarkerColor(td: Element | null): string {
+  if (!td) return "";
+  const styled = td.querySelector("[style]") || td;
+  const style = styled.getAttribute("style") || "";
+  const m =
+    style.match(/background-color:\s*(#[0-9a-fA-F]{3,8})/) ||
+    style.match(/(?:^|[;\s])color:\s*(#[0-9a-fA-F]{3,8})/);
+  return m ? m[1] : "";
+}
+
 function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, string>): BlockData | null {
   const id = uuid();
 
@@ -87,8 +164,16 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
     if (ilMatch) {
       const items: string[][] = [];
       for (const tr of text.matchAll(/<tr>([\s\S]*?)<\/tr>/g)) {
-        const tds = [...tr[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].trim());
-        if (tds.length >= 2) items.push([tds[0], tds[1]]);
+        const cells = [...tr[1].matchAll(/<td([^>]*)>([\s\S]*?)<\/td>/g)];
+        if (cells.length >= 2) {
+          const glyph = cells[0][2].trim();
+          const cellText = cells[1][2].trim();
+          // Per-item icon colour, if the glyph cell carries its own `color:` —
+          // falls back to the block-level iconColor when absent.
+          const colorMatch = cells[0][1].match(/color:\s*(#[0-9a-fA-F]{3,8})/);
+          const itemColor = colorMatch ? colorMatch[1] : "";
+          items.push(itemColor && itemColor !== ilMatch[2] ? [glyph, cellText, itemColor] : [glyph, cellText]);
+        }
       }
       return {
         id,
@@ -149,6 +234,7 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
         fontFamily: el.getAttribute("font-family") || "",
         lineHeight: el.getAttribute("line-height") || "",
         letterSpacing: el.getAttribute("letter-spacing") || "",
+        height: el.getAttribute("height") || "",
       },
     };
   }
@@ -235,27 +321,65 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
   }
 
   if (tag === "mj-table") {
-    const html = el.innerHTML;
-    const headerMatch = html.match(/<tr>(.*?)<\/tr>/);
+    // Walk the parsed XML rather than regex-matching innerHTML: cells in pasted
+    // MJML routinely span multiple lines or wrap inline markup, which the old
+    // single-line regex silently dropped. Only treat the first row as a header
+    // when it actually uses <th>; otherwise every row is data (so we never lose
+    // the first row of a header-less table — e.g. a bullet list built as a table).
+    const trEls = Array.from(el.querySelectorAll("tr"));
     const headers: string[] = [];
     const rows: string[][] = [];
+    const firstHasTh = trEls.length > 0 && trEls[0].querySelector("th") !== null;
 
-    if (headerMatch) {
-      const thMatches = headerMatch[1].matchAll(/<th[^>]*>(.*?)<\/th>/g);
-      for (const m of thMatches) headers.push(m[1]);
-    }
-
-    const allRows = html.matchAll(/<tr>(.*?)<\/tr>/g);
-    let first = true;
-    for (const rowMatch of allRows) {
-      if (first) {
-        first = false;
-        continue;
+    trEls.forEach((tr, idx) => {
+      if (idx === 0 && firstHasTh) {
+        for (const th of Array.from(tr.querySelectorAll("th"))) {
+          headers.push((th.textContent || "").trim());
+        }
+        return;
       }
-      const cells: string[] = [];
-      const tdMatches = rowMatch[1].matchAll(/<td[^>]*>(.*?)<\/td>/g);
-      for (const m of tdMatches) cells.push(m[1]);
+      const cells = Array.from(tr.querySelectorAll("td")).map((td) => (td.textContent || "").trim());
       if (cells.length) rows.push(cells);
+    });
+
+    // Auto-detect a "bullet list built as a 2-column table": no <th>, every row
+    // has exactly two cells, and the first cell of every row is just a coloured
+    // marker (no real text). Import it as the builder's native icon-list so it
+    // renders as bullets instead of a table showing a literal "&nbsp;".
+    const isMarkerCell = (td: Element | null) =>
+      !!td && (td.textContent || "").replace(/ |&nbsp;|\s/g, "") === "";
+    const looksLikeBulletList =
+      !firstHasTh &&
+      !el.getAttribute("css-class") &&
+      trEls.length > 0 &&
+      trEls.every((tr) => {
+        const tds = tr.querySelectorAll("td");
+        return tds.length === 2 && isMarkerCell(tds[0]) && !isMarkerCell(tds[1]);
+      });
+
+    if (looksLikeBulletList) {
+      const items: string[][] = trEls.map((tr) => {
+        const tds = tr.querySelectorAll("td");
+        const rowColor = extractMarkerColor(tds[0]);
+        const text = (tds[1].textContent || "").trim();
+        return rowColor ? ["●", text, rowColor] : ["●", text];
+      });
+      const markerColor = extractMarkerColor(trEls[0].querySelectorAll("td")[0]) || "#16a34a";
+      return {
+        id,
+        type: "icon-list",
+        content: { items, align: "left" },
+        styles: {
+          padding: el.getAttribute("padding") || "10px",
+          spacing: "12px",
+          iconColor: markerColor,
+          iconSize: "14px",
+          color: el.getAttribute("color") || "",
+          fontSize: el.getAttribute("font-size") || "",
+          fontWeight: "",
+          fontFamily: "",
+        },
+      };
     }
 
     const tbClass = el.getAttribute("css-class") || "";
@@ -291,6 +415,7 @@ export function parseMjmlToTemplate(
   mjml: string,
   currentGlobalStyles: GlobalStyles,
 ): { rows: Row[]; globalStyles: GlobalStyles } | null {
+  const head = extractHead(mjml);
   const { sanitized, textMap } = sanitizeMjmlForXml(normalizeMjml(mjml));
   const parser = new DOMParser();
   const doc = parser.parseFromString(sanitized, "text/xml");
@@ -304,7 +429,8 @@ export function parseMjmlToTemplate(
   const body = doc.querySelector("mj-body");
   if (!body) return null;
 
-  const globalStyles = { ...currentGlobalStyles };
+  const globalStyles = applyAttrDefaults({ ...currentGlobalStyles }, head.attrDefaults);
+  globalStyles.customHead = head.customHead;
   const bgColor = body.getAttribute("background-color");
   const width = body.getAttribute("width");
   if (bgColor) globalStyles.bodyColor = bgColor;
@@ -327,9 +453,25 @@ export function parseMjmlToTemplate(
         if (block) blocks.push(block);
       }
 
+      // Preserve column-level styling (card backgrounds, borders, rounding)
+      // that the old parser discarded — this is what made imported "pricing
+      // card" columns collapse to plain text.
+      const colStyles: Record<string, string> = {};
+      const colBg = mjCol.getAttribute("background-color");
+      const colBorder = mjCol.getAttribute("border");
+      const colRadius = mjCol.getAttribute("border-radius");
+      const colPadding = mjCol.getAttribute("padding");
+      const colVAlign = mjCol.getAttribute("vertical-align");
+      if (colBg) colStyles.backgroundColor = colBg;
+      if (colBorder) colStyles.border = colBorder;
+      if (colRadius) colStyles.borderRadius = colRadius;
+      if (colPadding) colStyles.padding = colPadding;
+      if (colVAlign) colStyles.verticalAlign = colVAlign;
+
       columns.push({
         id: uuid(),
         width: mjCol.getAttribute("width") || `${(100 / colCount).toFixed(2)}%`,
+        ...(Object.keys(colStyles).length ? { styles: colStyles } : {}),
         blocks,
       });
     });
@@ -339,15 +481,19 @@ export function parseMjmlToTemplate(
     else if (colCount === 3) layout = "33-33-33";
     else if (colCount === 4) layout = "25-25-25-25";
 
+    const rowStyles: Record<string, string> = {
+      backgroundColor:
+        section.getAttribute("background-color") || "transparent",
+      padding: section.getAttribute("padding") || "10px 0",
+    };
+    const sectionRadius = section.getAttribute("border-radius");
+    if (sectionRadius) rowStyles.borderRadius = sectionRadius;
+
     rows.push({
       id: uuid(),
       layout: layout as Row["layout"],
       columns,
-      styles: {
-        backgroundColor:
-          section.getAttribute("background-color") || "transparent",
-        padding: section.getAttribute("padding") || "10px 0",
-      },
+      styles: rowStyles,
     });
   });
 

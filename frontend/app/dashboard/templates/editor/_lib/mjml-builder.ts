@@ -27,7 +27,8 @@ export function blockToMjml(block: BlockData, g: GlobalStyles) {
       if (isItalic) markers.push('italic');
       if (isUnderline) markers.push('underline');
       const cssClass = markers.length > 0 ? ` css-class="${markers.join(' ')}"` : '';
-      return `        <mj-text font-size="${fontSize}" font-weight="${fontWeight}" color="${color}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${fontFamily}" line-height="${lineHeight}" letter-spacing="${letterSpacing}"${bg}${cssClass}>${textContent}</mj-text>\n`;
+      const txtHeight = block.styles.height && block.styles.height !== 'auto' ? ` height="${block.styles.height}"` : '';
+      return `        <mj-text font-size="${fontSize}" font-weight="${fontWeight}" color="${color}" align="${block.styles.textAlign}" padding="${block.styles.padding}" font-family="${fontFamily}" line-height="${lineHeight}" letter-spacing="${letterSpacing}"${bg}${cssClass}${txtHeight}>${textContent}</mj-text>\n`;
     }
     case "image": {
       const imgBr = block.styles.borderRadius || '0px';
@@ -139,9 +140,9 @@ export function blockToMjml(block: BlockData, g: GlobalStyles) {
       const ilPad = block.styles.padding || '10px';
       const tableMargin = ilAlign === 'center' ? 'margin:0 auto' : ilAlign === 'right' ? 'margin-left:auto' : 'margin-right:auto';
       let rowsHtml = '';
-      items.forEach(([glyph, text], i) => {
+      items.forEach(([glyph, text, itemColor], i) => {
         const pb = i < items.length - 1 ? spacing : '0';
-        rowsHtml += `<tr><td style="vertical-align:top;padding:0 8px ${pb} 0;color:${iconColor};font-size:${iconSize};line-height:1.4;white-space:nowrap">${glyph || '&bull;'}</td><td style="vertical-align:top;padding:0 0 ${pb} 0;line-height:1.4">${text || ''}</td></tr>`;
+        rowsHtml += `<tr><td style="vertical-align:top;padding:0 8px ${pb} 0;color:${itemColor || iconColor};font-size:${iconSize};line-height:1.4;white-space:nowrap">${glyph || '&bull;'}</td><td style="vertical-align:top;padding:0 0 ${pb} 0;line-height:1.4">${text || ''}</td></tr>`;
       });
       // Round-trip marker: iconlist:align:iconColor:iconSize:spacing(no px)
       const marker = `iconlist:${ilAlign}:${iconColor}:${iconSize}:${spacing.replace(/px$/, '')}`;
@@ -175,6 +176,12 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
       const txtBg = block.styles.backgroundColor ? `background-color:${block.styles.backgroundColor};` : '';
       const txtItalic = block.styles.fontStyle === 'italic' ? 'font-style:italic;' : '';
       const txtUnderline = block.styles.textDecoration === 'underline' ? 'text-decoration:underline;' : '';
+      const rawTxt = (block.content.text as string) || '';
+      const isSpacerBar = block.styles.height && block.styles.height !== 'auto'
+        && rawTxt.replace(/&nbsp;|&#160;| |\s/g, '') === '';
+      if (isSpacerBar) {
+        return `<div style="${txtBg}height:${block.styles.height};font-size:0;line-height:0"></div>`;
+      }
       return `<div style="${txtBg}${txtItalic}${txtUnderline}font-size:${fontSize};font-weight:${fontWeight};font-family:${fontFamily};color:${color};text-align:${block.styles.textAlign};padding:${block.styles.padding};line-height:${lineHeight};letter-spacing:${letterSpacing}">${block.content.text}</div>`;
     }
     case "image": {
@@ -271,9 +278,9 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
       const ilFontWeight = block.styles.fontWeight || globalStyles.fontWeight;
       const ilFontFamily = block.styles.fontFamily || globalStyles.fontFamily;
       const tableMargin = ilAlign === 'center' ? 'margin:0 auto' : ilAlign === 'right' ? 'margin-left:auto' : 'margin-right:auto';
-      const rows = items.map(([glyph, text], i) => {
+      const rows = items.map(([glyph, text, itemColor], i) => {
         const pb = i < items.length - 1 ? spacing : '0';
-        return `<tr><td style="vertical-align:top;padding:0 8px ${pb} 0;color:${iconColor};font-size:${iconSize};line-height:1.4;white-space:nowrap">${glyph || '&bull;'}</td><td style="vertical-align:top;padding:0 0 ${pb} 0;color:${ilColor};font-size:${ilFontSize};font-weight:${ilFontWeight};font-family:${ilFontFamily};line-height:1.4">${text || ''}</td></tr>`;
+        return `<tr><td style="vertical-align:top;padding:0 8px ${pb} 0;color:${itemColor || iconColor};font-size:${iconSize};line-height:1.4;white-space:nowrap">${glyph || '&bull;'}</td><td style="vertical-align:top;padding:0 0 ${pb} 0;color:${ilColor};font-size:${ilFontSize};font-weight:${ilFontWeight};font-family:${ilFontFamily};line-height:1.4">${text || ''}</td></tr>`;
       }).join('');
       return `<div style="padding:${block.styles.padding || '10px'}"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;${tableMargin}"><tbody>${rows}</tbody></table></div>`;
     }
@@ -308,7 +315,15 @@ export function generatePreviewHtml(template: TemplateData): string {
     ? `background-image:url(${globalStyles.backgroundImage});background-size:${globalStyles.backgroundSize === "repeat" ? "auto" : globalStyles.backgroundSize};background-repeat:${globalStyles.backgroundSize === "repeat" ? "repeat" : "no-repeat"};background-position:center;`
     : "";
 
-  let html = `<div style="background-color:${globalStyles.bodyColor};font-family:${globalStyles.fontFamily};color:${globalStyles.textColor};font-size:${globalStyles.fontSize};font-weight:${globalStyles.fontWeight};line-height:${globalStyles.lineHeight};direction:${globalStyles.textDirection};max-width:${globalStyles.width};margin:0 auto;padding:${padding};${bgImage}">`;
+  // Surface any custom <mj-style> CSS (incl. @media / .h1 rules) into the HTML
+  // preview so it renders the way the compiled email will.
+  const styleCss = (globalStyles.customHead || "")
+    .match(/<mj-style\b[^>]*>([\s\S]*?)<\/mj-style>/gi)
+    ?.map((s) => s.replace(/<\/?mj-style\b[^>]*>/gi, ""))
+    .join("\n") || "";
+
+  let html = styleCss ? `<style>${styleCss}</style>` : "";
+  html += `<div style="background-color:${globalStyles.bodyColor};font-family:${globalStyles.fontFamily};color:${globalStyles.textColor};font-size:${globalStyles.fontSize};font-weight:${globalStyles.fontWeight};line-height:${globalStyles.lineHeight};direction:${globalStyles.textDirection};max-width:${globalStyles.width};margin:0 auto;padding:${padding};${bgImage}">`;
 
   for (const row of rows) {
     const rowBg =
@@ -318,7 +333,14 @@ export function generatePreviewHtml(template: TemplateData): string {
     html += `<div style="${rowBg}padding:${row.styles.padding};">`;
     html += `<div style="display:flex;">`;
     for (const col of row.columns) {
-      html += `<div style="width:${col.width};box-sizing:border-box;">`;
+      const cs = col.styles || {};
+      const colCss =
+        (cs.backgroundColor ? `background-color:${cs.backgroundColor};` : "") +
+        (cs.border ? `border:${cs.border};` : "") +
+        (cs.borderRadius ? `border-radius:${cs.borderRadius};` : "") +
+        (cs.padding ? `padding:${cs.padding};` : "") +
+        (cs.verticalAlign ? `vertical-align:${cs.verticalAlign};` : "");
+      html += `<div style="width:${col.width};box-sizing:border-box;${colCss}">`;
       for (const block of col.blocks) {
         html += blockToHtml(block, globalStyles);
       }

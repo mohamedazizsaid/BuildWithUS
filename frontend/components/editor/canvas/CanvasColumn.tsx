@@ -24,8 +24,17 @@ export function CanvasColumn({
 
   return (
     <div
-      className="min-h-[60px]"
-      style={{ width: column.width, backgroundColor: 'transparent', minWidth: 0 }}
+      className={column.blocks.length === 0 ? 'min-h-[60px]' : ''}
+      style={{
+        width: column.width,
+        minWidth: 0,
+        boxSizing: 'border-box',
+        backgroundColor: column.styles?.backgroundColor || 'transparent',
+        border: column.styles?.border || undefined,
+        borderRadius: column.styles?.borderRadius || undefined,
+        padding: column.styles?.padding || undefined,
+        verticalAlign: (column.styles?.verticalAlign as React.CSSProperties['verticalAlign']) || undefined,
+      }}
       onClick={onSelectColumn}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('blocktype')) {

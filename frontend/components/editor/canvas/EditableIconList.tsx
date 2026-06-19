@@ -82,17 +82,22 @@ export function EditableIconList({
   useEffect(() => { dataRef.current = (block.content.items || []) as string[][]; }, [block.content.items]);
 
   // Read every editable text from the DOM (document order === items order).
+  // Carry the optional per-item colour (it[2]) through every structural edit so
+  // imported multi-colour bullets don't lose their colours when text is edited.
+  const withColor = (glyph: string, text: string, color?: string): string[] =>
+    color ? [glyph, text, color] : [glyph, text];
+
   const saveAll = () => {
     if (!rootRef.current) return;
     const texts = [...rootRef.current.querySelectorAll('[data-il-text]')].map((el) => el.textContent || '');
-    const next = dataRef.current.map((it, i) => [it[0] ?? DEFAULT_LIST_ICON, texts[i] ?? it[1] ?? '']);
+    const next = dataRef.current.map((it, i) => withColor(it[0] ?? DEFAULT_LIST_ICON, texts[i] ?? it[1] ?? '', it[2]));
     dataRef.current = next;
     onUpdate({ content: { ...block.content, items: next } });
   };
 
   const setGlyph = (i: number, glyph: string) => {
     saveAll();
-    const next = dataRef.current.map((it, idx) => (idx === i ? [glyph, it[1] ?? ''] : it));
+    const next = dataRef.current.map((it, idx) => (idx === i ? withColor(glyph, it[1] ?? '', it[2]) : it));
     onUpdate({ content: { ...block.content, items: next } });
     setPicker(null);
   };
@@ -118,7 +123,7 @@ export function EditableIconList({
       onClick={(e) => e.stopPropagation()}
       style={{ padding: block.styles.padding || '10px', display: 'flex', flexDirection: 'column', gap: spacing }}
     >
-      {items.map(([glyph, text], i) => (
+      {items.map(([glyph, text, itemColor], i) => (
         <div
           key={`row-${i}-${items.length}`}
           className="group/ilrow"
@@ -128,7 +133,7 @@ export function EditableIconList({
           <button
             onClick={(e) => openPicker(i, e)}
             title="Changer l'icône"
-            style={{ color: iconColor, fontSize: iconSize, lineHeight: 1.4, flexShrink: 0, cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+            style={{ color: itemColor || iconColor, fontSize: iconSize, lineHeight: 1.4, flexShrink: 0, cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
           >
             {glyph || DEFAULT_LIST_ICON}
           </button>

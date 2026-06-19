@@ -1,20 +1,90 @@
 'use client';
 
 import React from 'react';
-import { MessageSquareMore, ExternalLink, Phone, CornerUpLeft, ImageIcon } from 'lucide-react';
+import {
+  MessageSquareMore,
+  ExternalLink,
+  Phone,
+  CornerUpLeft,
+  ImageIcon,
+  Signal,
+  Wifi,
+  BatteryFull,
+  Video,
+  MoreVertical,
+} from 'lucide-react';
 import { RcsMessage, RcsCard, RcsSuggestion, RcsMediaHeight } from '../_lib/rcs-types';
 
 const MEDIA_PX: Record<RcsMediaHeight, number> = { short: 96, medium: 150, tall: 220 };
 
-function SuggestionChip({ s }: { s: RcsSuggestion }) {
-  const Icon = s.type === 'openUrl' ? ExternalLink : s.type === 'dial' ? Phone : CornerUpLeft;
+const SUGGESTION_ICON = {
+  openUrl: ExternalLink,
+  dial: Phone,
+  reply: CornerUpLeft,
+} as const;
+
+/** Resolve the clickable target for a suggestion, mirroring how a real RCS
+ *  client routes each action. `reply` chips don't navigate, so they stay null. */
+function suggestionHref(s: RcsSuggestion): string | null {
+  if (s.type === 'openUrl') {
+    const url = (s.url || '').trim();
+    if (!url) return null;
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  }
+  if (s.type === 'dial') {
+    const phone = (s.phone || '').trim();
+    return phone ? `tel:${phone}` : null;
+  }
+  return null;
+}
+
+/** Renders a suggestion as a real anchor (openUrl / dial) when it has a target,
+ *  otherwise as a styled, non-navigating button — same model as the email
+ *  preview, where only buttons with an href become clickable links. */
+function SuggestionAction({
+  s,
+  className,
+  iconSize = 11,
+}: {
+  s: RcsSuggestion;
+  className: string;
+  iconSize?: number;
+}) {
+  const Icon = SUGGESTION_ICON[s.type];
+  const href = suggestionHref(s);
+  const label = s.text || 'Bouton';
+  const inner = (
+    <>
+      <Icon size={iconSize} />
+      <span className="truncate">{label}</span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        target={s.type === 'openUrl' ? '_blank' : undefined}
+        rel={s.type === 'openUrl' ? 'noopener noreferrer' : undefined}
+        className={`${className} cursor-pointer transition hover:brightness-95`}
+      >
+        {inner}
+      </a>
+    );
+  }
+
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-teal-300 bg-white px-2.5 py-1 text-[11px] font-medium text-teal-700 shadow-sm">
-      <Icon size={11} />
-      <span className="truncate max-w-[120px]">{s.text || 'Bouton'}</span>
-    </span>
+    <button type="button" className={`${className} cursor-pointer transition hover:brightness-95`}>
+      {inner}
+    </button>
   );
 }
+
+const CHIP_CLASS =
+  'inline-flex items-center gap-1 rounded-full border border-blue-300 bg-white px-2.5 py-1 text-[11px] font-medium text-blue-700 shadow-sm max-w-[140px]';
+
+const CARD_BTN_CLASS =
+  'inline-flex w-full items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-blue-700';
 
 function CardView({ card, orientation, width }: { card: RcsCard; orientation: 'vertical' | 'horizontal'; width: 'small' | 'medium' }) {
   const horizontal = orientation === 'horizontal';
@@ -45,10 +115,7 @@ function CardView({ card, orientation, width }: { card: RcsCard; orientation: 'v
           {card.suggestions.length > 0 && (
             <div className="mt-2 flex flex-col gap-1.5">
               {card.suggestions.map((s, i) => (
-                <span key={i} className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-teal-700">
-                  {s.type === 'openUrl' ? <ExternalLink size={11} /> : s.type === 'dial' ? <Phone size={11} /> : <CornerUpLeft size={11} />}
-                  <span className="truncate">{s.text || 'Bouton'}</span>
-                </span>
+                <SuggestionAction key={i} s={s} className={CARD_BTN_CLASS} />
               ))}
             </div>
           )}
@@ -69,15 +136,32 @@ export function RcsPhonePreview({ message, senderName }: { message: RcsMessage; 
   return (
     <div className="mx-auto w-[268px] rounded-[2.25rem] border-[6px] border-slate-900 bg-slate-900 shadow-xl">
       <div className="relative rounded-[1.75rem] bg-slate-50 overflow-hidden">
-        {/* notch */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 h-4 w-24 bg-slate-900 rounded-b-2xl z-10" />
+        {/* status bar */}
+        <div className="relative z-0 flex items-center justify-between px-5 pt-2 pb-1 bg-white text-slate-800">
+          <span className="text-[10px] font-semibold tabular-nums">9:41</span>
+          {/* notch */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 h-4 w-20 bg-slate-900 rounded-b-2xl" />
+          <span className="flex items-center gap-1">
+            <Signal size={11} className="text-slate-700" />
+            <Wifi size={11} className="text-slate-700" />
+            <BatteryFull size={13} className="text-slate-700" />
+          </span>
+        </div>
+
         {/* contact bar */}
-        <div className="pt-6 pb-3 px-4 bg-white border-b border-slate-100 flex flex-col items-center gap-1.5">
-          <div className="w-9 h-9 rounded-full bg-teal-100 flex items-center justify-center">
-            <MessageSquareMore size={15} className="text-teal-600" />
+        <div className="px-3 py-2.5 bg-white border-b border-slate-100 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+            <MessageSquareMore size={14} className="text-blue-600" />
           </div>
-          <span className="text-[11px] font-semibold text-slate-700 truncate max-w-[180px]">{senderName}</span>
-          <span className="text-[9px] uppercase tracking-wide text-teal-500 font-bold">RCS</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-semibold text-slate-800 truncate leading-tight">{senderName}</p>
+            <span className="inline-flex items-center gap-1 text-[8px] uppercase tracking-wide text-blue-600 font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> RCS · Vérifié
+            </span>
+          </div>
+          <Phone size={15} className="text-slate-400 shrink-0" />
+          <Video size={16} className="text-slate-400 shrink-0" />
+          <MoreVertical size={15} className="text-slate-400 shrink-0" />
         </div>
 
         {/* conversation */}
@@ -92,7 +176,7 @@ export function RcsPhonePreview({ message, senderName }: { message: RcsMessage; 
               {/* Text bubble — a carousel message is the cards themselves, so no
                   stray text bubble there; shown for text & card messages. */}
               {messageType !== 'carousel' && text.trim() && (
-                <div className="max-w-[88%] rounded-2xl rounded-bl-sm bg-teal-600 px-3.5 py-2 text-[13px] leading-relaxed text-white whitespace-pre-wrap break-words shadow-sm">
+                <div className="max-w-[88%] rounded-2xl rounded-bl-sm bg-blue-600 px-3.5 py-2 text-[13px] leading-relaxed text-white whitespace-pre-wrap break-words shadow-sm">
                   {text}
                 </div>
               )}
@@ -119,10 +203,13 @@ export function RcsPhonePreview({ message, senderName }: { message: RcsMessage; 
               {suggestions.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-0.5">
                   {suggestions.map((s, i) => (
-                    <SuggestionChip key={i} s={s} />
+                    <SuggestionAction key={i} s={s} className={CHIP_CLASS} />
                   ))}
                 </div>
               )}
+
+              {/* delivery receipt — sells the "real conversation" feel */}
+              <span className="self-start pl-1 text-[9px] text-slate-400">Distribué · 9:41</span>
             </div>
           )}
         </div>
