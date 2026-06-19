@@ -22,35 +22,18 @@ export function CanvasColumn({
   const [dragBlockIndex, setDragBlockIndex] = useState<number | null>(null);
   const [dragOverBlockIndex, setDragOverBlockIndex] = useState<number | null>(null);
 
-  return (
-    <div
-      className={column.blocks.length === 0 ? 'min-h-[60px]' : ''}
-      style={{
-        width: column.width,
-        minWidth: 0,
-        boxSizing: 'border-box',
-        backgroundColor: column.styles?.backgroundColor || 'transparent',
-        border: column.styles?.border || undefined,
-        borderRadius: column.styles?.borderRadius || undefined,
-        padding: column.styles?.padding || undefined,
-        verticalAlign: (column.styles?.verticalAlign as React.CSSProperties['verticalAlign']) || undefined,
-      }}
-      onClick={onSelectColumn}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('blocktype')) {
-          e.preventDefault();
-        }
-      }}
-      onDrop={(e) => {
-        const blockType = e.dataTransfer.getData('blockType');
-        if (blockType) {
-          e.preventDefault();
-          e.stopPropagation();
-          onDropBlock(column.id, blockType);
-        }
-      }}
-    >
-      {column.blocks.length === 0 ? (
+  const cs = column.styles || {};
+  // A "card" column carries its own background/border/rounding. We render those
+  // on an INNER wrapper and let the column's `padding` act as the OUTER gutter
+  // (transparent) — mirroring the HTML pattern <td padding> > <table radius> so
+  // adjacent cards get real spacing between them instead of touching.
+  const hasCard = !!(cs.backgroundColor || cs.border || cs.borderRadius);
+  const noPad = !cs.padding || cs.padding === '0' || cs.padding === '0px';
+  // Cards almost always want a gutter; default to 8px when the MJML didn't set
+  // one so they don't render edge-to-edge. Plain columns keep their padding.
+  const outerPad = hasCard ? (noPad ? '8px' : cs.padding) : cs.padding;
+
+  const content = column.blocks.length === 0 ? (
         <div className="flex items-center justify-center h-full min-h-[60px]">
           <p className="text-xs text-muted-foreground">Déposez du contenu ici</p>
         </div>
@@ -97,6 +80,55 @@ export function CanvasColumn({
           </div>
           );
         })
+      );
+
+  return (
+    <div
+      className={column.blocks.length === 0 ? 'min-h-[60px]' : ''}
+      style={{
+        width: column.width,
+        minWidth: 0,
+        boxSizing: 'border-box',
+        padding: outerPad || undefined,
+        verticalAlign: (cs.verticalAlign as React.CSSProperties['verticalAlign']) || undefined,
+        ...(hasCard
+          ? {}
+          : {
+              backgroundColor: cs.backgroundColor || 'transparent',
+              border: cs.border || undefined,
+              borderRadius: cs.borderRadius || undefined,
+            }),
+      }}
+      onClick={onSelectColumn}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('blocktype')) {
+          e.preventDefault();
+        }
+      }}
+      onDrop={(e) => {
+        const blockType = e.dataTransfer.getData('blockType');
+        if (blockType) {
+          e.preventDefault();
+          e.stopPropagation();
+          onDropBlock(column.id, blockType);
+        }
+      }}
+    >
+      {hasCard ? (
+        <div
+          style={{
+            backgroundColor: cs.backgroundColor || undefined,
+            border: cs.border || undefined,
+            borderRadius: cs.borderRadius || undefined,
+            boxSizing: 'border-box',
+            height: '100%',
+            overflow: 'hidden',
+          }}
+        >
+          {content}
+        </div>
+      ) : (
+        content
       )}
     </div>
   );

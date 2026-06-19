@@ -334,16 +334,26 @@ export function generatePreviewHtml(template: TemplateData): string {
     html += `<div style="display:flex;">`;
     for (const col of row.columns) {
       const cs = col.styles || {};
-      const colCss =
+      // Card columns: padding is the outer gutter, bg/border/radius go on an
+      // inner wrapper so adjacent cards are spaced apart (matches CanvasColumn).
+      const hasCard = !!(cs.backgroundColor || cs.border || cs.borderRadius);
+      const noPad = !cs.padding || cs.padding === "0" || cs.padding === "0px";
+      const outerPad = hasCard ? (noPad ? "8px" : cs.padding) : cs.padding;
+      const cardCss =
         (cs.backgroundColor ? `background-color:${cs.backgroundColor};` : "") +
         (cs.border ? `border:${cs.border};` : "") +
-        (cs.borderRadius ? `border-radius:${cs.borderRadius};` : "") +
-        (cs.padding ? `padding:${cs.padding};` : "") +
-        (cs.verticalAlign ? `vertical-align:${cs.verticalAlign};` : "");
-      html += `<div style="width:${col.width};box-sizing:border-box;${colCss}">`;
+        (cs.borderRadius ? `border-radius:${cs.borderRadius};` : "");
+      const outerCss =
+        `width:${col.width};box-sizing:border-box;` +
+        (outerPad ? `padding:${outerPad};` : "") +
+        (cs.verticalAlign ? `vertical-align:${cs.verticalAlign};` : "") +
+        (hasCard ? "" : cardCss);
+      html += `<div style="${outerCss}">`;
+      if (hasCard) html += `<div style="box-sizing:border-box;height:100%;overflow:hidden;${cardCss}">`;
       for (const block of col.blocks) {
         html += blockToHtml(block, globalStyles);
       }
+      if (hasCard) html += `</div>`;
       html += `</div>`;
     }
     html += `</div></div>`;
