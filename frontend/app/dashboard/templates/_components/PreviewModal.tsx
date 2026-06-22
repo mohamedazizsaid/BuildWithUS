@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Pencil, X } from 'lucide-react';
-import { mjmlToPreviewHtml, tiptapDocToPreviewHtml, findContractTitle } from '../_lib/preview-helpers';
+import { mjmlToPreviewHtml, tiptapDocToPreviewHtml, findContractTitle, isRawHtml } from '../_lib/preview-helpers';
+import { HtmlFrame } from '@/components/HtmlFrame';
 import { RcsPhonePreview } from '../rcs-editor/_components/RcsPhonePreview';
 import { parseRcs } from '../rcs-editor/_lib/rcs-serializer';
 import { getTypeConfig, type Template } from '../_lib/types';
@@ -292,6 +293,13 @@ export function PreviewModal({
               ) : (
                 <div className="p-12 text-center text-slate-400 text-sm">SMS vide</div>
               )
+            ) : isRawHtml(template.content) ? (
+              <HtmlFrame
+                html={template.content}
+                title={`Aperçu — ${template.name}`}
+                className="w-full bg-white"
+                style={{ height: 'calc(85vh - 130px)' }}
+              />
             ) : template.content ? (
               <div dangerouslySetInnerHTML={{ __html: mjmlToPreviewHtml(template.content) }} />
             ) : (

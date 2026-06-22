@@ -3,7 +3,7 @@
 // Uses useSearchParams — render on demand instead of static prerender.
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useLayoutEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef, Suspense, type ChangeEvent } from "react";
 import { flushSync } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEditor } from "@/hooks/use-editor";
@@ -23,6 +23,8 @@ import { PREDEFINED_TEMPLATES } from "@/lib/predefined-templates";
 import Editor from "@monaco-editor/react";
 import { blockToMjml, generatePreviewHtml } from "./_lib/mjml-builder";
 import { parseMjmlToTemplate } from "./_lib/mjml-parser";
+import { isRawHtml } from "../_lib/preview-helpers";
+import { HtmlFrame } from "@/components/HtmlFrame";
 
 function EditorContent() {
   const router = useRouter();
@@ -63,6 +65,11 @@ function EditorContent() {
   const [isDark, setIsDark] = useState(false);
   const [codeValue, setCodeValue] = useState("");
   const [codeWasEdited, setCodeWasEdited] = useState(false);
+  // "html" = the template is an imported raw HTML document. In this mode the MJML
+  // pipeline is fully bypassed: codeValue IS the content, rendered as-is in a
+  // sandboxed iframe (canvas + preview), and saved verbatim. "mjml" = normal builder.
+  const [codeMode, setCodeMode] = useState<"mjml" | "html">("mjml");
+  const htmlFileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Real-time collaboration
   const { otherUsers, updateCursor } = useCollaboration({
@@ -90,8 +97,12 @@ function EditorContent() {
         setTemplateDescription(tmpl.description || "");
         setTemplateSubject(tmpl.subject || "");
 
-        // Parse MJML content back into canvas blocks
-        if (tmpl.content) {
+        // Imported raw HTML loads straight into the code editor (HTML mode);
+        // no MJML parsing. Otherwise parse MJML content into canvas blocks.
+        if (tmpl.content && isRawHtml(tmpl.content)) {
+          setCodeMode("html");
+          setCodeValue(tmpl.content);
+        } else if (tmpl.content) {
           const parsed = parseMjmlToTemplate(tmpl.content, editorState.template.globalStyles);
           if (parsed) {
             editorState.setTemplate({
@@ -139,7 +150,10 @@ function EditorContent() {
         const data = await templates.get(cloneFrom);
         if (cancelled) return;
         const tmpl = data.template || data;
-        if (tmpl.content) {
+        if (tmpl.content && isRawHtml(tmpl.content)) {
+          setCodeMode("html");
+          setCodeValue(tmpl.content);
+        } else if (tmpl.content) {
           const parsed = parseMjmlToTemplate(tmpl.content, editorState.template.globalStyles);
           if (parsed) {
             editorState.setTemplate({
@@ -277,9 +291,40 @@ function EditorContent() {
     return false;
   }, [codeValue, editorState]);
 
+  // The content to persist. In HTML mode the raw HTML in the code editor IS the
+  // template — bypass MJML generation entirely. Otherwise: edited code wins,
+  // else regenerate from the canvas.
+  const buildContent = useCallback(() => {
+    if (codeMode === "html") return codeValue;
+    if (activeTab === "code" && codeWasEdited && codeValue.trim()) return codeValue;
+    return generateMjml(templateRef.current);
+  }, [codeMode, codeValue, activeTab, codeWasEdited, generateMjml]);
+
+  // Read an imported .html file into the code editor and switch to HTML mode.
+  const handleImportHtml = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCodeValue(String(reader.result ?? ""));
+      setCodeMode("html");
+      setCodeWasEdited(true);
+      setActiveTab("code");
+      toast.success("HTML importé — visible dans le canvas et l'aperçu");
+    };
+    reader.onerror = () => toast.error("Échec de la lecture du fichier");
+    reader.readAsText(file);
+    e.target.value = ""; // allow re-importing the same file
+  }, []);
+
   // Sync code ↔ canvas when switching tabs
   const handleTabSwitch = useCallback(
     (tab: "canvas" | "code") => {
+      // HTML mode has no canvas blocks to sync — just switch the view.
+      if (codeMode === "html") {
+        setActiveTab(tab);
+        return;
+      }
       if (tab === "code") {
         // Going to code → regenerate from canvas ONLY if the user hasn't typed/
         // pasted unsaved code (otherwise we'd clobber what they just pasted).
@@ -296,11 +341,12 @@ function EditorContent() {
       }
       setActiveTab(tab);
     },
-    [generateMjml, codeValue, codeWasEdited, applyCodeToCanvas],
+    [codeMode, generateMjml, codeValue, codeWasEdited, applyCodeToCanvas],
   );
 
   const handleSave = async () => {
-    if (editorState.template.rows.length === 0 && !(activeTab === "code" && codeValue.trim())) {
+    const hasHtml = codeMode === "html" && !!codeValue.trim();
+    if (editorState.template.rows.length === 0 && !hasHtml && !(activeTab === "code" && codeValue.trim())) {
       toast.error("Ajoutez au moins une ligne à votre modèle");
       return;
     }
@@ -308,10 +354,9 @@ function EditorContent() {
     try {
       // Commit any in-flight contenteditable text into React state before reading it.
       flushPendingEdits();
-      // If the user edited/pasted MJML in the Code tab, that is the source of truth.
-      const mjml = activeTab === "code" && codeWasEdited && codeValue.trim()
-        ? codeValue
-        : generateMjml(templateRef.current);
+      // Raw HTML (HTML mode) or pasted/edited MJML is stored verbatim; otherwise
+      // regenerate MJML from the canvas.
+      const content = buildContent();
       const body = {
         name: templateName,
         description: templateDescription,
@@ -319,7 +364,7 @@ function EditorContent() {
         // Email templates require a subject. For a predefined entry the user only
         // fills the title, so use it as the subject when none was set.
         subject: templateSubject || (predefinedCategory ? templateName : templateSubject),
-        content: mjml,
+        content,
         ...(predefinedCategory && !savedId ? { isPredefinedOverride: true, predefinedTemplateId: predefinedCategory } : {}),
       };
       let resultId: string | null = savedId;
@@ -350,13 +395,15 @@ function EditorContent() {
   const [isSendingTest, setIsSendingTest] = useState(false);
 
   const handleSendTestEmail = async () => {
-    if (editorState.template.rows.length === 0) {
+    const hasHtml = codeMode === "html" && !!codeValue.trim();
+    if (editorState.template.rows.length === 0 && !hasHtml) {
       toast.error("Ajoutez du contenu avant de tester");
       return;
     }
     setIsSendingTest(true);
     try {
-      const html = generatePreviewHtml(editorState.template);
+      // HTML mode sends the imported document as-is; otherwise compile the canvas.
+      const html = codeMode === "html" ? codeValue : generatePreviewHtml(editorState.template);
       const result = await templates.sendTestEmail({
         subject: templateSubject || templateName,
         content: html,
@@ -375,7 +422,8 @@ function EditorContent() {
   };
 
   const handleSaveOrCreate = async () => {
-    if (editorState.template.rows.length === 0 && !(activeTab === "code" && codeValue.trim())) {
+    const hasHtml = codeMode === "html" && !!codeValue.trim();
+    if (editorState.template.rows.length === 0 && !hasHtml && !(activeTab === "code" && codeValue.trim())) {
       toast.error("Ajoutez au moins une ligne à votre modèle");
       return;
     }
@@ -383,10 +431,9 @@ function EditorContent() {
     setIsSaving(true);
     try {
       flushPendingEdits();
-      // If the user edited/pasted MJML in the Code tab, that is the source of truth.
-      const mjml = activeTab === "code" && codeWasEdited && codeValue.trim()
-        ? codeValue
-        : generateMjml(templateRef.current);
+      // Raw HTML (HTML mode) or pasted/edited MJML is stored verbatim; otherwise
+      // regenerate MJML from the canvas.
+      const content = buildContent();
       const body = {
         name: templateName,
         description: templateDescription,
@@ -394,7 +441,7 @@ function EditorContent() {
         // Email templates require a subject. For a predefined entry the user only
         // fills the title, so use it as the subject when none was set.
         subject: templateSubject || (predefinedCategory ? templateName : templateSubject),
-        content: mjml,
+        content,
         ...(predefinedCategory && !isEditMode ? { isPredefinedOverride: true, predefinedTemplateId: predefinedCategory } : {}),
       };
 
@@ -433,6 +480,20 @@ function EditorContent() {
       setIsSaving(false);
     }
   };
+
+  const isHtmlMode = codeMode === "html";
+
+  // The preview "screen" inside each device frame: raw HTML in an iframe (HTML
+  // mode) or the MJML-compiled markup. An iframe has no intrinsic width, so a
+  // definite `width` is required on desktop — otherwise the auto-width frame
+  // collapses to the iframe's 300px default and the email's mobile @media kicks
+  // in (looks phone-sized). Fixed-width device frames (mobile/tablet) pass 100%.
+  const renderPreviewScreen = (height: string, width = '100%') =>
+    isHtmlMode ? (
+      <HtmlFrame html={codeValue} className="block" style={{ width, maxWidth: '100%', height }} />
+    ) : (
+      <div dangerouslySetInnerHTML={{ __html: generatePreviewHtml(editorState.template) }} />
+    );
 
   if (isLoading) {
     return (
@@ -482,8 +543,8 @@ function EditorContent() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel */}
-        {!previewMode && (
+        {/* Left Panel — hidden for imported HTML (no blocks to add) */}
+        {!previewMode && !isHtmlMode && (
           <div className="shrink-0">
             <LeftPanel
               onAddRow={editorState.addRow}
@@ -535,9 +596,7 @@ function EditorContent() {
                       </div>
                       {/* Screen */}
                       <div className="bg-white overflow-y-auto" style={{ height: '667px' }}>
-                        <div
-                          dangerouslySetInnerHTML={{ __html: generatePreviewHtml(editorState.template) }}
-                        />
+                        {renderPreviewScreen('667px')}
                       </div>
                       {/* Bottom bar */}
                       <div className="flex justify-center py-2 bg-slate-800">
@@ -554,9 +613,7 @@ function EditorContent() {
                       </div>
                       {/* Screen */}
                       <div className="bg-white overflow-y-auto" style={{ height: '900px' }}>
-                        <div
-                          dangerouslySetInnerHTML={{ __html: generatePreviewHtml(editorState.template) }}
-                        />
+                        {renderPreviewScreen('900px')}
                       </div>
                       <div className="py-2 bg-slate-700" />
                     </div>
@@ -577,12 +634,20 @@ function EditorContent() {
                       </div>
                     </div>
                     <div className="bg-white border border-slate-200 rounded-b-xl shadow-lg overflow-y-auto" style={{ maxHeight: '70vh' }}>
-                      <div
-                        dangerouslySetInnerHTML={{ __html: generatePreviewHtml(editorState.template) }}
-                      />
+                      {renderPreviewScreen('70vh', '900px')}
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          ) : activeTab === "canvas" && isHtmlMode ? (
+            <div className="h-full flex flex-col">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-amber-50 text-amber-800 text-xs shrink-0">
+                <span className="font-medium">Modèle HTML importé</span>
+                <span className="text-amber-600">— lecture seule. Modifiez le HTML dans l&apos;onglet Code.</span>
+              </div>
+              <div className="flex-1 min-h-0 bg-white">
+                <HtmlFrame html={codeValue} className="w-full h-full" />
               </div>
             </div>
           ) : activeTab === "canvas" ? (
@@ -619,16 +684,52 @@ function EditorContent() {
             />
           ) : (
             <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40 shrink-0">
-                <p className="text-xs text-muted-foreground">
-                  Collez votre MJML puis cliquez sur <span className="font-medium text-foreground">Appliquer</span> pour le voir dans le canvas.
-                </p>
-                <button
-                  onClick={applyCodeToCanvas}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
-                >
-                  Appliquer au canvas
-                </button>
+              <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border bg-muted/40 shrink-0">
+                <div className="flex items-center gap-3">
+                  {/* Format toggle: MJML (builder) vs HTML (imported, view-only) */}
+                  <div className="inline-flex rounded-lg border border-border overflow-hidden">
+                    <button
+                      onClick={() => setCodeMode("mjml")}
+                      className={`px-2.5 py-1 text-xs font-medium transition-colors ${!isHtmlMode ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                    >
+                      MJML
+                    </button>
+                    <button
+                      onClick={() => setCodeMode("html")}
+                      className={`px-2.5 py-1 text-xs font-medium transition-colors ${isHtmlMode ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                    >
+                      HTML
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {isHtmlMode
+                      ? "HTML brut — affiché tel quel dans le canvas et l'aperçu, sans conversion."
+                      : "Collez votre MJML puis cliquez sur Appliquer pour le voir dans le canvas."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={htmlFileInputRef}
+                    type="file"
+                    accept=".html,.htm,text/html"
+                    className="hidden"
+                    onChange={handleImportHtml}
+                  />
+                  <button
+                    onClick={() => htmlFileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium rounded-lg hover:bg-muted transition-colors"
+                  >
+                    Importer un fichier HTML
+                  </button>
+                  {!isHtmlMode && (
+                    <button
+                      onClick={applyCodeToCanvas}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                      Appliquer au canvas
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex-1 min-h-0">
               <Editor
@@ -659,8 +760,8 @@ function EditorContent() {
           )}
         </div>
 
-        {/* Right Panel — Properties */}
-        {!previewMode && (
+        {/* Right Panel — Properties (hidden for imported HTML) */}
+        {!previewMode && !isHtmlMode && (
           <div className="shrink-0">
             <PropertiesPanel
               selectedBlock={editorState.getSelectedBlock()}

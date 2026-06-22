@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Mail, FileText, ScrollText, Pencil, Eye, Clock, Star } from 'lucide-react';
 import { templates } from '@/lib/api';
 import { useAuth } from '@/context/auth';
+import { HtmlFrame } from '@/components/HtmlFrame';
 import toast from 'react-hot-toast';
 
 interface Template {
@@ -144,6 +145,20 @@ function mjmlToPreviewHtml(mjml: string): string {
 function TemplatePreview({ content, type }: { content: string; type: string }) {
   const config = getTypeConfig(type);
   const Icon = config.icon;
+
+  // Imported raw HTML (no <mjml> root) renders in a sandboxed iframe.
+  if (content && !content.includes('<mjml')) {
+    return (
+      <div className="w-full h-[180px] overflow-hidden bg-white relative">
+        <HtmlFrame
+          html={content}
+          className="origin-top-left absolute top-0 left-0"
+          style={{ transform: 'scale(0.45)', width: '222%', height: '400%', pointerEvents: 'none' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/80 pointer-events-none" />
+      </div>
+    );
+  }
 
   const previewHtml = content ? mjmlToPreviewHtml(content) : '';
 

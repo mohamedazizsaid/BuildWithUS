@@ -1,11 +1,27 @@
 'use client';
 
-import { mjmlToPreviewHtml } from '../_lib/preview-helpers';
+import { mjmlToPreviewHtml, isRawHtml } from '../_lib/preview-helpers';
 import { getTypeConfig } from '../_lib/types';
+import { HtmlFrame } from '@/components/HtmlFrame';
 
 export function TemplatePreview({ content, type }: { content: string; type: string }) {
   const config = getTypeConfig(type);
   const Icon = config.icon;
+
+  // Imported raw HTML renders straight in a sandboxed iframe (the MJML
+  // pipeline can't parse it). Same scaled-thumbnail framing as the MJML path.
+  if (isRawHtml(content)) {
+    return (
+      <div className="w-full h-[180px] overflow-hidden bg-white relative">
+        <HtmlFrame
+          html={content}
+          className="origin-top-left absolute top-0 left-0"
+          style={{ transform: 'scale(0.45)', width: '222%', height: '400%', pointerEvents: 'none' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/80 pointer-events-none" />
+      </div>
+    );
+  }
 
   const previewHtml = content ? mjmlToPreviewHtml(content) : '';
 

@@ -60,6 +60,17 @@ export function relativeTime(dateStr: string): string {
   }
 }
 
+/**
+ * Single source of truth for distinguishing an imported raw-HTML email template
+ * from a builder-authored MJML one. MJML documents always carry an `<mjml>` root;
+ * raw HTML never does. Used by the editor (load/save/render) and every dashboard
+ * preview surface to route raw HTML straight to an iframe instead of the MJML
+ * pipeline — so MJML logic stays untouched. No DB flag: the content tells us.
+ */
+export function isRawHtml(content: string | null | undefined): boolean {
+  return !!content && !content.includes('<mjml');
+}
+
 export function mjmlToPreviewHtml(mjml: string): string {
   try {
     // Normalize pasted/external MJML (self-close voids, strip head/comments/raw)
