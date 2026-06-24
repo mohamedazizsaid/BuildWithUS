@@ -14,9 +14,10 @@ import {
 } from '@/lib/editor-types';
 
 import { Row } from '@/lib/editor-types';
+import type { TemplateData } from '@/lib/editor-types';
 
 // ─── Panel imports ───
-import { ColorPicker, SectionHeader, NumericInput, Toggle, AccordionSection, resolveBlockPadding, resolveBlockMargin } from './panels/shared';
+import { ColorPicker, SectionHeader, NumericInput, AccordionSection, SpacingControl, resolveBlockMargin } from './panels/shared';
 import { FontWeightSelector, AlignmentSelector, StyledSelect, LineHeightSelector, LetterSpacingSelector, TextStyleFields } from './panels/FontSelectors';
 import { PhotosPanel } from './panels/PhotosPanel';
 import { AiChatPanel } from './ai-chat/AiChatPanel';
@@ -40,8 +41,8 @@ interface LeftPanelProps {
   onAddBlock: (columnId: string, type: BlockType) => void;
   onAddBlockToNewRow: (type: BlockType) => void;
   onAddSection: (rows: Row[]) => void;
-  onAiApply: (mjml: string) => void;
-  getCurrentMjml: () => string;
+  onAiApply: (template: TemplateData) => void;
+  getCurrentTemplate: () => TemplateData;
   activeColumnId: string | null;
   aiChat: AiChatState;
 }
@@ -79,7 +80,7 @@ export function LeftPanel({
   onAddBlockToNewRow,
   onAddSection,
   onAiApply,
-  getCurrentMjml,
+  getCurrentTemplate,
   activeColumnId,
   aiChat,
 }: LeftPanelProps) {
@@ -128,7 +129,7 @@ export function LeftPanel({
       {!collapsed && (
         activeTab === 'ai' ? (
           <div className="flex-1 min-w-0 flex flex-col">
-            <AiChatPanel onApply={onAiApply} getCurrentMjml={getCurrentMjml} chat={aiChat} />
+            <AiChatPanel onApply={onAiApply} getCurrentTemplate={getCurrentTemplate} chat={aiChat} />
           </div>
         ) : (
           <div className="flex-1 bg-background overflow-y-auto min-w-0">
@@ -334,10 +335,7 @@ function BlockProperties({
 
   const isHeadingOrText = block.type === 'heading' || block.type === 'text';
   const isTextLike = block.type === 'heading' || block.type === 'text' || block.type === 'button';
-  const padding = resolveBlockPadding(block.styles);
   const margin = resolveBlockMargin(block.styles);
-  const paddingGrouped = block.styles.paddingGroup === 'true'
-    || (!block.styles.paddingGroup && padding.top === padding.right && padding.top === padding.bottom && padding.top === padding.left);
 
   return (
     <div className="space-y-4">
@@ -398,7 +396,7 @@ function BlockProperties({
       )}
 
       {block.type === 'signature' && (
-        <SignatureBlockProperties block={block} updateContent={updateContent} updateStyle={updateStyle} />
+        <SignatureBlockProperties block={block} updateContent={updateContent} updateStyle={updateStyle} updateStyles={updateStyles} />
       )}
 
       {block.type === 'social' && (
@@ -437,52 +435,8 @@ function BlockProperties({
               onChange={(v) => updateStyle('letterSpacing', v)}
             />
             <div>
-              <Toggle
-                label="Grouper les côtés"
-                value={paddingGrouped}
-                onChange={(v) => {
-                  if (v) {
-                    updateStyles({
-                      paddingGroup: 'true',
-                      paddingTop: padding.top,
-                      paddingRight: padding.top,
-                      paddingBottom: padding.top,
-                      paddingLeft: padding.top,
-                      padding: padding.top,
-                    });
-                  } else {
-                    updateStyles({ paddingGroup: 'false' });
-                  }
-                }}
-              />
-              {paddingGrouped ? (
-                <div className="mt-2">
-                  <Label className="text-xs">Marge intérieure</Label>
-                  <NumericInput
-                    value={padding.top}
-                    onChange={(v) => updateStyles({ paddingTop: v, paddingRight: v, paddingBottom: v, paddingLeft: v, padding: v })}
-                  />
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Haut</Label>
-                    <NumericInput value={padding.top} onChange={(v) => updateStyles({ paddingTop: v, padding: `${v} ${padding.right} ${padding.bottom} ${padding.left}` })} />
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Droite</Label>
-                    <NumericInput value={padding.right} onChange={(v) => updateStyles({ paddingRight: v, padding: `${padding.top} ${v} ${padding.bottom} ${padding.left}` })} />
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Bas</Label>
-                    <NumericInput value={padding.bottom} onChange={(v) => updateStyles({ paddingBottom: v, padding: `${padding.top} ${padding.right} ${v} ${padding.left}` })} />
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Gauche</Label>
-                    <NumericInput value={padding.left} onChange={(v) => updateStyles({ paddingLeft: v, padding: `${padding.top} ${padding.right} ${padding.bottom} ${v}` })} />
-                  </div>
-                </div>
-              )}
+              <SectionHeader>Espacement (marge intérieure)</SectionHeader>
+              <SpacingControl styles={block.styles} updateStyles={updateStyles} />
             </div>
           </AccordionSection>
 
@@ -591,24 +545,7 @@ function BlockProperties({
       {block.type === 'button' && (
       <div className="pt-2 border-t border-border space-y-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase">Espacement</h4>
-        <StyledSelect
-          label="Marge intérieure"
-          value={block.styles.padding || '10px'}
-          onChange={(v) => updateStyle('padding', v)}
-          options={[
-            { value: '0px', label: 'Aucun (0px)' },
-            { value: '4px', label: 'Très petit (4px)' },
-            { value: '8px', label: 'Petit (8px)' },
-            { value: '10px', label: 'Normal (10px)' },
-            { value: '12px 24px', label: 'Moyen (12px 24px)' },
-            { value: '16px', label: 'Grand (16px)' },
-            { value: '20px', label: 'Très grand (20px)' },
-            { value: '24px', label: 'Extra (24px)' },
-            { value: '32px', label: 'XXL (32px)' },
-            { value: '10px 20px', label: 'Horizontal (10px 20px)' },
-            { value: '20px 10px', label: 'Vertical (20px 10px)' },
-          ]}
-        />
+        <SpacingControl styles={block.styles} updateStyles={updateStyles} />
       </div>
       )}
     </div>

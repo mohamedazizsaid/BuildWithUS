@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import type { TemplateData } from '@/lib/editor-types';
 
 export type Role = 'user' | 'assistant';
 
@@ -24,7 +25,7 @@ export interface AiChatState {
   error: string;
   setError: Dispatch<SetStateAction<string>>;
   // The template the AI is actively iterating on (its own latest output).
-  workingMjml: MutableRefObject<string | null>;
+  workingTemplate: MutableRefObject<TemplateData | null>;
 }
 
 export function useAiChatState(): AiChatState {
@@ -32,7 +33,7 @@ export function useAiChatState(): AiChatState {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const workingMjml = useRef<string | null>(null);
+  const workingTemplate = useRef<TemplateData | null>(null);
 
   return {
     messages,
@@ -43,6 +44,6 @@ export function useAiChatState(): AiChatState {
     setIsLoading,
     error,
     setError,
-    workingMjml,
+    workingTemplate,
   };
 }

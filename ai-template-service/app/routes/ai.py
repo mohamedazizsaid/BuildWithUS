@@ -1,7 +1,4 @@
-import json
-
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services.ai_service import AiService
@@ -9,67 +6,10 @@ from app.services.ai_service import AiService
 router = APIRouter()
 ai_service = AiService()
 
-class GenerateRequest(BaseModel):
-    prompt: str = ""
-    tenant_id: str
-    user_id: str
-    examples: list = []
-    brief: dict | None = None
-
-@router.post("/generate")
-async def generate(request: GenerateRequest):
-    try:
-        result = await ai_service.generate_template(prompt=request.prompt, brief=request.brief)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-class ChatMessage(BaseModel):
-    role: str          # 'user' | 'assistant'
-    content: str
-
-class ChatRequest(BaseModel):
-    messages: list[ChatMessage]
-    current_mjml: str | None = None
-    tenant_id: str
-    user_id: str
-
-@router.post("/chat")
-async def chat(request: ChatRequest):
-    try:
-        result = await ai_service.chat_template(
-            messages=[m.model_dump() for m in request.messages],
-            current_mjml=request.current_mjml,
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.post("/chat/stream")
-async def chat_stream(request: ChatRequest):
-    """
-    Streaming variant of /chat. Emits newline-delimited JSON (NDJSON) events:
-    {"type":"delta","text":...}, {"type":"status",...}, {"type":"done",...},
-    {"type":"error",...}. The short chat sentence streams live; the full MJML
-    arrives in the final "done" event once generated and post-processed.
-    """
-    async def event_stream():
-        try:
-            async for event in ai_service.chat_template_stream(
-                messages=[m.model_dump() for m in request.messages],
-                current_mjml=request.current_mjml,
-            ):
-                yield json.dumps(event) + "\n"
-        except Exception as e:  # noqa: BLE001 — surface as a stream error event
-            yield json.dumps({"type": "error", "error": str(e)}) + "\n"
-
-    return StreamingResponse(
-        event_stream(),
-        media_type="application/x-ndjson",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+# NOTE: Email chat/generation moved to the Next.js route /api/ai/chat
+# (tool-based block generation against the in-house vLLM server). This service
+# now only handles the non-conversational AI helpers below: palette suggestion
+# and variable / invoice-field mapping.
 
 
 class SuggestPalettesRequest(BaseModel):

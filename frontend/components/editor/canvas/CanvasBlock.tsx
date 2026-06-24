@@ -4,7 +4,7 @@ import { useRef, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { Copy, Trash2 } from 'lucide-react';
 import { BlockData, GlobalStyles } from '@/lib/editor-types';
-import { resolvePadding, resolveMargin, resolveBlockAlign } from './utils';
+import { resolvePadding, resolveMarginBox, resolveBlockAlign } from './utils';
 import { ResizableImage } from './ResizableImage';
 import { EditableTable } from './EditableTable';
 import { EditableIconList } from './EditableIconList';
@@ -28,8 +28,12 @@ export function CanvasBlock({
   const btnEditRef = useRef<HTMLSpanElement>(null);
   const placeCaretEndRef = useRef(false);
   const padding = resolvePadding(block.styles);
-  const margin = resolveMargin(block.styles);
+  const marginBox = resolveMarginBox(block.styles);
   const alignMargins = isLayoutBlock ? resolveBlockAlign(block.styles) : {};
+  // Longhand only (marginTop/Right/Bottom/Left), then let block alignment override
+  // left/right. Never emit the `margin` shorthand alongside these — React warns and
+  // the shorthand can wipe out the alignment values.
+  const marginStyles = { ...(marginBox || {}), ...alignMargins };
   const hasBorder = isLayoutBlock && block.styles.borderSize && block.styles.borderSize !== '0px';
 
   // Typed-but-not-yet-committed text — onInput writes here, interval flushes to state.
@@ -94,7 +98,6 @@ export function CanvasBlock({
       }`}
       style={{
         padding,
-        margin,
         height: 'auto',
         overflow: 'visible',
         width: isLayoutBlock ? block.styles.width || undefined : undefined,
@@ -106,7 +109,7 @@ export function CanvasBlock({
         backgroundRepeat: isLayoutBlock && block.styles.backgroundImage ? 'no-repeat' : undefined,
         borderRadius: isLayoutBlock ? block.styles.borderRadius : undefined,
         border: hasBorder ? `${block.styles.borderSize} ${block.styles.borderStyle || 'solid'} ${block.styles.borderColor || 'transparent'}` : undefined,
-        ...alignMargins,
+        ...marginStyles,
       }}
       onClick={(e) => {
         const target = e.target as HTMLElement;

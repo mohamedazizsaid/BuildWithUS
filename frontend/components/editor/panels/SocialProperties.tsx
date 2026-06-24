@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { NumericInput } from './shared';
+import { NumericInput, SpacingControl } from './shared';
 import { SOCIAL_COLORS, SOCIAL_LABELS, getSvgPaths } from '@/lib/social-icons';
 
 // ─── Social Icon ───
@@ -132,11 +132,10 @@ export function SocialBlockProperties({
 
       {/* Padding */}
       <div>
-        <Label className="text-xs">Marge intérieure</Label>
-        <NumericInput
-          value={block.styles.padding || '10px'}
-          onChange={(v) => onUpdate({ styles: { ...block.styles, padding: v } })}
-        />
+        <Label className="text-xs">Espacement (marge intérieure)</Label>
+        <div className="mt-1">
+          <SpacingControl styles={block.styles} updateStyles={(u) => onUpdate({ styles: { ...block.styles, ...u } })} />
+        </div>
       </div>
     </div>
   );

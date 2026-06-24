@@ -551,25 +551,17 @@ function EditorContent() {
               onAddBlock={editorState.addBlock}
               onAddBlockToNewRow={editorState.addBlockToNewRow}
               onAddSection={editorState.addSection}
-              onAiApply={(mjml: string) => {
-                // Chat returns the FULL updated template each turn — replace the
-                // canvas rows wholesale (not append) so iterative edits apply cleanly.
-                try {
-                  const parsed = parseMjmlToTemplate(mjml, editorState.template.globalStyles);
-                  if (parsed) {
-                    editorState.setTemplate({
-                      ...editorState.template,
-                      rows: parsed.rows,
-                      globalStyles: { ...editorState.template.globalStyles, ...parsed.globalStyles },
-                    });
-                  } else {
-                    toast.error('Impossible de parser le MJML généré');
-                  }
-                } catch {
-                  toast.error('Erreur lors du parsing du MJML');
-                }
+              onAiApply={(template) => {
+                // The AI now returns BlockData directly (no MJML round-trip).
+                // Replace the canvas rows + global styles wholesale so iterative
+                // edits apply cleanly.
+                editorState.setTemplate({
+                  ...editorState.template,
+                  rows: template.rows,
+                  globalStyles: { ...editorState.template.globalStyles, ...template.globalStyles },
+                });
               }}
-              getCurrentMjml={generateMjml}
+              getCurrentTemplate={() => editorState.template}
               activeColumnId={activeColumnId}
               aiChat={aiChat}
             />

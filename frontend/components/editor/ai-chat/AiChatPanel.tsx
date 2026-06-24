@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Sparkles, ArrowUp, RotateCcw } from 'lucide-react';
-import { useAuth } from '@/context/auth';
 import type { AiChatState, ChatMessage } from './useAiChatState';
+import type { TemplateData } from '@/lib/editor-types';
 
 const SUGGESTIONS = [
   'Un email de bienvenue avec logo, titre et bouton',
@@ -24,15 +24,14 @@ const SUGGESTIONS = [
  */
 export function AiChatPanel({
   onApply,
-  getCurrentMjml,
+  getCurrentTemplate,
   chat,
 }: {
-  onApply: (mjml: string) => void;
-  getCurrentMjml: () => string;
+  onApply: (template: TemplateData) => void;
+  getCurrentTemplate: () => TemplateData;
   chat: AiChatState;
 }) {
-  const { user } = useAuth();
-  const { messages, setMessages, input, setInput, isLoading, setIsLoading, error, setError, workingMjml } = chat;
+  const { messages, setMessages, input, setInput, isLoading, setIsLoading, error, setError, workingTemplate } = chat;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -51,9 +50,9 @@ export function AiChatPanel({
     setError('');
 
     // On the first turn, seed from the live canvas if it already has content.
-    if (workingMjml.current === null) {
-      const live = getCurrentMjml();
-      workingMjml.current = live.includes('<mj-section') ? live : null;
+    if (workingTemplate.current === null) {
+      const live = getCurrentTemplate();
+      workingTemplate.current = live.rows.length > 0 ? live : null;
     }
 
     // Append streamed prose to the trailing assistant bubble.
@@ -72,16 +71,14 @@ export function AiChatPanel({
       const result = await ai.chatStream(
         {
           messages: nextMessages,
-          current_mjml: workingMjml.current,
-          tenant_id: user?.tenant_id || '',
-          user_id: user?.id || '',
+          current_template: workingTemplate.current,
         },
         { onDelta: appendToAssistant },
       );
 
-      if (result.mjml) {
-        workingMjml.current = result.mjml;
-        onApply(result.mjml);
+      if (result.template) {
+        workingTemplate.current = result.template;
+        onApply(result.template);
       }
       // Replace the streamed bubble with the authoritative final message.
       setMessages((m) => {
@@ -109,7 +106,7 @@ export function AiChatPanel({
   const reset = () => {
     setMessages([]);
     setError('');
-    workingMjml.current = null;
+    workingTemplate.current = null;
   };
 
   const empty = messages.length === 0;

@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { AccordionSection } from './shared';
+import { AccordionSection, SpacingControl } from './shared';
 import { StyledSelect, AlignmentSelector } from './FontSelectors';
 
 // ─── YouTube URL helpers ───
@@ -184,17 +184,7 @@ export function VideoBlockProperties({
       </AccordionSection>
 
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
-        <StyledSelect
-          label="Marge intérieure"
-          value={block.styles.padding || '10px'}
-          onChange={(v) => updateStyle('padding', v)}
-          options={[
-            { value: '0px', label: 'Aucun' },
-            { value: '10px', label: 'Normal (10px)' },
-            { value: '16px', label: 'Grand (16px)' },
-            { value: '24px', label: 'Extra (24px)' },
-          ]}
-        />
+        <SpacingControl styles={block.styles} updateStyles={(u) => onUpdate({ styles: { ...block.styles, ...u } })} />
       </AccordionSection>
     </div>
   );

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { ColorPicker, SectionHeader, NumericInput, Toggle, AccordionSection, resolveBlockPadding, resolveBlockMargin } from './shared';
+import { ColorPicker, SectionHeader, NumericInput, AccordionSection, SpacingControl, resolveBlockMargin } from './shared';
 import { StyledSelect, AlignmentSelector } from './FontSelectors';
 
 // ─── Divider (Séparateur) Properties ───
@@ -15,9 +15,7 @@ export function DividerBlockProperties({
   updateStyles: (updates: Record<string, string>) => void;
 }) {
   const [openSection, setOpenSection] = useState<string | null>('appearance');
-  const pad = resolveBlockPadding(block.styles);
   const mar = resolveBlockMargin(block.styles);
-  const paddingGrouped = block.styles.paddingGroup !== 'false';
 
   return (
     <div className="space-y-1">
@@ -57,24 +55,7 @@ export function DividerBlockProperties({
 
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
         <SectionHeader>Marge intérieure</SectionHeader>
-        <Toggle
-          label="Grouper les côtés"
-          value={paddingGrouped}
-          onChange={(v) => {
-            if (v) updateStyles({ paddingGroup: 'true', paddingTop: pad.top, paddingRight: pad.top, paddingBottom: pad.top, paddingLeft: pad.top, padding: pad.top });
-            else updateStyles({ paddingGroup: 'false' });
-          }}
-        />
-        {paddingGrouped ? (
-          <NumericInput value={pad.top} onChange={(v) => updateStyles({ paddingTop: v, paddingRight: v, paddingBottom: v, paddingLeft: v, padding: v })} />
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <div><Label className="text-[10px] text-muted-foreground">Haut</Label><NumericInput value={pad.top} onChange={(v) => updateStyles({ paddingTop: v })} /></div>
-            <div><Label className="text-[10px] text-muted-foreground">Droite</Label><NumericInput value={pad.right} onChange={(v) => updateStyles({ paddingRight: v })} /></div>
-            <div><Label className="text-[10px] text-muted-foreground">Bas</Label><NumericInput value={pad.bottom} onChange={(v) => updateStyles({ paddingBottom: v })} /></div>
-            <div><Label className="text-[10px] text-muted-foreground">Gauche</Label><NumericInput value={pad.left} onChange={(v) => updateStyles({ paddingLeft: v })} /></div>
-          </div>
-        )}
+        <SpacingControl styles={block.styles} updateStyles={updateStyles} />
         <SectionHeader>Marge</SectionHeader>
         <div className="grid grid-cols-2 gap-2">
           <div><Label className="text-xs">Verticale</Label><NumericInput value={mar.top} onChange={(v) => updateStyles({ marginY: v, margin: `${v} ${mar.right}` })} /></div>

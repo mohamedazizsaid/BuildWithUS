@@ -266,165 +266,25 @@ export const media = {
 
 // ─── AI Template Generation ───
 const AI_SERVICE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL ?? 'http://127.0.0.1:8001';
-const IMAGE_SEARCH_URL = process.env.NEXT_PUBLIC_IMAGE_SEARCH_API ?? 'http://localhost:8002';
-
-/**
- * Replace empty/placeholder mj-image src attributes with real Pexels images.
- * Uses each image's alt text as search query; falls back to prompt keywords.
- */
-async function enrichImagesWithPexels(mjml: string, fallbackQuery: string): Promise<string> {
-    // Match self-closing mj-image tags (after cleanup they're all self-closing)
-    const imgRegex = /<mj-image([^>]*?)\/>/g;
-    const altRegex = /\balt="([^"]*)"/;
-    const srcRegex = /\bsrc="([^"]*)"/;
-
-    const matches = [...mjml.matchAll(imgRegex)];
-    if (!matches.length) return mjml;
-
-    // Cache: query → url  (avoid duplicate API calls for same query)
-    const cache: Record<string, string> = {};
-
-    const fetchPexelsUrl = async (query: string): Promise<string | null> => {
-        if (cache[query] !== undefined) return cache[query] || null;
-        try {
-            const res = await fetch(
-                `${IMAGE_SEARCH_URL}/search?q=${encodeURIComponent(query)}&limit=3`,
-                { signal: AbortSignal.timeout(4000) }
-            );
-            if (!res.ok) { cache[query] = ''; return null; }
-            const images: { url: string }[] = await res.json();
-            const url = images[0]?.url ?? '';
-            cache[query] = url;
-            return url || null;
-        } catch {
-            cache[query] = '';
-            return null;
-        }
-    };
-
-    let result = mjml;
-
-    for (const match of matches) {
-        const attrs = match[1];
-        const currentSrc = srcRegex.exec(attrs)?.[1] ?? '';
-
-        // Skip if already has a real image URL
-        const isPlaceholder =
-            !currentSrc ||
-            currentSrc.includes('via.placeholder') ||
-            currentSrc.includes('placeholder.com') ||
-            currentSrc.includes('example.com') ||
-            currentSrc === 'YOUR_IMAGE_URL' ||
-            currentSrc.startsWith('http://placeholder');
-
-        if (!isPlaceholder) continue;
-
-        // Use alt text as query, fall back to the user's prompt
-        const altText = altRegex.exec(attrs)?.[1]?.trim() ?? '';
-        const query = altText || fallbackQuery;
-        if (!query) continue;
-
-        const url = await fetchPexelsUrl(query);
-        if (!url) continue;
-
-        // Replace the src value in-place
-        const newTag = match[0].replace(srcRegex, `src="${url.replace(/&/g, '&amp;')}"`);
-        result = result.replace(match[0], newTag);
-    }
-
-    return result;
-}
-
 export const ai = {
-    generate: async (body: {
-        prompt?: string;
-        tenant_id: string;
-        user_id: string;
-        brief?: import('./ai-brief').AiBrief;
-    }): Promise<{ mjml: string }> => {
-        const res = await fetch(`${AI_SERVICE_URL}/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: '', ...body }),
-        });
-        const text = await res.text();
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch {
-            throw new Error(`AI service error: ${res.status}`);
-        }
-        if (data.error) throw new Error(data.error);
-        if (!data.mjml) throw new Error('No MJML returned');
-
-        // Clean MJML: extract only the <mjml>...</mjml> block, fix common issues
-        let mjml = data.mjml;
-        const mjmlMatch = mjml.match(/<mjml[\s\S]*<\/mjml>/i);
-        if (mjmlMatch) mjml = mjmlMatch[0];
-        mjml = mjml.replace(/\/ \/>/g, '/>');
-        mjml = mjml.replace(/<mj-image([^>]*[^/])>/g, '<mj-image$1 />');
-        mjml = mjml.replace(/<mj-divider([^>]*[^/])>/g, '<mj-divider$1 />');
-
-        // Swap placeholder image srcs with real Pexels photos.
-        // Fallback query: brief headline → free text → raw prompt.
-        const fallbackQuery =
-            body.brief?.content?.headline ||
-            body.brief?.free_text ||
-            body.prompt ||
-            '';
-        mjml = await enrichImagesWithPexels(mjml, fallbackQuery);
-
-        return { mjml };
-    },
-
-    chat: async (body: {
-        messages: { role: 'user' | 'assistant'; content: string }[];
-        current_mjml?: string | null;
-        tenant_id: string;
-        user_id: string;
-    }): Promise<{ message: string; mjml: string }> => {
-        const res = await fetch(`${AI_SERVICE_URL}/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        const text = await res.text();
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch {
-            throw new Error(`AI service error: ${res.status}`);
-        }
-        if (data.error) throw new Error(data.error);
-
-        // The backend already injects stock images; just normalise the block.
-        let mjml: string = data.mjml || '';
-        if (mjml) {
-            const mjmlMatch = mjml.match(/<mjml[\s\S]*<\/mjml>/i);
-            if (mjmlMatch) mjml = mjmlMatch[0];
-        }
-        return { message: data.message || '', mjml };
-    },
-
     /**
-     * Streaming chat turn. The short assistant sentence arrives token-by-token
-     * via `onDelta` (visible in ~1-2s); the full MJML lands once in the final
-     * result. `onStatus('template')` fires when the model starts emitting the
-     * template block. Resolves with the authoritative { message, mjml }.
+     * Streaming chat turn — tool-based block generation (Next.js /api/ai/chat).
+     * The short assistant sentence arrives token-by-token via `onDelta` (visible
+     * in ~1-2s); the fully assembled Template lands once in the final result.
+     * `onStatus('template')` fires when the model finished calling block-tools
+     * and the template is being assembled. Resolves with { message, template }.
      */
     chatStream: async (
         body: {
             messages: { role: 'user' | 'assistant'; content: string }[];
-            current_mjml?: string | null;
-            tenant_id: string;
-            user_id: string;
+            current_template?: import('./editor-types').TemplateData | null;
         },
         handlers: {
             onDelta?: (text: string) => void;
             onStatus?: (stage: string) => void;
         } = {},
-    ): Promise<{ message: string; mjml: string }> => {
-        const res = await fetch(`${AI_SERVICE_URL}/chat/stream`, {
+    ): Promise<{ message: string; template: import('./editor-types').TemplateData | null }> => {
+        const res = await fetch(`/api/ai/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -436,13 +296,13 @@ export const ai = {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        let result: { message: string; mjml: string } = { message: '', mjml: '' };
+        let result: { message: string; template: import('./editor-types').TemplateData | null } = { message: '', template: null };
         let streamError = '';
 
         const handleEvent = (line: string) => {
             const trimmed = line.trim();
             if (!trimmed) return;
-            let evt: { type?: string; text?: string; stage?: string; message?: string; mjml?: string; error?: string };
+            let evt: { type?: string; text?: string; stage?: string; message?: string; template?: import('./editor-types').TemplateData; error?: string };
             try {
                 evt = JSON.parse(trimmed);
             } catch {
@@ -453,12 +313,7 @@ export const ai = {
             } else if (evt.type === 'status') {
                 if (evt.stage) handlers.onStatus?.(evt.stage);
             } else if (evt.type === 'done') {
-                let mjml = evt.mjml || '';
-                if (mjml) {
-                    const m = mjml.match(/<mjml[\s\S]*<\/mjml>/i);
-                    if (m) mjml = m[0];
-                }
-                result = { message: evt.message || '', mjml };
+                result = { message: evt.message || '', template: evt.template || null };
             } else if (evt.type === 'error') {
                 streamError = evt.error || 'Erreur de génération';
             }

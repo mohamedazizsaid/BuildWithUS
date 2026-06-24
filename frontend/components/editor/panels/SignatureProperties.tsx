@@ -4,16 +4,17 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { ColorPicker, AccordionSection } from './shared';
+import { ColorPicker, AccordionSection, SpacingControl } from './shared';
 import { FontSizeSelector, AlignmentSelector, StyledSelect } from './FontSelectors';
 
 // ─── Signature Properties ───
 export function SignatureBlockProperties({
-  block, updateContent, updateStyle,
+  block, updateContent, updateStyle, updateStyles,
 }: {
   block: BlockData;
   updateContent: (key: string, value: string) => void;
   updateStyle: (key: string, value: string) => void;
+  updateStyles: (updates: Record<string, string>) => void;
 }) {
   const [openSection, setOpenSection] = useState<string | null>('content');
 
@@ -58,17 +59,7 @@ export function SignatureBlockProperties({
       </AccordionSection>
 
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
-        <StyledSelect
-          label="Marge intérieure"
-          value={block.styles.padding || '20px 10px'}
-          onChange={(v) => updateStyle('padding', v)}
-          options={[
-            { value: '10px', label: 'Petit (10px)' },
-            { value: '20px 10px', label: 'Normal (20px 10px)' },
-            { value: '24px', label: 'Grand (24px)' },
-            { value: '32px', label: 'Extra (32px)' },
-          ]}
-        />
+        <SpacingControl styles={block.styles} updateStyles={updateStyles} defaultValue="20px 10px" />
       </AccordionSection>
     </div>
   );

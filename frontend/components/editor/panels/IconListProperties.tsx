@@ -3,7 +3,7 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { ColorPicker, NumericInput } from './shared';
+import { ColorPicker, NumericInput, SpacingControl } from './shared';
 import { FontWeightSelector } from './FontSelectors';
 
 export function IconListBlockProperties({
@@ -96,10 +96,9 @@ export function IconListBlockProperties({
         </div>
         <div>
           <Label className="text-xs">Marge intérieure</Label>
-          <NumericInput
-            value={block.styles.padding || '10px'}
-            onChange={(v) => updateStyle('padding', v)}
-          />
+          <div className="mt-1">
+            <SpacingControl styles={block.styles} updateStyles={(u) => onUpdate({ styles: { ...block.styles, ...u } })} />
+          </div>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { ImageIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { ColorPicker, NumericInput, AccordionSection } from './shared';
+import { ColorPicker, NumericInput, AccordionSection, SpacingControl } from './shared';
 import { StyledSelect } from './FontSelectors';
 
 // ─── Image Block Properties (with upload + full options) ───
@@ -184,19 +184,7 @@ export function ImageBlockProperties({
 
       {/* ─── Espacement ─── */}
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">
-        <StyledSelect
-          label="Marge intérieure"
-          value={block.styles.padding || '10px'}
-          onChange={(v) => updateStyle('padding', v)}
-          options={[
-            { value: '0px', label: 'Aucun' },
-            { value: '4px', label: 'Très petit (4px)' },
-            { value: '8px', label: 'Petit (8px)' },
-            { value: '10px', label: 'Normal (10px)' },
-            { value: '16px', label: 'Grand (16px)' },
-            { value: '24px', label: 'Extra (24px)' },
-          ]}
-        />
+        <SpacingControl styles={block.styles} updateStyles={updateStyles} />
       </AccordionSection>
 
       {/* ─── Bordures ─── */}

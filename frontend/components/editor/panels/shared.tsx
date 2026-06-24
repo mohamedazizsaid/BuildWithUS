@@ -143,6 +143,54 @@ export function NumericInput({ value, onChange, suffix = 'px' }: { value: string
   );
 }
 
+// ─── Spacing Control ───
+// Independent Haut/Bas/Gauche/Droite padding inputs (with a grouped shortcut).
+// Always writes BOTH the individual paddingTop/Right/Bottom/Left AND the `padding`
+// shorthand, because the MJML/HTML export reads the shorthand. Padding is email-safe
+// (unlike margin, which most email clients ignore), so this is the reliable way to
+// tighten or loosen the vertical gap around any block.
+export function SpacingControl({
+  styles,
+  updateStyles,
+  groupedLabel = 'Marge intérieure',
+  defaultValue = '10px',
+}: {
+  styles: Record<string, string>;
+  updateStyles: (updates: Record<string, string>) => void;
+  groupedLabel?: string;
+  defaultValue?: string;
+}) {
+  const hasPadding = styles.paddingTop || styles.paddingRight || styles.paddingBottom || styles.paddingLeft || styles.padding;
+  const pad = resolveBlockPadding(hasPadding ? styles : { padding: defaultValue });
+  const grouped = styles.paddingGroup === 'true'
+    || (!styles.paddingGroup && pad.top === pad.right && pad.top === pad.bottom && pad.top === pad.left);
+  return (
+    <div>
+      <Toggle
+        label="Grouper les côtés"
+        value={grouped}
+        onChange={(v) => {
+          if (v) updateStyles({ paddingGroup: 'true', paddingTop: pad.top, paddingRight: pad.top, paddingBottom: pad.top, paddingLeft: pad.top, padding: pad.top });
+          else updateStyles({ paddingGroup: 'false' });
+        }}
+      />
+      {grouped ? (
+        <div className="mt-2">
+          <Label className="text-xs">{groupedLabel}</Label>
+          <NumericInput value={pad.top} onChange={(v) => updateStyles({ paddingTop: v, paddingRight: v, paddingBottom: v, paddingLeft: v, padding: v })} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <div><Label className="text-[10px] text-muted-foreground">Haut</Label><NumericInput value={pad.top} onChange={(v) => updateStyles({ paddingTop: v, padding: `${v} ${pad.right} ${pad.bottom} ${pad.left}` })} /></div>
+          <div><Label className="text-[10px] text-muted-foreground">Droite</Label><NumericInput value={pad.right} onChange={(v) => updateStyles({ paddingRight: v, padding: `${pad.top} ${v} ${pad.bottom} ${pad.left}` })} /></div>
+          <div><Label className="text-[10px] text-muted-foreground">Bas</Label><NumericInput value={pad.bottom} onChange={(v) => updateStyles({ paddingBottom: v, padding: `${pad.top} ${pad.right} ${v} ${pad.left}` })} /></div>
+          <div><Label className="text-[10px] text-muted-foreground">Gauche</Label><NumericInput value={pad.left} onChange={(v) => updateStyles({ paddingLeft: v, padding: `${pad.top} ${pad.right} ${pad.bottom} ${v}` })} /></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Toggle Switch ───
 export function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
   return (

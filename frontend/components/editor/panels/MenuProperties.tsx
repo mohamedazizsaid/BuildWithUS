@@ -5,7 +5,7 @@ import { X, Plus, Rows3, Columns3 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { ColorPicker, NumericInput } from './shared';
+import { ColorPicker, NumericInput, SpacingControl } from './shared';
 import { FontWeightSelector, StyledSelect } from './FontSelectors';
 
 export function MenuBlockProperties({
@@ -184,10 +184,9 @@ export function MenuBlockProperties({
         </div>
         <div>
           <Label className="text-xs">Marge intérieure</Label>
-          <NumericInput
-            value={block.styles.padding || '10px'}
-            onChange={(v) => updateStyle('padding', v)}
-          />
+          <div className="mt-1">
+            <SpacingControl styles={block.styles} updateStyles={(u) => onUpdate({ styles: { ...block.styles, ...u } })} />
+          </div>
         </div>
       </div>
     </div>
