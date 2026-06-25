@@ -32,8 +32,17 @@ interface ChatMessage {
  *   { type: "done",   message, template } final result
  *   { type: "error",  error }
  */
+interface Selection {
+  blockId?: string | null;
+  sectionId?: string | null;
+}
+
 export async function POST(req: Request): Promise<Response> {
-  let body: { messages?: ChatMessage[]; current_template?: TemplateData | null };
+  let body: {
+    messages?: ChatMessage[];
+    current_template?: TemplateData | null;
+    selection?: Selection | null;
+  };
   try {
     body = await req.json();
   } catch {
@@ -42,6 +51,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const messages = Array.isArray(body.messages) ? body.messages : [];
   const currentTemplate = body.current_template ?? null;
+  const selection = body.selection ?? null;
   if (messages.length === 0) {
     return Response.json({ error: 'No messages provided' }, { status: 400 });
   }
@@ -69,6 +79,11 @@ export async function POST(req: Request): Promise<Response> {
         "Email actuel à modifier (chaque bloc a un `id`) :\n" +
         JSON.stringify(summarizeTemplate(currentTemplate)),
     });
+    // Selection-scoped editing: if the user has a block/section selected in the
+    // canvas, steer the model to apply the request to THAT element (unless the
+    // request clearly concerns the whole email).
+    const hint = selection && buildSelectionHint(currentTemplate, selection);
+    if (hint) modelMessages.push({ role: 'user', content: hint });
   }
   modelMessages.push(...messages);
 
@@ -221,6 +236,41 @@ async function refinePass(template: TemplateData, userRequest: string): Promise<
   return builder;
 }
 
+/**
+ * Build a steering instruction describing the element the user selected in the
+ * canvas, so the model scopes its edit to that block/section. Returns null when
+ * the selection can't be resolved (stale id) — the model then edits as usual.
+ */
+function buildSelectionHint(t: TemplateData, sel: Selection): string | null {
+  const snippet = (s: unknown) =>
+    typeof s === 'string' ? s.replace(/<[^>]+>/g, '').trim().slice(0, 40) : '';
+  if (sel.blockId) {
+    for (const r of t.rows)
+      for (const c of r.columns)
+        for (const b of c.blocks)
+          if (b.id === sel.blockId) {
+            const txt = snippet(b.content.text);
+            return (
+              `CONTEXTE DE SÉLECTION : l'utilisateur a sélectionné UN bloc précis dans l'éditeur — ` +
+              `id="${b.id}", type="${b.type}"${txt ? `, texte="${txt}"` : ''} (dans la section sectionId="${r.id}"). ` +
+              `Applique la demande à CE bloc en priorité (updateBlock / setImage / removeBlock / moveBlock selon le cas), ` +
+              `SAUF si la demande concerne clairement tout l'email (ex « passe tout en sombre ») ou un autre élément nommé explicitement.`
+            );
+          }
+  }
+  if (sel.sectionId) {
+    const idx = t.rows.findIndex((r) => r.id === sel.sectionId);
+    if (idx >= 0)
+      return (
+        `CONTEXTE DE SÉLECTION : l'utilisateur a sélectionné UNE section entière — ` +
+        `sectionId="${sel.sectionId}" (section n°${idx + 1}). ` +
+        `Applique la demande à CETTE section (updateSection / updateCard / removeSection / moveSection, ou updateBlock sur ses blocs), ` +
+        `SAUF si la demande concerne clairement tout l'email.`
+      );
+  }
+  return null;
+}
+
 /** Compact view of a template for edit mode — includes each block's id so the
  * model can target it with updateBlock/removeBlock. */
 function summarizeTemplate(t: TemplateData) {
@@ -236,7 +286,7 @@ function summarizeTemplate(t: TemplateData) {
     sections: t.rows.map((r) => ({
       sectionId: r.id,
       layout: r.layout,
-      sectionStyles: pick(r.styles, ['padding', 'backgroundColor', 'borderRadius']),
+      sectionStyles: pick(r.styles, ['padding', 'backgroundColor', 'borderRadius', 'backgroundUrl']),
       card: r.columns[0]?.styles?.border || r.columns[0]?.styles?.backgroundColor
         ? pick(r.columns[0].styles as Record<string, string>, ['padding', 'backgroundColor', 'border', 'borderRadius'])
         : undefined,
@@ -309,9 +359,12 @@ function makeProseCleaner() {
 /** Replace empty/placeholder image srcs with real stock photos from image-pipeline. */
 async function resolveStockImages(builder: TemplateBuilder, baseUrl: string): Promise<void> {
   const imgs = builder.imageBlocksNeedingSrc();
-  if (imgs.length === 0) return;
+  const heroQueries = builder.heroQueriesNeedingPhoto();
+  if (imgs.length === 0 && heroQueries.length === 0) return;
 
-  const queries = [...new Set(imgs.map((b) => String(b.content.alt || 'email')))];
+  const queries = [
+    ...new Set([...imgs.map((b) => String(b.content.alt || 'email')), ...heroQueries]),
+  ];
   const map: Record<string, string> = {};
 
   await Promise.all(
@@ -333,4 +386,7 @@ async function resolveStockImages(builder: TemplateBuilder, baseUrl: string): Pr
     const q = String(b.content.alt || 'email');
     if (map[q]) b.content.src = map[q];
   }
+  // Hero background photos (resolved query → url; drops the temp query key even
+  // if unresolved, so it never leaks into the saved template).
+  builder.applyHeroPhotos(map);
 }

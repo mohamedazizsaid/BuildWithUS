@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { Sparkles, ArrowUp, RotateCcw } from 'lucide-react';
+import { Sparkles, ArrowUp, RotateCcw, MousePointer2, X } from 'lucide-react';
 import type { AiChatState, ChatMessage } from './useAiChatState';
 import type { TemplateData } from '@/lib/editor-types';
 
@@ -22,14 +22,26 @@ const SUGGESTIONS = [
  * - `chat` holds the conversation state, owned by the editor page so the
  *   history survives switching to Preview/Code and back to the AI tab.
  */
+export interface AiSelection {
+  blockId: string | null;
+  sectionId: string | null;
+  label: string | null;
+}
+
 export function AiChatPanel({
   onApply,
   getCurrentTemplate,
   chat,
+  selection,
+  onClearSelection,
 }: {
   onApply: (template: TemplateData) => void;
   getCurrentTemplate: () => TemplateData;
   chat: AiChatState;
+  // The block/section the user has selected in the canvas (null when nothing is
+  // selected). When set, the next prompt is scoped to that element.
+  selection?: AiSelection | null;
+  onClearSelection?: () => void;
 }) {
   const { messages, setMessages, input, setInput, isLoading, setIsLoading, error, setError, workingTemplate } = chat;
 
@@ -49,11 +61,17 @@ export function AiChatPanel({
     setIsLoading(true);
     setError('');
 
-    // On the first turn, seed from the live canvas if it already has content.
-    if (workingTemplate.current === null) {
-      const live = getCurrentTemplate();
-      workingTemplate.current = live.rows.length > 0 ? live : null;
-    }
+    // Always work off the LIVE canvas if it has content: this keeps the AI in
+    // sync with manual edits made between turns AND guarantees the selected
+    // block/section ids exist in the template we send. Empty canvas → fresh
+    // generation (workingTemplate stays null).
+    const live = getCurrentTemplate();
+    if (live.rows.length > 0) workingTemplate.current = live;
+
+    // Scope the edit to the selected element, if any. Captured at send time.
+    const scoped = workingTemplate.current && selection && (selection.blockId || selection.sectionId)
+      ? { blockId: selection.blockId, sectionId: selection.sectionId }
+      : null;
 
     // Append streamed prose to the trailing assistant bubble.
     const appendToAssistant = (text: string) =>
@@ -72,6 +90,7 @@ export function AiChatPanel({
         {
           messages: nextMessages,
           current_template: workingTemplate.current,
+          selection: scoped,
         },
         { onDelta: appendToAssistant },
       );
@@ -109,6 +128,7 @@ export function AiChatPanel({
     workingTemplate.current = null;
   };
 
+  const scopeLabel = selection && (selection.blockId || selection.sectionId) ? selection.label : null;
   const empty = messages.length === 0;
   const lastMsg = messages.at(-1);
   const assistantStreaming = !!lastMsg && lastMsg.role === 'assistant' && lastMsg.content.length > 0;
@@ -217,6 +237,24 @@ export function AiChatPanel({
 
       {/* Composer */}
       <div className="border-t border-blue-100 dark:border-blue-900/40 bg-linear-to-r from-blue-50/60 to-indigo-50/60 dark:from-blue-950/30 dark:to-indigo-950/30 p-3 shrink-0">
+        {/* Selection scope chip — the next prompt targets this element */}
+        {scopeLabel && (
+          <div className="mb-2 flex items-center gap-1.5 rounded-lg border border-blue-200 dark:border-blue-900/50 bg-white/70 dark:bg-blue-950/30 px-2.5 py-1.5 text-[11px] text-slate-600 dark:text-slate-300">
+            <MousePointer2 size={12} className="shrink-0 text-blue-500" />
+            <span className="min-w-0 truncate">
+              Modifie : <span className="font-medium text-blue-700 dark:text-blue-300">{scopeLabel}</span>
+            </span>
+            {onClearSelection && (
+              <button
+                onClick={onClearSelection}
+                title="Annuler la sélection (modifier tout l'email)"
+                className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
         <div className="relative">
           <textarea
             value={input}
@@ -227,7 +265,7 @@ export function AiChatPanel({
                 send(input);
               }
             }}
-            placeholder={empty ? 'Décrivez votre email…' : 'Demandez une modification…'}
+            placeholder={scopeLabel ? `Modifier « ${scopeLabel} »…` : empty ? 'Décrivez votre email…' : 'Demandez une modification…'}
             rows={2}
             disabled={isLoading}
             className="w-full resize-none rounded-xl border border-blue-200 dark:border-blue-900/50 bg-white dark:bg-slate-900 text-xs p-3 pr-11 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all disabled:opacity-60"

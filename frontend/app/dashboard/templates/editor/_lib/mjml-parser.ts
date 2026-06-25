@@ -488,6 +488,8 @@ export function parseMjmlToTemplate(
     };
     const sectionRadius = section.getAttribute("border-radius");
     if (sectionRadius) rowStyles.borderRadius = sectionRadius;
+    const sectionBgUrl = section.getAttribute("background-url");
+    if (sectionBgUrl) rowStyles.backgroundUrl = sectionBgUrl;
 
     rows.push({
       id: uuid(),

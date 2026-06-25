@@ -99,6 +99,10 @@ export class TemplateBuilder {
   private loaded = false; // edit mode: preserve the existing template's globals
   private readonly meta: { title?: string; preview?: string } = {};
   private inCard = false; // blocks currently land inside a bordered card column
+  // When set (edit mode), the NEXT started section is inserted at this row index
+  // instead of being appended — then the anchor clears. Lets the model place a
+  // new section before/after an existing one in a single pass.
+  private insertAnchor: number | null = null;
 
   // ── Theme ────────────────────────────────────────────────────────────────
 
@@ -227,11 +231,33 @@ export class TemplateBuilder {
       // Generous vertical rhythm; tighter for plain default sections.
       styles: { backgroundColor: bg, padding: isFull ? '28px 0' : '24px 0' },
     };
-    this.rows.push(row);
-    this.curRow = this.rows.length - 1;
+    // Honor a pending insertion anchor (edit mode) so the new section lands at a
+    // chosen position; otherwise append. Keep `tones` aligned with `rows`.
+    if (this.insertAnchor !== null) {
+      const at = Math.max(0, Math.min(this.insertAnchor, this.rows.length));
+      this.rows.splice(at, 0, row);
+      this.tones.splice(at, 0, tone);
+      this.curRow = at;
+      this.insertAnchor = null;
+    } else {
+      this.rows.push(row);
+      this.curRow = this.rows.length - 1;
+      this.tones[this.curRow] = tone;
+    }
     this.curCol = 0;
-    this.tones[this.curRow] = tone;
     this.inCard = false;
+  }
+
+  /**
+   * Edit mode: queue the NEXT started section (startSection/startCard/startHero/
+   * addColorBar) to be inserted before/after an existing section instead of
+   * appended. One-shot — clears as soon as a section is started.
+   */
+  setInsertAnchor(targetSectionId: string, position: 'before' | 'after'): boolean {
+    const i = this.rows.findIndex((r) => r.id === targetSectionId);
+    if (i < 0) return false;
+    this.insertAnchor = position === 'before' ? i : i + 1;
+    return true;
   }
 
   /**
@@ -262,22 +288,58 @@ export class TemplateBuilder {
   }
 
   /**
-   * A multi-color brand accent bar (BleuFix-style), rendered as colored spacer
-   * cells across a multi-column row — no canvas change needed. Supports 2-4
-   * colors (the layout maxes at 4 columns; 6-color needs mj-group, a canvas
-   * feature). Extra colors are dropped.
+   * A multi-color brand accent bar (BleuFix-style). Rendered as a SINGLE
+   * full-width block whose content is an email-safe HTML table of equal colored
+   * cells — so it supports any number of colors (2-8), unlike the old
+   * column-based version that maxed out at 4. No canvas/parser change needed:
+   * the text block's HTML renders identically in the editor canvas, the preview,
+   * and the compiled MJML (mj-text passes the markup through, like icon-list).
    */
   addColorBar(colors: string[], height = '8px'): void {
-    const valid = colors.filter((c) => parseHex(c)).slice(0, 4);
+    const valid = colors.filter((c) => parseHex(c)).slice(0, 8);
     if (valid.length < 2) return;
-    const layout: RowLayout =
-      valid.length === 2 ? '50-50' : valid.length === 3 ? '33-33-33' : '25-25-25-25';
-    this.startSection(layout);
+    const w = (100 / valid.length).toFixed(4);
+    const cells = valid
+      .map(
+        (c) =>
+          `<td bgcolor="${c}" style="background-color:${c};width:${w}%;height:${height};font-size:0;line-height:0;mso-line-height-rule:exactly">&nbsp;</td>`,
+      )
+      .join('');
+    const tableHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;table-layout:fixed;width:100%"><tbody><tr>${cells}</tr></tbody></table>`;
+    this.startSection('100');
     this.rows[this.curRow].styles.padding = '0';
-    valid.forEach((c, i) => {
-      this.push(this.make('text', { text: '&nbsp;' }, { backgroundColor: c, height, padding: '0' }));
-      if (i < valid.length - 1) this.nextColumn();
-    });
+    this.push(this.make('text', { text: tableHtml }, { padding: '0', lineHeight: '0' }));
+    this.inCard = false;
+  }
+
+  /**
+   * Pure vertical breathing room — an empty fixed-height block. Reuses the
+   * "spacer bar" convention (empty text + explicit height) that the canvas,
+   * preview, and MJML export all already special-case, so no new block type is
+   * needed. Lets the model control rhythm between elements.
+   */
+  addSpacer(height = '24px'): void {
+    this.push(this.make('text', { text: '&nbsp;' }, { height, padding: '0', lineHeight: '0' }));
+  }
+
+  /**
+   * A full-bleed hero section with a background photo and text laid OVER it
+   * (instead of stacked above/below). The section carries a `backgroundUrl`
+   * (resolved post-generation from `query`, like addImage) plus a dark scrim for
+   * legibility; blocks added next (eyebrow / h1 / lede / button) render on top
+   * with light, readable text. Closes the "text-over-image hero" gap.
+   */
+  startHero(opts: { query?: string; src?: string } = {}): void {
+    this.startSection('100', { tone: 'dark' });
+    const row = this.rows[this.curRow];
+    row.styles.padding = '72px 40px';
+    row.styles.backgroundColor = '#0b0b0e'; // base / fallback behind the photo
+    if (opts.src && /^https?:/i.test(opts.src)) {
+      row.styles.backgroundUrl = opts.src;
+    } else if (opts.query) {
+      // Stashed query; resolveStockImages swaps in a real photo, then drops this.
+      row.styles.backgroundUrlQuery = sanitizeText(opts.query);
+    }
     this.inCard = false;
   }
 
@@ -666,6 +728,26 @@ export class TemplateBuilder {
 
   get blockCount(): number {
     return this.rows.reduce((n, r) => n + r.columns.reduce((m, c) => m + c.blocks.length, 0), 0);
+  }
+
+  /** Pending hero background queries → resolved to real photos post-generation. */
+  heroQueriesNeedingPhoto(): string[] {
+    const out: string[] = [];
+    for (const r of this.rows) {
+      const q = r.styles.backgroundUrlQuery;
+      if (q) out.push(q);
+    }
+    return [...new Set(out)];
+  }
+
+  /** Apply resolved hero photos (query → url) and drop the temporary query key. */
+  applyHeroPhotos(map: Record<string, string>): void {
+    for (const r of this.rows) {
+      const q = r.styles.backgroundUrlQuery;
+      if (!q) continue;
+      if (map[q]) r.styles.backgroundUrl = map[q];
+      delete r.styles.backgroundUrlQuery;
+    }
   }
 
   /** Image blocks still missing a real (http) src — resolved post-generation. */

@@ -278,6 +278,7 @@ export const ai = {
         body: {
             messages: { role: 'user' | 'assistant'; content: string }[];
             current_template?: import('./editor-types').TemplateData | null;
+            selection?: { blockId: string | null; sectionId: string | null } | null;
         },
         handlers: {
             onDelta?: (text: string) => void;

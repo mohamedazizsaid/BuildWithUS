@@ -132,13 +132,38 @@ export function createBlockTools(builder: TemplateBuilder) {
 
     addColorBar: tool({
       description:
-        "Ajoute une fine barre d'accent multicolore (2 à 4 couleurs de la marque) — touche graphique premium, idéale juste sous la bannière d'en-tête. Donne les couleurs en hex.",
+        "Ajoute une fine barre d'accent multicolore (2 à 8 couleurs de la marque) — touche graphique premium, idéale juste sous la bannière d'en-tête. Donne les couleurs en hex, dans l'ordre.",
       inputSchema: z.object({
-        colors: z.array(z.string()).min(2).max(4).describe('Couleurs hex, ex ["#1d428a","#c8102e","#ffffff"]'),
+        colors: z.array(z.string()).min(2).max(8).describe('Couleurs hex, ex ["#1d428a","#c8102e","#ffffff"]'),
       }),
       execute: async ({ colors }) => {
         builder.addColorBar(colors);
         return ok('colorbar');
+      },
+    }),
+
+    addSpacer: tool({
+      description:
+        "Ajoute un espace vertical vide (respiration) entre deux éléments. Utilise-le avec parcimonie pour aérer une mise en page trop dense.",
+      inputSchema: z.object({
+        height: z.string().optional().describe("Hauteur de l'espace, ex '24px' ou '40px'"),
+      }),
+      execute: async ({ height }) => {
+        builder.addSpacer(height);
+        return ok('spacer');
+      },
+    }),
+
+    startHero: tool({
+      description:
+        "Démarre une bannière HÉRO plein cadre : une photo de fond avec le texte PAR-DESSUS (et non au-dessus). Idéale comme en-tête d'accroche. Fournis `query` (mots-clés ANGLAIS pour la photo de fond) OU `src` (URL http). Les blocs ajoutés ensuite (addEyebrow, addHeading h1, addText, addButton) se posent sur la photo en texte clair lisible.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Mots-clés de la photo de fond, ex 'dark basketball arena night'"),
+        src: z.string().optional().describe('URL http directe de la photo (si connue)'),
+      }),
+      execute: async (p) => {
+        builder.startHero(p);
+        return ok('hero');
       },
     }),
 
@@ -368,6 +393,19 @@ export function createEditTools(builder: TemplateBuilder) {
       execute: async ({ sectionId, targetSectionId, position }) => {
         const done = builder.moveSection(sectionId, targetSectionId, position);
         return done ? ok('move-section') : { ok: false, error: 'section(s) introuvable(s)' };
+      },
+    }),
+
+    insertSectionAt: tool({
+      description:
+        "Positionne la PROCHAINE nouvelle section AVANT ou APRÈS une section existante (au lieu de l'ajouter à la fin). Appelle CET outil EN PREMIER avec `targetSectionId` (section de référence) + `position` (before|after), PUIS appelle startSection/startCard/startHero/addColorBar et ses blocs : ils se placeront au bon endroit. Pour « ajoute une section ENTRE X et Y » ou « insère … avant Z » en un seul geste.",
+      inputSchema: z.object({
+        targetSectionId: z.string(),
+        position: z.enum(['before', 'after']),
+      }),
+      execute: async ({ targetSectionId, position }) => {
+        const done = builder.setInsertAnchor(targetSectionId, position);
+        return done ? ok('insert-anchor') : { ok: false, error: 'sectionId introuvable' };
       },
     }),
   };

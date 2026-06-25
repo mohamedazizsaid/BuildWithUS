@@ -330,7 +330,12 @@ export function generatePreviewHtml(template: TemplateData): string {
       row.styles.backgroundColor === "transparent"
         ? ""
         : `background-color:${row.styles.backgroundColor};`;
-    html += `<div style="${rowBg}padding:${row.styles.padding};">`;
+    // Hero background photo: layer a dark scrim over the image for legibility so
+    // text laid on top stays readable (matches the editor canvas).
+    const rowBgImg = row.styles.backgroundUrl
+      ? `background-image:linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)),url(${row.styles.backgroundUrl});background-size:cover;background-position:center;background-repeat:no-repeat;`
+      : "";
+    html += `<div style="${rowBg}${rowBgImg}padding:${row.styles.padding};">`;
     html += `<div style="display:flex;">`;
     for (const col of row.columns) {
       const cs = col.styles || {};

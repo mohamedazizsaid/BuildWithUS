@@ -20,7 +20,7 @@ import type { TemplateData } from '@/lib/editor-types';
 import { ColorPicker, SectionHeader, NumericInput, AccordionSection, SpacingControl, resolveBlockMargin } from './panels/shared';
 import { FontWeightSelector, AlignmentSelector, StyledSelect, LineHeightSelector, LetterSpacingSelector, TextStyleFields } from './panels/FontSelectors';
 import { PhotosPanel } from './panels/PhotosPanel';
-import { AiChatPanel } from './ai-chat/AiChatPanel';
+import { AiChatPanel, type AiSelection } from './ai-chat/AiChatPanel';
 import type { AiChatState } from './ai-chat/useAiChatState';
 import { SectionsPanel } from './panels/SectionsPanel';
 import { CorpsPanel } from './panels/CorpsPanel';
@@ -45,6 +45,8 @@ interface LeftPanelProps {
   getCurrentTemplate: () => TemplateData;
   activeColumnId: string | null;
   aiChat: AiChatState;
+  aiSelection?: AiSelection | null;
+  onClearAiSelection?: () => void;
 }
 
 interface PropertiesPanelProps {
@@ -83,6 +85,8 @@ export function LeftPanel({
   getCurrentTemplate,
   activeColumnId,
   aiChat,
+  aiSelection,
+  onClearAiSelection,
 }: LeftPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('contenu');
   const [collapsed, setCollapsed] = useState(false);
@@ -129,7 +133,7 @@ export function LeftPanel({
       {!collapsed && (
         activeTab === 'ai' ? (
           <div className="flex-1 min-w-0 flex flex-col">
-            <AiChatPanel onApply={onAiApply} getCurrentTemplate={getCurrentTemplate} chat={aiChat} />
+            <AiChatPanel onApply={onAiApply} getCurrentTemplate={getCurrentTemplate} chat={aiChat} selection={aiSelection} onClearSelection={onClearAiSelection} />
           </div>
         ) : (
           <div className="flex-1 bg-background overflow-y-auto min-w-0">

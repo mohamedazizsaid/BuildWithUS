@@ -30,7 +30,17 @@ export function CanvasRow({
           ? 'outline-blue-500'
           : 'outline-transparent hover:outline-blue-300 hover:outline-dashed'
       }`}
-      style={{ backgroundColor: row.styles.backgroundColor === 'transparent' ? 'transparent' : row.styles.backgroundColor, padding: row.styles.padding }}
+      style={{
+        backgroundColor: row.styles.backgroundColor === 'transparent' ? 'transparent' : row.styles.backgroundColor,
+        // Hero background photo with a dark scrim so overlaid text stays legible.
+        backgroundImage: row.styles.backgroundUrl
+          ? `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)),url(${row.styles.backgroundUrl})`
+          : undefined,
+        backgroundSize: row.styles.backgroundUrl ? 'cover' : undefined,
+        backgroundPosition: row.styles.backgroundUrl ? 'center' : undefined,
+        backgroundRepeat: row.styles.backgroundUrl ? 'no-repeat' : undefined,
+        padding: row.styles.padding,
+      }}
       onClick={onSelectRow}
     >
       {/* Section label tab — visible on hover or when selected */}

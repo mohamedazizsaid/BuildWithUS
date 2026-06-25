@@ -3,7 +3,7 @@
 // Uses useSearchParams — render on demand instead of static prerender.
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useLayoutEffect, useRef, Suspense, type ChangeEvent } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useMemo, useRef, Suspense, type ChangeEvent } from "react";
 import { flushSync } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEditor } from "@/hooks/use-editor";
@@ -16,6 +16,7 @@ import { useAiChatState } from "@/components/editor/ai-chat/useAiChatState";
 import toast from "react-hot-toast";
 import { templates, getBuilderReturnUrl, setBuilderReturnUrl } from "@/lib/api";
 import {
+  BlockData,
   BlockType,
   TemplateData,
 } from "@/lib/editor-types";
@@ -26,10 +27,46 @@ import { parseMjmlToTemplate } from "./_lib/mjml-parser";
 import { isRawHtml } from "../_lib/preview-helpers";
 import { HtmlFrame } from "@/components/HtmlFrame";
 
+// Human-readable label for a selected block, shown in the AI chat scope chip
+// (e.g. « Bouton « En savoir plus » », « Image »). Strips HTML from text content.
+const BLOCK_LABELS: Record<BlockType, string> = {
+  heading: "Titre", text: "Texte", image: "Image", video: "Vidéo", button: "Bouton",
+  divider: "Séparateur", table: "Tableau", signature: "Signature", social: "Réseaux",
+  menu: "Menu", "icon-list": "Liste",
+};
+function blockLabel(b: BlockData): string {
+  const name = BLOCK_LABELS[b.type] ?? b.type;
+  const raw = typeof b.content.text === "string" ? b.content.text.replace(/<[^>]+>/g, "").trim() : "";
+  return raw ? `${name} « ${raw.slice(0, 24)}${raw.length > 24 ? "…" : ""} »` : name;
+}
+
 function EditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editorState = useEditor();
+
+  // Resolve the canvas selection (block, else section) into a scope descriptor
+  // for the AI chat: prompts then target that element. Null = whole-template.
+  const aiSelection = useMemo(() => {
+    const { selectedBlockId, selectedRowId, template } = editorState;
+    if (selectedBlockId) {
+      for (const r of template.rows)
+        for (const c of r.columns)
+          for (const b of c.blocks)
+            if (b.id === selectedBlockId)
+              return { blockId: selectedBlockId, sectionId: r.id, label: blockLabel(b) };
+    }
+    if (selectedRowId) {
+      const idx = template.rows.findIndex((r) => r.id === selectedRowId);
+      if (idx >= 0) return { blockId: null, sectionId: selectedRowId, label: `Section ${idx + 1}` };
+    }
+    return null;
+  }, [editorState.selectedBlockId, editorState.selectedRowId, editorState.template]);
+
+  const clearAiSelection = useCallback(() => {
+    editorState.setSelectedBlockId(null);
+    editorState.setSelectedRowId(null);
+  }, [editorState.setSelectedBlockId, editorState.setSelectedRowId]);
   const { user } = useAuth();
   // AI chat conversation state — owned here (a stable, always-mounted parent)
   // so the history survives switching to Preview/Code and back to the AI tab.
@@ -243,7 +280,11 @@ function EditorContent() {
 
     for (const row of rows) {
       const secRadius = row.styles.borderRadius ? ` border-radius="${row.styles.borderRadius}"` : "";
-      mjml += `    <mj-section background-color="${row.styles.backgroundColor}" padding="${row.styles.padding}"${secRadius}>\n`;
+      // Background photo (hero) — mj-section lays content directly over it.
+      const secBgUrl = row.styles.backgroundUrl
+        ? ` background-url="${row.styles.backgroundUrl}" background-size="cover" background-position="center center" background-repeat="no-repeat"`
+        : "";
+      mjml += `    <mj-section background-color="${row.styles.backgroundColor}" padding="${row.styles.padding}"${secBgUrl}${secRadius}>\n`;
       for (const col of row.columns) {
         const cs = col.styles || {};
         const colAttrs = [
@@ -564,6 +605,8 @@ function EditorContent() {
               getCurrentTemplate={() => editorState.template}
               activeColumnId={activeColumnId}
               aiChat={aiChat}
+              aiSelection={aiSelection}
+              onClearAiSelection={clearAiSelection}
             />
           </div>
         )}
