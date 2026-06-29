@@ -229,7 +229,9 @@ export function PreviewModal({
 }: {
   template: Template;
   onClose: () => void;
-  onEdit: () => void;
+  /** Optional — when omitted (e.g. the super-admin cross-tenant view) the
+   *  "Modifier" button is hidden since editing is tenant-scoped. */
+  onEdit?: () => void;
 }) {
   const config = getTypeConfig(template.type);
   const isContractOrInvoice = ['contrat', 'CONTRAT', 'facture', 'FACTURE'].includes(template.type);
@@ -261,13 +263,15 @@ export function PreviewModal({
             <h3 className="text-sm font-semibold truncate">{template.name}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={onEdit}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
-            >
-              <Pencil size={12} />
-              Modifier
-            </button>
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <Pencil size={12} />
+                Modifier
+              </button>
+            )}
             <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-colors">
               <X size={16} className="text-slate-500" />
             </button>

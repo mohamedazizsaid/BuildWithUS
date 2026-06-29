@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { auth } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { PreviewModal } from '@/app/dashboard/templates/_components/PreviewModal';
+import type { Template } from '@/app/dashboard/templates/_lib/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -214,47 +216,21 @@ function ResetPasswordModal({
   );
 }
 
-// ── Template preview modal ──
-function TemplatePreviewModal({ template, onClose }: { template: TemplateRow; onClose: () => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${TYPE_STYLES[template.type] || 'bg-slate-100 text-slate-600'}`}>{template.type}</span>
-              <h3 className="text-slate-900 font-semibold text-sm truncate">{template.name}</h3>
-            </div>
-            <p className="text-slate-400 text-[11px] mt-0.5">{template.tenant_name}</p>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors shrink-0"><X size={18} /></button>
-        </div>
-        <div className="p-5 overflow-auto bg-slate-50">
-          {template.subject ? (
-            <div className="mb-3">
-              <span className="text-slate-400 text-[11px] uppercase tracking-wide">Objet</span>
-              <p className="text-slate-900 text-sm">{template.subject}</p>
-            </div>
-          ) : null}
-          <div className="rounded-lg overflow-hidden border border-slate-200 bg-white">
-            <iframe
-              title="preview"
-              srcDoc={template.content || '<p style="font-family:sans-serif;padding:24px;color:#888">Aucun contenu</p>'}
-              className="w-full h-[50vh] bg-white"
-            />
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
+// Map a super-admin TemplateRow onto the builder's Template shape so we can
+// reuse the exact same PreviewModal (faithful per-type rendering).
+function toBuilderTemplate(t: TemplateRow): Template {
+  return {
+    id: t.id,
+    name: t.name,
+    description: '',
+    type: t.type,
+    subject: t.subject || '',
+    content: t.content || '',
+    created_at: '',
+    updated_at: String(t.updated_at ?? ''),
+    version: 1,
+    usage_count: 0,
+  };
 }
 
 export default function SuperAdminDashboard() {
@@ -692,7 +668,7 @@ export default function SuperAdminDashboard() {
       <AnimatePresence>
         {newKey && <NewKeyModal result={newKey} onClose={() => setNewKey(null)} />}
         {resetUser && <ResetPasswordModal user={resetUser} onClose={() => setResetUser(null)} onSubmit={(pwd) => resetPassword(resetUser, pwd)} />}
-        {previewTemplate && <TemplatePreviewModal template={previewTemplate} onClose={() => setPreviewTemplate(null)} />}
+        {previewTemplate && <PreviewModal template={toBuilderTemplate(previewTemplate)} onClose={() => setPreviewTemplate(null)} />}
       </AnimatePresence>
     </div>
   );
