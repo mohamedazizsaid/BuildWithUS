@@ -336,6 +336,74 @@ export const ai = {
         return result;
     },
 
+    /**
+     * Image → email template (Next.js /api/ai/from-image). Sends a resized image
+     * data URL plus an optional steering prompt. The campaign analysis arrives
+     * once via `onReport`; `onStatus` reports stages ('reading' | 'analyzed' |
+     * 'template' | 'retry'); short prose streams via `onDelta`. Resolves with the
+     * assembled { message, template }.
+     */
+    fromImageStream: async (
+        body: { image: string; prompt?: string },
+        handlers: {
+            onDelta?: (text: string) => void;
+            onStatus?: (stage: string) => void;
+            onReport?: (report: unknown) => void;
+        } = {},
+    ): Promise<{ message: string; template: import('./editor-types').TemplateData | null }> => {
+        const res = await fetch(`/api/ai/from-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok || !res.body) {
+            throw new Error(`AI image service error: ${res.status}`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let result: { message: string; template: import('./editor-types').TemplateData | null } = { message: '', template: null };
+        let streamError = '';
+
+        const handleEvent = (line: string) => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            let evt: { type?: string; text?: string; stage?: string; message?: string; template?: import('./editor-types').TemplateData; report?: unknown; error?: string };
+            try {
+                evt = JSON.parse(trimmed);
+            } catch {
+                return;
+            }
+            if (evt.type === 'delta') {
+                if (evt.text) handlers.onDelta?.(evt.text);
+            } else if (evt.type === 'status') {
+                if (evt.stage) handlers.onStatus?.(evt.stage);
+                if (evt.report) handlers.onReport?.(evt.report);
+            } else if (evt.type === 'done') {
+                result = { message: evt.message || '', template: evt.template || null };
+                if (evt.report) handlers.onReport?.(evt.report);
+            } else if (evt.type === 'error') {
+                streamError = evt.error || "Erreur lors de l'analyse de l'image";
+            }
+        };
+
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let nl: number;
+            while ((nl = buffer.indexOf('\n')) >= 0) {
+                handleEvent(buffer.slice(0, nl));
+                buffer = buffer.slice(nl + 1);
+            }
+        }
+        if (buffer.trim()) handleEvent(buffer);
+
+        if (streamError) throw new Error(streamError);
+        return result;
+    },
+
     suggestPalettes: async (body: {
         email_type: string;
         vibe?: string;

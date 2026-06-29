@@ -106,8 +106,25 @@ SÉLECTION : si un message « CONTEXTE DE SÉLECTION » est présent, l'utilisat
 
 RÈGLE D'OR : setTheme modifie TOUT l'email — réserve-le aux demandes globales, jamais pour une image ou un seul bloc. N'applique QUE la modification demandée, rien de plus.`;
 
+const IMAGE = `
+
+═══════════════ MODE IMAGE → EMAIL (FIDÉLITÉ À LA CAMPAGNE) ═══════════════
+On te fournit l'ANALYSE d'une affiche/publicité (marque, couleurs, offre, prix). Ta mission : construire l'email qui PORTE cette campagne, fidèle à la marque et à l'offre.
+- Reprends les textes fournis VERBATIM : titre, sous-titre, PRIX, montants, mentions « offert », code promo. NE change JAMAIS un prix ni un chiffre, et n'invente AUCUN montant ni avantage.
+- Appelle setTheme avec EXACTEMENT l'accentColor, le mood (et le backgroundColor) indiqués : ce sont les couleurs de la marque.
+- Tu peux ajouter de courtes phrases de liaison crédibles, mais l'offre, les prix et les avantages restent ceux de l'affiche.
+- Mets le PRIX en valeur (startCard) et reprends les avantages « offert » (addIconList ou texte).
+- Si des FORFAITS multiples sont fournis, présente-les CÔTE À CÔTE (section '50-50' ou cartes), chacun avec son nom, son prix et ses caractéristiques.
+- Bannière d'en-tête : reprends le sujet/visuel fourni comme photo de fond (startHero, query en anglais). Termine par un pied de page complet.`;
+
 export function buildSystemPrompt(opts: { isEdit?: boolean } = {}): string {
   return opts.isEdit ? BASE + EDIT : BASE;
+}
+
+/** System prompt for the image → email pipeline (Phase 2). Same builder rules as
+ * BASE, plus strict fidelity to the analysed campaign's copy/prices/brand. */
+export function buildImageSystemPrompt(): string {
+  return BASE + IMAGE;
 }
 
 /**

@@ -1,9 +1,20 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import { Sparkles, ArrowUp, RotateCcw, MousePointer2, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Sparkles, ArrowUp, RotateCcw, MousePointer2, X, ImagePlus } from 'lucide-react';
 import type { AiChatState, ChatMessage } from './useAiChatState';
 import type { TemplateData } from '@/lib/editor-types';
+import { fileToResizedDataUrl } from '@/lib/resize-image';
+
+// Captions shown under the typing indicator while an image is being turned into
+// a template, keyed by the stage the route streams back.
+const IMAGE_STAGE_LABEL: Record<string, string> = {
+  reading: "Lecture de l'image…",
+  analyzed: 'Campagne analysée — génération…',
+  reviewing: "Vérification de la fidélité à l'affiche…",
+  template: 'Assemblage du modèle…',
+  retry: 'Nouvelle tentative…',
+};
 
 const SUGGESTIONS = [
   'Un email de bienvenue avec logo, titre et bouton',
@@ -45,10 +56,94 @@ export function AiChatPanel({
 }) {
   const { messages, setMessages, input, setInput, isLoading, setIsLoading, error, setError, workingTemplate } = chat;
 
+  // An attached poster/affiche to turn into a template (ephemeral, per send).
+  const [image, setImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  // Latest stage of the image→template pipeline, for the loading caption.
+  const [imageStage, setImageStage] = useState<string>('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  const pickImage = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Veuillez choisir une image (JPG, PNG…).');
+      return;
+    }
+    try {
+      const dataUrl = await fileToResizedDataUrl(file);
+      setImage({ dataUrl, name: file.name });
+      setError('');
+    } catch {
+      setError("Impossible de lire l'image.");
+    }
+  };
+
+  // Image → template: read the poster, generate, and apply the result live.
+  const runImage = async (promptText: string) => {
+    if (!image || isLoading) return;
+    const trimmed = promptText.trim();
+    const userLabel = trimmed || `Créer un email à partir de « ${image.name} »`;
+
+    const nextMessages: ChatMessage[] = [...messages, { role: 'user', content: userLabel }];
+    setMessages([...nextMessages, { role: 'assistant', content: '' }]);
+    setInput('');
+    setIsLoading(true);
+    setImageStage('reading');
+    setError('');
+    const img = image;
+    setImage(null);
+
+    const appendToAssistant = (text: string) =>
+      setMessages((m) => {
+        const copy = [...m];
+        const last = copy[copy.length - 1];
+        if (last && last.role === 'assistant') copy[copy.length - 1] = { ...last, content: last.content + text };
+        return copy;
+      });
+
+    try {
+      const { ai } = await import('@/lib/api');
+      const result = await ai.fromImageStream(
+        { image: img.dataUrl, prompt: trimmed || undefined },
+        { onDelta: appendToAssistant, onStatus: setImageStage },
+      );
+      if (result.template) {
+        workingTemplate.current = result.template;
+        onApply(result.template);
+      }
+      setMessages((m) => {
+        const copy = [...m];
+        const last = copy[copy.length - 1];
+        if (last && last.role === 'assistant') {
+          copy[copy.length - 1] = {
+            role: 'assistant',
+            content: result.message || last.content || "Voici l'email créé à partir de votre affiche.",
+          };
+        }
+        return copy;
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erreur lors de l'analyse de l'image";
+      setError(msg);
+      setMessages((m) => m.slice(0, -2));
+      setInput(trimmed);
+      setImage(img); // restore the attachment so they can retry
+    } finally {
+      setIsLoading(false);
+      setImageStage('');
+    }
+  };
+
+  // Composer submit: image attached → image pipeline, otherwise text chat.
+  const submit = () => {
+    if (isLoading) return;
+    if (image) runImage(input);
+    else send(input);
+  };
 
   const send = async (text: string) => {
     const trimmed = text.trim();
@@ -135,7 +230,9 @@ export function AiChatPanel({
   // Phase 1 — waiting for the first token: standalone typing dots.
   const showTypingDots = isLoading && !assistantStreaming;
   // Phase 2 — prose shown, MJML still generating (canvas not updated yet): caption.
-  const showTemplateCaption = isLoading && assistantStreaming;
+  const showTemplateCaption = isLoading && assistantStreaming && !imageStage;
+  // Image pipeline: a stage-specific caption ('Lecture de l'image…' etc.).
+  const imageCaption = isLoading && imageStage ? IMAGE_STAGE_LABEL[imageStage] || 'Traitement…' : '';
 
   return (
     <div className="flex flex-col h-full bg-linear-to-b from-blue-50/40 to-background dark:from-blue-950/20 dark:to-background">
@@ -228,6 +325,13 @@ export function AiChatPanel({
           </div>
         )}
 
+        {imageCaption && (
+          <div className="flex items-center gap-2 pl-8 text-[11px] text-blue-600 dark:text-blue-400">
+            <Sparkles size={12} className="animate-pulse" />
+            <span>{imageCaption}</span>
+          </div>
+        )}
+
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 text-[11px] text-red-600">
             {error}
@@ -255,6 +359,34 @@ export function AiChatPanel({
             )}
           </div>
         )}
+        {/* Attached poster/affiche — the next send turns it into a template */}
+        {image && (
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-blue-200 dark:border-blue-900/50 bg-white/70 dark:bg-blue-950/30 p-1.5 pr-2 text-[11px] text-slate-600 dark:text-slate-300">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={image.dataUrl} alt={image.name} className="h-9 w-9 shrink-0 rounded object-cover" />
+            <span className="min-w-0 flex-1">
+              Affiche à transformer : <span className="font-medium text-blue-700 dark:text-blue-300 break-all">{image.name}</span>
+            </span>
+            <button
+              onClick={() => setImage(null)}
+              disabled={isLoading}
+              title="Retirer l'image"
+              className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 disabled:opacity-40"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            void pickImage(e.target.files?.[0]);
+            e.target.value = ''; // allow re-selecting the same file
+          }}
+        />
         <div className="relative">
           <textarea
             value={input}
@@ -262,17 +394,33 @@ export function AiChatPanel({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                send(input);
+                submit();
               }
             }}
-            placeholder={scopeLabel ? `Modifier « ${scopeLabel} »…` : empty ? 'Décrivez votre email…' : 'Demandez une modification…'}
+            placeholder={
+              image
+                ? 'Précisez le rendu voulu (optionnel)…'
+                : scopeLabel
+                  ? `Modifier « ${scopeLabel} »…`
+                  : empty
+                    ? 'Décrivez votre email, ou importez une affiche…'
+                    : 'Demandez une modification…'
+            }
             rows={2}
             disabled={isLoading}
-            className="w-full resize-none rounded-xl border border-blue-200 dark:border-blue-900/50 bg-white dark:bg-slate-900 text-xs p-3 pr-11 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all disabled:opacity-60"
+            className="w-full resize-none rounded-xl border border-blue-200 dark:border-blue-900/50 bg-white dark:bg-slate-900 text-xs p-3 pl-10 pr-11 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all disabled:opacity-60"
           />
           <button
-            onClick={() => send(input)}
-            disabled={isLoading || !input.trim()}
+            onClick={() => fileRef.current?.click()}
+            disabled={isLoading}
+            title="Importer une affiche / image"
+            className="absolute bottom-2.5 left-2.5 h-7 w-7 rounded-lg border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ImagePlus size={15} />
+          </button>
+          <button
+            onClick={submit}
+            disabled={isLoading || (!input.trim() && !image)}
             title="Envoyer"
             className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-sm shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -280,7 +428,7 @@ export function AiChatPanel({
           </button>
         </div>
         <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
-          Entrée pour envoyer · Maj+Entrée pour un retour à la ligne
+          {image ? 'Entrée pour générer l’email à partir de l’affiche' : 'Entrée pour envoyer · Importez une affiche pour en faire un email'}
         </p>
       </div>
     </div>
