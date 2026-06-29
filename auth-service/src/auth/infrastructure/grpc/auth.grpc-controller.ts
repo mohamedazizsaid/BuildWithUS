@@ -17,9 +17,15 @@ import { MintBuilderSessionCommand } from '../../application/commands/mint-build
 import { ExchangeBuilderSessionCommand } from '../../application/commands/exchange-builder-session.command';
 import { BuilderSessionMode } from '../../domain/repositories/builder-session.repository';
 import { JwtService } from '../../application/services/jwt.service';
+import { PasswordService } from '../../application/services/password.service';
 import { UserRepository } from '../../domain/repositories/user.repository';
 import { TenantRepository } from '../../domain/repositories/tenant.repository';
 import { ApiClientRepository } from '../../domain/repositories/api-client.repository';
+import { UserRole } from '../../domain/entities/user.aggregate';
+
+// Roles a super-admin is allowed to assign through the admin panel. Note we do
+// NOT allow promoting to 'super_admin' here — that stays a deliberate DB action.
+const ASSIGNABLE_ROLES = ['admin', 'editor', 'viewer', 'marketing'];
 
 @Controller()
 export class AuthGrpcController {
@@ -28,11 +34,23 @@ export class AuthGrpcController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly jwtService: JwtService,
+    private readonly passwordService: PasswordService,
     private readonly userRepository: UserRepository,
     private readonly tenantRepository: TenantRepository,
     @Inject('API_CLIENT_REPOSITORY')
     private readonly apiClientRepository: ApiClientRepository,
   ) {}
+
+  private toUserInfo(user: any) {
+    return {
+      id: user.getId(),
+      tenant_id: user.getTenantId(),
+      email: user.getEmail(),
+      first_name: user.getFirstName(),
+      last_name: user.getLastName(),
+      role: user.getRole(),
+    };
+  }
 
   @GrpcMethod('AuthService', 'Register')
   async register(request: any) {
@@ -299,6 +317,66 @@ export class AuthGrpcController {
   @GrpcMethod('AuthService', 'RevokeApiClient')
   async revokeApiClient(request: any) {
     await this.apiClientRepository.deleteById(request.id);
+    return { success: true };
+  }
+
+  @GrpcMethod('AuthService', 'ListAllUsers')
+  async listAllUsers() {
+    const users = await this.userRepository.findAll();
+    return { users: users.map((u) => this.toUserInfo(u)) };
+  }
+
+  @GrpcMethod('AuthService', 'AdminUpdateUserRole')
+  async adminUpdateUserRole(request: any) {
+    const userId = request.userId || request.user_id;
+    const role = request.role;
+    if (!ASSIGNABLE_ROLES.includes(role)) {
+      throw new Error(
+        `Invalid role. Allowed: ${ASSIGNABLE_ROLES.join(', ')}`,
+      );
+    }
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    // Guard: never demote a super_admin through this endpoint.
+    if ((user.getRole() as string) === 'super_admin') {
+      throw new Error('Cannot change the role of a super_admin');
+    }
+    user.updateRole(role as UserRole);
+    await this.userRepository.save(user);
+    return { success: true, user: this.toUserInfo(user) };
+  }
+
+  @GrpcMethod('AuthService', 'AdminResetPassword')
+  async adminResetPassword(request: any) {
+    const userId = request.userId || request.user_id;
+    const newPassword = request.newPassword || request.new_password;
+    if (!newPassword || newPassword.length < 4) {
+      throw new Error('Password must be at least 4 characters');
+    }
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const hashed = await this.passwordService.hash(newPassword);
+    user.changePassword(hashed);
+    await this.userRepository.save(user);
+    return { success: true, user: this.toUserInfo(user) };
+  }
+
+  @GrpcMethod('AuthService', 'AdminDeleteUser')
+  async adminDeleteUser(request: any) {
+    const userId = request.userId || request.user_id;
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    // Guard: never delete a super_admin through this endpoint.
+    if ((user.getRole() as string) === 'super_admin') {
+      throw new Error('Cannot delete a super_admin');
+    }
+    await this.userRepository.delete(userId);
     return { success: true };
   }
 

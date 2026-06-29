@@ -29,6 +29,11 @@ export class UserRepositoryImpl extends UserRepository {
     return entities.map((e) => this.toAggregate(e));
   }
 
+  async findAll(): Promise<User[]> {
+    const entities = await this.repo.find({ order: { createdAt: 'ASC' } });
+    return entities.map((e) => this.toAggregate(e));
+  }
+
   async save(user: User): Promise<void> {
     const primitives = user.toPrimitives();
     await this.repo.save(primitives);

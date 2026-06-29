@@ -19,6 +19,11 @@ service AuthService{
     rpc ListAllTenants (ListAllTenantsRequest) returns (ListAllTenantsResponse);
     rpc ListApiClients (ListApiClientsRequest) returns (ListApiClientsResponse);
     rpc RevokeApiClient (RevokeApiClientRequest) returns (RevokeApiClientResponse);
+    // Super-admin user management (cross-tenant)
+    rpc ListAllUsers (ListAllUsersRequest) returns (ListAllUsersResponse);
+    rpc AdminUpdateUserRole (AdminUpdateUserRoleRequest) returns (AdminUserActionResponse);
+    rpc AdminResetPassword (AdminResetPasswordRequest) returns (AdminUserActionResponse);
+    rpc AdminDeleteUser (AdminDeleteUserRequest) returns (AdminUserActionResponse);
     rpc RegisterDeveloper (RegisterDeveloperRequest) returns (RegisterDeveloperResponse);
     rpc UpdateAllowedReturnUrls (UpdateAllowedReturnUrlsRequest) returns (UpdateAllowedReturnUrlsResponse);
     rpc SetTenantReturnUrls (SetTenantReturnUrlsRequest) returns (UpdateAllowedReturnUrlsResponse);
@@ -216,6 +221,32 @@ message RevokeApiClientRequest {
 
 message RevokeApiClientResponse {
     bool success = 1;
+}
+
+// ── Super-admin user management ──────────────────────────────────────────
+message ListAllUsersRequest {}
+
+message ListAllUsersResponse {
+    repeated UserInfo users = 1;
+}
+
+message AdminUpdateUserRoleRequest {
+    string user_id = 1;
+    string role = 2;
+}
+
+message AdminResetPasswordRequest {
+    string user_id = 1;
+    string new_password = 2;
+}
+
+message AdminDeleteUserRequest {
+    string user_id = 1;
+}
+
+message AdminUserActionResponse {
+    bool success = 1;
+    UserInfo user = 2;
 }
 
 message RegisterDeveloperRequest {
