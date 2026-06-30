@@ -279,6 +279,12 @@ export const ai = {
             messages: { role: 'user' | 'assistant'; content: string }[];
             current_template?: import('./editor-types').TemplateData | null;
             selection?: { blockId: string | null; sectionId: string | null } | null;
+            // Public URL of a poster imported earlier this conversation, so a
+            // follow-up like « ajoute l'image » can place the real campaign image.
+            poster_url?: string | null;
+            // Compact offer brief from the analysed poster (price/plans/gifts),
+            // so « ajoute l'offre de l'image » has the exact data.
+            campaign_context?: string | null;
         },
         handlers: {
             onDelta?: (text: string) => void;
@@ -320,17 +326,26 @@ export const ai = {
             }
         };
 
-        for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            let nl: number;
-            while ((nl = buffer.indexOf('\n')) >= 0) {
-                handleEvent(buffer.slice(0, nl));
-                buffer = buffer.slice(nl + 1);
+        try {
+            for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let nl: number;
+                while ((nl = buffer.indexOf('\n')) >= 0) {
+                    handleEvent(buffer.slice(0, nl));
+                    buffer = buffer.slice(nl + 1);
+                }
+            }
+            if (buffer.trim()) handleEvent(buffer);
+        } catch {
+            // The stream broke mid-flight (server timeout / connection drop). If a
+            // final result already arrived, keep it; otherwise surface a clean
+            // message instead of a raw "error at input stream".
+            if (!result.template && !streamError) {
+                streamError = 'La génération a été interrompue. Réessayez (ou simplifiez la demande).';
             }
         }
-        if (buffer.trim()) handleEvent(buffer);
 
         if (streamError) throw new Error(streamError);
         return result;
@@ -344,7 +359,7 @@ export const ai = {
      * assembled { message, template }.
      */
     fromImageStream: async (
-        body: { image: string; prompt?: string },
+        body: { image: string; prompt?: string; posterUrl?: string },
         handlers: {
             onDelta?: (text: string) => void;
             onStatus?: (stage: string) => void;
@@ -388,17 +403,26 @@ export const ai = {
             }
         };
 
-        for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            let nl: number;
-            while ((nl = buffer.indexOf('\n')) >= 0) {
-                handleEvent(buffer.slice(0, nl));
-                buffer = buffer.slice(nl + 1);
+        try {
+            for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let nl: number;
+                while ((nl = buffer.indexOf('\n')) >= 0) {
+                    handleEvent(buffer.slice(0, nl));
+                    buffer = buffer.slice(nl + 1);
+                }
+            }
+            if (buffer.trim()) handleEvent(buffer);
+        } catch {
+            // The stream broke mid-flight (server timeout / connection drop). If a
+            // final result already arrived, keep it; otherwise surface a clean
+            // message instead of a raw "error at input stream".
+            if (!result.template && !streamError) {
+                streamError = 'La génération a été interrompue. Réessayez (ou simplifiez la demande).';
             }
         }
-        if (buffer.trim()) handleEvent(buffer);
 
         if (streamError) throw new Error(streamError);
         return result;

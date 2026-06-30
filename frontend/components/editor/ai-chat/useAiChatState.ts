@@ -26,6 +26,12 @@ export interface AiChatState {
   setError: Dispatch<SetStateAction<string>>;
   // The template the AI is actively iterating on (its own latest output).
   workingTemplate: MutableRefObject<TemplateData | null>;
+  // Public URL of a poster imported this conversation. Lets later text turns
+  // ("ajoute l'image") place the real campaign image, not a stock photo.
+  posterUrl: MutableRefObject<string | null>;
+  // Compact offer brief (price/plans/gifts) from the analysed poster, so later
+  // turns ("ajoute l'offre de l'image dans deux box") have the EXACT data.
+  campaign: MutableRefObject<string | null>;
 }
 
 export function useAiChatState(): AiChatState {
@@ -34,6 +40,8 @@ export function useAiChatState(): AiChatState {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const workingTemplate = useRef<TemplateData | null>(null);
+  const posterUrl = useRef<string | null>(null);
+  const campaign = useRef<string | null>(null);
 
   return {
     messages,
@@ -45,5 +53,7 @@ export function useAiChatState(): AiChatState {
     error,
     setError,
     workingTemplate,
+    posterUrl,
+    campaign,
   };
 }

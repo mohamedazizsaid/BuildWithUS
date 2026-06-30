@@ -9,10 +9,16 @@ import {
   Tablet,
   Smartphone,
   Send,
+  Check,
+  CloudOff,
+  Loader2,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BlockData } from "@/lib/editor-types";
 import { FormatBar } from "./toolbar/FormatBar";
+
+export type AutosaveStatus = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 interface EditorToolbarProps {
   templateName: string;
@@ -41,6 +47,9 @@ interface EditorToolbarProps {
   isSendingTest?: boolean;
   // Collaboration
   collaborators?: { userId: string; userName: string; color: string }[];
+  // Autosave
+  saveStatus?: AutosaveStatus;
+  lastSavedAt?: Date | null;
 }
 
 export default function EditorToolbar({
@@ -67,6 +76,8 @@ export default function EditorToolbar({
   onSendTestEmail,
   isSendingTest,
   collaborators,
+  saveStatus,
+  lastSavedAt,
 }: EditorToolbarProps) {
   const isTextBlock =
     selectedBlock &&
@@ -121,6 +132,12 @@ export default function EditorToolbar({
             <Save size={14} />
             Enregistrer
           </Button>
+          {saveStatus && (
+            <>
+              <div className="w-px h-5 bg-border mx-1" />
+              <SaveStatusIndicator status={saveStatus} lastSavedAt={lastSavedAt ?? null} />
+            </>
+          )}
         </div>
 
         {/* Center */}
@@ -279,4 +296,56 @@ export default function EditorToolbar({
       )}
     </div>
   );
+}
+
+function SaveStatusIndicator({
+  status,
+  lastSavedAt,
+}: {
+  status: AutosaveStatus;
+  lastSavedAt: Date | null;
+}) {
+  // Re-render every 30s so the "saved" relative time stays fresh.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (status !== "saved") return;
+    const t = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, [status]);
+
+  if (status === "idle") return null;
+
+  if (status === "saving") {
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Loader2 size={11} className="animate-spin" /> Enregistrement…
+      </span>
+    );
+  }
+  if (status === "unsaved") {
+    return <span className="text-[11px] text-amber-600">Modifications non enregistrées</span>;
+  }
+  if (status === "error") {
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-red-600">
+        <CloudOff size={11} /> Échec de l’enregistrement
+      </span>
+    );
+  }
+  // saved
+  return (
+    <span className="flex items-center gap-1 text-[11px] text-emerald-600">
+      <Check size={11} /> Enregistré{lastSavedAt ? ` ${formatRelative(lastSavedAt)}` : ""}
+    </span>
+  );
+}
+
+function formatRelative(d: Date): string {
+  const secs = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (secs < 5) return "à l’instant";
+  if (secs < 60) return `il y a ${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `il y a ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  return `il y a ${hrs} h`;
 }

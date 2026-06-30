@@ -16,6 +16,33 @@ const IMAGE_STAGE_LABEL: Record<string, string> = {
   retry: 'Nouvelle tentative…',
 };
 
+/** Turn the resized poster data URL into a small JPEG File for media upload. */
+async function dataUrlToFile(dataUrl: string, name: string): Promise<File> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const safeName = name.replace(/\.[^.]+$/, '') + '.jpg';
+  return new File([blob], safeName, { type: blob.type || 'image/jpeg' });
+}
+
+/** Build a compact, verbatim offer brief from the analysed poster report, so a
+ * later turn ("ajoute l'offre de l'image dans deux box") has the exact data. */
+function offerBriefFromReport(report: unknown): string | null {
+  const o = (report as { content?: { offer?: Record<string, unknown> } })?.content?.offer;
+  if (!o) return null;
+  const L: string[] = [];
+  const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  if (s(o.headline)) L.push(`Titre : ${o.headline}`);
+  if (s(o.subheadline)) L.push(`Sous-titre : ${o.subheadline}`);
+  if (s(o.price)) L.push(`Prix : ${o.price}`);
+  if (s(o.discount)) L.push(`Remise : ${o.discount}`);
+  if (Array.isArray(o.gifts) && o.gifts.length) L.push(`Offert : ${(o.gifts as string[]).join(' · ')}`);
+  if (s(o.promoCode)) L.push(`Code promo : ${o.promoCode}`);
+  for (const p of (Array.isArray(o.plans) ? o.plans : []) as Array<Record<string, unknown>>) {
+    const feats = Array.isArray(p.features) ? (p.features as string[]).join(', ') : '';
+    L.push(`Forfait ${s(p.name) || '?'}${s(p.price) ? ` — ${p.price}` : ''}${feats ? ` (${feats})` : ''}`);
+  }
+  return L.length ? L.join('\n') : null;
+}
+
 const SUGGESTIONS = [
   'Un email de bienvenue avec logo, titre et bouton',
   'Une newsletter éditoriale avec article à la une',
@@ -54,10 +81,10 @@ export function AiChatPanel({
   selection?: AiSelection | null;
   onClearSelection?: () => void;
 }) {
-  const { messages, setMessages, input, setInput, isLoading, setIsLoading, error, setError, workingTemplate } = chat;
+  const { messages, setMessages, input, setInput, isLoading, setIsLoading, error, setError, workingTemplate, posterUrl, campaign } = chat;
 
   // An attached poster/affiche to turn into a template (ephemeral, per send).
-  const [image, setImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [image, setImage] = useState<{ dataUrl: string; name: string; file: File } | null>(null);
   // Latest stage of the image→template pipeline, for the loading caption.
   const [imageStage, setImageStage] = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -75,7 +102,7 @@ export function AiChatPanel({
     }
     try {
       const dataUrl = await fileToResizedDataUrl(file);
-      setImage({ dataUrl, name: file.name });
+      setImage({ dataUrl, name: file.name, file });
       setError('');
     } catch {
       setError("Impossible de lire l'image.");
@@ -106,10 +133,27 @@ export function AiChatPanel({
       });
 
     try {
-      const { ai } = await import('@/lib/api');
+      const { ai, media } = await import('@/lib/api');
+      // Store the poster to MinIO so the email can use the REAL affiche as its
+      // banner (not a stock photo), and so later turns can re-place it. Falls
+      // back to the inline data URL if the upload fails.
+      let uploadedUrl: string;
+      try {
+        uploadedUrl = (await media.upload(await dataUrlToFile(img.dataUrl, img.name))).url;
+      } catch {
+        uploadedUrl = img.dataUrl;
+      }
+      posterUrl.current = uploadedUrl;
       const result = await ai.fromImageStream(
-        { image: img.dataUrl, prompt: trimmed || undefined },
-        { onDelta: appendToAssistant, onStatus: setImageStage },
+        { image: img.dataUrl, prompt: trimmed || undefined, posterUrl: uploadedUrl },
+        {
+          onDelta: appendToAssistant,
+          onStatus: setImageStage,
+          // Remember the campaign's offer so a later "ajoute l'offre" has the data.
+          onReport: (report) => {
+            campaign.current = offerBriefFromReport(report);
+          },
+        },
       );
       if (result.template) {
         workingTemplate.current = result.template;
@@ -186,12 +230,16 @@ export function AiChatPanel({
           messages: nextMessages,
           current_template: workingTemplate.current,
           selection: scoped,
+          poster_url: posterUrl.current,
+          campaign_context: campaign.current,
         },
         { onDelta: appendToAssistant },
       );
 
       if (result.template) {
-        workingTemplate.current = result.template;
+        // An empty result (e.g. "efface tout") resets the working template to null
+        // so the NEXT prompt is a fresh generation, not an edit on an empty email.
+        workingTemplate.current = result.template.rows.length > 0 ? result.template : null;
         onApply(result.template);
       }
       // Replace the streamed bubble with the authoritative final message.
@@ -221,6 +269,8 @@ export function AiChatPanel({
     setMessages([]);
     setError('');
     workingTemplate.current = null;
+    posterUrl.current = null;
+    campaign.current = null;
   };
 
   const scopeLabel = selection && (selection.blockId || selection.sectionId) ? selection.label : null;

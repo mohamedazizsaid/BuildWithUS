@@ -9,7 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEditor } from "@/hooks/use-editor";
 import { useCollaboration } from "@/hooks/use-collaboration";
 import { useAuth } from "@/context/auth";
-import EditorToolbar from "@/components/editor/EditorToolbar";
+import EditorToolbar, { type AutosaveStatus } from "@/components/editor/EditorToolbar";
 import Canvas from "@/components/editor/Canvas";
 import { LeftPanel, PropertiesPanel } from "@/components/editor/RightPanel";
 import { useAiChatState } from "@/components/editor/ai-chat/useAiChatState";
@@ -100,6 +100,15 @@ function EditorContent() {
   const [editDevice, setEditDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [isSaving, setIsSaving] = useState(false);
   const [isDark, setIsDark] = useState(false);
+
+  // ── Autosave
+  const [saveStatus, setSaveStatus] = useState<AutosaveStatus>(editId ? "saved" : "idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveReadyRef = useRef(false); // armed once initial content settles
+  const autosaveMountedRef = useRef(false); // skips the first state-change tick
+  const savingRef = useRef(false);
+  const pendingAfterSaveRef = useRef(false);
   const [codeValue, setCodeValue] = useState("");
   const [codeWasEdited, setCodeWasEdited] = useState(false);
   // "html" = the template is an imported raw HTML document. In this mode the MJML
@@ -341,6 +350,109 @@ function EditorContent() {
     return generateMjml(templateRef.current);
   }, [codeMode, codeValue, activeTab, codeWasEdited, generateMjml]);
 
+  // The canonical id for every save path (manual buttons + autosave). Starts as
+  // the ?id= param; once any save creates the row, savedId carries its id so we
+  // update-in-place instead of creating duplicates.
+  const buildSaveBody = useCallback(() => ({
+    name: templateName,
+    description: templateDescription,
+    type: templateType,
+    // Email templates require a subject. For a predefined entry the user only
+    // fills the title, so use it as the subject when none was set.
+    subject: templateSubject || (predefinedCategory ? templateName : templateSubject),
+    content: buildContent(),
+    ...(predefinedCategory && !savedId ? { isPredefinedOverride: true, predefinedTemplateId: predefinedCategory } : {}),
+  }), [templateName, templateDescription, templateType, templateSubject, predefinedCategory, savedId, buildContent]);
+
+  // Nothing worth persisting yet — avoids autosaving an empty draft into existence.
+  const isTemplateEmpty = useCallback(() => {
+    const hasHtml = codeMode === "html" && !!codeValue.trim();
+    const hasCode = activeTab === "code" && !!codeValue.trim();
+    return editorState.template.rows.length === 0 && !hasHtml && !hasCode;
+  }, [codeMode, codeValue, activeTab, editorState.template]);
+
+  // ─── Autosave ──────────────────────────────────────────────────────────────
+
+  // Silent persist (no toast, no navigation). Mirrors handleSave's body but never
+  // prompts; create→adopt the new id into savedId so we update-in-place after.
+  const persistAutosave = useCallback(async (): Promise<boolean> => {
+    flushPendingEdits();
+    const body = buildSaveBody();
+    try {
+      if (savedId) {
+        await templates.update(savedId, body);
+      } else {
+        const created = await templates.create(body);
+        const newId = created.id ?? created.template?.id ?? null;
+        if (newId) setSavedId(newId);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }, [flushPendingEdits, buildSaveBody, savedId]);
+
+  const runAutosave = useCallback(async () => {
+    if (isTemplateEmpty()) { setSaveStatus("idle"); return; }
+    if (savingRef.current) { pendingAfterSaveRef.current = true; return; }
+    savingRef.current = true;
+    setSaveStatus("saving");
+    let ok = false;
+    try {
+      ok = await persistAutosave();
+    } finally {
+      savingRef.current = false;
+    }
+    if (ok) {
+      setSaveStatus("saved");
+      setLastSavedAt(new Date());
+    } else {
+      setSaveStatus("error");
+    }
+    if (pendingAfterSaveRef.current) {
+      pendingAfterSaveRef.current = false;
+      void runAutosave(); // edits arrived mid-save — persist them too
+    }
+  }, [isTemplateEmpty, persistAutosave]);
+
+  const scheduleAutosave = useCallback(() => {
+    if (!autosaveReadyRef.current) return;
+    setSaveStatus((s) => (s === "saving" ? s : "unsaved"));
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void runAutosave();
+    }, 1500);
+  }, [runAutosave]);
+
+  // Arm autosave once the initial content has settled (load/preset/clone all push
+  // their content before this fires, so the seed edit doesn't trigger a save).
+  useEffect(() => {
+    if (isLoading) return;
+    const t = setTimeout(() => { autosaveReadyRef.current = true; }, 400);
+    return () => clearTimeout(t);
+  }, [isLoading]);
+
+  // Any canvas/code/meta change schedules a debounced save. Gated by the ready
+  // ref inside scheduleAutosave, so initial loads are ignored.
+  useEffect(() => {
+    if (!autosaveMountedRef.current) { autosaveMountedRef.current = true; return; }
+    scheduleAutosave();
+  }, [editorState.template, codeValue, codeMode, templateName, templateSubject, templateDescription, scheduleAutosave]);
+
+  // Warn before leaving while a save is pending/in-flight or the last one failed.
+  useEffect(() => {
+    const shouldWarn = () =>
+      autosaveTimerRef.current !== null || savingRef.current || saveStatus === "error" || saveStatus === "unsaved";
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!shouldWarn()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [saveStatus]);
+
   // Read an imported .html file into the code editor and switch to HTML mode.
   const handleImportHtml = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -391,23 +503,16 @@ function EditorContent() {
       toast.error("Ajoutez au moins une ligne à votre modèle");
       return;
     }
+    // A manual save supersedes any pending autosave.
+    if (autosaveTimerRef.current) { clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null; }
     setIsSaving(true);
+    setSaveStatus("saving");
     try {
       // Commit any in-flight contenteditable text into React state before reading it.
       flushPendingEdits();
       // Raw HTML (HTML mode) or pasted/edited MJML is stored verbatim; otherwise
-      // regenerate MJML from the canvas.
-      const content = buildContent();
-      const body = {
-        name: templateName,
-        description: templateDescription,
-        type: templateType,
-        // Email templates require a subject. For a predefined entry the user only
-        // fills the title, so use it as the subject when none was set.
-        subject: templateSubject || (predefinedCategory ? templateName : templateSubject),
-        content,
-        ...(predefinedCategory && !savedId ? { isPredefinedOverride: true, predefinedTemplateId: predefinedCategory } : {}),
-      };
+      // regenerate MJML from the canvas (handled by buildContent).
+      const body = buildSaveBody();
       let resultId: string | null = savedId;
       if (savedId) {
         await templates.update(savedId, body);
@@ -418,6 +523,8 @@ function EditorContent() {
         setSavedId(resultId);
         toast.success("Brouillon enregistré !");
       }
+      setSaveStatus("saved");
+      setLastSavedAt(new Date());
 
       const returnUrl = getBuilderReturnUrl();
       if (returnUrl && resultId) {
@@ -427,6 +534,7 @@ function EditorContent() {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Échec de l'enregistrement";
+      setSaveStatus("error");
       toast.error(message);
     } finally {
       setIsSaving(false);
@@ -469,30 +577,27 @@ function EditorContent() {
       return;
     }
 
+    // A manual save supersedes any pending autosave.
+    if (autosaveTimerRef.current) { clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null; }
     setIsSaving(true);
+    setSaveStatus("saving");
     try {
       flushPendingEdits();
       // Raw HTML (HTML mode) or pasted/edited MJML is stored verbatim; otherwise
-      // regenerate MJML from the canvas.
-      const content = buildContent();
-      const body = {
-        name: templateName,
-        description: templateDescription,
-        type: templateType,
-        // Email templates require a subject. For a predefined entry the user only
-        // fills the title, so use it as the subject when none was set.
-        subject: templateSubject || (predefinedCategory ? templateName : templateSubject),
-        content,
-        ...(predefinedCategory && !isEditMode ? { isPredefinedOverride: true, predefinedTemplateId: predefinedCategory } : {}),
-      };
+      // regenerate MJML from the canvas (handled by buildContent inside buildSaveBody).
+      const body = buildSaveBody();
 
-      let resultId: string | null = isEditMode ? editId : null;
-      if (isEditMode && editId) {
-        await templates.update(editId, body);
+      // savedId is canonical: it starts as ?id= and is set the moment any save
+      // (manual or autosave) creates the row — so we update-in-place rather than
+      // creating a duplicate of a draft autosave already persisted.
+      let resultId: string | null = savedId;
+      if (savedId) {
+        await templates.update(savedId, body);
         toast.success(predefinedCategory ? "Template prédéfini enregistré !" : "Modèle enregistré !");
       } else {
         const created = await templates.create(body);
         resultId = created.id ?? created.template?.id ?? null;
+        setSavedId(resultId);
         toast.success(
           predefinedCategory
             ? "Template prédéfini créé !"
@@ -501,6 +606,8 @@ function EditorContent() {
               : "Modèle créé avec succès !",
         );
       }
+      setSaveStatus("saved");
+      setLastSavedAt(new Date());
 
       const returnUrl = getBuilderReturnUrl();
       if (returnUrl && resultId) {
@@ -516,6 +623,7 @@ function EditorContent() {
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Échec de l'enregistrement";
+      setSaveStatus("error");
       toast.error(message);
     } finally {
       setIsSaving(false);
@@ -581,6 +689,8 @@ function EditorContent() {
         onSendTestEmail={handleSendTestEmail}
         isSendingTest={isSendingTest}
         collaborators={otherUsers}
+        saveStatus={saveStatus}
+        lastSavedAt={lastSavedAt}
       />
 
       <div className="flex flex-1 overflow-hidden">

@@ -23,6 +23,7 @@ import {
   luminance,
   readableInk,
 } from './theme';
+import { DesignSystem, getDesignSystem } from './design-systems';
 
 /**
  * Tone- and palette-aware email assembler. Block tools call the `addX` methods
@@ -36,20 +37,6 @@ import {
  */
 
 type Styles = BlockData['styles'];
-
-/** Editorial heading scale (size / weight / tracking / leading). */
-const HEADING: Record<'h1' | 'h2' | 'h3', Styles> = {
-  h1: { fontSize: '32px', fontWeight: '800', letterSpacing: '-0.5px', lineHeight: '1.15' },
-  h2: { fontSize: '23px', fontWeight: '700', letterSpacing: '0px', lineHeight: '1.3' },
-  h3: { fontSize: '18px', fontWeight: '700', letterSpacing: '0px', lineHeight: '1.4' },
-};
-
-/** Body-text roles. */
-const TEXT_ROLE: Record<'lede' | 'body' | 'caption', Styles> = {
-  lede: { fontSize: '17px', lineHeight: '1.7' },
-  body: { fontSize: '15px', lineHeight: '1.7' },
-  caption: { fontSize: '13px', lineHeight: '1.6' },
-};
 
 /** Drop undefined / empty values so we never clobber a computed default. */
 function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -95,6 +82,7 @@ export class TemplateBuilder {
   private curCol = 0;
   private tones: Tone[] = []; // tone per row, indexed by row position
   private palette: Palette = derivePalette();
+  private sys: DesignSystem = getDesignSystem('default');
   private globalStyles: GlobalStyles = { ...DEFAULT_GLOBAL_STYLES };
   private loaded = false; // edit mode: preserve the existing template's globals
   private readonly meta: { title?: string; preview?: string } = {};
@@ -105,6 +93,12 @@ export class TemplateBuilder {
   private insertAnchor: number | null = null;
 
   // ── Theme ────────────────────────────────────────────────────────────────
+
+  /** Choose the visual design system every block renders through (type scale,
+   * alignment, spacing, button/card treatment). See design-systems.ts. */
+  setDesignSystem(name?: string): void {
+    this.sys = getDesignSystem(name);
+  }
 
   setTheme(opts: {
     accentColor?: string;
@@ -228,8 +222,8 @@ export class TemplateBuilder {
       id: uuid(),
       layout: opt.value,
       columns: opt.widths.map((w) => ({ id: uuid(), width: w, blocks: [] as BlockData[] })),
-      // Generous vertical rhythm; tighter for plain default sections.
-      styles: { backgroundColor: bg, padding: isFull ? '28px 0' : '24px 0' },
+      // Vertical rhythm comes from the active design system.
+      styles: { backgroundColor: bg, padding: isFull ? this.sys.sectionPaddingFull : this.sys.sectionPaddingMulti },
     };
     // Honor a pending insertion anchor (edit mode) so the new section lands at a
     // chosen position; otherwise append. Keep `tones` aligned with `rows`.
@@ -271,19 +265,22 @@ export class TemplateBuilder {
     row.styles.padding = '12px 40px'; // outer gutter so the card doesn't touch the edges
     const bg = opts.backgroundColor && parseHex(opts.backgroundColor)
       ? opts.backgroundColor
-      : mix(this.palette.body, this.palette.ink, 0.08);
-    // Border must be visible against the card background — reject a near-invisible
-    // choice (e.g. white on a light card) and fall back to the accent / a hairline.
-    let border = opts.borderColor && parseHex(opts.borderColor) ? opts.borderColor : this.palette.accent;
-    if (contrastRatio(border, bg) < 1.18) {
-      border = contrastRatio(this.palette.accent, bg) >= 1.18 ? this.palette.accent : mix(bg, this.palette.ink, 0.28);
-    }
-    row.columns[0].styles = {
+      : mix(this.palette.body, this.palette.ink, this.sys.cardFillMix);
+    const cardStyles: Styles = {
       backgroundColor: bg,
-      border: `1px solid ${border}`,
-      borderRadius: '18px',
+      borderRadius: this.sys.cardRadius,
       padding: '24px',
     };
+    // Borderless systems (e.g. minimal) rely on the fill alone; otherwise draw a
+    // visible border — reject a near-invisible choice and fall back to accent.
+    if (this.sys.cardBorderWidth !== '0') {
+      let border = opts.borderColor && parseHex(opts.borderColor) ? opts.borderColor : this.palette.accent;
+      if (contrastRatio(border, bg) < 1.18) {
+        border = contrastRatio(this.palette.accent, bg) >= 1.18 ? this.palette.accent : mix(bg, this.palette.ink, 0.28);
+      }
+      cardStyles.border = `${this.sys.cardBorderWidth} solid ${border}`;
+    }
+    row.columns[0].styles = cardStyles;
     this.inCard = true;
   }
 
@@ -332,7 +329,7 @@ export class TemplateBuilder {
   startHero(opts: { query?: string; src?: string } = {}): void {
     this.startSection('100', { tone: 'dark' });
     const row = this.rows[this.curRow];
-    row.styles.padding = '72px 40px';
+    row.styles.padding = this.sys.heroPadding;
     row.styles.backgroundColor = '#0b0b0e'; // base / fallback behind the photo
     if (opts.src && /^https?:/i.test(opts.src)) {
       row.styles.backgroundUrl = opts.src;
@@ -410,16 +407,18 @@ export class TemplateBuilder {
 
   addEyebrow(p: { text: string; align?: string }): void {
     const ctx = this.toneCtx();
+    const eb = this.sys.eyebrow;
     // On dark/accent tones the accent may not pop — fall back to muted ink.
     const accentReadable = contrastRatio(this.palette.accent, ctx.bg === 'transparent' ? this.palette.body : ctx.bg) >= 2.8;
+    const raw = sanitizeText(p.text);
     this.push(
-      this.make('text', { text: sanitizeText(p.text).toUpperCase() }, {
-        fontSize: '11px',
-        fontWeight: '700',
-        letterSpacing: '3px',
+      this.make('text', { text: eb.uppercase ? raw.toUpperCase() : raw }, {
+        fontSize: eb.fontSize,
+        fontWeight: eb.fontWeight,
+        letterSpacing: eb.letterSpacing,
         lineHeight: '1.5',
         color: accentReadable ? this.palette.accent : ctx.muted,
-        textAlign: p.align || 'left',
+        textAlign: p.align || this.sys.align,
         padding: `4px ${this.sidePad()}`,
       }),
     );
@@ -433,13 +432,13 @@ export class TemplateBuilder {
     fontWeight?: string;
   }): void {
     const ctx = this.toneCtx();
-    const scale = HEADING[p.level || 'h2'];
+    const scale = this.sys.heading[p.level || 'h2'];
     this.push(
       this.make('heading', { text: sanitizeText(p.text) }, {
         ...scale,
         ...clean({ fontWeight: p.fontWeight }),
         color: this.resolveTextColor(p.color, ctx.ink),
-        textAlign: p.align || 'left',
+        textAlign: p.align || this.sys.align,
         padding: `10px ${this.sidePad()}`,
       }),
     );
@@ -457,10 +456,10 @@ export class TemplateBuilder {
     const fallback = role === 'lede' || role === 'caption' ? ctx.muted : ctx.ink;
     this.push(
       this.make('text', { text: sanitizeText(p.text) }, {
-        ...TEXT_ROLE[role],
+        ...this.sys.text[role],
         ...clean({ fontSize: p.fontSize }),
         color: this.resolveTextColor(p.color, fallback),
-        textAlign: p.align || 'left',
+        textAlign: p.align || this.sys.align,
         padding: `6px ${this.sidePad()}`,
       }),
     );
@@ -476,12 +475,12 @@ export class TemplateBuilder {
     pill?: boolean;
   }): void {
     const bg = p.backgroundColor && parseHex(p.backgroundColor) ? p.backgroundColor : this.palette.accent;
-    const radius = p.borderRadius || (p.pill ? '28px' : this.palette.radius);
+    const radius = p.borderRadius || (p.pill || this.sys.buttonPill ? '999px' : this.sys.buttonRadius);
     this.push(
       this.make('button', { text: sanitizeText(p.text), href: p.url }, {
         backgroundColor: bg,
         color: p.color && parseHex(p.color) ? p.color : this.palette.accentInk,
-        textAlign: p.align || 'left',
+        textAlign: p.align || this.sys.align,
         borderRadius: radius,
         fontFamily: this.palette.font,
         padding: `18px ${this.sidePad()}`,
@@ -518,10 +517,37 @@ export class TemplateBuilder {
     this.push(
       this.make('divider', {}, clean({
         borderColor: p.color && parseHex(p.color) ? p.color : this.palette.border,
-        borderWidth: p.thickness,
+        borderWidth: p.thickness || this.sys.dividerThickness,
         padding: `8px ${this.sidePad()}`,
       })),
     );
+  }
+
+  /**
+   * Turn the CURRENT column of a multi-column section into a card (fill, border,
+   * radius, inner padding) so blocks added next sit inside a boxed cell — used
+   * for side-by-side pricing/plan cards. Also flips `inCard` so those blocks get
+   * card-appropriate (zero) side padding.
+   */
+  cardColumn(opts: { borderColor?: string; backgroundColor?: string } = {}): void {
+    if (this.curRow < 0) return;
+    const row = this.rows[this.curRow];
+    const col = row.columns[Math.min(this.curCol, row.columns.length - 1)];
+    if (!col) return;
+    const bg =
+      opts.backgroundColor && parseHex(opts.backgroundColor)
+        ? opts.backgroundColor
+        : mix(this.palette.body, this.palette.ink, this.sys.cardFillMix);
+    const styles: Styles = { backgroundColor: bg, borderRadius: this.sys.cardRadius, padding: '24px 18px' };
+    if (this.sys.cardBorderWidth !== '0') {
+      let border = opts.borderColor && parseHex(opts.borderColor) ? opts.borderColor : this.palette.accent;
+      if (contrastRatio(border, bg) < 1.18) {
+        border = contrastRatio(this.palette.accent, bg) >= 1.18 ? this.palette.accent : mix(bg, this.palette.ink, 0.28);
+      }
+      styles.border = `${this.sys.cardBorderWidth} solid ${border}`;
+    }
+    col.styles = { ...(col.styles || {}), ...styles };
+    this.inCard = true;
   }
 
   addTable(p: { headers: string[]; rows: string[][] }): void {

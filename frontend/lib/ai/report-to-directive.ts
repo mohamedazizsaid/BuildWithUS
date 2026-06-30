@@ -62,8 +62,11 @@ export function imageThemeSeed(report: ImageReport): ImageThemeSeed {
   return seed;
 }
 
-/** Build the generation directive (the user message) from the report. */
-export function buildImageDirective(report: ImageReport, userPrompt?: string): string {
+/** Build the generation directive (the user message) from the report.
+ * `posterUrl` (when the uploaded affiche was stored to a public URL) makes the
+ * poster ITSELF the banner — no stock photo — so the email looks like the
+ * campaign instead of a generic stock-image layout. */
+export function buildImageDirective(report: ImageReport, userPrompt?: string, posterUrl?: string): string {
   const { content, visual } = report;
   const o = content.offer;
   const seed = imageThemeSeed(report);
@@ -121,9 +124,16 @@ export function buildImageDirective(report: ImageReport, userPrompt?: string): s
     }
   }
 
-  // Hero visual → stock photo query.
+  // Hero visual. With a poster URL the affiche IS the banner (src exact, no stock
+  // photo). Without one, fall back to a stock-photo query for the hero.
   L.push('');
-  if (visual.subject.keyVisuals.length) {
+  if (posterUrl) {
+    L.push(
+      `IMAGE DE LA CAMPAGNE (la bannière de l'email) : utilise CETTE image telle quelle, en HAUT de l'email, ` +
+        `via addImage avec src="${posterUrl}" width="100%". NE cherche AUCUNE photo de stock et n'utilise PAS startHero — ` +
+        `cette affiche est déjà le visuel de marque. Place ensuite le titre, le prix et les avantages SOUS la bannière.`,
+    );
+  } else if (visual.subject.keyVisuals.length) {
     L.push(`VISUEL DE FOND (héro) : query ANGLAIS = "${visual.subject.keyVisuals.slice(0, 4).join(' ')}".`);
   }
   L.push(`SUJET : ${visual.subject.what}`);
@@ -131,7 +141,7 @@ export function buildImageDirective(report: ImageReport, userPrompt?: string): s
   // Structure hint.
   L.push('');
   const struct =
-    'bannière héro (marque + titre + sous-titre + prix + bouton) ; ' +
+    (posterUrl ? "bannière = l'affiche (image src exact, tout en haut) ; " : 'bannière héro (marque + titre + sous-titre + prix + bouton) ; ') +
     (bullets.length ? "section avec liste d'avantages ; " : '') +
     (o.plans.length
       ? 'section forfaits côte à côte (cartes/2 colonnes avec prix) ; '

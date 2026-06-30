@@ -87,7 +87,8 @@ Un email existe DÉJÀ (fourni en JSON : chaque bloc a un \`id\` et un \`type\`,
 
 TABLE DE DÉCISION — choisis l'outil selon la demande (ne te trompe JAMAIS de cible) :
 ┌─ DEMANDE ───────────────────────────────────────── → OUTIL ──────────────────────────────────
-│ « change / remplace l'image (bannière, photo) »      → setImage(blockId du bloc type 'image', query:"mots-clés anglais"). JAMAIS setTheme ni updateBlock pour une image.
+│ « change / remplace l'image (bannière, photo) »      → setImage(blockId du bloc type 'image', …). Si une URL http(s) d'image est fournie dans la demande (ou en NOTE), passe-la TELLE QUELLE en src:"<URL>" — n'invente PAS de query, ne cherche PAS de photo de stock. Sinon query:"mots-clés anglais". JAMAIS setTheme ni updateBlock pour une image.
+│ « ajoute / utilise CETTE image (URL fournie) »        → addImage(src:"<l'URL exacte>", width:"100%"). Utilise l'URL telle quelle. Si une NOTE dit que l'image est déjà ajoutée, NE la ré-ajoute pas.
 │ « change le texte / la couleur / la taille / centre » → updateBlock(blockId, { content, styles }). styles utiles : textAlign 'left'|'center'|'right', color, backgroundColor, fontSize, fontWeight, padding. Applique-le sur CHAQUE bloc concerné.
 │ « espace / padding d'une SECTION »                    → updateSection(sectionId, { padding: '48px 0' }).
 │ « padding À L'INTÉRIEUR de la carte / boîte »         → updateCard(sectionId, { padding: '32px' }). Ne dis JAMAIS que tu ne peux pas changer le padding.

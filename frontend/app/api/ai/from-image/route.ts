@@ -5,6 +5,8 @@ import { TemplateBuilder, frameTemplate, dedupeTemplate } from '@/lib/ai/block-f
 import { buildImageSystemPrompt, buildSystemPrompt } from '@/lib/ai/system-prompt';
 import { readImageReport } from '@/lib/ai/image-report';
 import { buildImageDirective, imageThemeSeed } from '@/lib/ai/report-to-directive';
+import { ensurePosterBanner } from '@/lib/ai/poster-image';
+import { planDesign, executeSpec } from '@/lib/ai/planner';
 import {
   critiqueAgainstImage,
   buildFixDirective,
@@ -15,7 +17,7 @@ import type { TemplateData } from '@/lib/editor-types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const IMAGE_SEARCH_URL =
   process.env.IMAGE_SEARCH_URL || process.env.NEXT_PUBLIC_IMAGE_SEARCH_API || 'http://localhost:8002';
@@ -23,6 +25,10 @@ const IMAGE_SEARCH_URL =
 // Self-check critic (Phase 3): compares the generated email to the poster and
 // fixes factual drift. On by default; set AI_IMAGE_CRITIC=0 to skip it.
 const CRITIC_ENABLED = process.env.AI_IMAGE_CRITIC !== '0';
+
+// Per-step token cap — stops a looping model from streaming forever (see chat route).
+const GEN_MAX_TOKENS = Number(process.env.AI_GEN_MAX_TOKENS) || 1500;
+const PROSE_CAP = 600;
 
 /**
  * Image → email template (STEP 1+2 wired together). Reads an uploaded poster
@@ -40,7 +46,7 @@ const CRITIC_ENABLED = process.env.AI_IMAGE_CRITIC !== '0';
  *   { type:"error",  error }
  */
 export async function POST(req: Request): Promise<Response> {
-  let body: { image?: string; prompt?: string };
+  let body: { image?: string; prompt?: string; posterUrl?: string };
   try {
     body = await req.json();
   } catch {
@@ -49,6 +55,12 @@ export async function POST(req: Request): Promise<Response> {
 
   const image = typeof body.image === 'string' ? body.image : '';
   const userPrompt = typeof body.prompt === 'string' ? body.prompt : '';
+  // Public URL of the uploaded poster (stored to MinIO client-side). When present
+  // the poster itself becomes the email banner instead of AI stock photos.
+  const posterUrl =
+    typeof body.posterUrl === 'string' && /^https?:|^data:image\//i.test(body.posterUrl)
+      ? body.posterUrl
+      : '';
   if (!image.startsWith('data:image/')) {
     return Response.json({ error: 'Aucune image fournie (data URL attendue).' }, { status: 400 });
   }
@@ -67,8 +79,11 @@ export async function POST(req: Request): Promise<Response> {
         send({ type: 'status', stage: 'analyzed', report });
 
         // ── STEP 2: report → directive + theme seed → generation ─────────────
-        const directive = buildImageDirective(report, userPrompt);
+        const directive = buildImageDirective(report, userPrompt, posterUrl || undefined);
         const seed = imageThemeSeed(report);
+        // Alt text for the poster banner — the campaign's own headline / subject.
+        const posterAlt =
+          report.content.offer.headline || report.visual.subject.what || report.visual.brand.name || 'Affiche';
 
         // One generation pass with a given model. Fresh builder + tools + prose
         // buffer per attempt; the builder is pre-seeded with the brand theme so
@@ -83,7 +98,6 @@ export async function POST(req: Request): Promise<Response> {
           });
           const tools = createBlockTools(builder);
           const cleaner = makeProseCleaner();
-          let prose = '';
           const result = streamText({
             model: getModel(modelId),
             system,
@@ -91,38 +105,66 @@ export async function POST(req: Request): Promise<Response> {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             tools: tools as any,
             stopWhen: stepCountIs(36),
+            maxOutputTokens: GEN_MAX_TOKENS,
           });
-          for await (const delta of result.textStream) {
-            const cleaned = cleaner.push(delta);
-            if (cleaned) {
-              prose += cleaned;
-              send({ type: 'delta', text: cleaned });
-            }
-          }
-          const tail = cleaner.flush();
-          if (tail) {
-            prose += tail;
-            send({ type: 'delta', text: tail });
-          }
+          // Drain fully (so tool calls finish) but forward at most PROSE_CAP chars,
+          // so a looping model can't stream an endless chat bubble.
+          let prose = '';
+          let forwarded = 0;
+          const emit = (cleaned: string) => {
+            if (!cleaned || forwarded >= PROSE_CAP) return;
+            const piece = cleaned.slice(0, PROSE_CAP - forwarded);
+            prose += piece;
+            forwarded += piece.length;
+            send({ type: 'delta', text: piece });
+          };
+          for await (const delta of result.textStream) emit(cleaner.push(delta));
+          emit(cleaner.flush());
           await result.finishReason; // rejects on model error
           return { builder, prose };
         };
 
-        // Up to 3 passes (alternating models) until one produces blocks.
-        const passes = [DEFAULT_MODEL, FALLBACK_MODEL, DEFAULT_MODEL];
         let chosen: { builder: TemplateBuilder; prose: string } | null = null;
         let lastErr: unknown = null;
-        for (let i = 0; i < passes.length; i++) {
-          try {
-            const r = await attempt(passes[i]);
-            if (r.builder.blockCount > 0) {
-              chosen = r;
-              break;
+
+        // ── Phase 2: PLAN the design, then build it deterministically ────────
+        // One schema-constrained call → a full DesignSpec → an email assembled
+        // in code (varied look, never duplicated, always complete). This is the
+        // preferred path; the agentic loop below is the fallback.
+        send({ type: 'status', stage: 'planning' });
+        try {
+          const spec = await planDesign({
+            brief: directive,
+            seed: { accentColor: seed.accentColor, backgroundColor: seed.backgroundColor, mood: seed.mood },
+          });
+          if (spec && spec.sections.length >= 3) {
+            const builder = executeSpec(spec);
+            if (builder.blockCount > 0) {
+              chosen = {
+                builder,
+                prose: `Voici votre email premium${report.visual.brand.name ? ` pour ${report.visual.brand.name}` : ''}.`,
+              };
             }
-          } catch (e) {
-            lastErr = e;
           }
-          if (i < passes.length - 1) send({ type: 'status', stage: 'retry' });
+        } catch (e) {
+          lastErr = e;
+        }
+
+        // Fallback: legacy agentic generation (up to 3 passes, alternating models).
+        if (!chosen) {
+          const passes = [DEFAULT_MODEL, FALLBACK_MODEL, DEFAULT_MODEL];
+          for (let i = 0; i < passes.length; i++) {
+            try {
+              const r = await attempt(passes[i]);
+              if (r.builder.blockCount > 0) {
+                chosen = r;
+                break;
+              }
+            } catch (e) {
+              lastErr = e;
+            }
+            if (i < passes.length - 1) send({ type: 'status', stage: 'retry' });
+          }
         }
 
         if (!chosen) {
@@ -160,10 +202,18 @@ export async function POST(req: Request): Promise<Response> {
           }
         }
 
-        // ── Finalize: stock photos → dedupe → frame ──────────────────────────
+        // ── Finalize: dedupe → frame ─────────────────────────────────────────
+        // With a poster URL the affiche is the banner and we suppress AI stock
+        // imagery entirely; otherwise resolve stock photos as before.
         send({ type: 'status', stage: 'template' });
-        await resolveStockImages(finalBuilder, IMAGE_SEARCH_URL);
-        const template = frameTemplate(dedupeTemplate(finalBuilder.build()));
+        let built: TemplateData;
+        if (posterUrl) {
+          built = ensurePosterBanner(finalBuilder.build(), posterUrl, posterAlt);
+        } else {
+          await resolveStockImages(finalBuilder, IMAGE_SEARCH_URL);
+          built = finalBuilder.build();
+        }
+        const template = frameTemplate(dedupeTemplate(built));
         send({
           type: 'done',
           message: chosen.prose.trim() || "Voici l'email créé à partir de votre affiche.",
@@ -217,6 +267,7 @@ async function applyImageFixes(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     tools: tools as any,
     stopWhen: stepCountIs(10),
+    maxOutputTokens: GEN_MAX_TOKENS,
   });
   for await (const _delta of result.textStream) void _delta;
   await result.finishReason;

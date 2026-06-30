@@ -101,7 +101,13 @@ export function mjmlToPreviewHtml(mjml: string): string {
     sections.forEach((section) => {
       const sBg = section.getAttribute('background-color') || 'transparent';
       const sPad = section.getAttribute('padding') || '10px 0';
-      html += `<div style="background-color:${sBg};padding:${sPad};">`;
+      // Hero background photo: layer a dark scrim over the image for legibility
+      // (matches the editor canvas and live preview).
+      const sBgUrl = section.getAttribute('background-url');
+      const sBgImg = sBgUrl
+        ? `background-image:linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)),url(${sBgUrl});background-size:cover;background-position:center;background-repeat:no-repeat;`
+        : '';
+      html += `<div style="background-color:${sBg};${sBgImg}padding:${sPad};">`;
       html += `<div style="display:flex;">`;
 
       const cols = section.querySelectorAll('mj-column');
