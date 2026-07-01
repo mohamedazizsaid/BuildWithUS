@@ -12,6 +12,9 @@ import {
   Check,
   CloudOff,
   Loader2,
+  GraduationCap,
+  Mail,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -50,6 +53,8 @@ interface EditorToolbarProps {
   // Autosave
   saveStatus?: AutosaveStatus;
   lastSavedAt?: Date | null;
+  // Onboarding tour — replay a tutorial on demand (email builder / AI assistant)
+  onStartTour?: (tour: "email" | "ai") => void;
 }
 
 export default function EditorToolbar({
@@ -78,7 +83,9 @@ export default function EditorToolbar({
   collaborators,
   saveStatus,
   lastSavedAt,
+  onStartTour,
 }: EditorToolbarProps) {
+  const [tourMenuOpen, setTourMenuOpen] = useState(false);
   const isTextBlock =
     selectedBlock &&
     (selectedBlock.type === "heading" ||
@@ -127,6 +134,7 @@ export default function EditorToolbar({
             variant="ghost"
             size="sm"
             onClick={onSave}
+            data-tour="btn-save"
             className="h-8 gap-1.5 text-xs"
           >
             <Save size={14} />
@@ -202,10 +210,48 @@ export default function EditorToolbar({
 
         {/* Right */}
         <div className="flex items-center gap-2">
+          {/* Tutoriel — replay the onboarding tours anytime */}
+          {onStartTour && (
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                data-tour="btn-tutorial"
+                onClick={() => setTourMenuOpen((o) => !o)}
+                className="h-8 w-8"
+                title="Tutoriel"
+              >
+                <GraduationCap size={16} />
+              </Button>
+              {tourMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setTourMenuOpen(false)} />
+                  <div className="absolute right-0 top-10 z-50 w-60 rounded-xl border border-border bg-popover shadow-[0_8px_24px_rgba(0,0,0,0.14)] p-1.5">
+                    <p className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tutoriels</p>
+                    <button
+                      onClick={() => { setTourMenuOpen(false); onStartTour("email"); }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-foreground hover:bg-accent transition-colors text-left"
+                    >
+                      <Mail size={15} className="text-primary shrink-0" />
+                      Créer un email pas à pas
+                    </button>
+                    <button
+                      onClick={() => { setTourMenuOpen(false); onStartTour("ai"); }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-foreground hover:bg-accent transition-colors text-left"
+                    >
+                      <Sparkles size={15} className="text-primary shrink-0" />
+                      Utiliser l&apos;assistant IA
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           <Button
             variant={previewMode ? "default" : "ghost"}
             size="icon"
             onClick={() => setPreviewMode(!previewMode)}
+            data-tour="btn-preview"
             className="h-8 w-8"
             title="Aperçu"
           >

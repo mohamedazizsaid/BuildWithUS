@@ -157,6 +157,19 @@ export class AuthController implements OnModuleInit {
   }
 
   /**
+   * PUT /auth/first-log — PROTECTED
+   * Marks the first-run onboarding tour as seen for the current user. Idempotent.
+   */
+  @Put("first-log")
+  @UseGuards(AuthGuard)
+  async markFirstLog(@Req() req: any) {
+    const result = await firstValueFrom(
+      this.authService.MarkFirstLog({ token: req.token }),
+    );
+    return result;
+  }
+
+  /**
    * POST /auth/invite — PROTECTED (admin only in practice)
    * Sends an invite to a new user. Returns a token-based invite link (expires in 15min).
    * tenant_id and invited_by are extracted from the JWT — frontend doesn't send them.

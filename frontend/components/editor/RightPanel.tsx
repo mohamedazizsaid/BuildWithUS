@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Type, LayoutGrid, ImageIcon, ArrowLeft, Trash2, LayoutTemplate, Sparkles, ChevronLeft, ChevronRight, Heading, AlignLeft, Video, MousePointerClick, Minus, Table2, PenLine, Share2, Menu as MenuIcon, ListChecks } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Type, LayoutGrid, ImageIcon, ArrowLeft, Trash2, LayoutTemplate, Sparkles, ChevronLeft, ChevronRight, Heading, AlignLeft, Video, MousePointerClick, Minus, Table2, PenLine, Share2, Menu as MenuIcon, ListChecks, RectangleHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import {
   GlobalStyles,
 } from '@/lib/editor-types';
 
-import { Row } from '@/lib/editor-types';
+import { Row, Column } from '@/lib/editor-types';
 import type { TemplateData } from '@/lib/editor-types';
 
 // ─── Panel imports ───
@@ -25,6 +25,7 @@ import type { AiChatState } from './ai-chat/useAiChatState';
 import { SectionsPanel } from './panels/SectionsPanel';
 import { CorpsPanel } from './panels/CorpsPanel';
 import { SectionProperties } from './panels/SectionProperties';
+import { ColumnProperties } from './panels/ColumnProperties';
 import { ImageBlockProperties } from './panels/ImageProperties';
 import { VideoBlockProperties } from './panels/VideoProperties';
 import { TableBlockProperties } from './panels/TableProperties';
@@ -33,6 +34,7 @@ import { SocialBlockProperties } from './panels/SocialProperties';
 import { DividerBlockProperties } from './panels/DividerProperties';
 import { MenuBlockProperties } from './panels/MenuProperties';
 import { IconListBlockProperties } from './panels/IconListProperties';
+import { ColorBarProperties } from './panels/ColorBarProperties';
 
 type PanelTab = 'contenu' | 'blocs' | 'photos' | 'sections' | 'ai';
 
@@ -47,16 +49,23 @@ interface LeftPanelProps {
   aiChat: AiChatState;
   aiSelection?: AiSelection | null;
   onClearAiSelection?: () => void;
+  // Onboarding: fires the first time the IA tab is opened (auto AI tour), and
+  // bumped signals ask this panel to switch to the IA / Contenu tab (tour replay).
+  onAiTabOpen?: () => void;
+  openAiSignal?: number;
+  openContentSignal?: number;
 }
 
 interface PropertiesPanelProps {
   selectedBlock: BlockData | null;
   selectedRow: Row | null;
+  selectedColumn: Column | null;
   globalStyles: GlobalStyles;
   onUpdateBlock: (blockId: string, updates: Partial<BlockData>) => void;
   onRemoveBlock: (blockId: string) => void;
   onUpdateGlobalStyles: (styles: Partial<GlobalStyles>) => void;
   onUpdateRowStyles: (rowId: string, styles: Record<string, string>) => void;
+  onUpdateColumnStyles: (columnId: string, styles: Record<string, string>) => void;
   onDeselectBlock: () => void;
 }
 
@@ -72,6 +81,7 @@ const BLOCK_ITEMS: { type: BlockType; label: string; icon: React.ElementType }[]
   { type: 'social',    label: 'Réseaux',    icon: Share2            },
   { type: 'menu',      label: 'Menu',       icon: MenuIcon          },
   { type: 'icon-list', label: 'Liste à icônes', icon: ListChecks    },
+  { type: 'color-bar', label: 'Barre de couleur', icon: RectangleHorizontal },
 ];
 
 // ─── Left Panel (content tabs — sits on the LEFT of the canvas) ───────────────
@@ -87,12 +97,45 @@ export function LeftPanel({
   aiChat,
   aiSelection,
   onClearAiSelection,
+  onAiTabOpen,
+  openAiSignal,
+  openContentSignal,
 }: LeftPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('contenu');
   const [collapsed, setCollapsed] = useState(false);
 
+  // Replay hook: when the parent bumps openAiSignal, jump to the IA tab so the
+  // AI tour's anchors are mounted. Skip the initial 0 value. Syncing an external
+  // trigger (the tour) into local tab state is the intended use here.
+  useEffect(() => {
+    if (!openAiSignal) return;
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setActiveTab('ai');
+    setCollapsed(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [openAiSignal]);
+
+  // Same, for the email tour: ensure the Contenu tab (with the block tiles) is
+  // open so the interactive steps can highlight and gate on the block tiles.
+  useEffect(() => {
+    if (!openContentSignal) return;
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setActiveTab('contenu');
+    setCollapsed(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [openContentSignal]);
+
+  // Notify the parent the first time the IA tab becomes active (auto AI tour).
+  const aiOpenedRef = React.useRef(false);
+  useEffect(() => {
+    if (activeTab === 'ai' && !aiOpenedRef.current) {
+      aiOpenedRef.current = true;
+      onAiTabOpen?.();
+    }
+  }, [activeTab, onAiTabOpen]);
+
   return (
-    <div className={`h-full flex border-r border-border transition-all duration-200 ${collapsed ? 'w-12' : 'w-[340px]'}`}>
+    <div data-tour="left-panel" className={`h-full flex border-r border-border transition-all duration-200 ${collapsed ? 'w-12' : 'w-[340px]'}`}>
       {/* Tab strip — left edge */}
       <div className="w-12 bg-muted/50 border-r border-border flex flex-col items-center py-2 gap-1 shrink-0">
         {/* Collapse toggle — top */}
@@ -115,6 +158,7 @@ export function LeftPanel({
         ] as { key: PanelTab; icon: React.ElementType; title: string }[]).map((tab) => (
           <button
             key={tab.key}
+            data-tour={tab.key === 'ai' ? 'tab-ai' : undefined}
             onClick={() => { setActiveTab(tab.key); setCollapsed(false); }}
             className={`w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
               activeTab === tab.key && !collapsed
@@ -167,17 +211,19 @@ export function LeftPanel({
 export function PropertiesPanel({
   selectedBlock,
   selectedRow,
+  selectedColumn,
   globalStyles,
   onUpdateBlock,
   onRemoveBlock,
   onUpdateGlobalStyles,
   onUpdateRowStyles,
+  onUpdateColumnStyles,
   onDeselectBlock,
 }: PropertiesPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className={`h-full flex border-l border-border transition-all duration-200 ${collapsed ? 'w-8' : 'w-[280px]'}`}>
+    <div data-tour="properties-panel" className={`h-full flex border-l border-border transition-all duration-200 ${collapsed ? 'w-8' : 'w-[280px]'}`}>
       {/* Thin toggle strip — always visible on the left edge of this panel */}
       <div className="w-8 shrink-0 bg-muted/50 border-r border-border flex flex-col items-center justify-start pt-2">
         <button
@@ -221,6 +267,11 @@ export function PropertiesPanel({
                   </Button>
                 </div>
               </>
+            ) : selectedColumn ? (
+              <ColumnProperties
+                column={selectedColumn}
+                onUpdateStyles={(styles) => onUpdateColumnStyles(selectedColumn.id, styles)}
+              />
             ) : selectedRow ? (
               <SectionProperties
                 row={selectedRow}
@@ -267,6 +318,7 @@ function ContenuPanel({
         {BLOCK_ITEMS.map((item) => (
           <div
             key={item.type}
+            data-tour={`block-${item.type}`}
             draggable
             onDragStart={(e) => {
               e.dataTransfer.setData('blockType', item.type);
@@ -415,6 +467,10 @@ function BlockProperties({
         <IconListBlockProperties block={block} onUpdate={onUpdate} />
       )}
 
+      {block.type === 'color-bar' && (
+        <ColorBarProperties block={block} onUpdate={onUpdate} />
+      )}
+
       {isHeadingOrText && (
         <div className="pt-2 border-t border-border space-y-3">
           <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="layout" title="Mise en page">
@@ -529,8 +585,33 @@ function BlockProperties({
         <div className="pt-2 border-t border-border space-y-3">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase">Style du bouton</h4>
           <ColorPicker label="Background" value={block.styles.backgroundColor || '#0f172a'} onChange={(c) => updateStyle('backgroundColor', c)} />
+
+          {/* Shape — visual presets (square / rounded / pill) with a custom fallback */}
+          <div>
+            <Label className="text-xs">Forme</Label>
+            <div className="grid grid-cols-3 gap-1.5 mt-1">
+              {[
+                { v: '0px', l: 'Carré', preview: 'rounded-none' },
+                { v: '8px', l: 'Arrondi', preview: 'rounded-lg' },
+                { v: '9999px', l: 'Pilule', preview: 'rounded-full' },
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => updateStyle('borderRadius', opt.v)}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                    (block.styles.borderRadius || '6px') === opt.v
+                      ? 'bg-primary/10 border-primary shadow-sm'
+                      : 'border-border hover:bg-accent hover:border-ring'
+                  }`}
+                >
+                  <div className={`w-8 h-4 bg-muted-foreground/25 ${opt.preview}`} />
+                  <span className="text-[10px] text-muted-foreground">{opt.l}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <StyledSelect
-            label="Rayon de bordure"
+            label="Rayon de bordure (précis)"
             value={block.styles.borderRadius || '6px'}
             onChange={(v) => updateStyle('borderRadius', v)}
             options={[
@@ -540,6 +621,43 @@ function BlockProperties({
               { value: '12px', label: 'Plus (12px)' },
               { value: '24px', label: 'Pilule (24px)' },
               { value: '9999px', label: 'Pilule complète' },
+            ]}
+          />
+
+          {/* Width — auto (hug label) vs full-width block button */}
+          <div>
+            <Label className="text-xs">Largeur</Label>
+            <div className="flex gap-1 mt-1">
+              {[
+                { v: 'auto', l: 'Auto' },
+                { v: '100%', l: 'Pleine largeur' },
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => updateStyle('btnWidth', opt.v)}
+                  className={`flex-1 h-8 text-xs rounded-xl border transition-colors ${
+                    (block.styles.btnWidth || 'auto') === opt.v
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'border-border hover:bg-accent hover:border-ring'
+                  }`}
+                >
+                  {opt.l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Inner size — the button's own padding (how big/chunky it is). Distinct
+              from the "Espacement" section below, which is the OUTER spacing. */}
+          <StyledSelect
+            label="Taille du bouton"
+            value={block.styles.innerPadding || '10px 25px'}
+            onChange={(v) => updateStyle('innerPadding', v)}
+            options={[
+              { value: '8px 16px', label: 'Compact' },
+              { value: '10px 25px', label: 'Normal' },
+              { value: '14px 32px', label: 'Grand' },
+              { value: '18px 40px', label: 'Très grand' },
             ]}
           />
         </div>

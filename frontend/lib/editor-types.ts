@@ -1,4 +1,4 @@
-export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature' | 'social' | 'menu' | 'icon-list';
+export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'button' | 'divider' | 'table' | 'signature' | 'social' | 'menu' | 'icon-list' | 'color-bar';
 
 export type RowLayout =
   | '100'
@@ -111,7 +111,7 @@ export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, 
   },
   button: {
     content: { text: 'Click here', href: '#' },
-    styles: { backgroundColor: '', color: '', fontSize: '', padding: '12px 24px', borderRadius: '', textAlign: 'center', fontFamily: '', fontWeight: '', borderSize: '', borderColor: '' },
+    styles: { backgroundColor: '', color: '', fontSize: '', padding: '12px 24px', borderRadius: '', textAlign: 'center', fontFamily: '', fontWeight: '', borderSize: '', borderColor: '', btnWidth: 'auto', innerPadding: '' },
   },
   divider: {
     content: {},
@@ -171,6 +171,19 @@ export const DEFAULT_BLOCK_CONTENT: Record<BlockType, { content: Record<string, 
       fontSize: '',
       fontWeight: '',
       fontFamily: '',
+    },
+  },
+  'color-bar': {
+    // A decorative multi-segment coloured stripe (the accent bars at the edges
+    // of premium templates). Each segment is one hex colour; segments share the
+    // width equally. Rendered as an email-safe <table> of coloured cells.
+    content: {
+      segments: ['#0055D4', '#4A90E2', '#A5C8FF'] as string[],
+    },
+    styles: {
+      height: '8px',
+      borderRadius: '0px',
+      padding: '0',
     },
   },
 };

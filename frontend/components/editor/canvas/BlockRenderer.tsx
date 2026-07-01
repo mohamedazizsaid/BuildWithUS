@@ -153,7 +153,7 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
             fontWeight: block.styles.fontWeight || globalStyles.btnFontWeight,
             lineHeight: block.styles.lineHeight || globalStyles.lineHeight,
             letterSpacing: block.styles.letterSpacing || undefined,
-            padding: '10px 25px',
+            padding: block.styles.innerPadding || '10px 25px',
             borderRadius: block.styles.borderRadius || globalStyles.btnBorderRadius,
             border: bBorderSize && bBorderSize !== '0px'
               ? `${bBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor}`
@@ -185,13 +185,14 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
     case 'table': {
       const tHeaders = (block.content.headers || []) as string[];
       const tRows = (block.content.rows || []) as string[][];
+      const tAligns = (block.content.aligns || []) as string[];
       const theme = resolveTableTheme(block.styles);
       return (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               {tHeaders.map((h, i) => (
-                <th key={i} style={thStyle(theme)}>{h}</th>
+                <th key={i} style={thStyle(theme, tAligns[i])}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -199,7 +200,7 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
             {tRows.map((row, ri) => (
               <tr key={ri}>
                 {row.map((cell, ci) => (
-                  <td key={ci} style={tdStyle(theme, ri)}>{cell}</td>
+                  <td key={ci} style={tdStyle(theme, ri, tAligns[ci])}>{cell}</td>
                 ))}
               </tr>
             ))}
@@ -311,6 +312,22 @@ export function renderBlock(block: BlockData, globalStyles: GlobalStyles) {
               </div>
             );
           })}
+        </div>
+      );
+    }
+    case 'color-bar': {
+      // Padding is applied by the CanvasBlock wrapper — render just the bar here.
+      const segments = (block.content.segments || []) as string[];
+      const cbHeight = block.styles.height || '8px';
+      const cbRadius = block.styles.borderRadius || '0px';
+      if (segments.length === 0) {
+        return <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>Barre vide — ajoutez des segments dans les propriétés</div>;
+      }
+      return (
+        <div style={{ display: 'flex', width: '100%', height: cbHeight, borderRadius: cbRadius, overflow: 'hidden' }}>
+          {segments.map((c, i) => (
+            <div key={i} style={{ flex: 1, backgroundColor: c }} />
+          ))}
         </div>
       );
     }

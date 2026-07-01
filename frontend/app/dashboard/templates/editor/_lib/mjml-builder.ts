@@ -55,7 +55,10 @@ export function blockToMjml(block: BlockData, g: GlobalStyles) {
       const btnLh = block.styles.lineHeight || g.lineHeight;
       const btnLs = block.styles.letterSpacing || '0px';
       const btnW = block.styles.btnWidth && block.styles.btnWidth !== 'auto' ? ` width="${block.styles.btnWidth}"` : '';
-      return `        <mj-button background-color="${btnBg}" color="${btnColor}" font-size="${btnSize}" font-weight="${btnWeight}" font-family="${btnFamily}" border-radius="${btnRadius}" href="${block.content.href}" padding="${block.styles.padding}" align="${block.styles.textAlign}" line-height="${btnLh}" letter-spacing="${btnLs}"${btnBorder}${btnW}>${block.content.text}</mj-button>\n`;
+      // inner-padding controls the button's own size (chunkiness); `padding` is the
+      // OUTER spacing. Only emit when set so we don't override MJML's sane default.
+      const btnInner = block.styles.innerPadding ? ` inner-padding="${block.styles.innerPadding}"` : '';
+      return `        <mj-button background-color="${btnBg}" color="${btnColor}" font-size="${btnSize}" font-weight="${btnWeight}" font-family="${btnFamily}" border-radius="${btnRadius}" href="${block.content.href}" padding="${block.styles.padding}" align="${block.styles.textAlign}" line-height="${btnLh}" letter-spacing="${btnLs}"${btnBorder}${btnW}${btnInner}>${block.content.text}</mj-button>\n`;
     }
     case "divider": {
       const divStyle = block.styles.borderStyle || 'solid';
@@ -66,11 +69,12 @@ export function blockToMjml(block: BlockData, g: GlobalStyles) {
     case "table": {
       const tHeaders = (block.content.headers || []) as string[];
       const tRows = (block.content.rows || []) as string[][];
+      const tAligns = (block.content.aligns || []) as string[];
       const tTheme = resolveTableTheme(block.styles);
       let table = `        <mj-table font-size="${tTheme.fontSize}" color="${tTheme.color}" padding="${block.styles.padding}" css-class="${encodeTableClass(tTheme)}">`;
-      table += `<tr>${tHeaders.map((h: string) => `<th style="${thCss(tTheme)}">${h}</th>`).join("")}</tr>`;
+      table += `<tr>${tHeaders.map((h: string, ci: number) => `<th style="${thCss(tTheme, tAligns[ci])}">${h}</th>`).join("")}</tr>`;
       tRows.forEach((row, ri) => {
-        table += `<tr>${row.map((c: string) => `<td style="${tdCss(tTheme, ri)}">${c}</td>`).join("")}</tr>`;
+        table += `<tr>${row.map((c: string, ci: number) => `<td style="${tdCss(tTheme, ri, tAligns[ci])}">${c}</td>`).join("")}</tr>`;
       });
       table += `</mj-table>\n`;
       return table;
@@ -148,6 +152,25 @@ export function blockToMjml(block: BlockData, g: GlobalStyles) {
       const marker = `iconlist:${ilAlign}:${iconColor}:${iconSize}:${spacing.replace(/px$/, '')}`;
       return `        <mj-text padding="${ilPad}" color="${color}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="${fontFamily}" css-class="${marker}"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;${tableMargin}"><tbody>${rowsHtml}</tbody></table></mj-text>\n`;
     }
+    case "color-bar": {
+      const segments = (block.content.segments || []) as string[];
+      const cbHeight = block.styles.height || '8px';
+      const cbRadius = block.styles.borderRadius || '0px';
+      const cbPad = block.styles.padding || '0';
+      const n = segments.length || 1;
+      const w = (100 / n).toFixed(4);
+      const cellRadius = (first: boolean, last: boolean) => {
+        if (cbRadius === '0px' || cbRadius === '0') return '';
+        if (first && last) return `border-radius:${cbRadius};`;
+        if (first) return `border-radius:${cbRadius} 0 0 ${cbRadius};`;
+        if (last) return `border-radius:0 ${cbRadius} ${cbRadius} 0;`;
+        return '';
+      };
+      const cells = segments
+        .map((c, i) => `<td bgcolor="${c}" style="background-color:${c};width:${w}%;height:${cbHeight};font-size:0;line-height:0;mso-line-height-rule:exactly;${cellRadius(i === 0, i === n - 1)}">&nbsp;</td>`)
+        .join('');
+      return `        <mj-text padding="${cbPad}" line-height="0" css-class="colorbar:${cbHeight}:${cbRadius}"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;table-layout:fixed;width:100%"><tbody><tr>${cells}</tr></tbody></table></mj-text>\n`;
+    }
     case "signature": {
       const sigLineColor = block.styles.lineColor || '#000000';
       const sigLineWidth = block.styles.lineWidth || '200px';
@@ -211,19 +234,22 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
       const btnBorder = btnBorderSize !== '0px' ? `border:${btnBorderSize} solid ${btnBorderColor};` : '';
       const btnLh = block.styles.lineHeight || globalStyles.lineHeight;
       const btnLs = block.styles.letterSpacing || '0px';
-      const innerPad = '10px 25px'; // MJML mj-button default inner-padding
-      return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="display:inline-block;background-color:${btnBg};color:${btnColor};font-size:${btnSize};font-family:${btnFamily};font-weight:${btnWeight};line-height:${btnLh};letter-spacing:${btnLs};padding:${innerPad};border-radius:${btnRadius};${btnBorder}text-align:center;text-decoration:none">${block.content.text}</a></div>`;
+      const innerPad = block.styles.innerPadding || '10px 25px'; // MJML mj-button default inner-padding
+      const btnFull = block.styles.btnWidth && block.styles.btnWidth !== 'auto';
+      const btnDisplay = btnFull ? `display:block;width:${block.styles.btnWidth};box-sizing:border-box;` : 'display:inline-block;';
+      return `<div style="text-align:${block.styles.textAlign};padding:${block.styles.padding}"><a href="${block.content.href}" style="${btnDisplay}background-color:${btnBg};color:${btnColor};font-size:${btnSize};font-family:${btnFamily};font-weight:${btnWeight};line-height:${btnLh};letter-spacing:${btnLs};padding:${innerPad};border-radius:${btnRadius};${btnBorder}text-align:center;text-decoration:none">${block.content.text}</a></div>`;
     }
     case "divider":
       return `<hr style="border-color:${block.styles.borderColor};border-width:${block.styles.borderWidth};margin:${block.styles.padding} 0" />`;
     case "table": {
       const headers = (block.content.headers || []) as string[];
       const rows = (block.content.rows || []) as string[][];
+      const hAligns = (block.content.aligns || []) as string[];
       const hTheme = resolveTableTheme(block.styles);
       let t = `<table style="${tableCss()};padding:${block.styles.padding}">`;
-      t += `<tr>${headers.map((h: string) => `<th style="${thCss(hTheme)}">${h}</th>`).join("")}</tr>`;
+      t += `<tr>${headers.map((h: string, ci: number) => `<th style="${thCss(hTheme, hAligns[ci])}">${h}</th>`).join("")}</tr>`;
       rows.forEach((row, ri) => {
-        t += `<tr>${row.map((c: string) => `<td style="${tdCss(hTheme, ri)}">${c}</td>`).join("")}</tr>`;
+        t += `<tr>${row.map((c: string, ci: number) => `<td style="${tdCss(hTheme, ri, hAligns[ci])}">${c}</td>`).join("")}</tr>`;
       });
       t += `</table>`;
       return t;
@@ -283,6 +309,25 @@ function blockToHtml(block: BlockData, globalStyles: GlobalStyles): string {
         return `<tr><td style="vertical-align:top;padding:0 8px ${pb} 0;color:${itemColor || iconColor};font-size:${iconSize};line-height:1.4;white-space:nowrap">${glyph || '&bull;'}</td><td style="vertical-align:top;padding:0 0 ${pb} 0;color:${ilColor};font-size:${ilFontSize};font-weight:${ilFontWeight};font-family:${ilFontFamily};line-height:1.4">${text || ''}</td></tr>`;
       }).join('');
       return `<div style="padding:${block.styles.padding || '10px'}"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;${tableMargin}"><tbody>${rows}</tbody></table></div>`;
+    }
+    case "color-bar": {
+      const segments = (block.content.segments || []) as string[];
+      const cbHeight = block.styles.height || '8px';
+      const cbRadius = block.styles.borderRadius || '0px';
+      const cbPad = block.styles.padding || '0';
+      const n = segments.length || 1;
+      const w = (100 / n).toFixed(4);
+      const cellRadius = (first: boolean, last: boolean) => {
+        if (cbRadius === '0px' || cbRadius === '0') return '';
+        if (first && last) return `border-radius:${cbRadius};`;
+        if (first) return `border-radius:${cbRadius} 0 0 ${cbRadius};`;
+        if (last) return `border-radius:0 ${cbRadius} ${cbRadius} 0;`;
+        return '';
+      };
+      const cells = segments
+        .map((c, i) => `<td bgcolor="${c}" style="background-color:${c};width:${w}%;height:${cbHeight};font-size:0;line-height:0;${cellRadius(i === 0, i === n - 1)}">&nbsp;</td>`)
+        .join('');
+      return `<div style="padding:${cbPad}"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;table-layout:fixed;width:100%"><tbody><tr>${cells}</tr></tbody></table></div>`;
     }
     case "signature":
       return `<div style="padding:${block.styles.padding};font-size:${block.styles.fontSize};color:${block.styles.color}"><div style="border-top:1px solid #000;width:200px;margin-bottom:8px"></div><p style="margin:0;font-weight:bold">${block.content.name}</p><p style="margin:0;color:#64748b">${block.content.title}</p></div>`;

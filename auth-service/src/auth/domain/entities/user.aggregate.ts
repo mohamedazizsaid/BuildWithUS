@@ -11,6 +11,7 @@ export class User {
     private firstName: string,
     private lastName: string,
     private role: UserRole,
+    private firstLog: boolean,
     private createdAt: Date,
     private updatedAt: Date,
   ) {}
@@ -38,6 +39,7 @@ export class User {
       firstName.trim(),
       lastName.trim(),
       role,
+      false, // new users haven't seen the onboarding tour yet
       new Date(),
       new Date(),
     );
@@ -51,10 +53,11 @@ export class User {
     firstName: string,
     lastName: string,
     role: UserRole,
+    firstLog: boolean,
     createdAt: Date,
     updatedAt: Date,
   ): User {
-    return new User(id, tenantId, email, password, firstName, lastName, role, createdAt, updatedAt);
+    return new User(id, tenantId, email, password, firstName, lastName, role, firstLog, createdAt, updatedAt);
   }
 
   public updateProfile(firstName?: string, lastName?: string): void {
@@ -76,6 +79,12 @@ export class User {
     this.updatedAt = new Date();
   }
 
+  // Mark the first-run onboarding tour as seen. Idempotent — once true it stays true.
+  public markFirstLog(): void {
+    this.firstLog = true;
+    this.updatedAt = new Date();
+  }
+
   public toPrimitives() {
     return {
       id: this.id,
@@ -85,6 +94,7 @@ export class User {
       firstName: this.firstName,
       lastName: this.lastName,
       role: this.role,
+      firstLog: this.firstLog,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
@@ -97,4 +107,5 @@ export class User {
   public getFirstName(): string { return this.firstName; }
   public getLastName(): string { return this.lastName; }
   public getRole(): UserRole { return this.role; }
+  public getFirstLog(): boolean { return this.firstLog; }
 }

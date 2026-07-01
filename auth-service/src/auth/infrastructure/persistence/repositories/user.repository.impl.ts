@@ -52,6 +52,7 @@ export class UserRepositoryImpl extends UserRepository {
       entity.firstName,
       entity.lastName,
       entity.role as UserRole,
+      entity.firstLog ?? false,
       entity.createdAt,
       entity.updatedAt,
     );

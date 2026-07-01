@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { auth, isEmbedMode, getEmbedToken, decodeJwtPayload } from '@/lib/api';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -12,6 +12,8 @@ interface User {
   first_name: string;
   last_name: string;
   role: string;
+  // Whether the user has already been through the first-run onboarding tour.
+  first_log?: boolean;
 }
 
 interface AuthContextType {
@@ -21,6 +23,9 @@ interface AuthContextType {
   register: (data: { tenantName: string; email: string; password: string; firstName: string; lastName: string }) => Promise<void>;
   acceptInvite: (data: { token: string; password: string; firstName: string; lastName: string }) => Promise<void>;
   logout: () => Promise<void>;
+  // Flip first_log → true locally and persist it. Called when the onboarding
+  // tour launches so it never auto-shows again (even after a refresh).
+  markFirstLogSeen: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -117,8 +122,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
+  // Optimistically mark the tour as seen, then persist. We don't await/refetch:
+  // the JWT doesn't carry first_log and /me is only fetched once on load, so the
+  // local flip is the source of truth for this session; the PUT makes it stick.
+  const markFirstLogSeen = useCallback(() => {
+    setUser((prev) => (prev && !prev.first_log ? { ...prev, first_log: true } : prev));
+    auth.markFirstLogged().catch(() => { /* non-blocking; tour still ran */ });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, acceptInvite, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, acceptInvite, logout, markFirstLogSeen }}>
       {children}
     </AuthContext.Provider>
   );

@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useLayoutEffect, useMemo, useRef, Sus
 import { flushSync } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEditor } from "@/hooks/use-editor";
+import { useOnboardingTour } from "@/hooks/use-onboarding-tour";
 import { useCollaboration } from "@/hooks/use-collaboration";
 import { useAuth } from "@/context/auth";
 import EditorToolbar, { type AutosaveStatus } from "@/components/editor/EditorToolbar";
@@ -32,7 +33,7 @@ import { HtmlFrame } from "@/components/HtmlFrame";
 const BLOCK_LABELS: Record<BlockType, string> = {
   heading: "Titre", text: "Texte", image: "Image", video: "Vidéo", button: "Bouton",
   divider: "Séparateur", table: "Tableau", signature: "Signature", social: "Réseaux",
-  menu: "Menu", "icon-list": "Liste",
+  menu: "Menu", "icon-list": "Liste", "color-bar": "Barre de couleur",
 };
 function blockLabel(b: BlockData): string {
   const name = BLOCK_LABELS[b.type] ?? b.type;
@@ -67,7 +68,26 @@ function EditorContent() {
     editorState.setSelectedBlockId(null);
     editorState.setSelectedRowId(null);
   }, [editorState.setSelectedBlockId, editorState.setSelectedRowId]);
-  const { user } = useAuth();
+  const { user, markFirstLogSeen } = useAuth();
+  // Live block counts drive the interactive email tour (gated steps advance when
+  // the user actually adds a Text / Image / Button block).
+  const tourBlockCounts = useMemo(() => {
+    let textCount = 0, imageCount = 0, buttonCount = 0;
+    for (const r of editorState.template.rows)
+      for (const c of r.columns)
+        for (const b of c.blocks) {
+          if (b.type === "text" || b.type === "heading") textCount++;
+          else if (b.type === "image") imageCount++;
+          else if (b.type === "button") buttonCount++;
+        }
+    return { textCount, imageCount, buttonCount };
+  }, [editorState.template]);
+  const { startEmailTour, startAiTour } = useOnboardingTour(tourBlockCounts);
+  // Bumping these asks the LeftPanel to switch to the IA / Contenu tab (so the
+  // tour's anchors are mounted before it runs).
+  const [openAiSignal, setOpenAiSignal] = useState(0);
+  const [openContentSignal, setOpenContentSignal] = useState(0);
+  const autoEmailTourStarted = useRef(false);
   // AI chat conversation state — owned here (a stable, always-mounted parent)
   // so the history survives switching to Preview/Code and back to the AI tab.
   const aiChat = useAiChatState();
@@ -97,6 +117,73 @@ function EditorContent() {
     "desktop" | "tablet" | "mobile"
   >("desktop");
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+
+  // Clicking a column selects it (opens the Column/box properties panel) AND makes
+  // it the active target for "add block". Selecting a column clears any block/row
+  // selection so only one properties panel shows at a time.
+  const handleSelectColumn = useCallback((colId: string | null) => {
+    setActiveColumnId(colId);
+    editorState.setSelectedColumnId(colId);
+    if (colId) {
+      editorState.setSelectedBlockId(null);
+      editorState.setSelectedRowId(null);
+    }
+  }, [editorState.setSelectedColumnId, editorState.setSelectedBlockId, editorState.setSelectedRowId]);
+
+  // Selecting a block clears the column selection (block panel wins) but keeps the
+  // active column so newly added blocks still land in the right place.
+  const handleSelectBlock = useCallback((id: string | null) => {
+    editorState.setSelectedBlockId(id);
+    if (id) editorState.setSelectedColumnId(null);
+  }, [editorState.setSelectedBlockId, editorState.setSelectedColumnId]);
+
+  // ── Onboarding tour ────────────────────────────────────────────────────────
+  // Auto-launch the email builder tour once, only for a fresh account that
+  // hasn't seen it yet, on an email template in canvas mode.
+  // IMPORTANT: we flip the flag INSIDE the timeout (after launching), not before —
+  // markFirstLogSeen() updates the auth user, which would re-run this effect and
+  // its cleanup would clearTimeout the pending launch (the earlier bug that made
+  // the tour never auto-appear). Guard on `=== true` so a missing/undefined flag
+  // still shows the tour for new users.
+  useEffect(() => {
+    if (autoEmailTourStarted.current) return;
+    if (isLoading) return;
+    if (templateType !== 1) return; // email builder only
+    if (activeTab !== "canvas" || previewMode) return;
+    if (!user || user.first_log === true) return; // already onboarded → skip
+    autoEmailTourStarted.current = true;
+    const t = setTimeout(() => {
+      setOpenContentSignal((n) => n + 1); // ensure the Contenu tab is open
+      startEmailTour();
+      markFirstLogSeen(); // flip AFTER launch so the timer above is never cancelled
+    }, 800); // let the editor paint first
+    return () => clearTimeout(t);
+  }, [isLoading, templateType, activeTab, previewMode, user, markFirstLogSeen, startEmailTour]);
+
+  // First time the user opens the IA tab, auto-run the AI tour once (client-side
+  // flag — no DB column needed). Replayable anytime from the toolbar.
+  const handleAiTabOpen = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (localStorage.getItem("winaity_ai_tour_seen")) return;
+      localStorage.setItem("winaity_ai_tour_seen", "1");
+    } catch {
+      return;
+    }
+    setTimeout(() => startAiTour(), 400); // AI panel needs a beat to mount
+  }, [startAiTour]);
+
+  // Toolbar "Tutoriel" menu → replay a tour on demand. For the AI tour we first
+  // ask the LeftPanel to open the IA tab so the tour's anchors exist.
+  const handleStartTour = useCallback((tour: "email" | "ai") => {
+    if (tour === "email") {
+      setOpenContentSignal((n) => n + 1); // open the Contenu tab so block tiles exist
+      setTimeout(() => startEmailTour(), 250);
+      return;
+    }
+    setOpenAiSignal((n) => n + 1);
+    setTimeout(() => startAiTour(), 450);
+  }, [startEmailTour, startAiTour]);
   const [editDevice, setEditDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [isSaving, setIsSaving] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -691,6 +778,7 @@ function EditorContent() {
         collaborators={otherUsers}
         saveStatus={saveStatus}
         lastSavedAt={lastSavedAt}
+        onStartTour={handleStartTour}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -717,6 +805,9 @@ function EditorContent() {
               aiChat={aiChat}
               aiSelection={aiSelection}
               onClearAiSelection={clearAiSelection}
+              onAiTabOpen={handleAiTabOpen}
+              openAiSignal={openAiSignal}
+              openContentSignal={openContentSignal}
             />
           </div>
         )}
@@ -801,9 +892,10 @@ function EditorContent() {
               editDevice={editDevice}
               selectedBlockId={editorState.selectedBlockId}
               selectedRowId={editorState.selectedRowId}
-              onSelectBlock={editorState.setSelectedBlockId}
+              selectedColumnId={editorState.selectedColumnId}
+              onSelectBlock={handleSelectBlock}
               onSelectRow={editorState.setSelectedRowId}
-              onSelectColumn={setActiveColumnId}
+              onSelectColumn={handleSelectColumn}
               onRemoveRow={editorState.removeRow}
               onRemoveBlock={editorState.removeBlock}
               onDuplicateBlock={editorState.duplicateBlock}
@@ -911,11 +1003,13 @@ function EditorContent() {
             <PropertiesPanel
               selectedBlock={editorState.getSelectedBlock()}
               selectedRow={editorState.template.rows.find((r) => r.id === editorState.selectedRowId) ?? null}
+              selectedColumn={editorState.getSelectedColumn()}
               globalStyles={editorState.template.globalStyles}
               onUpdateBlock={editorState.updateBlock}
               onRemoveBlock={editorState.removeBlock}
               onUpdateGlobalStyles={editorState.updateGlobalStyles}
               onUpdateRowStyles={editorState.updateRowStyles}
+              onUpdateColumnStyles={editorState.updateColumnStyles}
               onDeselectBlock={() => editorState.setSelectedBlockId(null)}
             />
           </div>

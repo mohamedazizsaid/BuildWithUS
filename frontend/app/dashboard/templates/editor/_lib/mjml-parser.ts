@@ -192,6 +192,24 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
       };
     }
 
+    // Colour bar — an mj-text whose css-class carries "colorbar:height:radius"
+    // and whose body is a single-row table of coloured cells. Read each cell's
+    // bgcolor back into the segment list.
+    const cbMatch = ilCssClass.match(/^colorbar:([^:]+):(.+)$/);
+    if (cbMatch) {
+      const segments = [...text.matchAll(/bgcolor="(#[0-9a-fA-F]{3,8})"/g)].map((m) => m[1]);
+      return {
+        id,
+        type: "color-bar",
+        content: { segments },
+        styles: {
+          height: cbMatch[1],
+          borderRadius: cbMatch[2],
+          padding: el.getAttribute("padding") || "0",
+        },
+      };
+    }
+
     const sigCssClass = el.getAttribute("css-class") || "";
     if (text.includes("border-top:1px solid") || sigCssClass.startsWith("sig:")) {
       const nameMatch = text.match(/font-weight:bold">(.*?)<\/p>/);
@@ -299,6 +317,7 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
         lineHeight: el.getAttribute("line-height") || "",
         letterSpacing: el.getAttribute("letter-spacing") || "",
         btnWidth: el.getAttribute("width") || "auto",
+        innerPadding: el.getAttribute("inner-padding") || "",
         ...btnBorderParts,
       },
     };
@@ -383,9 +402,12 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
     }
 
     const tbClass = el.getAttribute("css-class") || "";
-    // New format: tb:border:headerBg:headerColor:striped(0|1):stripeColor
-    // Old format (back-compat): tb:border:headerBg
-    const tbMatch = tbClass.match(/^tb:(#[0-9a-fA-F]{6}):(#[0-9a-fA-F]{6})(?::(#[0-9a-fA-F]{6}):([01]):(#[0-9a-fA-F]{6}))?$/);
+    // Newest: tb:border:headerBg:headerColor:striped(0|1):stripeColor:borderWidth:padKey
+    // Older:  tb:border:headerBg:headerColor:striped:stripeColor  (5 colour fields)
+    // Oldest: tb:border:headerBg                                  (back-compat)
+    const tbMatch = tbClass.match(
+      /^tb:(#[0-9a-fA-F]{6}):(#[0-9a-fA-F]{6})(?::(#[0-9a-fA-F]{6}):([01]):(#[0-9a-fA-F]{6})(?::(\d+px):(compact|normal|large))?)?$/
+    );
     const tableStyles: Record<string, string> = {
       fontSize: el.getAttribute("font-size") || "",
       color: el.getAttribute("color") || "",
@@ -399,11 +421,25 @@ function parseBlockFromElement(tag: string, el: Element, textMap?: Map<string, s
         tableStyles.striped = tbMatch[4] === "1" ? "on" : "off";
         tableStyles.stripeColor = tbMatch[5];
       }
+      if (tbMatch[6]) tableStyles.tableBorderWidth = tbMatch[6];
+      if (tbMatch[7]) tableStyles.cellPadding = tbMatch[7];
     }
+
+    // Per-column text alignment survives via each cell's inline `text-align`.
+    // Read it off the first row (header if present, else the first data row).
+    const alignRow = trEls[0];
+    const aligns: string[] = [];
+    if (alignRow) {
+      for (const cell of Array.from(alignRow.querySelectorAll("th,td"))) {
+        const m = (cell.getAttribute("style") || "").match(/text-align:\s*(left|center|right)/);
+        aligns.push(m ? m[1] : "left");
+      }
+    }
+
     return {
       id,
       type: "table",
-      content: { headers, rows },
+      content: aligns.some((a) => a !== "left") ? { headers, rows, aligns } : { headers, rows },
       styles: tableStyles,
     };
   }

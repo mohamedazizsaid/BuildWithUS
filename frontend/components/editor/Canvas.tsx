@@ -12,6 +12,7 @@ interface CanvasProps {
   editDevice: 'desktop' | 'tablet' | 'mobile';
   selectedBlockId: string | null;
   selectedRowId: string | null;
+  selectedColumnId: string | null;
   onSelectBlock: (blockId: string | null) => void;
   onSelectRow: (rowId: string | null) => void;
   onSelectColumn: (columnId: string | null) => void;
@@ -36,6 +37,7 @@ export default function Canvas({
   editDevice,
   selectedBlockId,
   selectedRowId,
+  selectedColumnId,
   onSelectBlock,
   onSelectRow,
   onSelectColumn,
@@ -102,6 +104,7 @@ export default function Canvas({
   return (
     <div
       ref={scrollableRef}
+      data-tour="canvas"
       className="overflow-y-auto p-8"
       onMouseMove={handleMouseMove}
       style={{
@@ -245,6 +248,7 @@ export default function Canvas({
                   row={row}
                   isSelected={selectedRowId === row.id}
                   selectedBlockId={selectedBlockId}
+                  selectedColumnId={selectedColumnId}
                   onSelectRow={(e) => { e.stopPropagation(); onSelectRow(row.id); onSelectBlock(null); onSelectColumn(null); }}
                   onSelectBlock={onSelectBlock}
                   onSelectColumn={onSelectColumn}

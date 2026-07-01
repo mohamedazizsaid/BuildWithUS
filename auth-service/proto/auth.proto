@@ -13,6 +13,7 @@ service AuthService{
     rpc GetMe (GetMeRequest) returns (GetMeResponse);
     rpc ListMembers (ListMembersRequest) returns (ListMembersResponse);
     rpc UpdateProfile (UpdateProfileRequest) returns (UpdateProfileResponse);
+    rpc MarkFirstLog (MarkFirstLogRequest) returns (UpdateProfileResponse);
     rpc GenerateApiClient (GenerateApiClientRequest) returns (GenerateApiClientResponse);
     rpc IssueClientToken (IssueClientTokenRequest) returns (IssueClientTokenResponse);
     rpc RegisterApiClient (RegisterApiClientRequest) returns (RegisterApiClientResponse);
@@ -145,6 +146,11 @@ message UserInfo {
     string first_name = 4;
     string last_name = 5;
     string role = 6;
+    bool first_log = 7;
+}
+
+message MarkFirstLogRequest {
+    string token = 1;
 }
 
 message GenerateApiClientRequest {

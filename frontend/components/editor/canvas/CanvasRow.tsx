@@ -5,13 +5,14 @@ import { BlockData, Row, GlobalStyles } from '@/lib/editor-types';
 import { CanvasColumn } from './CanvasColumn';
 
 export function CanvasRow({
-  row, isSelected, selectedBlockId,
+  row, isSelected, selectedBlockId, selectedColumnId,
   onSelectRow, onSelectBlock, onSelectColumn, onRemoveRow,
   onRemoveBlock, onDuplicateBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
 }: {
   row: Row;
   isSelected: boolean;
   selectedBlockId: string | null;
+  selectedColumnId: string | null;
   onSelectRow: (e: React.MouseEvent) => void;
   onSelectBlock: (id: string | null) => void;
   onSelectColumn: (id: string | null) => void;
@@ -70,6 +71,7 @@ export function CanvasRow({
           <CanvasColumn
             key={col.id}
             column={col}
+            isSelected={selectedColumnId === col.id}
             selectedBlockId={selectedBlockId}
             onSelectColumn={(e) => { e.stopPropagation(); onSelectColumn(col.id); onSelectBlock(null); }}
             onSelectBlock={onSelectBlock}

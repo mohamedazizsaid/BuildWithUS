@@ -437,7 +437,7 @@ export function AiChatPanel({
             e.target.value = ''; // allow re-selecting the same file
           }}
         />
-        <div className="relative">
+        <div className="relative" data-tour="ai-input">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -463,6 +463,7 @@ export function AiChatPanel({
           <button
             onClick={() => fileRef.current?.click()}
             disabled={isLoading}
+            data-tour="ai-image"
             title="Importer une affiche / image"
             className="absolute bottom-2.5 left-2.5 h-7 w-7 rounded-lg border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -471,6 +472,7 @@ export function AiChatPanel({
           <button
             onClick={submit}
             disabled={isLoading || (!input.trim() && !image)}
+            data-tour="ai-send"
             title="Envoyer"
             className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-sm shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >

@@ -5,10 +5,11 @@ import { BlockData, Column, GlobalStyles } from '@/lib/editor-types';
 import { CanvasBlock } from './CanvasBlock';
 
 export function CanvasColumn({
-  column, selectedBlockId,
+  column, isSelected, selectedBlockId,
   onSelectColumn, onSelectBlock, onRemoveBlock, onDuplicateBlock, onUpdateBlock, onReorderBlocks, onDropBlock, globalStyles,
 }: {
   column: Column;
+  isSelected: boolean;
   selectedBlockId: string | null;
   onSelectColumn: (e: React.MouseEvent) => void;
   onSelectBlock: (id: string | null) => void;
@@ -84,7 +85,9 @@ export function CanvasColumn({
 
   return (
     <div
-      className={column.blocks.length === 0 ? 'min-h-[60px]' : ''}
+      className={`group/col relative cursor-pointer transition-[outline-color] outline outline-2 -outline-offset-2 ${
+        isSelected ? 'outline-violet-500' : 'outline-transparent hover:outline-violet-300 hover:outline-dashed'
+      } ${column.blocks.length === 0 ? 'min-h-[60px]' : ''}`}
       style={{
         width: column.width,
         minWidth: 0,
@@ -114,6 +117,12 @@ export function CanvasColumn({
         }
       }}
     >
+      {/* Column label tab — lets you find/click the box even when blocks fill it */}
+      <div className={`absolute -top-[1px] left-0 h-4 px-1.5 flex items-center gap-1 text-[9px] font-medium rounded-b transition-opacity select-none pointer-events-none z-10 ${
+        isSelected ? 'bg-violet-500 text-white opacity-100' : 'bg-violet-300 text-white opacity-0 group-hover/col:opacity-100'
+      }`}>
+        Colonne
+      </div>
       {hasCard ? (
         <div
           style={{

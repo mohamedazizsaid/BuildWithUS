@@ -107,6 +107,10 @@ export const auth = {
     updateProfile: (body: { firstName: string; lastName: string; }) =>
         request('/auth/profile', { method: 'PUT', body: JSON.stringify(body) }),
 
+    // Marks the first-run onboarding tour as seen (idempotent). Fire-and-forget.
+    markFirstLogged: () =>
+        request('/auth/first-log', { method: 'PUT' }),
+
     invite: (body: { email: string; role: string }) =>
         request('/auth/invite', { method: 'POST', body: JSON.stringify(body)}),
 

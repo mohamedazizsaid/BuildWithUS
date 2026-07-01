@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BlockData } from '@/lib/editor-types';
-import { ColorPicker, AccordionSection, Toggle, SpacingControl } from './shared';
-import { FontSizeSelector } from './FontSelectors';
+import { ColorPicker, AccordionSection, Toggle, SpacingControl, NumericInput, SectionHeader } from './shared';
+import { FontSizeSelector, StyledSelect } from './FontSelectors';
 
 // ─── Table Properties ───
 export function TableBlockProperties({
@@ -19,8 +19,15 @@ export function TableBlockProperties({
   const headers = (block.content.headers || []) as string[];
   const rows = (block.content.rows || []) as string[][];
 
+  const aligns = (block.content.aligns || []) as string[];
+
   const setHeaders = (h: string[]) => onUpdate({ content: { ...block.content, headers: h } });
   const setRows = (r: string[][]) => onUpdate({ content: { ...block.content, rows: r } });
+  const setAlign = (idx: number, val: string) => {
+    const next = headers.map((_, i) => aligns[i] || 'left');
+    next[idx] = val;
+    onUpdate({ content: { ...block.content, aligns: next } });
+  };
 
   const addColumn = () => {
     onUpdate({ content: { ...block.content, headers: [...headers, `Col ${headers.length + 1}`], rows: rows.map(r => [...r, '']) } });
@@ -111,6 +118,51 @@ export function TableBlockProperties({
         {block.styles.striped !== 'off' && (
           <ColorPicker label="Couleur des lignes alternées" value={block.styles.stripeColor || '#f9fafb'} onChange={(c) => updateStyle('stripeColor', c)} />
         )}
+
+        <SectionHeader>Cellules</SectionHeader>
+        <div>
+          <Label className="text-xs">Épaisseur des bordures</Label>
+          <NumericInput value={block.styles.tableBorderWidth || '1px'} onChange={(v) => updateStyle('tableBorderWidth', v)} />
+        </div>
+        <StyledSelect
+          label="Espacement des cellules"
+          value={block.styles.cellPadding || 'normal'}
+          onChange={(v) => updateStyle('cellPadding', v)}
+          options={[
+            { value: 'compact', label: 'Compact' },
+            { value: 'normal', label: 'Normal' },
+            { value: 'large', label: 'Large' },
+          ]}
+        />
+
+        <SectionHeader>Alignement par colonne</SectionHeader>
+        <div className="space-y-1.5">
+          {headers.map((h, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground w-14 truncate">{h || `C${i + 1}`}</span>
+              <div className="flex gap-1 flex-1">
+                {[
+                  { v: 'left', l: 'G' },
+                  { v: 'center', l: 'C' },
+                  { v: 'right', l: 'D' },
+                ].map((opt) => (
+                  <button
+                    key={opt.v}
+                    onClick={() => setAlign(i, opt.v)}
+                    className={`flex-1 h-7 text-xs rounded-lg border transition-colors ${
+                      (aligns[i] || 'left') === opt.v
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border hover:bg-accent hover:border-ring'
+                    }`}
+                    title={opt.v}
+                  >
+                    {opt.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </AccordionSection>
 
       <AccordionSection openSection={openSection} setOpenSection={setOpenSection} id="spacing" title="Espacement">

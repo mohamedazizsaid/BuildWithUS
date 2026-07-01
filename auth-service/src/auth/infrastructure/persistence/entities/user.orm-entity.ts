@@ -24,6 +24,12 @@ export class UserOrmEntity{
     @Column({ type: 'varchar', length: 20 ,default: 'editor'})
     role: string
 
+    // Whether this user has already been through the first-run onboarding tour.
+    // Defaults false for new signups (they get the tour once); existing users are
+    // backfilled to true so they never see it. Flipped to true when the tour launches.
+    @Column({ name: 'first_log', type: 'boolean', default: false })
+    firstLog: boolean
+
     @CreateDateColumn({ name: 'created_at' , type: 'timestamp' })
     createdAt: Date
 

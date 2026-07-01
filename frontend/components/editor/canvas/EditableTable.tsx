@@ -74,7 +74,8 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
     const d = dataRef.current;
     const newHeaders = [...d.headers, `Col ${d.headers.length + 1}`];
     const newRows = d.rows.map(r => [...r, '']);
-    onUpdate({ content: { ...block.content, headers: newHeaders, rows: newRows } });
+    const aligns = (block.content.aligns as string[]) || [];
+    onUpdate({ content: { ...block.content, headers: newHeaders, rows: newRows, aligns: [...aligns, 'left'] } });
   };
 
   const addRow = () => {
@@ -90,7 +91,8 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
     if (d.headers.length <= 1) return;
     const newHeaders = d.headers.filter((_, i) => i !== idx);
     const newRows = d.rows.map(r => r.filter((_, i) => i !== idx));
-    onUpdate({ content: { ...block.content, headers: newHeaders, rows: newRows } });
+    const aligns = ((block.content.aligns as string[]) || []).filter((_, i) => i !== idx);
+    onUpdate({ content: { ...block.content, headers: newHeaders, rows: newRows, aligns } });
   };
 
   const removeRow = (idx: number) => {
@@ -105,6 +107,7 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
 
   const headers = (block.content.headers || []) as string[];
   const rows = (block.content.rows || []) as string[][];
+  const aligns = (block.content.aligns || []) as string[];
 
   const editableStyle: React.CSSProperties = {
     outline: 'none',
@@ -120,7 +123,7 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
         <thead>
           <tr>
             {headers.map((h, i) => (
-              <th key={`h-${i}-${headers.length}`} style={{ ...thStyle(theme), minWidth: '50px', position: 'relative' }}>
+              <th key={`h-${i}-${headers.length}`} style={{ ...thStyle(theme, aligns[i]), minWidth: '50px', position: 'relative' }}>
                 <EditableCell initial={h} onBlur={onCellBlur} style={{ ...editableStyle, color: theme.headerColor, fontWeight: 600 }} />
                 {headers.length > 1 && (
                   <button
@@ -143,7 +146,7 @@ export function EditableTable({ block, onUpdate }: { block: BlockData; onUpdate:
           {rows.map((row, ri) => (
             <tr key={`r-${ri}-${rows.length}`} className="group/row">
               {row.map((cell, ci) => (
-                <td key={`c-${ri}-${ci}-${row.length}`} style={{ ...tdStyle(theme, ri), minWidth: '50px', position: 'relative' }}>
+                <td key={`c-${ri}-${ci}-${row.length}`} style={{ ...tdStyle(theme, ri, aligns[ci]), minWidth: '50px', position: 'relative' }}>
                   <EditableCell initial={cell} onBlur={onCellBlur} style={editableStyle} />
                 </td>
               ))}

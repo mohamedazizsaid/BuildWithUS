@@ -19,6 +19,7 @@ export function useEditor() {
   });
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [history, setHistory] = useState<TemplateData[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
@@ -73,6 +74,7 @@ export function useEditor() {
     updateTemplate(newTemplate);
     setSelectedBlockId(null);
     setSelectedRowId(null);
+    setSelectedColumnId(null);
   }, [template, updateTemplate]);
 
   const addBlockToNewRow = useCallback((type: BlockType) => {
@@ -226,6 +228,22 @@ export function useEditor() {
     updateTemplate(newTemplate);
   }, [template, updateTemplate]);
 
+  const updateColumnStyles = useCallback((columnId: string, styles: Record<string, string>) => {
+    const newTemplate = {
+      ...template,
+      rows: template.rows.map((row) => ({
+        ...row,
+        columns: row.columns.map((col) => {
+          if (col.id === columnId) {
+            return { ...col, styles: { ...(col.styles || {}), ...styles } };
+          }
+          return col;
+        }),
+      })),
+    };
+    updateTemplate(newTemplate);
+  }, [template, updateTemplate]);
+
   const reorderRows = useCallback((fromIndex: number, toIndex: number) => {
     const newRows = [...template.rows];
     const [moved] = newRows.splice(fromIndex, 1);
@@ -263,6 +281,14 @@ export function useEditor() {
     return null;
   }, [template, selectedBlockId]);
 
+  const getSelectedColumn = useCallback(() => {
+    for (const row of template.rows) {
+      const col = row.columns.find((c) => c.id === selectedColumnId);
+      if (col) return col;
+    }
+    return null;
+  }, [template, selectedColumnId]);
+
   // Apply a remote (collaborative) update — bypasses history so undo stays clean
   const applyRemoteTemplate = useCallback((newTemplate: TemplateData) => {
     setTemplate(newTemplate);
@@ -276,6 +302,8 @@ export function useEditor() {
     setSelectedBlockId,
     selectedRowId,
     setSelectedRowId,
+    selectedColumnId,
+    setSelectedColumnId,
     addRow,
     removeRow,
     addBlockToNewRow,
@@ -285,6 +313,7 @@ export function useEditor() {
     removeBlock,
     updateGlobalStyles,
     updateRowStyles,
+    updateColumnStyles,
     reorderRows,
     reorderBlocks,
     duplicateBlock,
@@ -293,6 +322,7 @@ export function useEditor() {
       updateTemplate(newTemplate);
     }, [template, updateTemplate]),
     getSelectedBlock,
+    getSelectedColumn,
     undo,
     redo,
     canUndo: historyIndex > 0,

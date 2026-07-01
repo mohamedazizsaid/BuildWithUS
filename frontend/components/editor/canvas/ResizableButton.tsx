@@ -59,7 +59,7 @@ export function ResizableButton({ block, onUpdate, globalStyles, btnEditRef, onS
             fontSize: block.styles.fontSize || globalStyles.btnFontSize,
             fontWeight: block.styles.fontWeight || globalStyles.btnFontWeight,
             fontFamily: block.styles.fontFamily || globalStyles.btnFontFamily,
-            padding: block.styles.padding,
+            padding: block.styles.innerPadding || block.styles.padding,
             borderRadius: block.styles.borderRadius || globalStyles.btnBorderRadius,
             border: `${block.styles.borderSize || globalStyles.btnBorderSize} solid ${block.styles.borderColor || globalStyles.btnBorderColor}`,
             lineHeight: block.styles.lineHeight || 'inherit',

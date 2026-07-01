@@ -49,6 +49,7 @@ export class AuthGrpcController {
       first_name: user.getFirstName(),
       last_name: user.getLastName(),
       role: user.getRole(),
+      first_log: user.getFirstLog?.() ?? false,
     };
   }
 
@@ -161,14 +162,7 @@ export class AuthGrpcController {
 
       const tenant = await this.tenantRepository.findById(user.getTenantId());
       return {
-        user: {
-          id: user.getId(),
-          tenant_id: user.getTenantId(),
-          email: user.getEmail(),
-          first_name: user.getFirstName(),
-          last_name: user.getLastName(),
-          role: user.getRole(),
-        },
+        user: this.toUserInfo(user),
         tenant_name: tenant?.getName() || '',
       };
     } catch (error: any) {
@@ -210,16 +204,21 @@ export class AuthGrpcController {
     user.updateProfile(firstName, lastName);
     await this.userRepository.save(user);
 
-    return {
-      user: {
-        id: user.getId(),
-        tenant_id: user.getTenantId(),
-        email: user.getEmail(),
-        first_name: user.getFirstName(),
-        last_name: user.getLastName(),
-        role: user.getRole(),
-      },
-    };
+    return { user: this.toUserInfo(user) };
+  }
+
+  // Flip the onboarding flag to true when the first-run tour launches, so it
+  // never auto-shows again. Idempotent — safe to call even if already true.
+  @GrpcMethod('AuthService', 'MarkFirstLog')
+  async markFirstLog(request: { token: string }) {
+    const payload = this.jwtService.verify(request.token);
+    const user = await this.userRepository.findById(payload.userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    user.markFirstLog();
+    await this.userRepository.save(user);
+    return { user: this.toUserInfo(user) };
   }
 
   @GrpcMethod('AuthService', 'AcceptInvite')
