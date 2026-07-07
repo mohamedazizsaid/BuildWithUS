@@ -174,6 +174,28 @@ export const integrations = {
         request('/integrations/return-urls', { method: 'PUT', body: JSON.stringify({ client_id: clientId, urls }) }),
 };
 
+// ------- BILLING (Stripe subscriptions, dashboard admin) ---------
+export interface BillingInfo {
+    plan: string;
+    billing_cycle: string | null;
+    subscription_status: string | null;
+    card: { brand: string; last4: string } | null;
+    current_period_end: number | null; // unix seconds
+    cancel_at: number | null; // unix seconds
+}
+
+export const billing = {
+    // Opens a Stripe Checkout Session and returns its hosted URL to redirect to.
+    createCheckout: (plan: string, billingCycle: string): Promise<{ url: string }> =>
+        request('/billing/checkout', { method: 'POST', body: JSON.stringify({ plan, billing: billingCycle }) }),
+
+    get: (): Promise<BillingInfo> =>
+        request('/billing'),
+
+    cancel: (): Promise<{ cancel_at: number | null }> =>
+        request('/billing/cancel', { method: 'POST' }),
+};
+
 //----- Templates ----
 export const templates = {
     create: (body: { name: string; description?: string; type: number; subject?: string; content: string; isPredefinedOverride?: boolean; predefinedTemplateId?: string }) =>

@@ -11,6 +11,21 @@ export class TenantOrmEntity {
     @Column( {type: 'varchar', length: 50, default: 'free'})
     plan: string;
 
+    // ── Stripe subscription state ────────────────────────────────────────────
+    // Nullable — only set once a tenant subscribes to a paid plan. billingCycle
+    // is 'monthly' | 'annual' (annual = 12-month commitment billed monthly).
+    @Column({ type: 'varchar', length: 20, nullable: true, name: 'billing_cycle' })
+    billingCycle: string | null;
+
+    @Column({ type: 'varchar', length: 50, nullable: true, name: 'subscription_status' })
+    subscriptionStatus: string | null;
+
+    @Column({ type: 'varchar', length: 255, nullable: true, name: 'stripe_customer_id' })
+    stripeCustomerId: string | null;
+
+    @Column({ type: 'varchar', length: 255, nullable: true, name: 'stripe_subscription_id' })
+    stripeSubscriptionId: string | null;
+
     @CreateDateColumn({ name: 'created_at' , type: 'timestamp' })
     createdAt: Date;
 

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth';
+import { getPlan, type BillingCycle } from '@/lib/plans';
 import toast from 'react-hot-toast';
 
 interface RegisterForm {
@@ -16,12 +18,21 @@ interface RegisterForm {
   password: string;
 }
 
-export default function RegisterPage() {
+function RegisterInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { register: registerUser } = useAuth();
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>();
   const password = watch('password', '');
+
+  // Paid-plan funnel: /register?plan=pro&billing=monthly → after signup, go to
+  // checkout for that plan instead of the dashboard.
+  const searchParams = useSearchParams();
+  const planId = searchParams.get('plan');
+  const cycle: BillingCycle = searchParams.get('billing') === 'annual' ? 'annual' : 'monthly';
+  const selectedPlan = getPlan(planId);
+  const paidPlan = selectedPlan && selectedPlan.id !== 'free' ? selectedPlan : undefined;
+  const redirectTo = paidPlan ? `/checkout?plan=${paidPlan.id}&billing=${cycle}` : undefined;
 
   const rules = [
     { label: '8 caractères ou plus', met: password.length >= 8 },
@@ -34,7 +45,7 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
     try {
-      await registerUser(data);
+      await registerUser(data, redirectTo);
       toast.success('Compte créé avec succès');
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
@@ -65,6 +76,14 @@ export default function RegisterPage() {
             Se connecter
           </Link>
         </p>
+
+        {paidPlan && (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <span className="text-slate-500">Vous vous inscrivez pour&nbsp;</span>
+            <span className="font-semibold text-slate-900">Winaity {paidPlan.name}</span>
+            <span className="text-slate-500"> — paiement à l&apos;étape suivante.</span>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -147,5 +166,13 @@ export default function RegisterPage() {
         </p>
       </form>
     </motion.div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterInner />
+    </Suspense>
   );
 }

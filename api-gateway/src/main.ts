@@ -1,15 +1,24 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { json, raw, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Disable Nest's default body parser so we can register our own — the Stripe
+  // webhook route needs the RAW body to verify the signature.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
 
-  // Increase upload size limit (videos, large payloads)
-  app.useBodyParser('json', { limit: '50mb' });
-  app.useBodyParser('urlencoded', { limit: '50mb', extended: true });
+  // Raw body for the Stripe webhook ONLY — must come before the JSON parser,
+  // otherwise the stream is already consumed and the signature check fails.
+  app.use('/billing/webhook', raw({ type: '*/*' }));
+
+  // Normal parsers for everything else. Large limits for video/media uploads.
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ limit: '50mb', extended: true }));
 
   // Cookies (JWT)
   app.use(cookieParser());

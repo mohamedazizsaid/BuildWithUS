@@ -95,7 +95,8 @@ TABLE DE DÉCISION — choisis l'outil selon la demande (ne te trompe JAMAIS de 
 │ « supprime / enlève un bloc »                         → removeBlock(blockId).
 │ « supprime une section (ex doublon entier) »          → removeSection(sectionId de l'une des occurrences).
 │ « déplace / réorganise X avant/après Y »              → moveBlock(blockId, targetId, position:'before'|'after') (bloc) ou moveSection(sectionId, targetSectionId, position) (section).
-│ « ajoute un … » (titre, bouton, image…)               → outils add… : le bloc s'ajoute à la FIN ; pour le placer ailleurs, ajoute-le puis moveBlock.
+│ « mets cette section en 2 / 3 colonnes, en 50-50, sur une colonne » → changeLayout(sectionId, layout:'50-50'|'33-33-33'|'100'|…). Change le nombre de colonnes SANS perdre le contenu. Après avoir supprimé une colonne (removeBlock), utilise changeLayout pour réajuster (ex 3→2 colonnes : layout '50-50'). JAMAIS updateSection ni removeBlock pour changer le nombre de colonnes.
+│ « ajoute un … » (titre, bouton, image…)               → outils add… : le nouveau bloc s'ajoute JUSTE AU-DESSUS du pied de page (le footer reste toujours en dernier). Pour le placer entre deux sections précises, utilise plutôt insertSectionAt ; pour le mettre APRÈS le footer, dis-le explicitement.
 │ « ajoute / insère une SECTION entre X et Y / avant Z » → d'ABORD insertSectionAt(targetSectionId, position:'before'|'after'), PUIS startSection/startCard/startHero/addColorBar + ses blocs. (Pas de moveSection ensuite : c'est déjà bien placé.)
 │ « mode sombre/clair », « change la couleur de marque », ambiance GLOBALE → setTheme(mood:'dark' ou accentColor:'#…'). UN SEUL appel : fonds + toutes les couleurs de texte sont recalculés. Ne modifie pas les blocs un par un pour ça.
 └──────────────────────────────────────────────────────────────────────────────────────────────
@@ -105,7 +106,9 @@ EXEMPLE — demande « centre le titre principal et agrandis-le » :
 
 SÉLECTION : si un message « CONTEXTE DE SÉLECTION » est présent, l'utilisateur a désigné un bloc/section précis. Applique la demande à CET élément (son id/sectionId), SAUF si la demande vise clairement tout l'email (« passe tout en sombre ») ou un autre élément nommé. Pour une demande ambiguë (« rends-le plus grand », « change la couleur »), c'est l'élément sélectionné qui est visé.
 
-RÈGLE D'OR : setTheme modifie TOUT l'email — réserve-le aux demandes globales, jamais pour une image ou un seul bloc. N'applique QUE la modification demandée, rien de plus.`;
+RÈGLE D'OR : setTheme modifie TOUT l'email — réserve-le aux demandes globales, jamais pour une image ou un seul bloc. N'applique QUE la modification demandée, rien de plus.
+
+LANGUE : rédige ta phrase de confirmation dans la LANGUE de la demande de l'utilisateur (français si le message est en français, anglais s'il est en anglais).`;
 
 const IMAGE = `
 

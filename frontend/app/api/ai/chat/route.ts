@@ -12,10 +12,10 @@ import {
   countBlocks,
   referencesCampaign,
 } from '@/lib/ai/poster-image';
-import { wantsRegenerate, wantsClear, classifyIntent } from '@/lib/ai/intent';
-import { buildRegenerateDirective, regenerateSeed, extractBannerUrl } from '@/lib/ai/regenerate';
+import { wantsRegenerate, wantsClear, wantsThemeChange, wantsFooterAppend, wantsLegibilityFix, classifyIntent } from '@/lib/ai/intent';
+import { buildRegenerateDirective, regenerateSeed, extractBannerUrl, requestedAccent } from '@/lib/ai/regenerate';
 import { planDesign, executeSpec } from '@/lib/ai/planner';
-import { applySelectionCommand, looksLikeSelectionCommand } from '@/lib/ai/edit-commands';
+import { applySelectionCommand, looksLikeSelectionCommand, fixLegibility } from '@/lib/ai/edit-commands';
 import type { TemplateData } from '@/lib/editor-types';
 
 export const runtime = 'nodejs';
@@ -120,6 +120,14 @@ export async function POST(req: Request): Promise<Response> {
   // image) and REPLACE the canvas. This is what makes "améliore le mail" /
   // "réécris tout" work instead of appending a duplicate body.
   const doRegenerate = isEdit && !!currentTemplate && !placeUrl && wantsRegenerate(lastUser, { hasSelection });
+  // Light/dark theme flip → applied in code on the EXISTING email (keeps all
+  // content + prior edits). Must beat the regenerate path, which would discard
+  // the user's work — the #1 cause of "je parle de thème pas d'amélioration".
+  const themeMood = isEdit && !!currentTemplate && !placeUrl ? wantsThemeChange(lastUser) : null;
+  // "les couleurs ne sont pas claires / c'est illisible" → recompute readable
+  // text colors in code (scoped to the selection). Beats the model edit path,
+  // which tends to rebuild the whole email for this complaint.
+  const doLegibility = isEdit && !!currentTemplate && !placeUrl && !themeMood && wantsLegibilityFix(lastUser);
   // Targeted edit on a selected element via a recognised command → applied in
   // code (no model), so "centre/agrandis/supprime le bloc sélectionné" works.
   const tryDeterministicEdit =
@@ -130,7 +138,12 @@ export async function POST(req: Request): Promise<Response> {
   // model only applies the requested delta — it never re-adds unchanged blocks.
   const makeRun = () => {
     const builder = new TemplateBuilder();
-    if (isEdit && editTemplate) builder.loadTemplate(editTemplate);
+    if (isEdit && editTemplate) {
+      builder.loadTemplate(editTemplate);
+      // New content lands above the footer by default; opt out only when the user
+      // explicitly wants it at the very bottom / after the footer.
+      if (wantsFooterAppend(lastUser)) builder.setFooterPin(false);
+    }
     const tools = isEdit
       ? { ...createBlockTools(builder), ...createEditTools(builder) }
       : createBlockTools(builder);
@@ -235,11 +248,15 @@ export async function POST(req: Request): Promise<Response> {
       const runRegenerate = async (): Promise<boolean> => {
         if (!currentTemplate) return false;
         send({ type: 'status', stage: 'rebuild' });
-        let directive = buildRegenerateDirective(currentTemplate, lastUser, posterUrl || undefined);
+        // A "deuxième version en rouge" asks for a re-accented variant — detect
+        // the requested color so the rebuild uses it instead of the old brand.
+        const newAccent = requestedAccent(lastUser);
+        let directive = buildRegenerateDirective(currentTemplate, lastUser, posterUrl || undefined, newAccent || undefined);
         if (campaignContext) {
           directive += "\n\nOFFRE DE LA CAMPAGNE (valeurs EXACTES à inclure, n'invente aucun prix) :\n" + campaignContext;
         }
         const seed = regenerateSeed(currentTemplate);
+        if (newAccent) seed.accentColor = newAccent;
         const banner = extractBannerUrl(currentTemplate, posterUrl || undefined);
         let chosen: { builder: TemplateBuilder; prose: string } | null = null;
         let fromPlanner = false;
@@ -322,6 +339,38 @@ export async function POST(req: Request): Promise<Response> {
         if (doClear && currentTemplate) {
           clearNow();
           return;
+        }
+
+        // Fast path: light/dark theme flip (instant, no model). Re-tones the
+        // existing email in place — backgrounds + every text color — while
+        // keeping all content and prior edits. setTheme(mood) drives it via the
+        // builder's applyThemeToExisting.
+        if (themeMood && currentTemplate) {
+          const b = new TemplateBuilder();
+          b.loadTemplate(editTemplate ?? currentTemplate);
+          b.setTheme({ mood: themeMood });
+          send({ type: 'status', stage: 'template' });
+          send({
+            type: 'done',
+            message:
+              themeMood === 'dark' ? "J'ai passé l'email en thème sombre." : "J'ai passé l'email en thème clair.",
+            template: dedupeTemplate(b.build()),
+          });
+          return;
+        }
+
+        // Fast path: a legibility complaint ("les couleurs ne sont pas claires",
+        // "illisible") re-tones text colors deterministically, scoped to the
+        // selected element (or the whole email). No model → it can't rebuild.
+        if (doLegibility && currentTemplate) {
+          const t: TemplateData = structuredClone(editTemplate ?? currentTemplate);
+          const res = fixLegibility(t, selection ?? {});
+          if (res.applied) {
+            send({ type: 'status', stage: 'template' });
+            send({ type: 'done', message: res.message, template: dedupeTemplate(t) });
+            return;
+          }
+          // nothing to fix (already readable) → fall through to the model path
         }
 
         // Fast path: a recognised command on a SELECTED element (centre, agrandis,
@@ -473,7 +522,22 @@ export async function POST(req: Request): Promise<Response> {
           // Drop any duplicated sections (the critic occasionally re-emits one),
           // then frame the outer corners on the FINAL row set.
           const template = dedupeTemplate(finalBuilder.build());
-          send({ type: 'done', message: chosen.prose.trim(), template: isEdit ? template : frameTemplate(template) });
+          // Truthful confirmation (edit mode): the model streams confident prose
+          // ("c'est fait", "je réorganise") whether or not it actually acted. If
+          // NOTHING changed — no block added/removed and no in-place edit landed —
+          // don't claim success; tell the user honestly so they can rephrase or
+          // select the element, instead of an endless "tu n'as pas fait" loop.
+          let message = chosen.prose.trim();
+          if (isEdit) {
+            const changed =
+              imageAddedDeterministically ||
+              finalBuilder.blockCount !== editBlockCount ||
+              finalBuilder.mutationCount > 0;
+            message = changed
+              ? message || "C'est fait."
+              : "Je n'ai pas réussi à appliquer ce changement. Pouvez-vous préciser l'élément concerné — ou le sélectionner dans l'aperçu ?";
+          }
+          send({ type: 'done', message, template: isEdit ? template : frameTemplate(template) });
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Erreur de génération';
@@ -624,6 +688,16 @@ async function pumpProse(
   return prose;
 }
 
+// A model sometimes emits its tool calls as TEXT ("setTheme(accentColor=…") on
+// the same line as its intro sentence. Cut a line at the first such fragment so
+// the leaked call never reaches the chat bubble (see the "Trade échoué" report).
+const TOOL_CALL =
+  /\b(setTheme|setDesignSystem|startSection|startCard|startHero|nextColumn|addEyebrow|addHeading|addText|addButton|addColorBar|addSpacer|addImage|addDivider|addTable|addIconList|addSocial|addMenu|addSignature|addVideo|updateBlock|removeBlock|setImage|updateSection|updateCard|removeSection|moveBlock|moveSection|insertSectionAt|changeLayout)\s*\(/;
+function stripToolCalls(line: string): string {
+  const m = TOOL_CALL.exec(line);
+  return m ? line.slice(0, m.index).trimEnd() : line;
+}
+
 function makeProseCleaner() {
   let pending = '';
   let lastKept = ''; // for de-duping the repeated intro/conclusion lines
@@ -663,11 +737,14 @@ function makeProseCleaner() {
       const parts = pending.split('\n');
       pending = parts.pop() ?? '';
       let out = '';
-      for (const line of parts) if (keep(line)) out += line + '\n';
+      for (const line of parts) {
+        const s = stripToolCalls(line);
+        if (keep(s)) out += s + '\n';
+      }
       return out;
     },
     flush(): string {
-      const line = pending;
+      const line = stripToolCalls(pending);
       pending = '';
       return keep(line) ? line : '';
     },

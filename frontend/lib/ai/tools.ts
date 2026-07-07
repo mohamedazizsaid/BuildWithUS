@@ -382,6 +382,19 @@ export function createEditTools(builder: TemplateBuilder) {
       },
     }),
 
+    changeLayout: tool({
+      description:
+        "Change la DISPOSITION EN COLONNES d'une section existante, ciblée par sectionId — les blocs existants sont redistribués dans les nouvelles colonnes (aucun contenu perdu). `layout` : '100' (pleine largeur, 1 colonne), '50-50' (2 colonnes), '33-33-33' (3), '25-25-25-25' (4), '33-67', '67-33'. C'est le SEUL bon outil pour « mets cette section en 2 colonnes / en 50-50 / sur une seule colonne » ou pour réduire le nombre de colonnes après avoir supprimé un élément. N'utilise PAS removeBlock pour ça.",
+      inputSchema: z.object({
+        sectionId: z.string(),
+        layout: LAYOUT,
+      }),
+      execute: async ({ sectionId, layout }) => {
+        const done = builder.changeLayout(sectionId, layout);
+        return done ? ok('layout') : { ok: false, error: 'sectionId introuvable ou disposition déjà en place' };
+      },
+    }),
+
     moveSection: tool({
       description:
         'Réordonne une SECTION entière avant/après une autre. `sectionId` = section à déplacer, `targetSectionId` = section de référence, `position` = before|after. Utilise les sectionId de l\'email actuel. Pour « déplace toute la partie X avant/après Y ».',

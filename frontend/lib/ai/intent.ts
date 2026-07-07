@@ -17,9 +17,12 @@ const REWRITE_VERB =
 const IMPROVE =
   /\b(am[ée]liore\w*|embelli\w*|sublime\w*|plus\s+(beau|belle|joli\w*|premium|moderne|pro|soign[ée]\w*|class\w*)|moins\s+(basi\w*|fade|plat\w*|simple)|c['’]est\s+(trop\s+)?(basi\w*|fade|plat\w*|simple)|fais\w*\s+(plus\s+)?(beau|pro|premium))\b/i;
 
-// "Another / new version" of the whole thing.
+// "Another / second / new version" of the whole thing. A request for a variant
+// ("génère une deuxième version en rouge") must REBUILD-and-REPLACE the canvas —
+// routing it to a normal edit made the model APPEND a whole second email below
+// the first (duplicated content). Covers ordinals + "variante" + generate verbs.
 const NEW_VERSION =
-  /\b(autre\s+version|nouvelle\s+version|un\s+autre\s+(mail|email)|un\s+nouveau\s+(mail|email)|une\s+autre\s+version)\b/i;
+  /\b((une?\s+)?(autre|nouvelle?|deuxi[èe]me|seconde?|2e|troisi[èe]me|3e|another|second|new)\s+(version|variante?|mail|email|d[ée]clinaison))\b|\bune?\s+variante\b|\b(g[ée]n[èe]re\w*|cr[ée]e\w*|fai[st]\w*|produi[st]\w*|generate|create|make)\s+(moi\s+)?une?\s+(version|variante)\b/i;
 
 // References to the whole email (scope = global).
 const GLOBAL_SCOPE =
@@ -57,6 +60,88 @@ export function wantsClear(text: string): boolean {
   return ERASE_VERB.test(t) && ALL_SCOPE.test(t);
 }
 
+// ── Footer append (opt out of footer-pinning) ─────────────────────────────────
+// By default an edit that adds new content places it ABOVE the footer (a footer
+// belongs last). But when the user explicitly wants something at the very bottom
+// / after the footer, or wants to add a footer, we must NOT pin — so the new
+// section can land at the end. Kept specific so a casual "le bouton en bas" that
+// still wants normal placement doesn't accidentally match too broadly.
+const FOOTER_APPEND =
+  /\b(apr[èe]s\s+(le\s+)?(pied|footer)|sous\s+(le\s+)?(pied|footer)|tout\s+en\s+bas|[àa]\s+la\s+fin|en\s+dernier|at\s+the\s+(very\s+)?(end|bottom)|after\s+the\s+footer|ajoute\w*\s+(un\s+)?(pied\s+de\s+page|footer))\b/i;
+
+/** Does the turn ask to add new content at the very bottom / after the footer? */
+export function wantsFooterAppend(text: string): boolean {
+  return FOOTER_APPEND.test(text || '');
+}
+
+// ── Legibility fix (text colors not readable) ─────────────────────────────────
+// "les couleurs ne sont pas claires / c'est illisible / on ne voit pas le texte"
+// is a READABILITY complaint, not a rewrite. Routed to the model with the full
+// toolset, the small model tends to "reconstruct" the whole email (duplicated
+// body). We instead recompute readable text colors in code (builder contrast
+// logic) on the selected element (or whole email) — deterministic, keeps content.
+export function wantsLegibilityFix(text: string): boolean {
+  const t = (text || '').toLowerCase();
+  if (
+    /\b(illisibles?|unreadable|illegible|not\s+(readable|legible)|hard\s+to\s+read|peu\s+lisibles?|pas\s+(tr[èe]s\s+|assez\s+|vraiment\s+)?lisibles?|difficiles?\s+[àa]\s+lire|durs?\s+[àa]\s+lire|manque\w*\s+de\s+contraste|pas\s+assez\s+de\s+contraste)\b/i.test(
+      t,
+    )
+  )
+    return true;
+  // "pas clair" only means a legibility problem when it's about text/colors —
+  // never confuse it with a "passe en thème clair" theme switch.
+  return (
+    /\bpas\s+(tr[èe]s\s+|assez\s+|vraiment\s+)?clair/i.test(t) &&
+    /\b(couleurs?|textes?|[ée]critures?|lire|lisib|voi[rt])\b/i.test(t)
+  );
+}
+
+// ── Theme (light/dark) change ─────────────────────────────────────────────────
+// A theme flip is a TARGETED, deterministic edit — it re-tones the existing email
+// (backgrounds + every text color) while KEEPING all content and prior edits. It
+// must NOT be routed to the whole-email regenerate path (which throws the user's
+// work away). We apply it in code via the builder's setTheme(mood).
+//
+// Detection is DELIBERATELY conservative: only an explicit "switch the whole
+// email to light/dark theme/mode" fires. A comparative shade tweak ("un fond plus
+// clair"), or a light/dark word attached to a specific element ("carte au fond
+// plus clair sur le thème sombre"), must NOT flip the whole email — that false
+// positive silently destroyed a card-restyle request.
+const SWITCH_CUE = /\b(passe\w*|repasse\w*|mets?|met|bascule\w*|convertis\w*|switch|make\s+it|turn\s+it|set\s+it)\b/i;
+const THEME_NOUN = /\b(th[èe]me|thème|mode)\b/i;
+const LIGHT_WORD = /\b(clair|claire|light)\b/i;
+const DARK_WORD = /\b(sombre|noir|noire|dark)\b/i;
+// Comparative ("plus clair", "lighter") = adjust a shade, NOT flip the theme.
+const COMPARATIVE = /\b(plus\s+(clair|claire|sombre|fonc[ée]\w*)|un\s+peu\s+plus|l[ée]g[èe]rement\s+plus|lighter|darker|moins\s+(clair|sombre))\b/i;
+// A named element means the color word scopes to THAT element, not the email.
+const THEME_ELEMENT = /\b(cartes?|blocs?|box|bo[îi]te|badge|bouton|titre|sous-titre|section|paragraphe|texte|fond|arri[èe]re-plan|prix|image|photo|logo|ic[ôo]ne|barre|colonne|pied|footer|banni[èe]re)\b/i;
+const WHOLE_EMAIL = /\btout\b|\bwhole\b|\bentire\b|l['’ ]?email|le\s+mail|\bthe\s+email\b/i;
+
+/**
+ * Does the turn ask to switch the WHOLE email to a light or dark theme? Returns
+ * the target mood, or null. When both words appear ("light instead of dark"), the
+ * FIRST one is the target — natural phrasing states the goal before the current
+ * state ("passe en clair", "light instead of dark").
+ */
+export function wantsThemeChange(text: string): 'light' | 'dark' | null {
+  const t = text || '';
+  if (COMPARATIVE.test(t)) return null;
+  const themedEn = /\b(light|dark)[\s-]?(theme|themed|mode)\b/i.test(t) || /-?themed\b/i.test(t);
+  const themeNounColor = THEME_NOUN.test(t) && (LIGHT_WORD.test(t) || DARK_WORD.test(t));
+  const enMode = /\b(en|au)\s+mode\s+(clair|sombre|nuit|jour|noir)\b/i.test(t);
+  const switched =
+    SWITCH_CUE.test(t) && (LIGHT_WORD.test(t) || DARK_WORD.test(t)) && (THEME_NOUN.test(t) || WHOLE_EMAIL.test(t));
+  if (!(themedEn || themeNounColor || enMode || switched)) return null;
+  // Color word bound to a specific element (and not the whole email) → targeted.
+  if (THEME_ELEMENT.test(t) && !WHOLE_EMAIL.test(t)) return null;
+  const li = t.search(LIGHT_WORD);
+  const di = t.search(DARK_WORD);
+  if (li < 0 && di < 0) return null;
+  if (di < 0) return 'light';
+  if (li < 0) return 'dark';
+  return li < di ? 'light' : 'dark';
+}
+
 // ── Model-based intent understanding ──────────────────────────────────────────
 // The regexes above are fast instant-positives. But they can't understand every
 // phrasing or language ("empty the email", "scrap it and start over", "هذا سيء").
@@ -72,9 +157,9 @@ export type EditAction = 'clear' | 'rewrite' | 'image' | 'edit';
 
 const CLASSIFY_SYSTEM = `Tu classifies la demande d'un utilisateur qui modifie un email DÉJÀ existant. Réponds UNIQUEMENT par un JSON {"intent":"..."} avec exactement UNE de ces valeurs :
 - "clear" : vider / tout effacer / tout supprimer / repartir d'une page blanche (ex "empty the email", "efface tout", "vide le mail", "remove everything", "delete it all", "on recommence à blanc").
-- "rewrite" : refaire / régénérer / améliorer GLOBALEMENT tout l'email, ou changer l'ambiance générale (ex "améliore le mail", "refais le design", "make it nicer", "passe tout en sombre").
+- "rewrite" : refaire / régénérer / reconstruire tout l'email depuis zéro, ou l'améliorer GLOBALEMENT (ex "améliore le mail", "refais le design", "make it nicer", "recommence", "une autre version"). PAS pour un simple changement de thème ou de couleur.
 - "image" : ajouter, changer ou remplacer UNE image / photo / bannière / logo.
-- "edit" : toute autre modification CIBLÉE (un texte, une couleur, une taille, ajouter/supprimer un élément précis, une section, un bouton, etc.).
+- "edit" : toute autre modification CIBLÉE, Y COMPRIS changer le thème clair/sombre, la couleur de marque, un texte, une taille, la disposition en colonnes, ajouter/supprimer/déplacer un élément ou une section (ex "passe en thème clair", "mets ça en 2 colonnes", "déplace la section").
 En cas de doute, réponds "edit". Ne réponds RIEN d'autre que le JSON.`;
 
 /**

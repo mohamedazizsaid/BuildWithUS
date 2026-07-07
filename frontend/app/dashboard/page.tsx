@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FileText, Users, Star, TrendingUp, Mail, ScrollText, Pencil, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { templates, auth } from '@/lib/api';
 
 interface RecentTemplate {
@@ -56,6 +57,17 @@ export default function DashboardPage() {
   const [counts, setCounts] = useState({ templates: 0, favourites: 0, members: 1 });
   const [recentTemplates, setRecentTemplates] = useState<RecentTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Returning from Stripe Checkout (success_url = /dashboard?upgraded=1).
+  // Read from window (client-only) to avoid needing a Suspense/useSearchParams.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('upgraded') === '1') {
+      toast.success('Paiement réussi — votre abonnement est actif 🎉');
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {

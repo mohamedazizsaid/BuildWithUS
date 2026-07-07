@@ -1,5 +1,5 @@
 import type { BlockData, Row, TemplateData } from '@/lib/editor-types';
-import { parseHex } from './theme';
+import { parseHex, readableInk, contrastRatio } from './theme';
 
 /**
  * Deterministic, model-free editing for the common single-element commands on a
@@ -154,6 +154,71 @@ export function applySelectionCommand(
 
   if (done.length === 0) return { applied: false, message: '' };
   return { applied: true, message: `C'est fait : ${done.join(', ')}.` };
+}
+
+// ── Legibility fix (deterministic, model-free) ────────────────────────────────
+// Text blocks whose color we recompute for readability. Buttons, images, dividers
+// etc. manage their own colors, so they're left alone.
+const RETONE_TYPES = new Set(['heading', 'text', 'icon-list', 'menu', 'signature', 'table']);
+
+/** Background a block is actually read against: its own bg, else its column's
+ * (card) bg, else the section bg, else the email body color. */
+function effectiveBg(t: TemplateData, row: Row, block: BlockData): string {
+  const body = t.globalStyles?.bodyColor && parseHex(t.globalStyles.bodyColor) ? t.globalStyles.bodyColor : '#ffffff';
+  const bbg = block.styles.backgroundColor;
+  if (bbg && bbg !== 'transparent' && parseHex(bbg)) return bbg;
+  for (const c of row.columns) {
+    if (c.blocks.some((b) => b.id === block.id)) {
+      const cbg = c.styles?.backgroundColor;
+      if (cbg && cbg !== 'transparent' && parseHex(cbg)) return cbg;
+      break;
+    }
+  }
+  const rbg = row.styles.backgroundColor;
+  if (rbg && rbg !== 'transparent' && parseHex(rbg)) return rbg;
+  return body;
+}
+
+/** Snap a block's text color to a readable ink — but only when its current color
+ * is actually marginal (< WCAG AA 4.5:1), so well-contrasted brand emphasis is
+ * preserved. Returns whether it changed. */
+function retoneForReadability(t: TemplateData, row: Row, block: BlockData): boolean {
+  if (!RETONE_TYPES.has(block.type)) return false;
+  const bg = effectiveBg(t, row, block);
+  const cur = block.styles.color;
+  if (cur && parseHex(cur) && contrastRatio(cur, bg) >= 4.5) return false;
+  const ink = readableInk(bg);
+  if (cur && cur.toLowerCase() === ink.toLowerCase()) return false;
+  block.styles.color = ink;
+  return true;
+}
+
+/**
+ * Recompute readable text colors — the deterministic answer to "les couleurs ne
+ * sont pas claires / c'est illisible". Scope follows the selection: a selected
+ * block fixes its whole card/section (a badge card with one bad line looks
+ * half-fixed otherwise); a selected section fixes that section; no selection
+ * fixes the whole email. Mutates `t`.
+ */
+export function fixLegibility(
+  t: TemplateData,
+  selection: { blockId?: string | null; sectionId?: string | null },
+): CommandResult {
+  let n = 0;
+  const retoneRow = (row: Row) => {
+    for (const c of row.columns) for (const b of c.blocks) if (retoneForReadability(t, row, b)) n++;
+  };
+  if (selection.blockId) {
+    const loc = findBlock(t, selection.blockId);
+    if (loc) retoneRow(loc.row);
+  } else if (selection.sectionId) {
+    const row = t.rows.find((r) => r.id === selection.sectionId);
+    if (row) retoneRow(row);
+  } else {
+    for (const row of t.rows) retoneRow(row);
+  }
+  if (n === 0) return { applied: false, message: '' };
+  return { applied: true, message: "J'ai corrigé les couleurs du texte pour une meilleure lisibilité." };
 }
 
 /** Is this message a candidate for deterministic selection editing? (Cheap

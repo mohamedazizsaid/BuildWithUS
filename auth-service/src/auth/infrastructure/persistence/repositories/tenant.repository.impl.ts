@@ -47,6 +47,10 @@ export class TenantRepositoryImpl extends TenantRepository {
             entity.plan,
             entity.createdAt,
             entity.updatedAt,
+            entity.billingCycle ?? null,
+            entity.subscriptionStatus ?? null,
+            entity.stripeCustomerId ?? null,
+            entity.stripeSubscriptionId ?? null,
         );
     }
 }

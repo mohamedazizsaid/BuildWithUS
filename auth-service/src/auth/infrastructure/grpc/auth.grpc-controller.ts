@@ -293,6 +293,45 @@ export class AuthGrpcController {
     };
   }
 
+  private toTenantInfo(tenant: any) {
+    const p = tenant.toPrimitives();
+    return {
+      id: p.id,
+      name: p.name,
+      plan: p.plan,
+      created_at: p.createdAt?.toISOString?.() ?? '',
+      billing_cycle: p.billingCycle ?? '',
+      subscription_status: p.subscriptionStatus ?? '',
+      stripe_customer_id: p.stripeCustomerId ?? '',
+      stripe_subscription_id: p.stripeSubscriptionId ?? '',
+    };
+  }
+
+  @GrpcMethod('AuthService', 'UpdateTenantPlan')
+  async updateTenantPlan(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const tenant = await this.tenantRepository.findById(tenantId);
+    if (!tenant) throw new Error('Tenant not found');
+    tenant.updateSubscription({
+      plan: request.plan,
+      billingCycle: request.billingCycle ?? request.billing_cycle ?? null,
+      subscriptionStatus: request.subscriptionStatus ?? request.subscription_status ?? null,
+      stripeCustomerId: request.stripeCustomerId ?? request.stripe_customer_id ?? null,
+      stripeSubscriptionId: request.stripeSubscriptionId ?? request.stripe_subscription_id ?? null,
+    });
+    await this.tenantRepository.save(tenant);
+    this.logger.debug(`Tenant ${tenantId} plan -> ${request.plan}`);
+    return this.toTenantInfo(tenant);
+  }
+
+  @GrpcMethod('AuthService', 'GetTenantBilling')
+  async getTenantBilling(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const tenant = await this.tenantRepository.findById(tenantId);
+    if (!tenant) throw new Error('Tenant not found');
+    return this.toTenantInfo(tenant);
+  }
+
   @GrpcMethod('AuthService', 'ListApiClients')
   async listApiClients(request: any) {
     const tenantId = request.tenantId || request.tenant_id;

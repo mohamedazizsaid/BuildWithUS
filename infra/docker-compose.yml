@@ -149,6 +149,10 @@ services:
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
+      # Stripe (subscriptions/billing)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_RETURN_URL: ${STRIPE_RETURN_URL}
       # JWT — MUST match auth-service's secret or tokens won't validate
       JWT_SECRET: ${JWT_SECRET}
       # PDF export (Two-View): gateway signs short-lived print tokens that

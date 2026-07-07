@@ -91,6 +91,21 @@ export class TemplateBuilder {
   // instead of being appended — then the anchor clears. Lets the model place a
   // new section before/after an existing one in a single pass.
   private insertAnchor: number | null = null;
+  // Edit mode: id of the email's footer row. New sections default-insert ABOVE it
+  // (a footer belongs last), because the model appends to the end and rarely calls
+  // moveBlock — so a "add a badge/text" edit used to land below the footer.
+  private footerRowId: string | null = null;
+  private pinFooter = false;
+  // Count of successful targeted edits (update / move / remove / layout / theme…)
+  // applied to a LOADED template. Lets the route tell a real change from a no-op,
+  // so the assistant never claims "c'est fait" when the model narrated without
+  // actually acting. Adds/removes also change blockCount; this covers the edits
+  // that mutate in place without changing the block count (move, restyle, relayout).
+  private edits = 0;
+  /** Successful in-place mutations since load — 0 means nothing actually changed. */
+  get mutationCount(): number {
+    return this.edits;
+  }
 
   // ── Theme ────────────────────────────────────────────────────────────────
 
@@ -134,6 +149,7 @@ export class TemplateBuilder {
    * every text color so it stays readable on its (possibly new) background.
    */
   private applyThemeToExisting(): void {
+    this.edits++;
     const p = this.palette;
     const dark = luminance(p.body) < 0.5; // mood inferred from the resolved body
     this.globalStyles = {
@@ -226,13 +242,22 @@ export class TemplateBuilder {
       styles: { backgroundColor: bg, padding: isFull ? this.sys.sectionPaddingFull : this.sys.sectionPaddingMulti },
     };
     // Honor a pending insertion anchor (edit mode) so the new section lands at a
-    // chosen position; otherwise append. Keep `tones` aligned with `rows`.
+    // chosen position; otherwise insert above the pinned footer if there is one;
+    // otherwise append. Keep `tones` aligned with `rows`.
+    const footerIdx =
+      this.insertAnchor === null && this.pinFooter && this.footerRowId
+        ? this.rows.findIndex((r) => r.id === this.footerRowId)
+        : -1;
     if (this.insertAnchor !== null) {
       const at = Math.max(0, Math.min(this.insertAnchor, this.rows.length));
       this.rows.splice(at, 0, row);
       this.tones.splice(at, 0, tone);
       this.curRow = at;
       this.insertAnchor = null;
+    } else if (footerIdx >= 0) {
+      this.rows.splice(footerIdx, 0, row);
+      this.tones.splice(footerIdx, 0, tone);
+      this.curRow = footerIdx;
     } else {
       this.rows.push(row);
       this.curRow = this.rows.length - 1;
@@ -632,8 +657,44 @@ export class TemplateBuilder {
     });
     this.loaded = true;
     this.inCard = false;
-    this.curRow = this.rows.length - 1;
-    this.curCol = this.curRow >= 0 ? this.rows[this.curRow].columns.length - 1 : 0;
+    // Pin the footer so new content added during this edit lands ABOVE it rather
+    // than after it. Start with no "current" row so the first bare add (addText
+    // without a startSection) opens a fresh section that honors the pin, instead
+    // of appending into the footer's own column.
+    this.footerRowId = this.detectFooterRowId();
+    this.pinFooter = this.footerRowId !== null;
+    this.curRow = -1;
+    this.curCol = 0;
+  }
+
+  /**
+   * Find the footer row — the trailing section carrying social icons or
+   * legal/unsubscribe copy. Scanned from the bottom so a stray section that a
+   * previous edit wrongly dropped below the footer doesn't hide it. Returns its
+   * id, or null when the email has no recognizable footer (then nothing is pinned
+   * and new sections append at the end as before).
+   */
+  private detectFooterRowId(): string | null {
+    const LEGAL =
+      /d[ée]sinscri|se\s+d[ée]sabonner|unsubscribe|tous\s+droits\s+r[ée]serv[ée]s|droits\s+r[ée]serv[ée]s|mentions\s+l[ée]gales|all\s+rights\s+reserved|©|&copy;/i;
+    for (let i = this.rows.length - 1; i >= 0; i--) {
+      const blocks = this.rows[i].columns.flatMap((c) => c.blocks);
+      if (!blocks.length) continue;
+      const isFooter = blocks.some(
+        (b) => b.type === 'social' || (b.type === 'text' && LEGAL.test(String(b.content.text || ''))),
+      );
+      if (isFooter) return this.rows[i].id;
+    }
+    return null;
+  }
+
+  /**
+   * Edit mode: allow new sections to append AFTER the footer again — used when the
+   * user explicitly asks to add something at the very bottom / after the footer,
+   * or to add a footer itself.
+   */
+  setFooterPin(on: boolean): void {
+    this.pinFooter = on;
   }
 
   findBlock(id: string): BlockData | null {
@@ -646,6 +707,7 @@ export class TemplateBuilder {
     if (!b) return false;
     if (patch.content) b.content = { ...b.content, ...patch.content };
     if (patch.styles) b.styles = { ...b.styles, ...patch.styles };
+    this.edits++;
     return true;
   }
 
@@ -655,10 +717,50 @@ export class TemplateBuilder {
         const i = c.blocks.findIndex((b) => b.id === id);
         if (i >= 0) {
           c.blocks.splice(i, 1);
+          this.edits++;
           return true;
         }
       }
     return false;
+  }
+
+  /**
+   * Change a section's column layout, redistributing its existing blocks across
+   * the new columns. When the source has exactly as many NON-EMPTY columns as the
+   * target, each column maps 1:1 (preserving each column's grouping + card style)
+   * — so "3 features → remove coaching → make it 50-50" keeps workouts left and
+   * tracking right. Otherwise all blocks are re-spread in order, balanced. Empty
+   * columns left by a prior removeBlock disappear. The SINGLE correct way to
+   * change how many columns a section has.
+   */
+  changeLayout(sectionId: string, layout: RowLayout): boolean {
+    const row = this.rows.find((r) => r.id === sectionId);
+    if (!row) return false;
+    const opt = LAYOUT_OPTIONS.find((o) => o.value === layout);
+    if (!opt) return false;
+    if (row.layout === layout && row.columns.every((c) => c.blocks.length > 0)) return false;
+    const n = opt.widths.length;
+    const srcCols = row.columns;
+    const nonEmpty = srcCols.filter((c) => c.blocks.length > 0);
+    const cols: Column[] = opt.widths.map((w) => ({ id: uuid(), width: w, blocks: [] as BlockData[] }));
+    if (n > 1 && nonEmpty.length === n) {
+      // 1:1 map — preserves each column's content grouping and its card styles.
+      nonEmpty.forEach((c, i) => {
+        cols[i].blocks = c.blocks;
+        if (c.styles) cols[i].styles = c.styles;
+      });
+    } else {
+      // Re-spread every block in visual order, balanced across the new columns.
+      const all = srcCols.flatMap((c) => c.blocks);
+      const per = Math.max(1, Math.ceil(all.length / n));
+      all.forEach((b, i) => cols[Math.min(n - 1, Math.floor(i / per))].blocks.push(b));
+      // Keep a single-column card style when collapsing to one column.
+      if (n === 1 && srcCols[0]?.styles) cols[0].styles = srcCols[0].styles;
+    }
+    row.columns = cols;
+    row.layout = opt.value;
+    this.edits++;
+    return true;
   }
 
   private locateBlock(id: string): { col: Column; idx: number } | null {
@@ -680,6 +782,7 @@ export class TemplateBuilder {
     // Recompute the target index after removal (it may have shifted).
     const tIdx = tgt.col.blocks.findIndex((b) => b.id === targetId);
     tgt.col.blocks.splice(position === 'before' ? tIdx : tIdx + 1, 0, blk);
+    this.edits++;
     return true;
   }
 
@@ -688,6 +791,7 @@ export class TemplateBuilder {
     const r = this.rows.find((row) => row.id === id);
     if (!r) return false;
     r.styles = { ...r.styles, ...clean(patch) };
+    this.edits++;
     return true;
   }
 
@@ -706,6 +810,7 @@ export class TemplateBuilder {
     if (patch.borderRadius) next.borderRadius = patch.borderRadius;
     if (patch.borderColor && parseHex(patch.borderColor)) next.border = `1px solid ${patch.borderColor}`;
     col.styles = next;
+    this.edits++;
     return true;
   }
 
@@ -714,6 +819,7 @@ export class TemplateBuilder {
     const i = this.rows.findIndex((r) => r.id === id);
     if (i < 0) return false;
     this.rows.splice(i, 1);
+    this.edits++;
     return true;
   }
 
@@ -726,6 +832,7 @@ export class TemplateBuilder {
     const [row] = this.rows.splice(si, 1);
     const t = this.rows.findIndex((r) => r.id === targetId);
     this.rows.splice(position === 'before' ? t : t + 1, 0, row);
+    this.edits++;
     return true;
   }
 
@@ -740,11 +847,13 @@ export class TemplateBuilder {
     if (!b || b.type !== 'image') return false;
     if (opts.src && /^https?:/i.test(opts.src)) {
       b.content.src = opts.src;
+      this.edits++;
       return true;
     }
     if (opts.query) {
       b.content.alt = sanitizeText(opts.query);
       b.content.src = ''; // re-resolved by resolveStockImages using alt as the query
+      this.edits++;
       return true;
     }
     return false;

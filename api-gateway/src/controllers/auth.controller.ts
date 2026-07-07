@@ -203,20 +203,63 @@ export class AuthController implements OnModuleInit {
         to: body.email,
         subject: "You've been invited to join an organization on Winaity",
         html: `
-          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
-            <div style="background: #0f172a; border-radius: 8px; padding: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
-              <span style="color: white; font-weight: bold; font-size: 18px;">W</span>
-            </div>
-            <h1 style="color: #0f172a; font-size: 24px; margin-bottom: 8px;">You're invited!</h1>
-            <p style="color: #64748b; font-size: 14px; line-height: 1.6;">
-              You've been invited to join an organization on Winaity as <strong>${body.role || "editor"}</strong>.
-            </p>
-            <a href="${inviteLink}" style="display: inline-block; margin-top: 24px; padding: 12px 32px; background: #0f172a; color: white; text-decoration: none; border-radius: 50px; font-weight: 500; font-size: 14px;">
-              Join Organization
-            </a>
-            <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
-              This link expires in 15 minutes. If you didn't expect this invite, you can safely ignore it.
-            </p>
+          <div style="background:#eef2f8;padding:32px 12px;font-family:Inter,'Helvetica Neue',Arial,sans-serif;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
+              <tr>
+                <td style="background:#ffffff;border-radius:16px;padding:40px;">
+
+                  <!-- Logo -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                    <tr>
+                      <td style="width:44px;height:44px;background:#2563eb;border-radius:12px;text-align:center;vertical-align:middle;">
+                        <span style="color:#ffffff;font-weight:800;font-size:20px;">W</span>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Titre + texte -->
+                  <h1 style="margin:0 0 10px;color:#0f172a;font-size:23px;font-weight:800;letter-spacing:-0.4px;line-height:30px;">
+                    Vous êtes invité·e à nous rejoindre
+                  </h1>
+                  <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:24px;">
+                    Vous avez été invité·e à rejoindre une organisation sur Winaity. Vous la rejoindrez avec le rôle ci-dessous.
+                  </p>
+
+                  <!-- Badge rôle -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                    <tr>
+                      <td style="background:#eff4ff;border:1px solid #dbe6ff;border-radius:8px;padding:8px 16px;">
+                        <span style="color:#2563eb;font-size:13px;font-weight:700;letter-spacing:0.3px;">RÔLE&nbsp;·&nbsp;${body.role || "editor"}</span>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Bouton -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                    <tr>
+                      <td style="background:#2563eb;border-radius:50px;">
+                        <a href="${inviteLink}" style="display:inline-block;padding:15px 34px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">
+                          Rejoindre l'organisation
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <hr style="border:none;border-top:1px solid #eef2f8;margin:0 0 20px;">
+                  <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
+                    Cette invitation expire dans 15 minutes. Si vous ne vous attendiez pas à cette invitation, vous pouvez ignorer cet email.
+                  </p>
+
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:24px 0 8px;text-align:center;">
+                  <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
+                    © 2026 Winaity · <a href="#" style="color:#64748b;text-decoration:underline;">Centre d'aide</a> · Paris, FR
+                  </p>
+                </td>
+              </tr>
+            </table>
           </div>
         `,
       });
@@ -286,21 +329,54 @@ export class AuthController implements OnModuleInit {
           to: result.email,
           subject: "Reset your Winaity password",
           html: `
-            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
-              <div style="background: #0f172a; border-radius: 8px; padding: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
-                <span style="color: white; font-weight: bold; font-size: 18px;">W</span>
-              </div>
-              <h1 style="color: #0f172a; font-size: 24px; margin-bottom: 8px;">Reset your password</h1>
-              <p style="color: #64748b; font-size: 14px; line-height: 1.6;">
-                ${result.first_name ? `Hi ${result.first_name},<br/>` : ""}
-                We received a request to reset your Winaity password. Click the button below to choose a new one.
-              </p>
-              <a href="${resetLink}" style="display: inline-block; margin-top: 24px; padding: 12px 32px; background: #0f172a; color: white; text-decoration: none; border-radius: 50px; font-weight: 500; font-size: 14px;">
-                Reset password
-              </a>
-              <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
-                This link expires in 15 minutes. If you didn't request a password reset, you can safely ignore this email.
-              </p>
+            <div style="background:#eef2f8;padding:32px 12px;font-family:Inter,'Helvetica Neue',Arial,sans-serif;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
+                <tr>
+                  <td style="background:#ffffff;border-radius:16px;padding:40px;">
+
+                    <!-- Logo -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                      <tr>
+                        <td style="width:44px;height:44px;background:#2563eb;border-radius:12px;text-align:center;vertical-align:middle;">
+                          <span style="color:#ffffff;font-weight:800;font-size:20px;">W</span>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Titre + texte -->
+                    <h1 style="margin:0 0 10px;color:#0f172a;font-size:23px;font-weight:800;letter-spacing:-0.4px;line-height:30px;">
+                      Réinitialisez votre mot de passe
+                    </h1>
+                    <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:24px;">
+                      ${result.first_name ? `Bonjour ${result.first_name},<br/><br/>` : ""}Nous avons reçu une demande de réinitialisation de votre mot de passe Winaity. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
+                    </p>
+
+                    <!-- Bouton -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                      <tr>
+                        <td style="background:#2563eb;border-radius:50px;">
+                          <a href="${resetLink}" style="display:inline-block;padding:15px 34px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">
+                            Réinitialiser le mot de passe
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <hr style="border:none;border-top:1px solid #eef2f8;margin:0 0 20px;">
+                    <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
+                      Ce lien expire dans 15 minutes. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email — votre mot de passe restera inchangé.
+                    </p>
+
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:24px 0 8px;text-align:center;">
+                    <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
+                      © 2026 Winaity · <a href="#" style="color:#64748b;text-decoration:underline;">Centre d'aide</a> · Paris, FR
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </div>
           `,
         });

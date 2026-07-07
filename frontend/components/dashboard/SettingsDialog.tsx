@@ -15,16 +15,18 @@ import {
   EyeOff,
   ExternalLink,
   Loader2,
+  CreditCard,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth';
-import { auth, integrations, type IntegrationKey } from '@/lib/api';
+import { auth, integrations, billing, type IntegrationKey, type BillingInfo } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getPlan, planPrice, PLAN_LABELS, type PlanId } from '@/lib/plans';
 
-type Section = 'account' | 'integrations';
+type Section = 'account' | 'billing' | 'integrations';
 
 export default function SettingsDialog({
   open,
@@ -37,9 +39,9 @@ export default function SettingsDialog({
   const isAdmin = user?.role === 'admin';
   const [section, setSection] = useState<Section>('account');
 
-  // Non-admins never see the Integrations tab — keep them on Account.
+  // Billing + Integrations are org-level and admin-only — keep non-admins on Account.
   useEffect(() => {
-    if (!isAdmin && section === 'integrations') setSection('account');
+    if (!isAdmin && (section === 'integrations' || section === 'billing')) setSection('account');
   }, [isAdmin, section]);
 
   // Close on Escape.
@@ -54,6 +56,7 @@ export default function SettingsDialog({
 
   const navItems: { id: Section; label: string; icon: typeof UserIcon }[] = [
     { id: 'account', label: 'Compte', icon: UserIcon },
+    ...(isAdmin ? [{ id: 'billing' as const, label: 'Facturation', icon: CreditCard }] : []),
     ...(isAdmin ? [{ id: 'integrations' as const, label: 'Intégrations', icon: Plug }] : []),
   ];
 
@@ -108,6 +111,7 @@ export default function SettingsDialog({
 
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
                 {section === 'account' && <AccountSection />}
+                {section === 'billing' && isAdmin && <BillingSection onClose={() => onOpenChange(false)} />}
                 {section === 'integrations' && isAdmin && <IntegrationsSection />}
               </div>
             </div>
@@ -181,6 +185,179 @@ function Row({ label, value, capitalize }: { readonly label: string; readonly va
     <div className="flex items-center justify-between">
       <span className="text-muted-foreground">{label}</span>
       <span className={`font-medium ${capitalize ? 'capitalize' : ''}`}>{value}</span>
+    </div>
+  );
+}
+
+/* ── Billing section ─────────────────────────────────────────────────────── */
+
+function fmtDate(unixSeconds: number | null): string {
+  if (!unixSeconds) return '—';
+  return new Date(unixSeconds * 1000).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function BillingSection({ onClose }: { readonly onClose: () => void }) {
+  const { user } = useAuth();
+  const [info, setInfo] = useState<BillingInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setInfo(await billing.get());
+    } catch {
+      toast.error('Erreur de chargement de la facturation');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const planId = info?.plan ?? 'free';
+  const plan = getPlan(planId);
+  const planName = plan?.name ?? PLAN_LABELS[planId as PlanId] ?? planId;
+  // 'internal' = our own company's unlimited plan: no billing, nothing to cancel.
+  const isInternal = planId === 'internal';
+  const isPaid = planId !== 'free' && !isInternal;
+  const cycleLabel =
+    info?.billing_cycle === 'annual'
+      ? 'Annuel · engagement 12 mois'
+      : info?.billing_cycle === 'monthly'
+        ? 'Mensuel · sans engagement'
+        : null;
+  const scheduledCancel = !!info?.cancel_at;
+
+  const cancel = async () => {
+    if (!confirm("Résilier votre abonnement ? Vous conserverez l'accès jusqu'à la fin de la période déjà payée.")) return;
+    setCancelling(true);
+    try {
+      await billing.cancel();
+      toast.success('Résiliation programmée.');
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Échec de la résiliation');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-base font-semibold">Facturation</h3>
+        <p className="text-sm text-muted-foreground">Gérez votre plan et vos informations de paiement.</p>
+      </div>
+
+      {/* Current plan */}
+      <div className="rounded-lg border p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">{planName}</span>
+              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                Plan actuel
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isInternal ? 'Compte interne de notre organisation.' : (plan?.tagline ?? cycleLabel)}
+            </p>
+            <p className="mt-2 text-sm">
+              {isInternal ? (
+                <span className="text-muted-foreground">Accès illimité — aucune facturation.</span>
+              ) : isPaid && plan && info?.billing_cycle ? (
+                <>
+                  <span className="font-semibold">{planPrice(plan, info.billing_cycle as 'monthly' | 'annual')}€</span>
+                  <span className="text-muted-foreground"> / mois</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">Aucun paiement requis.</span>
+              )}
+            </p>
+          </div>
+          {!isInternal && (
+            <Button asChild variant={isPaid ? 'outline' : 'default'} size="sm" className="shrink-0">
+              <Link href="/pricing" onClick={onClose}>
+                {isPaid ? 'Changer de plan' : 'Voir les plans'}
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Billing information */}
+      {isPaid ? (
+        <div className="space-y-3 rounded-lg border bg-muted/30 p-4 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Moyen de paiement</span>
+            <span className="font-medium capitalize">
+              {info?.card ? `${info.card.brand} •••• ${info.card.last4}` : '—'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">{scheduledCancel ? 'Fin de l\'accès' : 'Prochain renouvellement'}</span>
+            <span className="font-medium">{fmtDate(scheduledCancel ? info?.cancel_at ?? null : info?.current_period_end ?? null)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">E-mail de facturation</span>
+            <span className="font-medium">{user?.email || '—'}</span>
+          </div>
+          {scheduledCancel && (
+            <p className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700">
+              Résiliation programmée — l&apos;abonnement prendra fin à la date ci-dessus.
+            </p>
+          )}
+        </div>
+      ) : isInternal ? (
+        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+          Plan interne — aucune information de facturation. Votre organisation dispose d&apos;un accès illimité.
+        </div>
+      ) : (
+        <div className="rounded-lg border p-4">
+          <div className="text-sm font-medium">Débloquez un usage illimité</div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Passez à un plan payant pour lever les limites du plan gratuit.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <Link href="/checkout?plan=pro&billing=monthly" onClick={onClose}>Passer à Pro</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/checkout?plan=pro_org&billing=monthly" onClick={onClose}>Passer à Pro Org</Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel */}
+      {isPaid && !scheduledCancel && (
+        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <div className="text-sm">
+            <div className="font-medium">Résilier l&apos;abonnement</div>
+            <div className="text-muted-foreground">
+              L&apos;accès reste actif jusqu&apos;à la fin de la période payée.
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={cancel} disabled={cancelling} className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive">
+            {cancelling && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+            Résilier
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

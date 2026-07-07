@@ -5,6 +5,7 @@ import { AuthController, OAuthController, DevelopersController, IntegrationsCont
 import { SuperAdminController } from '../src/controllers/super-admin.controller';
 import { TemplateController } from '../src/controllers/template.controller';
 import { MediaController } from './controllers/media.controller';
+import { BillingController } from './controllers/billing.controller';
 import { AuthGuard } from '../src/guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { ScopesGuard } from './guards/scopes.guard';
@@ -86,7 +87,7 @@ import { TemplateRendererService } from './services/template-renderer.service';
       },
     ]),
   ],
-  controllers: [AuthController, OAuthController, DevelopersController, IntegrationsController, SuperAdminController, TemplateController, MediaController], // REST controllers that handle HTTP requests
+  controllers: [AuthController, OAuthController, DevelopersController, IntegrationsController, SuperAdminController, TemplateController, MediaController, BillingController], // REST controllers that handle HTTP requests
   providers: [AuthGuard, RolesGuard, ScopesGuard, Reflector, PdfService, TemplateRendererService],
 })
 export class AppModule {}

@@ -18,6 +18,8 @@ service AuthService{
     rpc IssueClientToken (IssueClientTokenRequest) returns (IssueClientTokenResponse);
     rpc RegisterApiClient (RegisterApiClientRequest) returns (RegisterApiClientResponse);
     rpc ListAllTenants (ListAllTenantsRequest) returns (ListAllTenantsResponse);
+    rpc UpdateTenantPlan (UpdateTenantPlanRequest) returns (TenantInfo);
+    rpc GetTenantBilling (GetTenantBillingRequest) returns (TenantInfo);
     rpc ListApiClients (ListApiClientsRequest) returns (ListApiClientsResponse);
     rpc RevokeApiClient (RevokeApiClientRequest) returns (RevokeApiClientResponse);
     // Super-admin user management (cross-tenant)
@@ -195,6 +197,23 @@ message TenantInfo {
     string name = 2;
     string plan = 3;
     string created_at = 4;
+    string billing_cycle = 5;
+    string subscription_status = 6;
+    string stripe_customer_id = 7;
+    string stripe_subscription_id = 8;
+}
+
+message UpdateTenantPlanRequest {
+    string tenant_id = 1;
+    string plan = 2;
+    string billing_cycle = 3;
+    string subscription_status = 4;
+    string stripe_customer_id = 5;
+    string stripe_subscription_id = 6;
+}
+
+message GetTenantBillingRequest {
+    string tenant_id = 1;
 }
 
 message ListAllTenantsRequest {}
