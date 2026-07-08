@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { ArrowLeft, Save, MessageSquare, Plus, Loader2, Check, CloudOff, Upload, X, Smartphone, Sparkles } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 import {
   templates,

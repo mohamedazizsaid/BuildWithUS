@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Check, Lock, ShieldCheck } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { getPlan, planPrice, type BillingCycle } from '@/lib/plans';
 import { billing } from '@/lib/api';
 

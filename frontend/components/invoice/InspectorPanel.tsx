@@ -9,7 +9,7 @@ import type {
 import { ESSENTIAL_COLUMNS } from '@/lib/invoice/types';
 import { CURRENCIES } from '@/lib/invoice/compute';
 import { media } from '@/lib/api';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { Label } from '@/components/ui/label';
 // Reuse the email editor's properties-panel primitives so the invoice editor
 // shares the same visual language (accordion sections, pill toggle, swatch

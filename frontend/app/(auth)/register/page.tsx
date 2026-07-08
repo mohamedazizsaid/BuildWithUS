@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth';
 import { getPlan, type BillingCycle } from '@/lib/plans';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 interface RegisterForm {
   tenantName: string;

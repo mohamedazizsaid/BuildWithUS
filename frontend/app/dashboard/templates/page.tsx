@@ -8,7 +8,7 @@ import { PREDEFINED_TEMPLATES } from '@/lib/predefined-templates';
 import { templates } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { useSearch } from '@/context/search';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 import {
   TABS, TAB_TYPES, getTypeConfig,

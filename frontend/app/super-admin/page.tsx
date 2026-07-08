@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Shield, Eye, EyeOff } from 'lucide-react';
 import { auth } from '@/lib/api';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 export default function SuperAdminLogin() {
   const router = useRouter();

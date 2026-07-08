@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FileText, Users, Star, TrendingUp, Mail, ScrollText, Pencil, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
-import { templates, auth } from '@/lib/api';
+import toast from '@/lib/toast';
+import { templates, auth, billing } from '@/lib/api';
 
 interface RecentTemplate {
   id: string;
@@ -58,15 +58,26 @@ export default function DashboardPage() {
   const [recentTemplates, setRecentTemplates] = useState<RecentTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Returning from Stripe Checkout (success_url = /dashboard?upgraded=1).
-  // Read from window (client-only) to avoid needing a Suspense/useSearchParams.
+  // Returning from Stripe Checkout (success_url = /dashboard?upgraded=1&session_id=…).
+  // We confirm the session server-side so the plan is applied even when the
+  // Stripe webhook is delayed or not running (e.g. in dev).
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('upgraded') === '1') {
-      toast.success('Paiement réussi — votre abonnement est actif 🎉');
-      window.history.replaceState({}, '', '/dashboard');
-    }
+    if (params.get('upgraded') !== '1') return;
+
+    const sessionId = params.get('session_id');
+    window.history.replaceState({}, '', '/dashboard');
+
+    (async () => {
+      try {
+        if (sessionId) await billing.confirm(sessionId);
+        toast.success('Paiement réussi — votre abonnement est actif 🎉');
+      } catch {
+        // Payment went through; the webhook will reconcile shortly.
+        toast.success('Paiement reçu — activation de votre abonnement en cours…');
+      }
+    })();
   }, []);
 
   useEffect(() => {

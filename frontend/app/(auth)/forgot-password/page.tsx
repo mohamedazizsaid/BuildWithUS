@@ -6,7 +6,7 @@ import { ArrowLeft, MailCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { auth } from '@/lib/api';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 interface ForgotForm {
   email: string;

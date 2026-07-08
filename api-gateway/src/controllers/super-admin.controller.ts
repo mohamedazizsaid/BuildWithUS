@@ -92,6 +92,31 @@ export class SuperAdminController implements OnModuleInit {
     return firstValueFrom(this.authService.AdminDeleteUser({ user_id: id }));
   }
 
+  // ── Tenants (cross-tenant) ────────────────────────────────────────────
+  /**
+   * PATCH /auth/admin/tenants/:id/plan — assign a plan to any tenant.
+   *
+   * Direct plan override (no Stripe). This is how we grant the non-purchasable
+   * `internal` plan to our own company's tenants, or manually adjust a plan.
+   */
+  private static readonly ASSIGNABLE_PLANS = ["free", "pro", "pro_org", "internal"];
+
+  @Patch("tenants/:id/plan")
+  async setTenantPlan(
+    @Param("id") id: string,
+    @Body() body: { plan?: string },
+  ) {
+    const plan = (body?.plan || "").trim();
+    if (!SuperAdminController.ASSIGNABLE_PLANS.includes(plan)) {
+      throw new BadRequestException(
+        `plan must be one of: ${SuperAdminController.ASSIGNABLE_PLANS.join(", ")}`,
+      );
+    }
+    return firstValueFrom(
+      this.authService.AdminSetTenantPlan({ tenant_id: id, plan }),
+    );
+  }
+
   // ── Templates (cross-tenant) ──────────────────────────────────────────
   /**
    * GET /auth/admin/templates — every template across every tenant.

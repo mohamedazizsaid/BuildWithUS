@@ -23,7 +23,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { setEmbedToken, setEmbedReturnOrigin, templates } from '@/lib/api';
 
 interface EmbedParams {

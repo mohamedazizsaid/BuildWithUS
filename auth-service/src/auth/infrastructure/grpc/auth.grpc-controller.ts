@@ -304,6 +304,8 @@ export class AuthGrpcController {
       subscription_status: p.subscriptionStatus ?? '',
       stripe_customer_id: p.stripeCustomerId ?? '',
       stripe_subscription_id: p.stripeSubscriptionId ?? '',
+      email_templates_created: p.emailTemplatesCreated ?? 0,
+      ai_interactions_used: p.aiInteractionsUsed ?? 0,
     };
   }
 
@@ -330,6 +332,49 @@ export class AuthGrpcController {
     const tenant = await this.tenantRepository.findById(tenantId);
     if (!tenant) throw new Error('Tenant not found');
     return this.toTenantInfo(tenant);
+  }
+
+  private toTenantUsage(tenant: any) {
+    const p = tenant.toPrimitives();
+    return {
+      tenant_id: p.id,
+      plan: p.plan,
+      email_templates_created: p.emailTemplatesCreated ?? 0,
+      ai_interactions_used: p.aiInteractionsUsed ?? 0,
+    };
+  }
+
+  @GrpcMethod('AuthService', 'AdminSetTenantPlan')
+  async adminSetTenantPlan(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const tenant = await this.tenantRepository.findById(tenantId);
+    if (!tenant) throw new Error('Tenant not found');
+    // Plan-only change — leaves any Stripe subscription fields untouched.
+    tenant.updatePlan(request.plan);
+    await this.tenantRepository.save(tenant);
+    this.logger.debug(`[admin] Tenant ${tenantId} plan -> ${request.plan}`);
+    return this.toTenantInfo(tenant);
+  }
+
+  @GrpcMethod('AuthService', 'GetTenantUsage')
+  async getTenantUsage(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const tenant = await this.tenantRepository.findById(tenantId);
+    if (!tenant) throw new Error('Tenant not found');
+    return this.toTenantUsage(tenant);
+  }
+
+  @GrpcMethod('AuthService', 'IncrementTenantUsage')
+  async incrementTenantUsage(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const kind = request.kind || '';
+    const tenant = await this.tenantRepository.findById(tenantId);
+    if (!tenant) throw new Error('Tenant not found');
+    if (kind === 'email_template') tenant.incrementEmailTemplatesCreated();
+    else if (kind === 'ai_interaction') tenant.incrementAiInteractionsUsed();
+    else throw new Error(`Unknown usage kind: ${kind}`);
+    await this.tenantRepository.save(tenant);
+    return this.toTenantUsage(tenant);
   }
 
   @GrpcMethod('AuthService', 'ListApiClients')

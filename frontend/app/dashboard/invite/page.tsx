@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/context/auth';
-import { auth } from '@/lib/api';
+import { auth, billing } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { UserPlus, Copy, Check, Link as LinkIcon } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 interface InviteForm {
   email: string;
@@ -18,6 +19,17 @@ export default function InviteMemberPage() {
   const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // Inviting members is a Pro Organisation (or internal) capability. Default
+  // true to avoid a flash; corrected once usage loads.
+  const [canInvite, setCanInvite] = useState(true);
+
+  useEffect(() => {
+    if (user?.role !== 'admin') return;
+    billing
+      .usage()
+      .then((u) => setCanInvite(u.can_invite_users))
+      .catch(() => setCanInvite(true));
+  }, [user?.role]);
   const { register, handleSubmit, reset, formState: { errors } } = useForm<InviteForm>({
     defaultValues: { role: 'editor' },
   });
@@ -51,6 +63,33 @@ export default function InviteMemberPage() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold text-slate-900 mb-2">Accès refusé</h1>
         <p className="text-slate-500">Seuls les administrateurs peuvent inviter des membres.</p>
+      </div>
+    );
+  }
+
+  if (!canInvite) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">Inviter un membre</h1>
+          <p className="text-slate-500 mt-1">Ajoutez des membres à {user?.tenant_name}.</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="flex items-center gap-2">
+            <UserPlus size={18} className="text-slate-500" />
+            <h2 className="text-base font-semibold text-slate-900">Réservé au plan Pro Organisation</h2>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            L&apos;invitation d&apos;utilisateurs est disponible avec le plan Pro Organisation.
+            Passez à ce plan pour constituer votre équipe.
+          </p>
+          <Link
+            href="/pricing"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+          >
+            Voir les plans
+          </Link>
+        </div>
       </div>
     );
   }

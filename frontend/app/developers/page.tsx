@@ -15,7 +15,7 @@ import {
   Terminal,
   Zap,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 const EASE = [0.25, 0.1, 0.25, 1] as const;
 

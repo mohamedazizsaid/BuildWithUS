@@ -26,6 +26,15 @@ export class TenantOrmEntity {
     @Column({ type: 'varchar', length: 255, nullable: true, name: 'stripe_subscription_id' })
     stripeSubscriptionId: string | null;
 
+    // ── Plan-usage counters (monotonic) ─────────────────────────────────────
+    // Lifetime totals, never decremented. Enforce the free plan's caps (1 email
+    // template, 1 AI interaction) in a way that survives delete-and-recreate.
+    @Column({ type: 'int', default: 0, name: 'email_templates_created' })
+    emailTemplatesCreated: number;
+
+    @Column({ type: 'int', default: 0, name: 'ai_interactions_used' })
+    aiInteractionsUsed: number;
+
     @CreateDateColumn({ name: 'created_at' , type: 'timestamp' })
     createdAt: Date;
 

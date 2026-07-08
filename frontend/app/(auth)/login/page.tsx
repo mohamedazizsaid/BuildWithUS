@@ -6,7 +6,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 interface LoginForm {
   email: string;

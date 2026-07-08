@@ -14,12 +14,14 @@ import {
   HttpCode,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { ClientGrpc } from "@nestjs/microservices";
 import { firstValueFrom } from "rxjs";
 import { Response } from "express";
 import { AuthGuard } from "../guards/auth.guard";
 import { Roles, RolesGuard } from "../guards/roles.guard";
+import { limitsFor } from "../plan-limits";
 import * as nodemailer from "nodemailer";
 
 /**
@@ -178,6 +180,20 @@ export class AuthController implements OnModuleInit {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles("admin")
   async inviteUser(@Req() req: any, @Body() body: any) {
+    // Inviting/creating additional users is a Pro Organisation (or internal)
+    // capability. Pro and free tenants are single-seat.
+    const usage: any = await firstValueFrom(
+      this.authService.GetTenantUsage({ tenant_id: req.user.tenant_id }),
+    );
+    if (!limitsFor(usage?.plan).canInviteUsers) {
+      throw new ForbiddenException({
+        code: "plan_limit",
+        limit: "invite_users",
+        message:
+          "L'invitation d'utilisateurs est réservée au plan Pro Organisation. Passez à ce plan pour ajouter des membres à votre organisation.",
+      });
+    }
+
     const result: any = await firstValueFrom(
       this.authService.InviteUser({
         tenant_id: req.user.tenant_id,
@@ -630,6 +646,18 @@ export class IntegrationsController implements OnModuleInit {
   @Post("api-keys")
   @HttpCode(201)
   async createKey(@Req() req: any, @Body() body: { label?: string }) {
+    // API integration keys are a Pro Organisation (or internal) capability.
+    const usage: any = await firstValueFrom(
+      this.authService.GetTenantUsage({ tenant_id: req.user.tenant_id }),
+    );
+    if (!limitsFor(usage?.plan).canCreateApiKeys) {
+      throw new ForbiddenException({
+        code: "plan_limit",
+        limit: "api_keys",
+        message:
+          "La création de clés d'intégration API est réservée au plan Pro Organisation. Passez à ce plan pour connecter vos outils externes.",
+      });
+    }
     return firstValueFrom(
       this.authService.GenerateApiClient({
         tenant_id: req.user.tenant_id,

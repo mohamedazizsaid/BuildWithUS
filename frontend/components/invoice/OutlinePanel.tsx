@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Eye, EyeOff, GripVertical, Lock, ChevronDown, Plus, Minus, Stamp, Upload, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import type { Invoice, BlockId } from '@/lib/invoice/types';
 import { ESSENTIAL_BLOCKS } from '@/lib/invoice/types';
 import { media } from '@/lib/api';

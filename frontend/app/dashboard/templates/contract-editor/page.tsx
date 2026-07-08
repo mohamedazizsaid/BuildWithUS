@@ -16,7 +16,7 @@ import {
   Square, Circle, Minus,
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 import { templates, contractVariables, media, getEmbedReturnOrigin, isEmbedMode, getBuilderReturnUrl, setBuilderReturnUrl } from '@/lib/api';
 import { useAuth } from '@/context/auth';

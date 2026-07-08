@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { AppModule } from './app.module';
+import { AllRpcExceptionsFilter } from './all-rpc-exceptions.filter';
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.development' });
@@ -27,6 +28,9 @@ async function bootstrap() {
       },
     },
   );
+
+  // Preserve real error messages across gRPC (NestJS hides them by default).
+  app.useGlobalFilters(new AllRpcExceptionsFilter());
 
   await app.listen();
   console.log(`Auth service running on gRPC port ${grpcPort}`);

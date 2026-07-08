@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { json, raw, urlencoded } from 'express';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './all-exceptions.filter';
 import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
@@ -22,6 +23,9 @@ async function bootstrap() {
 
   // Cookies (JWT)
   app.use(cookieParser());
+
+  // Turn gRPC / unexpected errors into clean JSON the frontend can display.
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // CORS — allow the dev frontends, plus any production origin(s) from env.
   // FRONTEND_ORIGIN can be a comma-separated list (e.g. the server URL).

@@ -19,6 +19,13 @@ export class Tenant {
     private subscriptionStatus: string | null = null,
     private stripeCustomerId: string | null = null,
     private stripeSubscriptionId: string | null = null,
+    // ── Plan-usage counters ──────────────────────────────────────────────
+    // MONOTONIC — they only ever go up, and are NEVER decremented on delete.
+    // This is what enforces the free plan's lifetime caps: creating then
+    // deleting a template still leaves emailTemplatesCreated at 1, so a free
+    // tenant can't delete-and-recreate to dodge the limit.
+    private emailTemplatesCreated: number = 0,
+    private aiInteractionsUsed: number = 0,
    ) {}
 
    public static create(name: string, plan: string = 'free'): Tenant {
@@ -41,10 +48,13 @@ export class Tenant {
     subscriptionStatus: string | null = null,
     stripeCustomerId: string | null = null,
     stripeSubscriptionId: string | null = null,
+    emailTemplatesCreated: number = 0,
+    aiInteractionsUsed: number = 0,
    ): Tenant {
       return new Tenant(
          id, name, plan, createdAt, updatedAt,
          billingCycle, subscriptionStatus, stripeCustomerId, stripeSubscriptionId,
+         emailTemplatesCreated, aiInteractionsUsed,
       );
    }
 
@@ -58,6 +68,18 @@ export class Tenant {
 
    public updatePlan(plan: string): void {
       this.plan = plan;
+      this.updatedAt = new Date();
+   }
+
+   // Bump the lifetime counters. Called once per successful email-template
+   // creation / AI interaction. Never decremented — see the field comment.
+   public incrementEmailTemplatesCreated(): void {
+      this.emailTemplatesCreated += 1;
+      this.updatedAt = new Date();
+   }
+
+   public incrementAiInteractionsUsed(): void {
+      this.aiInteractionsUsed += 1;
       this.updatedAt = new Date();
    }
 
@@ -81,6 +103,8 @@ export class Tenant {
         subscriptionStatus: this.subscriptionStatus,
         stripeCustomerId: this.stripeCustomerId,
         stripeSubscriptionId: this.stripeSubscriptionId,
+        emailTemplatesCreated: this.emailTemplatesCreated,
+        aiInteractionsUsed: this.aiInteractionsUsed,
         createdAt: this.createdAt,
         updatedAt: this.updatedAt
     };
@@ -93,5 +117,7 @@ export class Tenant {
    public getSubscriptionStatus(): string | null { return this.subscriptionStatus; }
    public getStripeCustomerId(): string | null { return this.stripeCustomerId; }
    public getStripeSubscriptionId(): string | null { return this.stripeSubscriptionId; }
+   public getEmailTemplatesCreated(): number { return this.emailTemplatesCreated; }
+   public getAiInteractionsUsed(): number { return this.aiInteractionsUsed; }
 
 }

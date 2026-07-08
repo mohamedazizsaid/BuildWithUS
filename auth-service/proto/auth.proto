@@ -20,10 +20,13 @@ service AuthService{
     rpc ListAllTenants (ListAllTenantsRequest) returns (ListAllTenantsResponse);
     rpc UpdateTenantPlan (UpdateTenantPlanRequest) returns (TenantInfo);
     rpc GetTenantBilling (GetTenantBillingRequest) returns (TenantInfo);
+    rpc GetTenantUsage (GetTenantUsageRequest) returns (TenantUsageInfo);
+    rpc IncrementTenantUsage (IncrementTenantUsageRequest) returns (TenantUsageInfo);
     rpc ListApiClients (ListApiClientsRequest) returns (ListApiClientsResponse);
     rpc RevokeApiClient (RevokeApiClientRequest) returns (RevokeApiClientResponse);
     // Super-admin user management (cross-tenant)
     rpc ListAllUsers (ListAllUsersRequest) returns (ListAllUsersResponse);
+    rpc AdminSetTenantPlan (AdminSetTenantPlanRequest) returns (TenantInfo);
     rpc AdminUpdateUserRole (AdminUpdateUserRoleRequest) returns (AdminUserActionResponse);
     rpc AdminResetPassword (AdminResetPasswordRequest) returns (AdminUserActionResponse);
     rpc AdminDeleteUser (AdminDeleteUserRequest) returns (AdminUserActionResponse);
@@ -201,6 +204,27 @@ message TenantInfo {
     string subscription_status = 6;
     string stripe_customer_id = 7;
     string stripe_subscription_id = 8;
+    int32 email_templates_created = 9;
+    int32 ai_interactions_used = 10;
+}
+
+// Lightweight usage snapshot (no Stripe round-trip) used by the gateway to
+// enforce plan limits on hot paths (template create, AI interaction).
+message TenantUsageInfo {
+    string tenant_id = 1;
+    string plan = 2;
+    int32 email_templates_created = 3;
+    int32 ai_interactions_used = 4;
+}
+
+message GetTenantUsageRequest {
+    string tenant_id = 1;
+}
+
+// kind = "email_template" | "ai_interaction"
+message IncrementTenantUsageRequest {
+    string tenant_id = 1;
+    string kind = 2;
 }
 
 message UpdateTenantPlanRequest {
@@ -214,6 +238,14 @@ message UpdateTenantPlanRequest {
 
 message GetTenantBillingRequest {
     string tenant_id = 1;
+}
+
+// Super-admin plan override (no Stripe involved) — assigns free/pro/pro_org/
+// internal directly. Preserves any existing Stripe fields (unlike the
+// webhook-driven UpdateTenantPlan).
+message AdminSetTenantPlanRequest {
+    string tenant_id = 1;
+    string plan = 2;
 }
 
 message ListAllTenantsRequest {}

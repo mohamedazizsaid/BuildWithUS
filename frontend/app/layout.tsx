@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/auth";
 import { ConvexClientProvider } from "@/context/convex";
 import { Toaster } from "react-hot-toast";
+import UpgradeModal from "@/components/UpgradeModal";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
@@ -43,7 +44,38 @@ export default function RootLayout({
             {children}
           </AuthProvider>
         </ConvexClientProvider>
-        <Toaster position="top-right"/>
+        <UpgradeModal />
+        <Toaster
+          position="top-center"
+          gutter={10}
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#ffffff',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0',
+              borderRadius: '14px',
+              padding: '13px 16px',
+              fontSize: '14px',
+              fontWeight: 500,
+              lineHeight: '1.4',
+              maxWidth: '460px',
+              boxShadow: '0 12px 34px -12px rgba(15, 23, 42, 0.28)',
+            },
+            success: {
+              iconTheme: { primary: '#10b981', secondary: '#ffffff' },
+            },
+            error: {
+              duration: 6000,
+              iconTheme: { primary: '#ef4444', secondary: '#ffffff' },
+              style: {
+                border: '1px solid #fecaca',
+                background: '#fef2f2',
+                color: '#7f1d1d',
+              },
+            },
+          }}
+        />
       </body>
     </html>
   );

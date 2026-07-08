@@ -7,7 +7,7 @@ import { Mail, FileText, ScrollText, Pencil, Eye, Clock, Star } from 'lucide-rea
 import { templates } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { HtmlFrame } from '@/components/HtmlFrame';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 interface Template {
   id: string;

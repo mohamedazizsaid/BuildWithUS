@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { ChevronDown, Plus, Minus, Upload, X, Wand2, RefreshCw, Check } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { VARIABLE_PALETTE } from '@/lib/tiptap/contract-templates';
 import { BLOCK_LIBRARY } from '../_lib/block-library';
 import { parseCsv, slugifyHeader } from '../_lib/csv';

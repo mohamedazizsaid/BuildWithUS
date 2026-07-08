@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/auth';
@@ -58,6 +58,24 @@ export default function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Section to open the settings dialog on — set when deep-linked from
+  // /pricing via ?settings=billing (the "Retour aux paramètres" button).
+  const [settingsSection, setSettingsSection] = useState<'account' | 'billing' | 'integrations'>('account');
+
+  // Open Settings on the requested tab when arriving with ?settings=… and strip
+  // the param so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get('settings');
+    if (target === 'billing' || target === 'integrations' || target === 'account') {
+      setSettingsSection(target);
+      setSettingsOpen(true);
+      params.delete('settings');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
+  }, []);
 
   const isAdmin = user?.role === 'admin';
   const canEdit = user?.role === 'admin' || user?.role === 'editor' || user?.role === 'marketing';
@@ -194,7 +212,7 @@ export default function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
-    <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} initialSection={settingsSection} />
     </>
   );
 }

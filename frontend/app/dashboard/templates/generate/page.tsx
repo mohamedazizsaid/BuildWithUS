@@ -13,7 +13,7 @@ import { renderTiptapToHtml } from '@/lib/tiptap/variable-node';
 import { tryParsePdfTemplate, type PdfTemplate } from '../contract-editor/_lib/pdf-template';
 import { exportPdfTemplateWithValues } from '../contract-editor/_lib/pdf-export';
 import { parseCsv, slugifyHeader } from '../contract-editor/_lib/csv';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 
 

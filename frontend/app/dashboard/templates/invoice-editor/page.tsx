@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Save, Download, ChevronDown, FileDown } from 'lucide-react';
 import { templates, contractVariables, getBuilderReturnUrl, setBuilderReturnUrl } from '@/lib/api';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import type { Invoice, InvoiceData, ClientRelation } from '@/lib/invoice/types';
 import { defaultInvoice } from '@/lib/invoice/defaults';
 import { deserialize, serialize } from '@/lib/invoice/serialize';

@@ -1,3 +1,5 @@
+import { openUpgradeModal } from './upgrade-modal';
+
 // Dev: env var unset → uses localhost. Prod: Docker build arg sets the real URL.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -77,19 +79,48 @@ async function request(endpoint: string, options: RequestInit = {}){
         headers.Authorization = `Bearer ${t}`;
         credentials = 'omit';
     }
-    const res = await fetch(`${API_URL}${endpoint}`,{
-     ...options,
-     credentials,
-     headers,
-});
+    let res: Response;
+    try {
+        res = await fetch(`${API_URL}${endpoint}`, { ...options, credentials, headers });
+    } catch {
+        // fetch only rejects on network-level failures (offline, DNS, CORS,
+        // connection refused) — never on a 4xx/5xx.
+        throw new Error('Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.');
+    }
 
-const data = await res.json();
+    // Parse defensively: an error response (or a 504/timeout) may return HTML or
+    // an empty body, in which case res.json() would throw over the real error.
+    const text = await res.text();
+    let data: any = null;
+    if (text) {
+        try { data = JSON.parse(text); } catch { /* non-JSON body */ }
+    }
 
-if(!res.ok) {
-    throw new Error(data.message || 'Something went wrong');
+    if (!res.ok) {
+        const backendMsg = data && typeof data.message === 'string' ? data.message : null;
+        // Plan-restriction errors get the friendly upgrade modal instead of a
+        // bare toast (the toast wrapper suppresses the duplicate for the same msg).
+        const code = data && typeof data.code === 'string' ? data.code : null;
+        if (code === 'plan_limit' || code === 'ai_limit') {
+            openUpgradeModal({ message: backendMsg ?? undefined, reason: code });
+        }
+        throw new Error(backendMsg || httpFallbackMessage(res.status));
+    }
+
+    return data;
 }
 
-return data;
+// Human, French fallbacks when the server didn't send a usable message (e.g.
+// gateway timeouts, proxy errors). Prefer the backend's own message when present.
+function httpFallbackMessage(status: number): string {
+    if (status === 401) return 'Session expirée. Veuillez vous reconnecter.';
+    if (status === 403) return "Vous n'avez pas les droits pour effectuer cette action.";
+    if (status === 404) return 'Ressource introuvable.';
+    if (status === 409) return 'Cette ressource existe déjà.';
+    if (status === 413) return 'Le fichier est trop volumineux.';
+    if (status === 429) return 'Trop de requêtes. Veuillez patienter un instant.';
+    if (status >= 500) return 'Le serveur est momentanément indisponible. Veuillez réessayer.';
+    return 'Une erreur est survenue. Veuillez réessayer.';
 }
 
 // ------- AUTH ---------
@@ -184,6 +215,19 @@ export interface BillingInfo {
     cancel_at: number | null; // unix seconds
 }
 
+// Plan usage + capabilities — drives UI gating (hide/disable gated actions) and
+// the current-plan marker on /pricing. Limits are null when unlimited.
+export interface UsageInfo {
+    plan: string;
+    email_templates_created: number;
+    email_templates_limit: number | null;
+    ai_interactions_used: number;
+    ai_interactions_limit: number | null;
+    non_email_allowed: boolean;
+    can_invite_users: boolean;
+    can_create_api_keys: boolean;
+}
+
 export const billing = {
     // Opens a Stripe Checkout Session and returns its hosted URL to redirect to.
     createCheckout: (plan: string, billingCycle: string): Promise<{ url: string }> =>
@@ -192,8 +236,19 @@ export const billing = {
     get: (): Promise<BillingInfo> =>
         request('/billing'),
 
+    usage: (): Promise<UsageInfo> =>
+        request('/billing/usage'),
+
+    // Confirm + apply the plan after returning from Stripe Checkout (idempotent).
+    confirm: (sessionId: string): Promise<{ applied: boolean; plan: string | null }> =>
+        request('/billing/confirm', { method: 'POST', body: JSON.stringify({ session_id: sessionId }) }),
+
     cancel: (): Promise<{ cancel_at: number | null }> =>
         request('/billing/cancel', { method: 'POST' }),
+
+    // Undo a scheduled cancellation and keep the current plan running.
+    reactivate: (): Promise<{ current_period_end: number | null }> =>
+        request('/billing/reactivate', { method: 'POST' }),
 };
 
 //----- Templates ----

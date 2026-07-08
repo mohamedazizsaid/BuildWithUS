@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 interface ResetForm {
   password: string;

@@ -9,7 +9,7 @@ import {
   Search, KeyRound, ChevronDown,
 } from 'lucide-react';
 import { auth } from '@/lib/api';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { PreviewModal } from '@/app/dashboard/templates/_components/PreviewModal';
 import type { Template } from '@/app/dashboard/templates/_lib/types';
 
@@ -55,6 +55,20 @@ interface NewKeyResult {
 }
 
 const ROLES = ['admin', 'editor', 'viewer', 'marketing'];
+// Assignable plans (must match the gateway's ASSIGNABLE_PLANS whitelist).
+const PLANS = ['free', 'pro', 'pro_org', 'internal'];
+const PLAN_LABELS: Record<string, string> = {
+  free: 'Gratuit',
+  pro: 'Pro',
+  pro_org: 'Pro Organisation',
+  internal: 'Interne (illimité)',
+};
+const PLAN_STYLES: Record<string, string> = {
+  free: 'bg-slate-100 text-slate-600',
+  pro: 'bg-indigo-100 text-indigo-700',
+  pro_org: 'bg-violet-100 text-violet-700',
+  internal: 'bg-amber-100 text-amber-700',
+};
 const ALL_ROLE_FILTERS = ['admin', 'editor', 'viewer', 'marketing', 'super_admin'];
 const TEMPLATE_TYPES = ['EMAIL', 'SMS', 'RCS', 'FACTURE', 'CONTRAT'];
 
@@ -316,6 +330,19 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const changePlan = async (tenantId: string, plan: string) => {
+    try {
+      await request(`/auth/admin/tenants/${tenantId}/plan`, {
+        method: 'PATCH',
+        body: JSON.stringify({ plan }),
+      });
+      setTenants((prev) => prev.map((t) => (t.id === tenantId ? { ...t, plan } : t)));
+      toast.success('Plan mis à jour');
+    } catch (e: any) {
+      toast.error(e?.message || 'Erreur');
+    }
+  };
+
   const changeRole = async (user: UserRow, role: string) => {
     try {
       await request(`/auth/admin/users/${user.id}/role`, {
@@ -523,6 +550,9 @@ export default function SuperAdminDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${PLAN_STYLES[tenant.plan] ?? PLAN_STYLES.free}`}>
+                        {PLAN_LABELS[tenant.plan] ?? tenant.plan}
+                      </span>
                       <span className="flex items-center gap-1 text-[11px] text-slate-500"><Users size={11} />{tu.length}</span>
                       <span className="flex items-center gap-1 text-[11px] text-slate-500"><FileText size={11} />{tt.length}</span>
                       <ChevronDown size={14} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -539,6 +569,27 @@ export default function SuperAdminDashboard() {
                         className="border-t border-slate-100 overflow-hidden"
                       >
                         <div className="px-4 py-4 bg-slate-50/70 space-y-5">
+                          {/* Plan */}
+                          <div>
+                            <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                              <Shield size={11} /> Plan d&apos;abonnement
+                            </div>
+                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
+                              <select
+                                value={PLANS.includes(tenant.plan) ? tenant.plan : 'free'}
+                                onChange={(e) => changePlan(tenant.id, e.target.value)}
+                                className="text-xs text-slate-800 bg-transparent outline-none cursor-pointer"
+                              >
+                                {PLANS.map((p) => (
+                                  <option key={p} value={p}>{PLAN_LABELS[p]}</option>
+                                ))}
+                              </select>
+                              <span className="text-[10px] text-slate-400">
+                                « Interne » = accès illimité, non facturé (nos propres organisations).
+                              </span>
+                            </div>
+                          </div>
+
                           {/* Users */}
                           <div>
                             <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">

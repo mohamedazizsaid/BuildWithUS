@@ -6,7 +6,7 @@ import { Users, Mail, Shield, Pencil, Eye } from 'lucide-react';
 import { auth } from '@/lib/api';
 import { useAuth } from '@/context/auth';
 import { useSearch } from '@/context/search';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 
 interface Member {

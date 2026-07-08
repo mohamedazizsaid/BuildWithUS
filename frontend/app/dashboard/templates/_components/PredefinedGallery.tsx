@@ -9,7 +9,7 @@ import { renderRowsPreview } from '@/lib/preview-html';
 import { mjmlToPreviewHtml } from '../_lib/preview-helpers';
 import { templates } from '@/lib/api';
 import { useAuth } from '@/context/auth';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 // A tenant predefined entry created by the marketing team. The category id is
 // stored in `predefined_template_id` (see editor save flow + gateway).

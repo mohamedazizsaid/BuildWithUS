@@ -22,6 +22,7 @@ import { Roles, RolesGuard } from "../guards/roles.guard";
 import { PdfService } from "../services/pdf.service";
 import { TemplateRendererService } from "../services/template-renderer.service";
 import { Scopes, ScopesGuard } from "../guards/scopes.guard";
+import { limitsFor, isEmailType } from "../plan-limits";
 import nodemailer from "nodemailer";
 
 /**
@@ -40,11 +41,13 @@ import nodemailer from "nodemailer";
 export class TemplateController implements OnModuleInit {
   private commandService: any; // gRPC client for write operations
   private queryService: any; // gRPC client for read operations
+  private authService: any; // gRPC client for tenant plan/usage (limit checks)
 
   constructor(
     @Inject("TEMPLATE_COMMAND_SERVICE")
     private readonly commandClient: ClientGrpc,
     @Inject("TEMPLATE_QUERY_SERVICE") private readonly queryClient: ClientGrpc,
+    @Inject("AUTH_SERVICE") private readonly authClient: ClientGrpc,
     private readonly pdfService: PdfService,
     private readonly renderer: TemplateRendererService,
   ) {}
@@ -55,6 +58,7 @@ export class TemplateController implements OnModuleInit {
       "TemplateCommandService",
     );
     this.queryService = this.queryClient.getService("TemplateQueryService");
+    this.authService = this.authClient.getService("AuthService");
   }
 
   /**
@@ -170,6 +174,38 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
         "Only marketing members can create predefined templates",
       );
     }
+
+    // ── Plan-limit enforcement ──────────────────────────────────────────────
+    // Predefined-gallery entries (marketing) are a separate concept and don't
+    // count against a tenant's plan quota. Everything else is checked against
+    // the tenant's MONOTONIC usage counters so a free tenant can't delete and
+    // recreate to stay under the cap.
+    const email = isEmailType(body.type);
+    if (!body.isPredefinedOverride) {
+      const usage: any = await firstValueFrom(
+        this.authService.GetTenantUsage({ tenant_id: req.user.tenant_id }),
+      );
+      const limits = limitsFor(usage?.plan);
+      if (email) {
+        const created = Number(usage?.email_templates_created ?? 0);
+        if (limits.emailTemplates !== null && created >= limits.emailTemplates) {
+          throw new ForbiddenException({
+            code: "plan_limit",
+            limit: "email_templates",
+            message:
+              "Vous avez atteint la limite de votre plan (1 template email). Passez à un plan payant pour créer plus de templates.",
+          });
+        }
+      } else if (limits.nonEmailTemplates === 0) {
+        throw new ForbiddenException({
+          code: "plan_limit",
+          limit: "non_email_templates",
+          message:
+            "Le plan gratuit ne permet que la création d'emails. Passez à un plan payant pour créer des factures, contrats, SMS et RCS.",
+        });
+      }
+    }
+
     const result = await firstValueFrom(
       this.commandService.CreateTemplate({
         user_id: req.user.id, // from JWT — who is creating
@@ -186,6 +222,23 @@ const pdf = await this.pdfService.generatePdf(html, template.name);
         predefined_template_id: body.predefinedTemplateId || '',
       }),
     );
+
+    // Count this creation against the tenant's lifetime quota (email templates
+    // only — that's the plan-limited resource). Best-effort: never fail the
+    // create if the counter bump has a hiccup.
+    if (email && !body.isPredefinedOverride) {
+      try {
+        await firstValueFrom(
+          this.authService.IncrementTenantUsage({
+            tenant_id: req.user.tenant_id,
+            kind: "email_template",
+          }),
+        );
+      } catch {
+        /* usage counter is best-effort — don't block a successful create */
+      }
+    }
+
     return result;
   }
 

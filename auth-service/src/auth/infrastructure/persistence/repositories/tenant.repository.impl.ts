@@ -51,6 +51,8 @@ export class TenantRepositoryImpl extends TenantRepository {
             entity.subscriptionStatus ?? null,
             entity.stripeCustomerId ?? null,
             entity.stripeSubscriptionId ?? null,
+            entity.emailTemplatesCreated ?? 0,
+            entity.aiInteractionsUsed ?? 0,
         );
     }
 }

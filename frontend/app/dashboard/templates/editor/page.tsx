@@ -14,7 +14,7 @@ import EditorToolbar, { type AutosaveStatus } from "@/components/editor/EditorTo
 import Canvas from "@/components/editor/Canvas";
 import { LeftPanel, PropertiesPanel } from "@/components/editor/RightPanel";
 import { useAiChatState } from "@/components/editor/ai-chat/useAiChatState";
-import toast from "react-hot-toast";
+import toast from "@/lib/toast";
 import { templates, getBuilderReturnUrl, setBuilderReturnUrl } from "@/lib/api";
 import {
   BlockData,

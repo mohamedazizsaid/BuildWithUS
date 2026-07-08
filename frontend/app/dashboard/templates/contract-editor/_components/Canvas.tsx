@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { EditorContent } from '@tiptap/react';
 import { GripVertical, Copy, Trash2 as TrashIcon } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { resolveBlock } from '../_lib/blocks';
 import { replaceAllVariableNodes } from '../_lib/variable-mapping';
 import type { BlockMeta, FloatingImage, FloatingSignature } from '../_lib/types';

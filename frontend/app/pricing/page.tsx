@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/auth';
+import { billing } from '@/lib/api';
 import { PLANS, planPrice, type BillingCycle } from '@/lib/plans';
 
 // Anonymous visitors register first (paid plans carry the choice through to
@@ -18,6 +19,31 @@ function ctaHref(planId: string, isFree: boolean, cycle: BillingCycle, loggedIn:
 export default function PricingPage() {
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const { user } = useAuth();
+  // Current subscription plan of the logged-in tenant (null while loading /
+  // anonymous). Used to mark "your plan" and block re-purchasing it.
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setCurrentPlan(null);
+      return;
+    }
+    let alive = true;
+    billing
+      .usage()
+      .then((u) => {
+        if (alive) setCurrentPlan(u.plan);
+      })
+      .catch(() => {
+        /* non-admins can't read billing usage — leave unmarked */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
+  // Internal tenants (our own company) can't buy/switch plans on /pricing.
+  const isInternal = currentPlan === 'internal';
 
   return (
     <div className="min-h-screen bg-white">
@@ -32,12 +58,22 @@ export default function PricingPage() {
             <span className="text-white font-bold">W</span>
           </span>
         </Link>
-        <Link
-          href="/dashboard"
-          className="text-sm text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          Aller au tableau de bord
-        </Link>
+        {user ? (
+          <Link
+            href="/dashboard?settings=billing"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            <ArrowLeft size={15} />
+            Retour aux paramètres
+          </Link>
+        ) : (
+          <Link
+            href="/dashboard"
+            className="text-sm text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            Aller au tableau de bord
+          </Link>
+        )}
       </header>
 
       <motion.div
@@ -82,6 +118,10 @@ export default function PricingPage() {
             const price = planPrice(plan, cycle);
             const isFree = plan.id === 'free';
             const href = ctaHref(plan.id, isFree, cycle, !!user);
+            // The plan the tenant is already on — can't be re-purchased.
+            const isCurrent = !!user && currentPlan === plan.id;
+            // Internal tenants can't switch plans here at all.
+            const ctaDisabled = isCurrent || (isInternal && !isFree);
 
             return (
               <div
@@ -92,11 +132,15 @@ export default function PricingPage() {
                     : 'bg-white text-slate-900 border border-slate-200'
                 }`}
               >
-                {plan.highlight && (
+                {isCurrent ? (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-white">
+                    Votre plan actuel
+                  </div>
+                ) : plan.highlight ? (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-indigo-500 px-3 py-1 text-[11px] font-semibold text-white">
                     Le plus populaire
                   </div>
-                )}
+                ) : null}
 
                 <div className={`text-sm font-semibold ${plan.highlight ? 'text-indigo-300' : 'text-slate-500'}`}>
                   {plan.name}
@@ -124,18 +168,31 @@ export default function PricingPage() {
                   {plan.tagline}
                 </p>
 
-                <Link
-                  href={href}
-                  className={`mt-6 w-full rounded-full py-2.5 text-center text-sm font-medium transition-colors ${
-                    plan.highlight
-                      ? 'bg-white text-slate-900 hover:bg-white/90'
-                      : isFree
-                        ? 'border border-slate-300 text-slate-900 hover:bg-slate-50'
-                        : 'bg-slate-900 text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
+                {ctaDisabled ? (
+                  <span
+                    aria-disabled="true"
+                    className={`mt-6 w-full cursor-default rounded-full py-2.5 text-center text-sm font-medium ${
+                      plan.highlight
+                        ? 'bg-white/20 text-white/70'
+                        : 'border border-slate-200 text-slate-400'
+                    }`}
+                  >
+                    {isCurrent ? 'Plan actuel' : 'Indisponible'}
+                  </span>
+                ) : (
+                  <Link
+                    href={href}
+                    className={`mt-6 w-full rounded-full py-2.5 text-center text-sm font-medium transition-colors ${
+                      plan.highlight
+                        ? 'bg-white text-slate-900 hover:bg-white/90'
+                        : isFree
+                          ? 'border border-slate-300 text-slate-900 hover:bg-slate-50'
+                          : 'bg-slate-900 text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                )}
 
                 <div className="mt-7 flex flex-col gap-3">
                   {plan.features.map((f) => (

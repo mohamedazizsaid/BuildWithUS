@@ -26,7 +26,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
     // Check if email already exists
     const existingUser = await this.userRepository.findByEmail(command.email);
     if (existingUser) {
-      throw new Error('Email already registered');
+      throw new Error('Cet e-mail est déjà utilisé par un autre compte.');
     }
 
     // Always create a BRAND-NEW tenant for a registration. We must NOT reuse an
@@ -41,7 +41,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
     const existingTenant = await this.tenantRepository.findByName(command.tenantName);
     if (existingTenant) {
       throw new Error(
-        'An organization with this name already exists. Please choose a different name.',
+        'Une organisation portant ce nom existe déjà. Veuillez en choisir un autre.',
       );
     }
 

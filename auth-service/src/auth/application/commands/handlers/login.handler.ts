@@ -22,13 +22,13 @@ export class LoginHandler implements ICommandHandler<LoginCommand> {
     // Find user by email
     const user = await this.userRepository.findByEmail(command.email);
     if (!user) {
-      throw new Error('Invalid email or password');
+      throw new Error('E-mail ou mot de passe incorrect.');
     }
 
     // Verify password
     const isValid = await this.passwordService.compare(command.password, user.getPassword());
     if (!isValid) {
-      throw new Error('Invalid email or password');
+      throw new Error('E-mail ou mot de passe incorrect.');
     }
 
     this.logger.log(`User logged in: ${user.getId()}`);

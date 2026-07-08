@@ -44,6 +44,68 @@ interface ChatMessage {
   content: string;
 }
 
+// Gateway base URL for the server-side quota check. Prefer an internal URL when
+// set (docker service-to-service); otherwise fall back to the public API URL.
+const GATEWAY_URL =
+  process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+/** Read the dashboard session JWT from the request cookies. Absent in embed /
+ *  M2M mode (Bearer token lives in sessionStorage, not a cookie). */
+function readTokenCookie(req: Request): string | null {
+  const cookie = req.headers.get('cookie') || '';
+  const m = cookie.match(/(?:^|;\s*)token=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/**
+ * Consume one AI interaction against the tenant's plan quota. Returns a
+ * user-facing message when the free plan's single interaction is used up (the
+ * turn must NOT proceed), or null when generation may continue.
+ *
+ * Fail-open: if we can't identify the tenant (embed/anonymous) or the gateway
+ * is unreachable, we don't block — the counter simply isn't bumped.
+ */
+async function aiQuotaBlock(req: Request): Promise<string | null> {
+  const token = readTokenCookie(req);
+  if (!token) return null;
+  try {
+    const res = await fetch(`${GATEWAY_URL}/billing/ai/consume`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 403) {
+      const data = await res.json().catch(() => null);
+      return (
+        (typeof data?.message === 'string' && data.message) ||
+        "Vous avez utilisé votre interaction gratuite avec l'assistant IA. Passez à un plan payant pour un usage illimité."
+      );
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** One-shot NDJSON response carrying a single assistant message and no template
+ *  change — used to surface the plan-limit notice as a normal chat reply. */
+function noticeResponse(message: string): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(
+        encoder.encode(JSON.stringify({ type: 'done', message, template: null }) + '\n'),
+      );
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
 /**
  * Tool-based email generation. The model assembles the email by calling block
  * tools (see lib/ai/tools.ts); we accumulate the result into a Template and
@@ -79,6 +141,13 @@ export async function POST(req: Request): Promise<Response> {
   const selection = body.selection ?? null;
   if (messages.length === 0) {
     return Response.json({ error: 'No messages provided' }, { status: 400 });
+  }
+
+  // Plan-limit gate: the free plan gets a single AI interaction. When it's used
+  // up, reply with an upgrade notice instead of generating.
+  const quotaMsg = await aiQuotaBlock(req);
+  if (quotaMsg) {
+    return noticeResponse(quotaMsg);
   }
 
   const isEdit = !!currentTemplate;

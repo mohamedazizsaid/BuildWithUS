@@ -9,7 +9,7 @@ import {
   ArrowLeft, Save, MessageSquareMore, Plus, Loader2, Check, CloudOff, Upload, X, Braces,
   Type as TypeIcon, Image as ImageIcon, GalleryHorizontalEnd, Trash2, ChevronUp, ChevronDown,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 import {
   templates, isEmbedMode, getEmbedReturnOrigin, getBuilderReturnUrl, setBuilderReturnUrl,

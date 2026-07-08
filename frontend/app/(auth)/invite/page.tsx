@@ -6,7 +6,7 @@ import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import AuthLayout from '@/components/auth/AuthLayout';
 
 interface InviteForm {

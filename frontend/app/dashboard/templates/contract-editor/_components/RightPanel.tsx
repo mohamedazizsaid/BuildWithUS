@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { ImagePlus, Trash2, PenLine, UploadCloud } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import type { FloatingImage, FloatingSignature } from '../_lib/types';
 
 const SIGNATURE_ROLES = ['Client', 'Prestataire', 'Témoin', 'Représentant'] as const;

@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, FileSpreadsheet, Upload, AlertCircle } from 'lucide-react';
 import { parseFile, type ParsedFile } from '@/lib/invoice/ingest/parse-file';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 interface Props {
   onCancel: () => void;

@@ -17,7 +17,7 @@ import {
   Loader2,
   CreditCard,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth';
 import { auth, integrations, billing, type IntegrationKey, type BillingInfo } from '@/lib/api';
@@ -31,13 +31,21 @@ type Section = 'account' | 'billing' | 'integrations';
 export default function SettingsDialog({
   open,
   onOpenChange,
+  initialSection,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** Section to focus when the dialog opens (e.g. deep-linked from /pricing). */
+  readonly initialSection?: Section;
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const [section, setSection] = useState<Section>('account');
+  const [section, setSection] = useState<Section>(initialSection ?? 'account');
+
+  // When (re)opened via a deep link, jump to the requested section.
+  useEffect(() => {
+    if (open && initialSection) setSection(initialSection);
+  }, [open, initialSection]);
 
   // Billing + Integrations are org-level and admin-only — keep non-admins on Account.
   useEffect(() => {
@@ -248,6 +256,19 @@ function BillingSection({ onClose }: { readonly onClose: () => void }) {
     }
   };
 
+  const reactivate = async () => {
+    setCancelling(true);
+    try {
+      await billing.reactivate();
+      toast.success('Abonnement réactivé.');
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Échec de la réactivation');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -317,9 +338,19 @@ function BillingSection({ onClose }: { readonly onClose: () => void }) {
             <span className="font-medium">{user?.email || '—'}</span>
           </div>
           {scheduledCancel && (
-            <p className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700">
-              Résiliation programmée — l&apos;abonnement prendra fin à la date ci-dessus.
-            </p>
+            <div className="space-y-2 rounded-md bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700">
+              <p>Résiliation programmée — l&apos;abonnement prendra fin à la date ci-dessus.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={reactivate}
+                disabled={cancelling}
+                className="h-7 border-amber-500/40 text-amber-700 hover:bg-amber-500/10 hover:text-amber-800"
+              >
+                {cancelling && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                Réactiver l&apos;abonnement
+              </Button>
+            </div>
           )}
         </div>
       ) : isInternal ? (
@@ -369,6 +400,9 @@ function IntegrationsSection() {
   const [creating, setCreating] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [secret, setSecret] = useState<{ client_id: string; client_secret: string } | null>(null);
+  // API keys are a Pro Organisation (or internal) capability. Default true to
+  // avoid a flash; corrected once usage loads.
+  const [canCreate, setCanCreate] = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -382,6 +416,10 @@ function IntegrationsSection() {
 
   useEffect(() => {
     load();
+    billing
+      .usage()
+      .then((u) => setCanCreate(u.can_create_api_keys))
+      .catch(() => setCanCreate(true));
   }, [load]);
 
   const create = async () => {
@@ -427,23 +465,35 @@ function IntegrationsSection() {
         </Link>
       </div>
 
-      {/* Create */}
-      <div className="flex items-end gap-2 rounded-lg border bg-muted/30 p-3">
-        <div className="flex-1 space-y-1.5">
-          <Label htmlFor="key-label" className="text-xs">Nom de la clé (optionnel)</Label>
-          <Input
-            id="key-label"
-            value={newLabel}
-            onChange={(e) => setNewLabel(e.target.value)}
-            placeholder="Ex : CRM Production"
-            maxLength={120}
-          />
+      {/* Create — gated to Pro Organisation / internal plans */}
+      {canCreate ? (
+        <div className="flex items-end gap-2 rounded-lg border bg-muted/30 p-3">
+          <div className="flex-1 space-y-1.5">
+            <Label htmlFor="key-label" className="text-xs">Nom de la clé (optionnel)</Label>
+            <Input
+              id="key-label"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              placeholder="Ex : CRM Production"
+              maxLength={120}
+            />
+          </div>
+          <Button onClick={create} disabled={creating}>
+            {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            Générer
+          </Button>
         </div>
-        <Button onClick={create} disabled={creating}>
-          {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-          Générer
-        </Button>
-      </div>
+      ) : (
+        <div className="rounded-lg border p-4">
+          <div className="text-sm font-medium">Réservé au plan Pro Organisation</div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Les clés d&apos;intégration API sont disponibles avec le plan Pro Organisation.
+          </p>
+          <Button asChild size="sm" className="mt-3">
+            <Link href="/pricing">Voir les plans</Link>
+          </Button>
+        </div>
+      )}
 
       {/* List */}
       {keys === null ? (
