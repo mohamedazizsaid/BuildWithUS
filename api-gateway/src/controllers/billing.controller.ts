@@ -47,9 +47,12 @@ const PRICE_IDS: Record<string, Record<string, string>> = {
 // the old HT-only behaviour instead of crashing).
 const TAX_RATE_ID = process.env.STRIPE_TAX_RATE_ID || '';
 
-/** tax_rates array for a line/subscription item, or undefined when unconfigured. */
+/** tax_rates array for a line/subscription item, or undefined when unconfigured.
+ *  Only a well-formed Stripe id (`txr_` + alphanumerics) is sent — an unset var
+ *  or a leftover placeholder (e.g. "txr_PASTE_YOUR_TAX_RATE_ID_HERE") falls back
+ *  to HT-only pricing instead of throwing "No such tax rate" (a 500) at Stripe. */
 function taxRates(): string[] | undefined {
-  return TAX_RATE_ID ? [TAX_RATE_ID] : undefined;
+  return /^txr_[A-Za-z0-9]+$/.test(TAX_RATE_ID) ? [TAX_RATE_ID] : undefined;
 }
 
 // Reverse lookup: Stripe price id → { plan, cycle }. Lets webhooks map a

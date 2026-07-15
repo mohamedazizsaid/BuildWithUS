@@ -12,8 +12,11 @@ import { getPlan, planPrice, vatBreakdown, VAT_RATE_PCT, type BillingCycle } fro
 import { billing } from '@/lib/api';
 
 // Load Stripe.js once (module scope). The publishable key is public by design;
-// it only identifies the account and can't move money on its own.
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
+// it only identifies the account and can't move money on its own. Guard the
+// empty case — loadStripe('') throws an IntegrationError, so we pass null (the
+// provider simply waits) and surface a clean "not configured" message instead.
+const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
+const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
 
 function CheckoutInner() {
   const searchParams = useSearchParams();
