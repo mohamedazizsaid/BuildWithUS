@@ -50,6 +50,17 @@ function frontendUrl(): string {
   return process.env.STRIPE_RETURN_URL || process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3001';
 }
 
+// Current-period end (the next renewal date, unix seconds). As of Stripe API
+// 2025-03-31.basil (SDK v18+, we're on v22), `current_period_end` no longer sits
+// on the Subscription object — it moved onto each subscription ITEM. Read the
+// item first, then fall back to the legacy top-level field for older API
+// versions. This is why `cancel_at` (still top-level) rendered but the renewal
+// date came back empty.
+function periodEnd(sub: Stripe.Subscription): number | null {
+  const s = sub as any;
+  return s?.items?.data?.[0]?.current_period_end ?? s?.current_period_end ?? null;
+}
+
 @Controller('billing')
 export class BillingController implements OnModuleInit {
   private authService: any;
@@ -198,7 +209,7 @@ export class BillingController implements OnModuleInit {
         const sub = await this.stripe.subscriptions.retrieve(info.stripe_subscription_id, {
           expand: ['default_payment_method'],
         });
-        currentPeriodEnd = (sub as any).current_period_end ?? null;
+        currentPeriodEnd = periodEnd(sub);
         cancelAt = (sub as any).cancel_at ?? null;
         const pm: any = (sub as any).default_payment_method;
         if (pm?.card) card = { brand: pm.card.brand, last4: pm.card.last4 };
@@ -312,7 +323,7 @@ export class BillingController implements OnModuleInit {
       cancel_at_period_end: true,
     });
 
-    return { cancel_at: (sub as any).cancel_at ?? (sub as any).current_period_end ?? null };
+    return { cancel_at: (sub as any).cancel_at ?? periodEnd(sub) ?? null };
   }
 
   // ── Reactivate: undo a scheduled cancellation on the current plan ─────────
@@ -333,7 +344,7 @@ export class BillingController implements OnModuleInit {
       cancel_at_period_end: false,
       cancel_at: null,
     });
-    return { current_period_end: (sub as any).current_period_end ?? null };
+    return { current_period_end: periodEnd(sub) };
   }
 
   // ── Stripe webhook — the source of truth for plan changes ─────────────────

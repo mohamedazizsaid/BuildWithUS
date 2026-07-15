@@ -310,6 +310,49 @@ export class TemplateBuilder {
   }
 
   /**
+   * A side-by-side pricing/plan row, laid out deterministically so the model
+   * never has to choreograph columns + cards + buttons itself (which small
+   * models fail at). 1 plan → a full-width bordered card; 2-3 plans → one row of
+   * equal columns, each turned into a card (caption name → h1 price → features →
+   * pill CTA). Mirrors executeSpec's `pricing` case so tool-driven paths (agentic
+   * fallback, critic, missing-price repair) produce the same result as the
+   * planner path. Prices/features/names are used verbatim (only sanitized).
+   */
+  addPricingRow(
+    plans: { name: string; price?: string; features?: string[]; ctaText?: string }[],
+  ): void {
+    const valid = plans.filter((p) => (p.name || '').trim()).slice(0, 3);
+    if (valid.length === 0) return;
+
+    const fill = (p: { name: string; price?: string; features?: string[]; ctaText?: string }) => {
+      this.addText({ text: p.name, role: 'caption', align: 'center' });
+      if (p.price && p.price.trim()) this.addHeading({ text: p.price, level: 'h1', align: 'center' });
+      const feats = (p.features || []).map((f) => f.trim()).filter(Boolean);
+      if (feats.length) this.addText({ text: feats.join('<br/>'), role: 'body', align: 'center' });
+      if (p.ctaText && p.ctaText.trim())
+        this.addButton({ text: p.ctaText, url: '#', align: 'center', pill: true });
+    };
+
+    // Single plan → full-width highlighted card.
+    if (valid.length === 1) {
+      this.startCard();
+      fill(valid[0]);
+      return;
+    }
+
+    // Multiple plans → equal columns, one card per column (max 3, respects the
+    // 4-column ceiling).
+    const layout: RowLayout = valid.length >= 3 ? '33-33-33' : '50-50';
+    this.startSection(layout);
+    valid.forEach((p, i) => {
+      if (i > 0) this.nextColumn();
+      this.cardColumn();
+      fill(p);
+    });
+    this.inCard = false;
+  }
+
+  /**
    * A multi-color brand accent bar (BleuFix-style). Rendered as a SINGLE
    * full-width block whose content is an email-safe HTML table of equal colored
    * cells — so it supports any number of colors (2-8), unlike the old

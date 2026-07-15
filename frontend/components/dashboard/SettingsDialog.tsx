@@ -241,6 +241,14 @@ function BillingSection({ onClose }: { readonly onClose: () => void }) {
         ? 'Mensuel · sans engagement'
         : null;
   const scheduledCancel = !!info?.cancel_at;
+  // Only the annual commitment ("avec engagement") renews on a set date, so it
+  // shows "Prochain renouvellement". A flexible monthly plan is paid one month
+  // at a time with no commitment, and a scheduled cancellation both end access —
+  // so both are framed as "Fin de l'accès". The date shown is cancel_at when a
+  // cancellation is scheduled, otherwise the current period end.
+  const showRenewal = info?.billing_cycle === 'annual' && !scheduledCancel;
+  const dateLabel = showRenewal ? 'Prochain renouvellement' : "Fin de l'accès";
+  const dateValue = scheduledCancel ? info?.cancel_at ?? null : info?.current_period_end ?? null;
 
   const cancel = async () => {
     if (!confirm("Résilier votre abonnement ? Vous conserverez l'accès jusqu'à la fin de la période déjà payée.")) return;
@@ -330,8 +338,8 @@ function BillingSection({ onClose }: { readonly onClose: () => void }) {
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">{scheduledCancel ? 'Fin de l\'accès' : 'Prochain renouvellement'}</span>
-            <span className="font-medium">{fmtDate(scheduledCancel ? info?.cancel_at ?? null : info?.current_period_end ?? null)}</span>
+            <span className="text-muted-foreground">{dateLabel}</span>
+            <span className="font-medium">{fmtDate(dateValue)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">E-mail de facturation</span>

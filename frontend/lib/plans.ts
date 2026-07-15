@@ -73,7 +73,6 @@ export const PLANS: Plan[] = [
       "Interactions illimitées avec l'assistant IA",
       'Tous les éditeurs (email, contrat, facture, RCS, SMS)',
       'Export & envoi de tests',
-      'Support prioritaire',
     ],
     cta: 'Passer à Pro',
     highlight: true,

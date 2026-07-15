@@ -69,6 +69,29 @@ export function createBlockTools(builder: TemplateBuilder) {
       },
     }),
 
+    addPricingRow: tool({
+      description:
+        "Ajoute une rangée de FORFAITS/tarifs présentés CÔTE À CÔTE (1 à 3 forfaits). C'est le SEUL bon outil pour plusieurs forfaits/offres : la mise en page côte à côte (colonnes égales, une carte par forfait avec nom → prix → caractéristiques → bouton) est gérée automatiquement — n'assemble PAS les forfaits à la main avec startSection/nextColumn/addButton. Reprends les prix VERBATIM. Un seul forfait → une carte pleine largeur.",
+      inputSchema: z.object({
+        plans: z
+          .array(
+            z.object({
+              name: z.string().describe("Nom du forfait, ex '100 Go', 'Pro'"),
+              price: z.string().optional().describe("Prix EXACT/verbatim, ex '12,90 €/mois'"),
+              features: z.array(z.string()).optional().describe('Caractéristiques du forfait'),
+              ctaText: z.string().optional().describe("Libellé du bouton, ex 'Choisir'"),
+            }),
+          )
+          .min(1)
+          .max(3)
+          .describe('Les forfaits, dans l\'ordre. 1 = carte pleine largeur ; 2-3 = côte à côte.'),
+      }),
+      execute: async ({ plans }) => {
+        builder.addPricingRow(plans);
+        return ok('pricing-row');
+      },
+    }),
+
     nextColumn: tool({
       description:
         'Passe à la colonne suivante d\'une section multi-colonnes. À utiliser une fois la première colonne remplie. NE mets PAS de bouton, séparateur, liste ou pied de page dans une section multi-colonnes — démarre une nouvelle section pleine largeur pour ça.',

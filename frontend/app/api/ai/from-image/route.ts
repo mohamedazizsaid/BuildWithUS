@@ -3,9 +3,10 @@ import { getModel, DEFAULT_MODEL, FALLBACK_MODEL } from '@/lib/ai/provider';
 import { createBlockTools, createEditTools } from '@/lib/ai/tools';
 import { TemplateBuilder, frameTemplate, dedupeTemplate } from '@/lib/ai/block-factory';
 import { buildImageSystemPrompt, buildSystemPrompt } from '@/lib/ai/system-prompt';
-import { readImageReport } from '@/lib/ai/image-report';
+import { readImageReport, type ImageReport } from '@/lib/ai/image-report';
 import { buildImageDirective, imageThemeSeed } from '@/lib/ai/report-to-directive';
-import { ensurePosterBanner } from '@/lib/ai/poster-image';
+import { countBlocks } from '@/lib/ai/poster-image';
+import { stripPosterLeaks, findMissingPrices } from '@/lib/ai/image-fidelity';
 import { planDesign, executeSpec } from '@/lib/ai/planner';
 import {
   critiqueAgainstImage,
@@ -55,8 +56,10 @@ export async function POST(req: Request): Promise<Response> {
 
   const image = typeof body.image === 'string' ? body.image : '';
   const userPrompt = typeof body.prompt === 'string' ? body.prompt : '';
-  // Public URL of the uploaded poster (stored to MinIO client-side). When present
-  // the poster itself becomes the email banner instead of AI stock photos.
+  // Public URL of the uploaded poster (stored to MinIO client-side). We do NOT
+  // paste the poster into the email — the whole point of this flow is to READ the
+  // affiche and rebuild it as native, editable blocks. We only keep the URL as a
+  // reference so stripPosterLeaks can remove it if the model ever emits it.
   const posterUrl =
     typeof body.posterUrl === 'string' && /^https?:|^data:image\//i.test(body.posterUrl)
       ? body.posterUrl
@@ -79,11 +82,10 @@ export async function POST(req: Request): Promise<Response> {
         send({ type: 'status', stage: 'analyzed', report });
 
         // ── STEP 2: report → directive + theme seed → generation ─────────────
-        const directive = buildImageDirective(report, userPrompt, posterUrl || undefined);
+        // No posterUrl passed → the directive tells the model to rebuild the
+        // affiche natively (stock photos for visuals), never to paste the poster.
+        const directive = buildImageDirective(report, userPrompt);
         const seed = imageThemeSeed(report);
-        // Alt text for the poster banner — the campaign's own headline / subject.
-        const posterAlt =
-          report.content.offer.headline || report.visual.subject.what || report.visual.brand.name || 'Affiche';
 
         // One generation pass with a given model. Fresh builder + tools + prose
         // buffer per attempt; the builder is pre-seeded with the brand theme so
@@ -206,14 +208,36 @@ export async function POST(req: Request): Promise<Response> {
         // With a poster URL the affiche is the banner and we suppress AI stock
         // imagery entirely; otherwise resolve stock photos as before.
         send({ type: 'status', stage: 'template' });
-        let built: TemplateData;
-        if (posterUrl) {
-          built = ensurePosterBanner(finalBuilder.build(), posterUrl, posterAlt);
-        } else {
-          await resolveStockImages(finalBuilder, IMAGE_SEARCH_URL);
-          built = finalBuilder.build();
+        // Rebuild-from-info ONLY: resolve stock photos for any native image
+        // blocks, then strip any poster the model may have pasted (by its URL and
+        // by the poster/affiche/uploaded heuristic). The affiche is never pasted.
+        await resolveStockImages(finalBuilder, IMAGE_SEARCH_URL);
+        let built: TemplateData = finalBuilder.build();
+        const leaks = stripPosterLeaks(built, posterUrl || undefined);
+        if (leaks > 0) console.warn(`[from-image] stripped ${leaks} poster re-paste(s)`);
+        let template = frameTemplate(dedupeTemplate(built));
+
+        // ── Missing-price repair: one targeted pass if a price was dropped/altered.
+        const missing = findMissingPrices(template, report);
+        if (missing.length > 0) {
+          try {
+            const orig = countBlocks(template);
+            const repaired = await repairMissingPrices(template, missing, report);
+            const rc = countBlocks(repaired);
+            // Accept a surgical correction (allow one addPricingRow to add blocks);
+            // reject a swing that means the model rebuilt/duplicated the email.
+            if (rc >= orig - 2 && rc <= orig + 14) {
+              const rebuilt = frameTemplate(dedupeTemplate(repaired));
+              stripPosterLeaks(rebuilt, posterUrl || undefined);
+              template = rebuilt;
+            }
+            const stillMissing = findMissingPrices(template, report);
+            if (stillMissing.length > 0)
+              console.warn('[from-image] prices still missing after repair:', stillMissing);
+          } catch (e) {
+            console.warn('[from-image] price repair skipped:', e instanceof Error ? e.message : e);
+          }
         }
-        const template = frameTemplate(dedupeTemplate(built));
         send({
           type: 'done',
           message: chosen.prose.trim() || "Voici l'email créé à partir de votre affiche.",
@@ -272,6 +296,56 @@ async function applyImageFixes(
   for await (const _delta of result.textStream) void _delta;
   await result.finishReason;
   return builder;
+}
+
+/**
+ * Targeted repair pass: the offer prices in `missing` are absent from / altered
+ * in the generated email. Load it in edit mode and let the model correct ONLY
+ * those, via updateBlock (wrong value) or addPricingRow (a dropped plan). Its
+ * prose is discarded; only the tool edits matter. Bounded steps. Returns the
+ * rebuilt template (caller re-frames / re-checks and applies an acceptance guard).
+ */
+async function repairMissingPrices(
+  template: TemplateData,
+  missing: string[],
+  report: ImageReport,
+): Promise<TemplateData> {
+  const builder = new TemplateBuilder();
+  builder.loadTemplate(template);
+  const tools = { ...createBlockTools(builder), ...createEditTools(builder) };
+
+  const o = report.content.offer;
+  const offerLines: string[] = [];
+  if (o.price) offerLines.push(`Prix principal : ${o.price}`);
+  if (o.plans.length) {
+    offerLines.push('Forfaits :');
+    for (const p of o.plans)
+      offerLines.push(
+        `- ${p.name}${p.price ? ` — ${p.price}` : ''}` +
+          (p.features.length ? ` (${p.features.join(', ')})` : ''),
+      );
+  }
+
+  const directive =
+    'Email actuel (chaque bloc a un id) :\n' +
+    JSON.stringify(summarizeTemplateForCritic(template)) +
+    "\n\nCORRECTIONS OBLIGATOIRES : les prix suivants de l'affiche sont absents ou modifiés : " +
+    missing.join(' ; ') +
+    '. Corrige avec updateBlock (si le prix existe mais est erroné) ou addPricingRow (pour un/des forfaits manquants), rien d\'autre. Reprends les prix VERBATIM.' +
+    (offerLines.length ? "\n\nRappel de l'offre (verbatim) :\n" + offerLines.join('\n') : '');
+
+  const result = streamText({
+    model: getModel(DEFAULT_MODEL),
+    system: buildSystemPrompt({ isEdit: true }),
+    messages: [{ role: 'user', content: directive }],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tools: tools as any,
+    stopWhen: stepCountIs(8),
+    maxOutputTokens: GEN_MAX_TOKENS,
+  });
+  for await (const _delta of result.textStream) void _delta;
+  await result.finishReason;
+  return builder.build();
 }
 
 /**
