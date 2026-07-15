@@ -254,7 +254,13 @@ function RcsEditorContent() {
       <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { if (isEmbed) postToHost({ event: 'closed' }); else router.back(); }}
+            onClick={() => {
+              // Redirect (full-page) integration session → return to the host's
+              // callback URL, same as save/create. No template_id: this is a cancel.
+              const returnUrl = getBuilderReturnUrl();
+              if (returnUrl) { setBuilderReturnUrl(null); window.location.href = returnUrl; return; }
+              if (isEmbed) postToHost({ event: 'closed' }); else router.back();
+            }}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft size={15} /> {isEmbed ? 'Fermer' : 'Retour'}

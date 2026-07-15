@@ -846,6 +846,10 @@ export function ContractEditorContent() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
+              // Redirect (full-page) integration session → return to the host's
+              // callback URL, same as save/create. No template_id: this is a cancel.
+              const returnUrl = getBuilderReturnUrl();
+              if (returnUrl) { setBuilderReturnUrl(null); window.location.href = returnUrl; return; }
               if (isEmbed) postToHost({ event: 'closed' });
               else router.back();
             }}

@@ -754,6 +754,16 @@ function EditorContent() {
         editDevice={editDevice}
         setEditDevice={setEditDevice}
         onBack={() => {
+          // Integration/embed session: the user came in from a host tool, so
+          // "Retour" must hand control back to that tool's callback URL — the
+          // same one save/create uses — not the Winaity dashboard (which the
+          // embedded user can't navigate). No template_id: this is a cancel.
+          const returnUrl = getBuilderReturnUrl();
+          if (returnUrl) {
+            setBuilderReturnUrl(null);
+            window.location.href = returnUrl;
+            return;
+          }
           const fromPredefinis = presetId || predefinedCategory || cloneFrom || searchParams.get("from") === "predifinis";
           router.push(
             fromPredefinis
