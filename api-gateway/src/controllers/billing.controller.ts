@@ -37,6 +37,21 @@ const PRICE_IDS: Record<string, Record<string, string>> = {
   },
 };
 
+// ── Stripe Tax Rate (TVA) ────────────────────────────────────────────────────
+// The listed prices above are HT (pre-tax). To charge — and to SHOW — French
+// TVA on Stripe's checkout, we attach a Stripe Tax Rate object to every line
+// item / subscription item. Create it once in the Stripe Dashboard
+// (Tax rates → 20% exclusive, "TVA"), then set its id (txr_…) here via env.
+// Its percentage MUST equal frontend VAT_RATE, or the /checkout total and the
+// amount Stripe charges will disagree. Empty ⇒ no tax attached (falls back to
+// the old HT-only behaviour instead of crashing).
+const TAX_RATE_ID = process.env.STRIPE_TAX_RATE_ID || '';
+
+/** tax_rates array for a line/subscription item, or undefined when unconfigured. */
+function taxRates(): string[] | undefined {
+  return TAX_RATE_ID ? [TAX_RATE_ID] : undefined;
+}
+
 // Reverse lookup: Stripe price id → { plan, cycle }. Lets webhooks map a
 // subscription's price back to our plan when Stripe (not us) is the source.
 const PRICE_TO_PLAN: Record<string, { plan: string; cycle: string }> = Object.entries(
@@ -111,7 +126,9 @@ export class BillingController implements OnModuleInit {
           const updated = await this.stripe.subscriptions.update(
             info.stripe_subscription_id,
             {
-              items: itemId ? [{ id: itemId, price: priceId }] : undefined,
+              items: itemId
+                ? [{ id: itemId, price: priceId, tax_rates: taxRates() }]
+                : undefined,
               cancel_at_period_end: false,
               cancel_at: null,
               proration_behavior: 'create_prorations',
@@ -138,23 +155,27 @@ export class BillingController implements OnModuleInit {
       }
     }
 
+    // Embedded (not hosted) Checkout: the payment form is mounted INSIDE our own
+    // /checkout page, so the user never gets bounced to a stripe.com page. We
+    // return the session's client_secret instead of a redirect URL, and use
+    // return_url (there is no success_url/cancel_url in embedded mode). Stripe
+    // redirects to return_url once payment completes; the dashboard confirms the
+    // session there so the plan lands even if the webhook is delayed (dev).
     const session = await this.stripe.checkout.sessions.create({
       mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
+      ui_mode: 'embedded_page',
+      line_items: [{ price: priceId, quantity: 1, tax_rates: taxRates() }],
       customer_email: req.user.email || undefined,
       client_reference_id: tenantId,
       // metadata on the session (for checkout.session.completed) AND on the
       // subscription (for later subscription.updated/deleted events).
       metadata: meta,
       subscription_data: { metadata: meta },
-      // session_id lets the dashboard confirm + apply the plan on return, so
-      // the upgrade lands even if the webhook is delayed / not running (dev).
-      success_url: `${frontendUrl()}/dashboard?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${frontendUrl()}/pricing?canceled=1`,
+      return_url: `${frontendUrl()}/dashboard?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
       allow_promotion_codes: true,
     });
 
-    return { url: session.url };
+    return { clientSecret: session.client_secret };
   }
 
   // ── Confirm a completed Checkout Session and apply the plan ───────────────

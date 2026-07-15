@@ -2,7 +2,8 @@ import { streamText, stepCountIs } from 'ai';
 import { getModel, DEFAULT_MODEL, FALLBACK_MODEL } from '@/lib/ai/provider';
 import { createBlockTools, createEditTools } from '@/lib/ai/tools';
 import { TemplateBuilder, frameTemplate, dedupeTemplate } from '@/lib/ai/block-factory';
-import { buildSystemPrompt, buildCriticPrompt } from '@/lib/ai/system-prompt';
+import { buildSystemPrompt, buildCriticPrompt, buildMcpSystemPrompt } from '@/lib/ai/system-prompt';
+import { buildViaMcp } from '@/lib/ai/mcp/generate';
 import {
   extractImageUrl,
   isImageIntent,
@@ -12,7 +13,7 @@ import {
   countBlocks,
   referencesCampaign,
 } from '@/lib/ai/poster-image';
-import { wantsRegenerate, wantsClear, wantsThemeChange, wantsFooterAppend, wantsLegibilityFix, classifyIntent } from '@/lib/ai/intent';
+import { wantsRegenerate, wantsClear, wantsThemeChange, wantsLegibilityFix, classifyIntent } from '@/lib/ai/intent';
 import { buildRegenerateDirective, regenerateSeed, extractBannerUrl, requestedAccent } from '@/lib/ai/regenerate';
 import { planDesign, executeSpec } from '@/lib/ai/planner';
 import { applySelectionCommand, looksLikeSelectionCommand, fixLegibility } from '@/lib/ai/edit-commands';
@@ -151,7 +152,10 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const isEdit = !!currentTemplate;
-  const system = buildSystemPrompt({ isEdit });
+  // Absolute URL of the MCP build endpoint, derived from the incoming request so
+  // it works in dev (3001) and prod without a hardcoded host. Model-driven build/
+  // edit turns discover their tools from here.
+  const mcpUrl = new URL('/builder/mcp', req.url).toString();
 
   // ── Explicit-image handling ──────────────────────────────────────────────
   // A pasted image URL in the message, or the carried poster URL when the user
@@ -202,23 +206,6 @@ export async function POST(req: Request): Promise<Response> {
   const tryDeterministicEdit =
     isEdit && !!currentTemplate && hasSelection && !doRegenerate && looksLikeSelectionCommand(lastUser);
 
-  // Fresh builder + tool set per attempt (so a fallback retry starts clean).
-  // Edit mode pre-loads the existing email and adds targeted edit tools, so the
-  // model only applies the requested delta — it never re-adds unchanged blocks.
-  const makeRun = () => {
-    const builder = new TemplateBuilder();
-    if (isEdit && editTemplate) {
-      builder.loadTemplate(editTemplate);
-      // New content lands above the footer by default; opt out only when the user
-      // explicitly wants it at the very bottom / after the footer.
-      if (wantsFooterAppend(lastUser)) builder.setFooterPin(false);
-    }
-    const tools = isEdit
-      ? { ...createBlockTools(builder), ...createEditTools(builder) }
-      : createBlockTools(builder);
-    return { builder, tools };
-  };
-
   const modelMessages: ChatMessage[] = [];
   if (isEdit && editTemplate) {
     modelMessages.push({
@@ -264,25 +251,20 @@ export async function POST(req: Request): Promise<Response> {
       // One full generation pass with a given model. Fresh builder + tools +
       // prose buffer per attempt, so a retry starts from a clean slate. Throws
       // on provider error; otherwise returns the populated builder + its prose.
-      const attempt = async (modelId: string) => {
-        const { builder, tools } = makeRun();
-        const cleaner = makeProseCleaner();
-        const result = streamText({
-          model: getModel(modelId),
-          system,
+      // Model-driven build/edit turn — tools are DISCOVERED from the MCP endpoint
+      // (self-describing), not hardcoded here. Returns a local builder loaded with
+      // the assembled template, so the finishing steps below are unchanged. A rich
+      // email can be ~25-30 tool calls, so keep generous step headroom.
+      const attempt = (modelId: string) =>
+        buildViaMcp({
+          mcpUrl,
+          modelId,
+          system: buildMcpSystemPrompt({ isEdit }),
           messages: modelMessages,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          tools: tools as any,
-          // A rich email (hero + intro + 2-3 content sections + card + footer)
-          // can be ~25-30 tool calls; keep enough headroom so the footer isn't
-          // truncated mid-generation.
-          stopWhen: stepCountIs(36),
-          maxOutputTokens: GEN_MAX_TOKENS,
+          editTemplate: isEdit ? editTemplate : null,
+          maxSteps: 36,
+          pump: (stream) => pumpProse(stream, makeProseCleaner(), send),
         });
-        const prose = await pumpProse(result.textStream, cleaner, send);
-        await result.finishReason; // rejects on model error
-        return { builder, prose };
-      };
 
       // A whole-email REGENERATE pass: fresh builder pre-seeded with the brand,
       // BASE generation prompt, and a directive carrying the current copy +
@@ -598,10 +580,14 @@ export async function POST(req: Request): Promise<Response> {
           // select the element, instead of an endless "tu n'as pas fait" loop.
           let message = chosen.prose.trim();
           if (isEdit) {
+            // The MCP build path returns a freshly-loaded builder (mutationCount
+            // resets to 0), so detect a real change by comparing the email before
+            // vs after — block count OR any serialized difference.
+            const before = JSON.stringify(editTemplate ?? currentTemplate);
             const changed =
               imageAddedDeterministically ||
               finalBuilder.blockCount !== editBlockCount ||
-              finalBuilder.mutationCount > 0;
+              JSON.stringify(template) !== before;
             message = changed
               ? message || "C'est fait."
               : "Je n'ai pas réussi à appliquer ce changement. Pouvez-vous préciser l'élément concerné — ou le sélectionner dans l'aperçu ?";

@@ -153,6 +153,10 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
       STRIPE_RETURN_URL: ${STRIPE_RETURN_URL}
+      # Stripe Tax Rate id (txr_…) for French TVA (20%, exclusive). Attached to
+      # every line/subscription item so Stripe charges + shows TVA. Must match
+      # frontend VAT_RATE (lib/plans.ts). Empty ⇒ prices stay HT-only.
+      STRIPE_TAX_RATE_ID: ${STRIPE_TAX_RATE_ID}
       # JWT — MUST match auth-service's secret or tokens won't validate
       JWT_SECRET: ${JWT_SECRET}
       # PDF export (Two-View): gateway signs short-lived print tokens that
@@ -185,6 +189,9 @@ services:
       # Convex - browser talks to cloud directly, no Docker involved
       NEXT_PUBLIC_CONVEX_URL: https://optimistic-starfish-376.eu-west-1.convex.cloud
       NEXT_PUBLIC_CONVEX_SITE_URL: https://optimistic-starfish-376.eu-west-1.convex.site
+      # Stripe publishable key (pk_test_… / pk_live_…). Public by design — used
+      # by the browser to mount Embedded Checkout on our /checkout page.
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
       # PDF export — same secret as api-gateway, used to verify print tokens
       # signed by gateway in /app/print/contract/[id]/route.ts
       PRINT_TOKEN_SECRET: ${PRINT_TOKEN_SECRET}

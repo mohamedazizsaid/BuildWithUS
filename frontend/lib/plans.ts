@@ -117,3 +117,24 @@ export function getPlan(id: string | null | undefined): Plan | undefined {
 export function planPrice(plan: Plan, cycle: BillingCycle): number | null {
   return cycle === 'annual' ? plan.priceAnnual : plan.priceMonthly;
 }
+
+// ─── VAT / TVA ───────────────────────────────────────────────────────────────
+// French standard VAT rate (TVA normale). SaaS/software subscriptions are taxed
+// at the standard 20% in France — there is no 5% rate (the reduced rates are
+// 10 %, 5,5 % and 2,1 %, none of which cover software). This mirrors how Claude
+// Pro is billed in France: 18 € HT → 21,60 € TTC.
+//
+// ⚠️ This is the DISPLAY rate on /checkout. It MUST equal the percentage of the
+// Stripe Tax Rate object referenced by STRIPE_TAX_RATE_ID in the api-gateway,
+// otherwise the total shown here won't match what Stripe actually charges.
+export const VAT_RATE = 0.2;
+
+/** The VAT rate as a whole-number percentage, for labels e.g. "TVA (20%)". */
+export const VAT_RATE_PCT = Math.round(VAT_RATE * 100);
+
+/** Split a HT (pre-tax) euro amount into { ht, vat, ttc }, rounded to cents. */
+export function vatBreakdown(ht: number): { ht: number; vat: number; ttc: number } {
+  const round = (n: number) => Math.round(n * 100) / 100;
+  const vat = round(ht * VAT_RATE);
+  return { ht: round(ht), vat, ttc: round(ht + vat) };
+}

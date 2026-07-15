@@ -229,8 +229,14 @@ export interface UsageInfo {
 }
 
 export const billing = {
-    // Opens a Stripe Checkout Session and returns its hosted URL to redirect to.
-    createCheckout: (plan: string, billingCycle: string): Promise<{ url: string }> =>
+    // Starts a subscription. Returns EITHER a `clientSecret` (new subscription →
+    // mount Stripe Embedded Checkout inside our own /checkout page) OR a `url`
+    // (a plan change on an existing subscription needs no payment step, so the
+    // gateway sends us straight back to the dashboard).
+    createCheckout: (
+        plan: string,
+        billingCycle: string,
+    ): Promise<{ clientSecret?: string; url?: string }> =>
         request('/billing/checkout', { method: 'POST', body: JSON.stringify({ plan, billing: billingCycle }) }),
 
     get: (): Promise<BillingInfo> =>

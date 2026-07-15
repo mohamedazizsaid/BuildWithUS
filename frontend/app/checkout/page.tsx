@@ -1,13 +1,19 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Check, Lock, ShieldCheck } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js';
 import toast from '@/lib/toast';
-import { getPlan, planPrice, type BillingCycle } from '@/lib/plans';
+import { getPlan, planPrice, vatBreakdown, VAT_RATE_PCT, type BillingCycle } from '@/lib/plans';
 import { billing } from '@/lib/api';
+
+// Load Stripe.js once (module scope). The publishable key is public by design;
+// it only identifies the account and can't move money on its own.
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
 
 function CheckoutInner() {
   const searchParams = useSearchParams();
@@ -15,10 +21,52 @@ function CheckoutInner() {
   const planId = searchParams.get('plan');
   const cycle = (searchParams.get('billing') as BillingCycle) === 'annual' ? 'annual' : 'monthly';
   const plan = getPlan(planId);
+  const isAnnual = cycle === 'annual';
 
-  const [submitting, setSubmitting] = useState(false);
+  // The Stripe Embedded Checkout session's client secret. Fetched on mount from
+  // our gateway, which creates the (embedded) Checkout Session. Stays null while
+  // loading — or forever if the gateway instead sends a redirect `url` (a plan
+  // change on an existing subscription needs no payment step).
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Guard: unknown or free plan → back to pricing.
+  useEffect(() => {
+    // Guard inside the effect (not via early-return) so hooks stay unconditional.
+    if (!plan || plan.id === 'free') return;
+    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+      setError('Le paiement n’est pas configuré (clé Stripe manquante).');
+      return;
+    }
+
+    let alive = true;
+    billing
+      .createCheckout(plan.id, cycle)
+      .then((res) => {
+        if (!alive) return;
+        // Plan change on an existing subscription → no payment step, just go back.
+        if (res.url) {
+          window.location.href = res.url;
+          return;
+        }
+        if (res.clientSecret) {
+          setClientSecret(res.clientSecret);
+          return;
+        }
+        setError('Impossible de démarrer le paiement.');
+      })
+      .catch((err) => {
+        if (!alive) return;
+        const msg = err instanceof Error ? err.message : 'Impossible de démarrer le paiement';
+        setError(msg);
+        toast.error(msg);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [plan, cycle]);
+
+  // Guard: unknown or free plan → back to pricing. (After all hooks, so the
+  // rules-of-hooks ordering is preserved.)
   if (!plan || plan.id === 'free') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
@@ -32,23 +80,10 @@ function CheckoutInner() {
     );
   }
 
-  const price = planPrice(plan, cycle) ?? 0; // €/month (both cycles billed monthly)
-  const isAnnual = cycle === 'annual';
-  // Both plans are billed monthly. The only difference: annual = 12-month
-  // commitment at this lower rate. We NEVER charge a full year at once.
-  const vat = Math.round(price * 0.2 * 100) / 100; // 20% TVA — placeholder
-  const total = Math.round((price + vat) * 100) / 100; // charged today and every month
-
-  const pay = async () => {
-    setSubmitting(true);
-    try {
-      const { url } = await billing.createCheckout(plan.id, cycle);
-      window.location.href = url; // redirect to Stripe's hosted payment page
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Impossible de démarrer le paiement');
-      setSubmitting(false);
-    }
-  };
+  const price = planPrice(plan, cycle) ?? 0; // €/month HT (both cycles billed monthly)
+  // Single source of truth: same VAT_RATE the gateway attaches to the Stripe
+  // line item, so this total ALWAYS equals what Stripe charges.
+  const { vat, ttc } = vatBreakdown(price);
 
   return (
     <div className="min-h-screen bg-white lg:grid lg:grid-cols-2">
@@ -67,8 +102,8 @@ function CheckoutInner() {
             <h1 className="mt-1 text-2xl font-bold text-slate-900">Winaity {plan.name}</h1>
 
             <div className="mt-6 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-slate-900">{price}€</span>
-              <span className="text-slate-400">/ mois</span>
+              <span className="text-4xl font-bold text-slate-900">{ttc.toFixed(2)}€</span>
+              <span className="text-slate-400">/ mois TTC</span>
             </div>
             <p className="mt-1 text-sm text-slate-500">
               {isAnnual ? 'Engagement 12 mois · prélevé chaque mois' : 'Sans engagement · prélevé chaque mois'}
@@ -88,16 +123,16 @@ function CheckoutInner() {
             {/* Totals — charged today, then the same amount every month */}
             <div className="mt-10 space-y-2 border-t border-slate-200 pt-6 text-sm">
               <div className="flex justify-between text-slate-500">
-                <span>Abonnement (1 mois)</span>
+                <span>Abonnement (1 mois, HT)</span>
                 <span>{price.toFixed(2)}€</span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>TVA (20%)</span>
+                <span>TVA ({VAT_RATE_PCT}%)</span>
                 <span>{vat.toFixed(2)}€</span>
               </div>
               <div className="flex justify-between pt-2 text-base font-semibold text-slate-900">
-                <span>Total par mois</span>
-                <span>{total.toFixed(2)}€</span>
+                <span>Total par mois (TTC)</span>
+                <span>{ttc.toFixed(2)}€</span>
               </div>
               {isAnnual && (
                 <p className="pt-1 text-xs text-slate-400">
@@ -109,23 +144,23 @@ function CheckoutInner() {
         </div>
       </div>
 
-      {/* ── Right: confirm & pay via Stripe (hosted) ────────────────────── */}
+      {/* ── Right: payment, embedded on our own page (no Stripe redirect) ─── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="flex items-center px-6 py-10 lg:px-16 lg:py-16"
+        className="flex items-start px-6 py-10 lg:px-16 lg:py-16"
       >
         <div className="mx-auto w-full max-w-md">
           <h2 className="text-lg font-semibold text-slate-900">Finaliser l&apos;abonnement</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Vous allez être redirigé vers notre partenaire de paiement sécurisé Stripe pour saisir
-            votre carte.
+            Paiement sécurisé, directement sur Winaity. Vos informations de carte sont chiffrées et
+            traitées par Stripe.
           </p>
 
-          <div className="mt-6 space-y-3 rounded-xl border border-slate-200 p-4 text-sm">
+          <div className="mt-5 space-y-3 rounded-xl border border-slate-200 p-4 text-sm">
             <div className="flex items-center gap-2.5 text-slate-600">
-              <ShieldCheck size={16} className="text-slate-400" /> Paiement chiffré, géré par Stripe
+              <ShieldCheck size={16} className="text-slate-400" /> Paiement chiffré de bout en bout
             </div>
             <div className="flex items-center gap-2.5 text-slate-600">
               <Lock size={16} className="text-slate-400" /> Nous ne stockons jamais votre carte
@@ -135,17 +170,30 @@ function CheckoutInner() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={pay}
-            disabled={submitting}
-            className="mt-8 w-full rounded-full bg-slate-900 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting ? 'Redirection…' : `Payer ${total.toFixed(2)}€/mois avec Stripe`}
-          </button>
+          {/* Embedded Stripe Checkout — renders inside this page. */}
+          <div className="mt-6">
+            {error ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {error}
+                <Link href="/pricing" className="mt-2 block text-red-900 underline underline-offset-4">
+                  Retour aux tarifs
+                </Link>
+              </div>
+            ) : clientSecret ? (
+              <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+                <EmbeddedCheckout />
+              </EmbeddedCheckoutProvider>
+            ) : (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                Préparation du paiement…
+              </div>
+            )}
+          </div>
 
           <p className="mt-4 text-center text-xs text-slate-400">
-            En continuant, vous acceptez d&apos;être prélevé chaque mois jusqu&apos;à résiliation.
+            En continuant, vous acceptez d&apos;être prélevé {ttc.toFixed(2)}€ chaque mois jusqu&apos;à
+            résiliation.
           </p>
         </div>
       </motion.div>
