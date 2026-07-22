@@ -1,0 +1,104 @@
+@startuml cas-utilisation
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam nodesep 12
+skinparam ranksep 90
+
+title Diagramme de cas d'utilisation global - Winaity Template Builder
+
+' ---------- Acteurs (a gauche, ordre haut -> bas) ----------
+actor "Visiteur"            as Visiteur
+actor "Membre"             as Membre
+actor "Admin d'organisation"  as Admin
+actor "Super-Admin"        as SuperAdmin
+actor "Outil externe / CRM" as CRM
+
+' ---------- Cas d'utilisation (au milieu) ----------
+rectangle "Winaity Template Builder" {
+
+  ' --- Visiteur ---
+  usecase "S'inscrire"                           as UC1
+  usecase "Consulter les offres"                 as UC16
+
+  ' --- Membre ---
+  usecase "Gerer son profil"                     as UC3
+  usecase "Creer un modele\n(email, facture, contrat)" as UC6
+  usecase "Editer un modele"                     as UC7
+  usecase "Previsualiser un modele"              as UC8
+  usecase "Dupliquer un modele"                  as UC9
+  usecase "Supprimer un modele"                  as UC9b
+  usecase "Mettre en favori"                     as UC10
+  usecase "Exporter en HTML / PDF"               as UC11
+  usecase "Gerer la galerie predefinie"          as UC12
+  usecase "Generer un modele par prompt"         as UC13
+  usecase "Modifier par conversation"            as UC14
+  usecase "Convertir une affiche en email"       as UC15
+
+  ' --- Admin ---
+  usecase "Inviter un utilisateur"               as UC4
+  usecase "Gerer les membres et roles"           as UC5
+  usecase "Generer des cles API"                 as UC20
+  usecase "Souscrire a une offre"                as UC17
+  usecase "Annuler l'abonnement"                 as UC18
+  usecase "Reactiver l'abonnement"               as UC18b
+
+  ' --- Super-Admin ---
+  usecase "Attribuer un plan"                    as UC19
+  usecase "Reinitialiser le mot de passe\nd'un utilisateur" as UC22
+  usecase "Supprimer un utilisateur"             as UC23
+
+  ' --- CRM ---
+  usecase "Ouvrir le builder depuis un outil externe" as UC21
+}
+
+' ---------- Cas partage (a droite) ----------
+usecase "S'authentifier"                         as Auth
+
+' ---------- Associations acteurs ----------
+Visiteur --> UC1
+Visiteur --> UC16
+
+Membre --> UC3
+Membre --> UC6
+Membre --> UC7
+Membre --> UC8
+Membre --> UC9
+Membre --> UC9b
+Membre --> UC10
+Membre --> UC11
+Membre --> UC12
+Membre --> UC13
+Membre --> UC14
+Membre --> UC15
+
+Admin --> UC4
+Admin --> UC5
+Admin --> UC20
+Admin --> UC17
+Admin --> UC18
+Admin --> UC18b
+
+SuperAdmin --> UC19
+SuperAdmin --> UC22
+SuperAdmin --> UC23
+
+CRM --> UC21
+
+' ---------- <<include>> vers S'authentifier (colonne de droite) ----------
+UC3  ..> Auth : <<include>>
+UC6  ..> Auth : <<include>>
+UC7  ..> Auth : <<include>>
+UC12 ..> Auth : <<include>>
+UC13 ..> Auth : <<include>>
+UC4  ..> Auth : <<include>>
+UC5  ..> Auth : <<include>>
+UC17 ..> Auth : <<include>>
+UC20 ..> Auth : <<include>>
+UC19 ..> Auth : <<include>>
+UC22 ..> Auth : <<include>>
+UC23 ..> Auth : <<include>>
+UC21 ..> Auth : <<include>>
+
+@enduml

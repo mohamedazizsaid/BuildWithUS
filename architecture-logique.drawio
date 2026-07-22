@@ -1,0 +1,65 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Architecture logique" id="logique">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="820" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== LAYER BACKDROPS ===================== -->
+        <mxCell id="L1" value="1 · Couche Présentation  (Navigateur client)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F0F4F8;strokeColor=#B0BEC5;verticalAlign=top;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="40" y="40" width="1000" height="90" as="geometry"/></mxCell>
+        <mxCell id="L2" value="2 · Couche Application  (Frontend Next.js 16 / React 19)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F0F4F8;strokeColor=#B0BEC5;verticalAlign=top;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="40" y="150" width="1000" height="100" as="geometry"/></mxCell>
+        <mxCell id="L3" value="3 · Couche Passerelle  (API Gateway — NestJS · REST vers gRPC)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F0F4F8;strokeColor=#B0BEC5;verticalAlign=top;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="40" y="270" width="1000" height="100" as="geometry"/></mxCell>
+        <mxCell id="L4" value="4 · Couche Métier  (Microservices et IA)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F0F4F8;strokeColor=#B0BEC5;verticalAlign=top;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="40" y="390" width="1000" height="190" as="geometry"/></mxCell>
+        <mxCell id="L5" value="5 · Couche Données / Stockage" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F0F4F8;strokeColor=#B0BEC5;verticalAlign=top;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="40" y="600" width="1000" height="100" as="geometry"/></mxCell>
+
+        <!-- ===================== LAYER 1 : CLIENT ===================== -->
+        <mxCell id="c_site" value="Site Marketing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;" vertex="1" parent="1"><mxGeometry x="70" y="72" width="190" height="48" as="geometry"/></mxCell>
+        <mxCell id="c_dash" value="Tableau de bord" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;" vertex="1" parent="1"><mxGeometry x="290" y="72" width="190" height="48" as="geometry"/></mxCell>
+        <mxCell id="c_edit" value="Éditeurs  (email · facture · contrat · SMS · RCS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;" vertex="1" parent="1"><mxGeometry x="510" y="72" width="300" height="48" as="geometry"/></mxCell>
+        <mxCell id="c_ai" value="Assistant IA (chat)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;" vertex="1" parent="1"><mxGeometry x="840" y="72" width="180" height="48" as="geometry"/></mxCell>
+
+        <!-- ===================== LAYER 2 : FRONTEND ===================== -->
+        <mxCell id="f_app" value="Application Next.js&#10;(App Router · SSR)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;" vertex="1" parent="1"><mxGeometry x="70" y="180" width="270" height="55" as="geometry"/></mxCell>
+        <mxCell id="f_ai" value="★ IA agentique — Routes /api/ai/*&#10;Vercel AI SDK · planner · outils agents&#10;(voir architecture-ia.drawio)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="380" y="178" width="290" height="60" as="geometry"/></mxCell>
+        <mxCell id="f_mcp" value="★ Endpoint MCP  /builder/mcp&#10;32 outils de construction exposés&#10;(découverte dynamique)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="710" y="178" width="310" height="60" as="geometry"/></mxCell>
+
+        <!-- ===================== LAYER 3 : GATEWAY ===================== -->
+        <mxCell id="g_auth" value="Authentification&#10;/ JWT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FB8C00;" vertex="1" parent="1"><mxGeometry x="70" y="300" width="210" height="55" as="geometry"/></mxCell>
+        <mxCell id="g_bill" value="Facturation&#10;/ Stripe" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FB8C00;" vertex="1" parent="1"><mxGeometry x="300" y="300" width="210" height="55" as="geometry"/></mxCell>
+        <mxCell id="g_plan" value="Contrôle des quotas&#10;(plans / limites)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FB8C00;" vertex="1" parent="1"><mxGeometry x="530" y="300" width="230" height="55" as="geometry"/></mxCell>
+        <mxCell id="g_int" value="Intégrations&#10;/ Clés API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FB8C00;" vertex="1" parent="1"><mxGeometry x="780" y="300" width="240" height="55" as="geometry"/></mxCell>
+
+        <!-- ===================== LAYER 4 : SERVICES ===================== -->
+        <mxCell id="s_auth" value="Auth Service&#10;(gRPC · CQRS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#8E24AA;" vertex="1" parent="1"><mxGeometry x="70" y="420" width="260" height="55" as="geometry"/></mxCell>
+        <mxCell id="s_tpl" value="Template Service&#10;(gRPC · CQRS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#8E24AA;" vertex="1" parent="1"><mxGeometry x="360" y="420" width="260" height="55" as="geometry"/></mxCell>
+        <mxCell id="s_aitpl" value="AI Template Service&#10;(Python)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#8E24AA;" vertex="1" parent="1"><mxGeometry x="70" y="500" width="250" height="55" as="geometry"/></mxCell>
+        <mxCell id="s_img" value="Image Pipeline&#10;(Python)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#8E24AA;" vertex="1" parent="1"><mxGeometry x="340" y="500" width="220" height="55" as="geometry"/></mxCell>
+        <mxCell id="s_llm" value="Serveur LLM — vLLM&#10;(gemma4-26b / qwen35 · 64K ctx)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE7F6;strokeColor=#5E35B1;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="580" y="500" width="440" height="55" as="geometry"/></mxCell>
+
+        <!-- ===================== LAYER 5 : DATA ===================== -->
+        <mxCell id="d_auth" value="auth_db&#10;(PostgreSQL)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#ECEFF1;strokeColor=#546E7A;" vertex="1" parent="1"><mxGeometry x="90" y="618" width="200" height="70" as="geometry"/></mxCell>
+        <mxCell id="d_tpl" value="templates_db&#10;(PostgreSQL)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#ECEFF1;strokeColor=#546E7A;" vertex="1" parent="1"><mxGeometry x="360" y="618" width="220" height="70" as="geometry"/></mxCell>
+        <mxCell id="d_minio" value="MinIO&#10;(stockage objet / médias)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#ECEFF1;strokeColor=#546E7A;" vertex="1" parent="1"><mxGeometry x="640" y="618" width="230" height="70" as="geometry"/></mxCell>
+
+        <!-- ===================== EXTERNAL ===================== -->
+        <mxCell id="ext_stripe" value="Stripe&#10;(paiement / abonnements)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#E53935;dashed=1;" vertex="1" parent="1"><mxGeometry x="1080" y="300" width="160" height="55" as="geometry"/></mxCell>
+
+        <!-- ===================== EDGES ===================== -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="c_dash" target="f_app"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="c_edit" target="f_app"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="c_ai" target="f_ai"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="REST / HTTPS (cookie JWT)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="f_app" target="g_auth"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="g_auth" target="s_auth"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="g_plan" target="s_tpl"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;" edge="1" parent="1" source="g_bill" target="ext_stripe"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="f_ai" target="f_mcp"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" value="OpenAI-compatible" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="f_ai" target="s_llm"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="s_auth" target="d_auth"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="s_tpl" target="d_tpl"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="s_tpl" target="d_minio"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;" edge="1" parent="1" source="s_aitpl" target="s_llm"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

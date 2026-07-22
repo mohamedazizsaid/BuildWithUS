@@ -280,17 +280,11 @@ export class AuthGrpcController {
   @GrpcMethod('AuthService', 'ListAllTenants')
   async listAllTenants() {
     const tenants = await this.tenantRepository.findAll();
-    return {
-      tenants: tenants.map((t) => {
-        const p = t.toPrimitives();
-        return {
-          id: p.id,
-          name: p.name,
-          plan: p.plan,
-          created_at: p.createdAt?.toISOString?.() ?? '',
-        };
-      }),
-    };
+    // Use the full mapping so the billing/subscription fields (billing_cycle,
+    // subscription_status, stripe_customer_id, stripe_subscription_id) reach the
+    // gateway — the super-admin "Commandes" view needs the subscription id to
+    // enrich each tenant with live Stripe data.
+    return { tenants: tenants.map((t) => this.toTenantInfo(t)) };
   }
 
   private toTenantInfo(tenant: any) {

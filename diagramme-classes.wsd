@@ -1,0 +1,192 @@
+@startuml diagramme-classes
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor White
+  BorderColor #4B5563
+  ArrowColor #4B5563
+}
+
+title Diagramme de classes - Winaity Template Builder
+
+' =========================================================
+'  ENUMERATIONS
+' =========================================================
+enum PlanId {
+  free
+  pro
+  pro_org
+  internal
+}
+
+enum BillingCycle {
+  monthly
+  annual
+}
+
+enum UserRole {
+  admin
+  editor
+  marketing
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  revoked
+}
+
+enum TemplateType {
+  email
+  facture
+  contrat
+  sms
+  rcs
+}
+
+enum SessionMode {
+  create
+  edit
+  list
+}
+
+' =========================================================
+'  SERVICE D'AUTHENTIFICATION (auth_db)
+' =========================================================
+package "Auth Service" <<Rectangle>> {
+
+  class Tenant {
+    +id : UUID
+    +name : string
+    +plan : PlanId
+    +billingCycle : BillingCycle
+    +subscriptionStatus : string
+    +stripeCustomerId : string
+    +stripeSubscriptionId : string
+    +emailTemplatesCreated : int
+    +aiInteractionsUsed : int
+    +createdAt : Date
+    +updatedAt : Date
+    --
+    +updatePlan(plan) : void
+    +incrementUsage(kind) : void
+  }
+
+  class User {
+    +id : UUID
+    +tenantId : UUID
+    +email : string
+    +password : string
+    +firstName : string
+    +lastName : string
+    +role : UserRole
+    +firstLog : boolean
+    +createdAt : Date
+    +updatedAt : Date
+    --
+    +updateProfile() : void
+  }
+
+  class ApiClient {
+    +id : UUID
+    +tenantId : UUID
+    +clientId : UUID
+    +clientSecretHash : string
+    +scopes : string
+    +label : string
+    +expiresAt : Date
+    +allowedReturnUrls : string
+    +createdAt : Date
+  }
+
+  class BuilderSession {
+    +id : UUID
+    +token : string
+    +tenantId : UUID
+    +clientId : UUID
+    +mode : SessionMode
+    +templateId : UUID
+    +returnUrl : string
+    +userRef : string
+    +expiresAt : Date
+    +usedAt : Date
+    +createdAt : Date
+  }
+
+  class Invite {
+    +id : UUID
+    +tenantId : UUID
+    +email : string
+    +role : UserRole
+    +invitedBy : UUID
+    +status : InviteStatus
+    +createdAt : Date
+  }
+}
+
+' =========================================================
+'  SERVICE DE MODELES (templates_db)
+' =========================================================
+package "Template Service" <<Rectangle>> {
+
+  class Template {
+    +id : UUID
+    +tenantId : UUID
+    +externalOrgRef : string
+    +name : string
+    +description : string
+    +type : TemplateType
+    +subject : string
+    +content : text
+    +channels : string[]
+    +channelContents : json
+    +variables : string[]
+    +variants : json
+    +version : int
+    +usageCount : int
+    +isFavorite : boolean
+    +isPredefinedOverride : boolean
+    +predefinedTemplateId : string
+    +createdAt : Date
+    +updatedAt : Date
+    +deletedAt : Date
+    --
+    +render(variables) : string
+    +toggleFavorite() : void
+    +duplicate() : Template
+  }
+
+  class TenantVariables {
+    +id : UUID
+    +tenantId : UUID
+    +category : string
+    +name : string
+    +isCustom : boolean
+    +createdAt : Date
+  }
+}
+
+' =========================================================
+'  ASSOCIATIONS
+' =========================================================
+Tenant "1" *-- "0..*" User          : possede
+Tenant "1" *-- "0..*" Invite         : envoie
+Tenant "1" *-- "0..*" ApiClient      : detient
+Tenant "1" *-- "0..*" BuilderSession : ouvre
+ApiClient "1" --> "0..*" BuilderSession : genere
+User "1" --> "0..*" Invite            : invite
+
+' Relations inter-services (par tenantId, pas de cle etrangere)
+Tenant "1" ..> "0..*" Template         : (tenantId)
+Tenant "1" ..> "0..*" TenantVariables  : (tenantId)
+
+' Liens vers les enumerations
+Tenant ..> PlanId
+Tenant ..> BillingCycle
+User ..> UserRole
+Invite ..> InviteStatus
+Template ..> TemplateType
+BuilderSession ..> SessionMode
+
+@enduml

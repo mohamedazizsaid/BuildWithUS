@@ -6,12 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Building2, Key, Trash2, Plus, Copy, Check,
   LogOut, RefreshCw, X, Eye, EyeOff, Users, FileText,
-  Search, KeyRound, ChevronDown,
+  Search, KeyRound, ChevronDown, CreditCard,
 } from 'lucide-react';
 import { auth } from '@/lib/api';
 import toast from '@/lib/toast';
 import { PreviewModal } from '@/app/dashboard/templates/_components/PreviewModal';
 import type { Template } from '@/app/dashboard/templates/_lib/types';
+import { SubscriptionsTab } from './SubscriptionsTab';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -260,6 +261,10 @@ export default function SuperAdminDashboard() {
   const [resetUser, setResetUser] = useState<UserRow | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateRow | null>(null);
 
+  // Which top-level tab is showing: organisations (users/templates/keys) or the
+  // commandes/abonnements view.
+  const [tab, setTab] = useState<'orgs' | 'orders'>('orgs');
+
   // Filters
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -462,6 +467,31 @@ export default function SuperAdminDashboard() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 mb-6 border-b border-slate-200">
+          {[
+            { id: 'orgs' as const, label: 'Organisations', icon: Building2 },
+            { id: 'orders' as const, label: 'Commandes', icon: CreditCard },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                tab === t.id
+                  ? 'border-indigo-600 text-indigo-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <t.icon size={15} />
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'orders' ? (
+          <SubscriptionsTab />
+        ) : (
+        <>
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
@@ -713,6 +743,8 @@ export default function SuperAdminDashboard() {
               );
             })}
           </div>
+        )}
+        </>
         )}
       </div>
 

@@ -14,8 +14,21 @@ import {
 } from "@nestjs/common";
 import { ClientGrpc } from "@nestjs/microservices";
 import { firstValueFrom } from "rxjs";
+// CommonJS import form (same as billing.controller): this project's tsconfig has
+// allowSyntheticDefaultImports but NOT esModuleInterop, so `import Stripe from
+// 'stripe'` crashes at runtime. `import = require` matches stripe's `export =`.
+import Stripe = require("stripe");
 import { AuthGuard } from "../guards/auth.guard";
 import { Roles, RolesGuard } from "../guards/roles.guard";
+
+// Current-period end (next renewal date, unix seconds). Mirrors billing.controller:
+// as of Stripe API 2025-03-31.basil (SDK v18+), `current_period_end` moved from the
+// Subscription onto each subscription ITEM. Read the item first, fall back to the
+// legacy top-level field for older API versions.
+function periodEnd(sub: Stripe.Subscription): number | null {
+  const s = sub as any;
+  return s?.items?.data?.[0]?.current_period_end ?? s?.current_period_end ?? null;
+}
 
 /**
  * SuperAdminController — cross-tenant admin panel routes (prefix: /auth/admin).
@@ -35,13 +48,22 @@ export class SuperAdminController implements OnModuleInit {
   private authService: any;
   private templateQueryService: any;
   private templateCommandService: any;
+  private readonly stripe: Stripe;
+  // Whether a real Stripe secret key is configured. When false we still return
+  // the tenant/subscription rows (from our DB), just without the live Stripe
+  // enrichment — no crash, the "Commandes" view degrades gracefully.
+  private readonly stripeReady: boolean;
 
   constructor(
     @Inject("AUTH_SERVICE") private readonly authClient: ClientGrpc,
     @Inject("TEMPLATE_QUERY_SERVICE") private readonly queryClient: ClientGrpc,
     @Inject("TEMPLATE_COMMAND_SERVICE")
     private readonly commandClient: ClientGrpc,
-  ) {}
+  ) {
+    const key = process.env.STRIPE_SECRET_KEY || "";
+    this.stripe = new Stripe(key);
+    this.stripeReady = key.startsWith("sk_");
+  }
 
   onModuleInit() {
     this.authService = this.authClient.getService("AuthService");
@@ -115,6 +137,76 @@ export class SuperAdminController implements OnModuleInit {
     return firstValueFrom(
       this.authService.AdminSetTenantPlan({ tenant_id: id, plan }),
     );
+  }
+
+  // ── Subscriptions / Commandes (cross-tenant) ──────────────────────────
+  /**
+   * GET /auth/admin/subscriptions — one row per tenant for the super-admin
+   * "Commandes" view: the plan + billing state we store, enriched with LIVE
+   * Stripe data (next payment date, amount, real status) for tenants that hold
+   * a `stripe_subscription_id`.
+   *
+   * Amounts come back as the price `unit_amount` in cents, and are HT (pre-tax) —
+   * the TVA is applied via a Stripe Tax Rate at checkout, not baked into the
+   * price. The frontend adds the 20% for the TTC display.
+   *
+   * Live Stripe calls are best-effort per tenant: a deleted/unreadable
+   * subscription just yields `live: null` instead of failing the whole request.
+   */
+  @Get("subscriptions")
+  async listSubscriptions() {
+    const tenantsRes: any = await firstValueFrom(
+      this.authService.ListAllTenants({}),
+    );
+    const tenants: any[] = tenantsRes.tenants || [];
+
+    const rows = await Promise.all(
+      tenants.map(async (t) => {
+        const base = {
+          tenant_id: t.id,
+          tenant_name: t.name,
+          plan: t.plan,
+          billing_cycle: t.billing_cycle || null,
+          subscription_status: t.subscription_status || null,
+          stripe_customer_id: t.stripe_customer_id || null,
+          stripe_subscription_id: t.stripe_subscription_id || null,
+          created_at: t.created_at || null,
+          live: null as null | {
+            status: string | null;
+            current_period_end: number | null;
+            cancel_at_period_end: boolean;
+            amount: number | null;
+            currency: string;
+            interval: string | null;
+          },
+        };
+
+        if (t.stripe_subscription_id && this.stripeReady) {
+          try {
+            const sub = await this.stripe.subscriptions.retrieve(
+              t.stripe_subscription_id,
+              { expand: ["items.data.price"] },
+            );
+            const s = sub as any;
+            const price = s?.items?.data?.[0]?.price;
+            base.live = {
+              status: s?.status ?? null,
+              current_period_end: periodEnd(sub),
+              cancel_at_period_end: !!s?.cancel_at_period_end,
+              amount: price?.unit_amount ?? null,
+              currency: price?.currency ?? "eur",
+              interval: price?.recurring?.interval ?? null,
+            };
+          } catch {
+            /* subscription gone / unreadable in Stripe — leave live = null */
+          }
+        }
+
+        return base;
+      }),
+    );
+
+    return { subscriptions: rows };
   }
 
   // ── Templates (cross-tenant) ──────────────────────────────────────────

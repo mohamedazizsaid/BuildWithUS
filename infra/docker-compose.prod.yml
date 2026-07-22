@@ -218,6 +218,19 @@ services:
       # Server-side calls (inside the network) use the internal name.
       INTERNAL_API_URL: http://api-gateway:3000
       PRINT_TOKEN_SECRET: ${PRINT_TOKEN_SECRET}
+      # AI generator (in-house vLLM, OpenAI-compatible). Read SERVER-SIDE only by
+      # the Next.js route handlers — no NEXT_PUBLIC_ prefix, the key must not reach
+      # the browser. Without these the builder shows "AI server not configured".
+      AI_BASE_URL: ${AI_BASE_URL}
+      AI_API_KEY: ${AI_API_KEY}
+      AI_MODEL: ${AI_MODEL}
+      AI_MODEL_FALLBACK: ${AI_MODEL_FALLBACK}
+    # The vLLM server is only reachable on the host's Tailscale interface, and
+    # containers can't resolve MagicDNS (.ts.net) names. Pin the hostname to the
+    # host's tailnet IP so DNS resolves while the HTTPS cert (issued for the
+    # hostname) stays valid.
+    extra_hosts:
+      - "finanssor-data-center-v1.tail446cc0.ts.net:100.69.243.67"
     # Reached by the tunnel internally (http://frontend:3000) AND published on
     # the host for direct IP:port access.
     ports:
