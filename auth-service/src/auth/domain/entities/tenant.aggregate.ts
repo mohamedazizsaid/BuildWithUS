@@ -8,6 +8,15 @@ export interface SubscriptionState {
    stripeSubscriptionId?: string | null;
 }
 
+// Company contact / billing details (collected at signup, forwarded to the CRM).
+export interface TenantContact {
+   phone?: string | null;
+   addressLine?: string | null;
+   postalCode?: string | null;
+   city?: string | null;
+   country?: string | null;
+}
+
 export class Tenant {
    private constructor(
     private id: string,
@@ -26,16 +35,27 @@ export class Tenant {
     // tenant can't delete-and-recreate to dodge the limit.
     private emailTemplatesCreated: number = 0,
     private aiInteractionsUsed: number = 0,
+    private contact: TenantContact = {},
    ) {}
 
-   public static create(name: string, plan: string = 'free'): Tenant {
+   public static create(name: string, plan: string = 'free', contact: TenantContact = {}): Tenant {
       if (!name || name.trim().length === 0){
          throw new Error('Name is required');
       }
       if (name.length > 255){
          throw new Error('Tenant name must be 255 characters or less');
       }
-      return new Tenant(uuid(), name.trim(), plan, new Date(),new Date());
+      return new Tenant(
+         uuid(), name.trim(), plan, new Date(), new Date(),
+         null, null, null, null, 0, 0,
+         {
+            phone: contact.phone ?? null,
+            addressLine: contact.addressLine ?? null,
+            postalCode: contact.postalCode ?? null,
+            city: contact.city ?? null,
+            country: contact.country ?? null,
+         },
+      );
    }
 
    public static reconstitute(
@@ -50,11 +70,12 @@ export class Tenant {
     stripeSubscriptionId: string | null = null,
     emailTemplatesCreated: number = 0,
     aiInteractionsUsed: number = 0,
+    contact: TenantContact = {},
    ): Tenant {
       return new Tenant(
          id, name, plan, createdAt, updatedAt,
          billingCycle, subscriptionStatus, stripeCustomerId, stripeSubscriptionId,
-         emailTemplatesCreated, aiInteractionsUsed,
+         emailTemplatesCreated, aiInteractionsUsed, contact,
       );
    }
 
@@ -105,6 +126,11 @@ export class Tenant {
         stripeSubscriptionId: this.stripeSubscriptionId,
         emailTemplatesCreated: this.emailTemplatesCreated,
         aiInteractionsUsed: this.aiInteractionsUsed,
+        phone: this.contact.phone ?? null,
+        addressLine: this.contact.addressLine ?? null,
+        postalCode: this.contact.postalCode ?? null,
+        city: this.contact.city ?? null,
+        country: this.contact.country ?? null,
         createdAt: this.createdAt,
         updatedAt: this.updatedAt
     };
@@ -119,5 +145,10 @@ export class Tenant {
    public getStripeSubscriptionId(): string | null { return this.stripeSubscriptionId; }
    public getEmailTemplatesCreated(): number { return this.emailTemplatesCreated; }
    public getAiInteractionsUsed(): number { return this.aiInteractionsUsed; }
+   public getPhone(): string | null { return this.contact.phone ?? null; }
+   public getAddressLine(): string | null { return this.contact.addressLine ?? null; }
+   public getPostalCode(): string | null { return this.contact.postalCode ?? null; }
+   public getCity(): string | null { return this.contact.city ?? null; }
+   public getCountry(): string | null { return this.contact.country ?? null; }
 
 }

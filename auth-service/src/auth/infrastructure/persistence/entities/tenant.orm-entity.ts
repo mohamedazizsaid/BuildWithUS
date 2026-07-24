@@ -11,9 +11,27 @@ export class TenantOrmEntity {
     @Column( {type: 'varchar', length: 50, default: 'free'})
     plan: string;
 
+    // ── Company contact / billing details ────────────────────────────────────
+    // Collected at signup (required for new tenants) and forwarded to the CRM.
+    // Nullable so existing tenants created before this feature stay valid.
+    @Column({ type: 'varchar', length: 40, nullable: true })
+    phone: string | null;
+
+    @Column({ type: 'varchar', length: 255, nullable: true, name: 'address_line' })
+    addressLine: string | null;
+
+    @Column({ type: 'varchar', length: 20, nullable: true, name: 'postal_code' })
+    postalCode: string | null;
+
+    @Column({ type: 'varchar', length: 120, nullable: true })
+    city: string | null;
+
+    @Column({ type: 'varchar', length: 80, nullable: true })
+    country: string | null;
+
     // ── Stripe subscription state ────────────────────────────────────────────
     // Nullable — only set once a tenant subscribes to a paid plan. billingCycle
-    // is 'monthly' | 'annual' (annual = 12-month commitment billed monthly).
+    // is 'monthly' | 'annual' (annual = one yearly lump charge, 12-month commitment).
     @Column({ type: 'varchar', length: 20, nullable: true, name: 'billing_cycle' })
     billingCycle: string | null;
 

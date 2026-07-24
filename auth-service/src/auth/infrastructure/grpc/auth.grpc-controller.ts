@@ -67,6 +67,11 @@ export class AuthGrpcController {
       request.password,
       firstName,
       lastName,
+      request.phone || null,
+      request.addressLine || request.address_line || null,
+      request.postalCode || request.postal_code || null,
+      request.city || null,
+      request.country || null,
     );
 
     return this.commandBus.execute(command);
@@ -300,6 +305,11 @@ export class AuthGrpcController {
       stripe_subscription_id: p.stripeSubscriptionId ?? '',
       email_templates_created: p.emailTemplatesCreated ?? 0,
       ai_interactions_used: p.aiInteractionsUsed ?? 0,
+      phone: p.phone ?? '',
+      address_line: p.addressLine ?? '',
+      postal_code: p.postalCode ?? '',
+      city: p.city ?? '',
+      country: p.country ?? '',
     };
   }
 
@@ -326,6 +336,21 @@ export class AuthGrpcController {
     const tenant = await this.tenantRepository.findById(tenantId);
     if (!tenant) throw new Error('Tenant not found');
     return this.toTenantInfo(tenant);
+  }
+
+  // Returns the admin user of a tenant (the account owner — the first user, who
+  // is always created with role 'admin' at registration). Used to enrich the CRM
+  // payload with the responsible person. If a tenant somehow has several admins,
+  // the earliest-created one wins; if none, returns the earliest user.
+  @GrpcMethod('AuthService', 'GetTenantAdmin')
+  async getTenantAdmin(request: any) {
+    const tenantId = request.tenantId || request.tenant_id;
+    const members = await this.userRepository.findByTenantId(tenantId);
+    if (!members.length) throw new Error('Tenant has no users');
+    // The account owner is created with role 'admin' at registration. Prefer an
+    // admin; fall back to the first user if none is flagged.
+    const admin = members.find((m) => m.getRole() === 'admin') ?? members[0];
+    return this.toUserInfo(admin);
   }
 
   private toTenantUsage(tenant: any) {

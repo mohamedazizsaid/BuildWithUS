@@ -49,10 +49,13 @@ async function request(path: string) {
 const euros = (cents: number) =>
   (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
-/** Monthly TTC amount (cents) for a row, or null if unknown. Prices are HT. */
+/** Monthly TTC amount (cents) for a row, or null if unknown. Prices are HT.
+ *  Annual subscriptions charge the whole year up front, so their amount is a
+ *  yearly figure — divide by 12 to get the monthly-recurring contribution for MRR. */
 function monthlyTtcCents(row: SubscriptionRow): number | null {
   if (row.live?.amount == null) return null;
-  return Math.round(row.live.amount * (1 + VAT_RATE));
+  const monthlyHt = row.live.interval === 'year' ? row.live.amount / 12 : row.live.amount;
+  return Math.round(monthlyHt * (1 + VAT_RATE));
 }
 
 function cycleLabel(row: SubscriptionRow): string {

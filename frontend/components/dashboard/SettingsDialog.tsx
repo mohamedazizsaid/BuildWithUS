@@ -311,7 +311,9 @@ function BillingSection({ onClose }: { readonly onClose: () => void }) {
               ) : isPaid && plan && info?.billing_cycle ? (
                 <>
                   <span className="font-semibold">{planPrice(plan, info.billing_cycle as 'monthly' | 'annual')}€</span>
-                  <span className="text-muted-foreground"> / mois</span>
+                  <span className="text-muted-foreground">
+                    {info.billing_cycle === 'annual' ? ' / an' : ' / mois'}
+                  </span>
                 </>
               ) : (
                 <span className="text-muted-foreground">Aucun paiement requis.</span>

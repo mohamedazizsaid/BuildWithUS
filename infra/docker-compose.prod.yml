@@ -180,6 +180,16 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
       STRIPE_TAX_RATE_ID: ${STRIPE_TAX_RATE_ID}
       STRIPE_RETURN_URL: ${STRIPE_RETURN_URL}
+      # CRM Gestion payment forwarding. In prod CRM_API_URL is the real CRM's
+      # public HTTPS endpoint (not host.docker.internal).
+      CRM_FORWARD_ENABLED: ${CRM_FORWARD_ENABLED}
+      CRM_API_URL: ${CRM_API_URL}
+      CRM_API_KEY: ${CRM_API_KEY}
+      CRM_HMAC_SECRET: ${CRM_HMAC_SECRET}
+      CRM_CLIENT_ID: ${CRM_CLIENT_ID}
+      CRM_CLIENT_SECRET: ${CRM_CLIENT_SECRET}
+      CRM_TOKEN_URL: ${CRM_TOKEN_URL}
+      CRM_SCOPE: ${CRM_SCOPE}
       FRONTEND_URL: http://frontend:3000
       # Browser origin(s) allowed by CORS (the public frontend URL).
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}

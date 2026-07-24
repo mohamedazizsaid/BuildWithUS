@@ -18,22 +18,29 @@ import { firstValueFrom } from 'rxjs';
 // compiles to `stripe_1.default` (undefined) and crashes. `import = require`
 // matches stripe's `export =` and works at runtime.
 import Stripe = require('stripe');
+import * as crypto from 'crypto';
 import { ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '../guards/auth.guard';
 import { Roles, RolesGuard } from '../guards/roles.guard';
 import { limitsFor } from '../plan-limits';
 
 // ── Stripe price IDs (TEST mode) — must stay in sync with frontend/lib/plans.ts.
-// All four are month-interval recurring prices. "annual" = cheaper monthly rate
-// with a 12-month commitment (enforced on cancel), NOT a yearly lump charge.
+// "monthly" = month-interval price billed every month (flexible, sans engagement).
+// "annual"  = YEAR-interval price billed once a year as a single lump sum (240€ /
+//   600€ HT). The next charge is one year later. This is a real yearly interval,
+//   NOT a monthly charge — so cancellation naturally ends at the year boundary.
+//
+// ⚠️ The two annual IDs below are PLACEHOLDERS. Create the yearly prices in Stripe
+// (see scripts/create-annual-prices.js or the dashboard) and paste their real
+// `price_…` ids here AND in frontend/lib/plans.ts, then redeploy.
 const PRICE_IDS: Record<string, Record<string, string>> = {
   pro: {
     monthly: 'price_1TqZNu3SDTmZuxcVRdoiNXbh', // 25€/mois — flexible
-    annual: 'price_1TqYDA3SDTmZuxcVMG7DwZn7', // 20€/mois — 12-mo commitment
+    annual: 'price_1TwMMv3SDTmZuxcVlulvXqwv', // 240€/an — one yearly charge
   },
   pro_org: {
     monthly: 'price_1TqZNu3SDTmZuxcVAAtZ6hJc', // 55€/mois — flexible
-    annual: 'price_1TqYLc3SDTmZuxcVF4VRSK10', // 50€/mois — 12-mo commitment
+    annual: 'price_1TwMNm3SDTmZuxcVAjqTtEcZ', // 600€/an — one yearly charge
   },
 };
 
@@ -77,6 +84,71 @@ function frontendUrl(): string {
 function periodEnd(sub: Stripe.Subscription): number | null {
   const s = sub as any;
   return s?.items?.data?.[0]?.current_period_end ?? s?.current_period_end ?? null;
+}
+
+// ── CRM Gestion forwarding config ─────────────────────────────────────────────
+// On every subscription payment (and failure/cancellation) we POST a JSON
+// payload to the external "CRM Gestion" platform.
+//
+// Two auth modes, auto-detected:
+//   • OAuth2 (real CRM): set CRM_TOKEN_URL + CRM_CLIENT_ID + CRM_CLIENT_SECRET.
+//     We fetch a client_credentials access token (cached) and send it as Bearer.
+//   • Static key (local fake CRM): leave CRM_TOKEN_URL empty and set CRM_API_KEY.
+// If CRM_HMAC_SECRET is set we also HMAC-sign the raw body (fake CRM verifies it;
+// the real CRM likely ignores it — harmless).
+const CRM = {
+  enabled: process.env.CRM_FORWARD_ENABLED === 'true',
+  url: process.env.CRM_API_URL || '',
+  apiKey: process.env.CRM_API_KEY || '',
+  hmacSecret: process.env.CRM_HMAC_SECRET || '',
+  // OAuth2 client-credentials (real CRM)
+  tokenUrl: process.env.CRM_TOKEN_URL || '',
+  clientId: process.env.CRM_CLIENT_ID || '',
+  clientSecret: process.env.CRM_CLIENT_SECRET || '',
+  scope: process.env.CRM_SCOPE || '',
+};
+const crmUsesOauth = () => Boolean(CRM.tokenUrl && CRM.clientId && CRM.clientSecret);
+
+// Cached OAuth2 token (module-level so it survives across webhook calls).
+let crmToken: { value: string; expiresAt: number } | null = null;
+
+// The subscription id an invoice belongs to. Stripe keeps moving this field
+// across API versions (top-level `subscription`, then under `parent`, then on
+// the line item), so try every known location before giving up. A null result
+// means this invoice isn't tied to a subscription (e.g. a one-off) → skip it.
+function invoiceSubscriptionId(inv: Stripe.Invoice): string | null {
+  const i = inv as any;
+  const line = i?.lines?.data?.[0];
+  const candidate =
+    i?.subscription ??
+    i?.parent?.subscription_details?.subscription ??
+    line?.subscription ??
+    line?.parent?.subscription_item_details?.subscription ??
+    null;
+  return typeof candidate === 'string' ? candidate : candidate?.id ?? null;
+}
+
+function unixToIso(unix: number | null | undefined): string | null {
+  return unix ? new Date(unix * 1000).toISOString() : null;
+}
+
+// Total TVA on an invoice, in cents. Stripe keeps moving where tax lives: the
+// legacy top-level `tax` field is no longer populated on newer API versions
+// (v22 "basil"), where it sits in a `total_taxes` array (and, on the API version
+// before that, `total_tax_amounts`). Sum whichever is present; last resort is
+// TTC − HT (only reliable when there are no invoice-level discounts).
+function invoiceTax(inv: Stripe.Invoice): number {
+  const i = inv as any;
+  if (typeof i.tax === 'number' && i.tax > 0) return i.tax;
+  const arr = i.total_taxes ?? i.total_tax_amounts;
+  if (Array.isArray(arr) && arr.length) {
+    return arr.reduce((sum: number, t: any) => sum + (t.amount ?? 0), 0);
+  }
+  const ttc = i.amount_paid ?? i.total ?? null;
+  if (typeof i.subtotal === 'number' && typeof ttc === 'number') {
+    return Math.max(0, ttc - i.subtotal);
+  }
+  return 0;
 }
 
 @Controller('billing')
@@ -317,32 +389,11 @@ export class BillingController implements OnModuleInit {
       throw new BadRequestException('No active subscription');
     }
 
-    // Annual = a 12-month commitment billed monthly. Cancelling must honour the
-    // full term: the subscription keeps billing monthly until the 12th month,
-    // then stops. We schedule cancel_at at (subscription start + 12 months).
-    // Monthly = flexible → just stop at the end of the current paid period.
-    if (info.billing_cycle === 'annual') {
-      const current = await this.stripe.subscriptions.retrieve(
-        info.stripe_subscription_id,
-      );
-      const startUnix =
-        (current as any).start_date ?? (current as any).created ?? null;
-      if (startUnix) {
-        const end = new Date(startUnix * 1000);
-        end.setMonth(end.getMonth() + 12);
-        const commitmentEnd = Math.floor(end.getTime() / 1000);
-        const nowUnix = Math.floor(Date.now() / 1000);
-        if (commitmentEnd > nowUnix) {
-          const sub = await this.stripe.subscriptions.update(
-            info.stripe_subscription_id,
-            { cancel_at: commitmentEnd },
-          );
-          return { cancel_at: (sub as any).cancel_at ?? commitmentEnd };
-        }
-      }
-      // Commitment already served (or start unknown) → cancel at period end.
-    }
-
+    // Both cycles cancel the same way now: stop at the end of the current paid
+    // period. For monthly that's the next month; for annual (a real yearly
+    // charge, paid a full year in advance) that's the anniversary — so the
+    // 12-month commitment is honoured automatically by the yearly interval, with
+    // no need to compute a cancel_at date ourselves.
     const sub = await this.stripe.subscriptions.update(info.stripe_subscription_id, {
       cancel_at_period_end: true,
     });
@@ -431,7 +482,56 @@ export class BillingController implements OnModuleInit {
             customerId: '',
             subscriptionId: '',
           });
+          // Tell the CRM the subscription is gone.
+          const priceId = sub.items.data[0]?.price?.id || '';
+          const mapped = PRICE_TO_PLAN[priceId];
+          const parties = await this.crmParties(tenantId);
+          await this.forwardToCrm('subscription.canceled', `${event.id}`, {
+            tenant: parties.tenant,
+            admin: parties.admin,
+            customer: {
+              email: '',
+              stripe_customer_id: typeof sub.customer === 'string' ? sub.customer : '',
+            },
+            payment: {
+              invoice_id: null,
+              amount_ht: null,
+              tva: null,
+              amount_ttc: null,
+              currency: sub.currency || null,
+              plan: mapped?.plan || sub.metadata?.plan || '',
+              billing_cycle: mapped?.cycle || sub.metadata?.billing_cycle || '',
+              status: 'canceled',
+              subscription_status: sub.status,
+              paid_at: null,
+              next_payment_at: null,
+              stripe_subscription_id: sub.id,
+              hosted_invoice_url: null,
+              invoice_pdf: null,
+            },
+          });
         }
+        break;
+      }
+      // ── Payment lifecycle → CRM Gestion ─────────────────────────────────────
+      // invoice.paid fires on the FIRST charge AND every monthly renewal — this
+      // is the "each payment that happens" event. invoice.payment_failed fires
+      // when a renewal charge fails. Both forward to the CRM; neither changes
+      // our plan state (the subscription.* events already do that).
+      case 'invoice.paid': {
+        await this.forwardInvoiceToCrm(
+          event,
+          event.data.object as Stripe.Invoice,
+          'payment.succeeded',
+        );
+        break;
+      }
+      case 'invoice.payment_failed': {
+        await this.forwardInvoiceToCrm(
+          event,
+          event.data.object as Stripe.Invoice,
+          'payment.failed',
+        );
         break;
       }
       default:
@@ -459,5 +559,200 @@ export class BillingController implements OnModuleInit {
         stripe_subscription_id: args.subscriptionId,
       }),
     );
+  }
+
+  // ── CRM Gestion forwarding ────────────────────────────────────────────────
+  // Resolve the tenant (name + contact/billing details) AND its admin user for
+  // the CRM payload. The tenant id is always known; the rest lives in
+  // auth-service. Never throws — missing enrichment must not stop the payment
+  // from being forwarded (we send what we have).
+  private async crmParties(
+    tenantId: string,
+  ): Promise<{ tenant: any; admin: any }> {
+    let tenant: any = { id: tenantId, name: '', phone: '', address: {} };
+    let admin: any = null;
+
+    try {
+      const info: any = await firstValueFrom(
+        this.authService.GetTenantBilling({ tenant_id: tenantId }),
+      );
+      tenant = {
+        id: tenantId,
+        name: info?.name || '',
+        phone: info?.phone || '',
+        address: {
+          line: info?.address_line || '',
+          postal_code: info?.postal_code || '',
+          city: info?.city || '',
+          country: info?.country || '',
+        },
+      };
+    } catch {
+      /* auth-service unreachable — send id-only, better than dropping the event */
+    }
+
+    try {
+      const a: any = await firstValueFrom(
+        this.authService.GetTenantAdmin({ tenant_id: tenantId }),
+      );
+      admin = {
+        id: a?.id || '',
+        first_name: a?.first_name || '',
+        last_name: a?.last_name || '',
+        email: a?.email || '',
+      };
+    } catch {
+      /* no admin resolvable — omit rather than fail */
+    }
+
+    return { tenant, admin };
+  }
+
+  // Build the CRM payload from a Stripe invoice and forward it. Retrieves the
+  // subscription to get our metadata (tenant_id), the plan/cycle (via price id)
+  // and the next renewal date.
+  private async forwardInvoiceToCrm(
+    event: Stripe.Event,
+    inv: Stripe.Invoice,
+    eventType: 'payment.succeeded' | 'payment.failed',
+  ) {
+    if (!CRM.enabled) return;
+
+    const subId = invoiceSubscriptionId(inv);
+    if (!subId) return; // not a subscription invoice — nothing to report
+
+    let sub: Stripe.Subscription | null = null;
+    try {
+      sub = await this.stripe.subscriptions.retrieve(subId);
+    } catch {
+      /* subscription vanished — fall back to whatever the invoice carries */
+    }
+
+    const tenantId = sub?.metadata?.tenant_id || '';
+    if (!tenantId) return; // can't attribute the payment → skip
+
+    const priceId = sub?.items?.data?.[0]?.price?.id || '';
+    const mapped = PRICE_TO_PLAN[priceId];
+    const i = inv as any;
+    const parties = await this.crmParties(tenantId);
+
+    await this.forwardToCrm(eventType, inv.id || `${event.id}`, {
+      tenant: parties.tenant,
+      admin: parties.admin,
+      customer: {
+        email: i.customer_email || '',
+        stripe_customer_id: typeof inv.customer === 'string' ? inv.customer : '',
+      },
+      payment: {
+        invoice_id: inv.id,
+        amount_ht: i.subtotal ?? null, // cents, pre-tax
+        tva: invoiceTax(inv), // cents — total TVA (see helper: field moved across API versions)
+        amount_ttc: (eventType === 'payment.succeeded' ? i.amount_paid : i.amount_due) ?? i.total ?? null,
+        currency: inv.currency || null,
+        plan: mapped?.plan || sub?.metadata?.plan || '',
+        billing_cycle: mapped?.cycle || sub?.metadata?.billing_cycle || '',
+        status: i.status || (eventType === 'payment.succeeded' ? 'paid' : 'failed'),
+        subscription_status: sub?.status || null,
+        paid_at: unixToIso(i.status_transitions?.paid_at ?? i.created),
+        next_payment_at: sub ? unixToIso(periodEnd(sub)) : null,
+        stripe_subscription_id: subId,
+        hosted_invoice_url: i.hosted_invoice_url || null,
+        invoice_pdf: i.invoice_pdf || null,
+      },
+    });
+  }
+
+  // POST a signed JSON payload to the CRM. Fire-and-forget: a CRM outage must
+  // never make us return non-200 to Stripe (that would trigger Stripe retries
+  // and could stall plan updates). Failures are logged; durable retry via an
+  // outbox is the planned hardening step.
+  private async forwardToCrm(
+    eventType: string,
+    eventId: string,
+    data: { tenant: any; admin?: any; customer: any; payment: any },
+  ) {
+    if (!CRM.enabled) return;
+    if (!CRM.url) {
+      console.warn('[CRM] CRM_FORWARD_ENABLED=true but CRM_API_URL is empty — skipping');
+      return;
+    }
+
+    const payload = {
+      event_id: eventId,
+      event_type: eventType,
+      occurred_at: new Date().toISOString(),
+      ...data,
+    };
+    const body = JSON.stringify(payload);
+
+    // Auth header: OAuth2 bearer (real CRM) or static key (fake CRM).
+    let authHeader: string;
+    try {
+      authHeader = crmUsesOauth()
+        ? `Bearer ${await this.getCrmAccessToken()}`
+        : `Bearer ${CRM.apiKey}`;
+    } catch (err: any) {
+      console.error(`[CRM] could not obtain access token (${eventType} ${eventId}):`, err?.message || err);
+      return;
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    };
+    // Only sign when a secret is configured (fake CRM verifies it).
+    if (CRM.hmacSecret) {
+      headers['X-Winaity-Signature'] = crypto
+        .createHmac('sha256', CRM.hmacSecret)
+        .update(body)
+        .digest('hex');
+    }
+
+    try {
+      const res = await fetch(CRM.url, { method: 'POST', headers, body });
+      if (!res.ok) {
+        console.error(
+          `[CRM] forward failed (${eventType} ${eventId}): HTTP ${res.status} ${await res.text()}`,
+        );
+      } else {
+        console.log(`[CRM] forwarded ${eventType} ${eventId} → ${res.status}`);
+      }
+    } catch (err: any) {
+      console.error(`[CRM] forward error (${eventType} ${eventId}):`, err?.message || err);
+    }
+  }
+
+  // OAuth2 client-credentials token for the real CRM, cached until ~60s before
+  // it expires. Sends credentials both in the form body AND as HTTP Basic auth
+  // — different OAuth2 servers expect one or the other; sending both is safe and
+  // covers the common cases without needing to know which the CRM uses.
+  private async getCrmAccessToken(): Promise<string> {
+    const now = Date.now();
+    if (crmToken && crmToken.expiresAt > now + 60_000) return crmToken.value;
+
+    const form = new URLSearchParams({ grant_type: 'client_credentials' });
+    form.set('client_id', CRM.clientId);
+    form.set('client_secret', CRM.clientSecret);
+    if (CRM.scope) form.set('scope', CRM.scope);
+
+    const basic = Buffer.from(`${CRM.clientId}:${CRM.clientSecret}`).toString('base64');
+    const res = await fetch(CRM.tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${basic}`,
+        Accept: 'application/json',
+      },
+      body: form.toString(),
+    });
+    if (!res.ok) {
+      throw new Error(`token endpoint HTTP ${res.status} ${await res.text()}`);
+    }
+    const json: any = await res.json();
+    const token = json.access_token;
+    if (!token) throw new Error('token endpoint returned no access_token');
+    const ttlMs = (Number(json.expires_in) || 3600) * 1000;
+    crmToken = { value: token, expiresAt: now + ttlMs };
+    return token;
   }
 }

@@ -45,7 +45,13 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
       );
     }
 
-    const tenant = Tenant.create(command.tenantName);
+    const tenant = Tenant.create(command.tenantName, 'free', {
+      phone: command.phone,
+      addressLine: command.addressLine,
+      postalCode: command.postalCode,
+      city: command.city,
+      country: command.country,
+    });
     await this.tenantRepository.save(tenant);
     this.logger.log(`Tenant created: ${tenant.getId()}`);
 

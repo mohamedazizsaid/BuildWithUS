@@ -53,6 +53,13 @@ export class TenantRepositoryImpl extends TenantRepository {
             entity.stripeSubscriptionId ?? null,
             entity.emailTemplatesCreated ?? 0,
             entity.aiInteractionsUsed ?? 0,
+            {
+                phone: entity.phone ?? null,
+                addressLine: entity.addressLine ?? null,
+                postalCode: entity.postalCode ?? null,
+                city: entity.city ?? null,
+                country: entity.country ?? null,
+            },
         );
     }
 }

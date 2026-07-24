@@ -125,7 +125,7 @@ function httpFallbackMessage(status: number): string {
 
 // ------- AUTH ---------
 export const auth = {
-    register: (body: {tenantName: string; email: string; password: string; firstName: string; lastName: string;}) =>
+    register: (body: {tenantName: string; email: string; password: string; firstName: string; lastName: string; phone: string; addressLine: string; postalCode: string; city: string; country: string;}) =>
         request('/auth/register', { method: 'POST' , body: JSON.stringify(body)}),
 
     login: (body: { email: string; password: string}) =>

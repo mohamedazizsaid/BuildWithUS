@@ -16,6 +16,11 @@ interface RegisterForm {
   lastName: string;
   email: string;
   password: string;
+  phone: string;
+  addressLine: string;
+  postalCode: string;
+  city: string;
+  country: string;
 }
 
 function RegisterInner() {
@@ -124,6 +129,55 @@ function RegisterInner() {
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
             placeholder="ahmed@winaity.com"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone</label>
+          <input
+            type="tel"
+            {...register('phone', { required: 'Le téléphone est obligatoire' })}
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+            placeholder="+33 6 12 34 56 78"
+          />
+          {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Adresse</label>
+          <input
+            {...register('addressLine', { required: 'L\'adresse est obligatoire' })}
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+            placeholder="12 rue de la Paix"
+          />
+          {errors.addressLine && <p className="text-red-500 text-xs mt-1">{errors.addressLine.message}</p>}
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Code postal</label>
+            <input
+              {...register('postalCode', { required: 'Obligatoire' })}
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+              placeholder="75002"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Ville</label>
+            <input
+              {...register('city', { required: 'Obligatoire' })}
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+              placeholder="Paris"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Pays</label>
+            <input
+              {...register('country', { required: 'Obligatoire' })}
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+              placeholder="France"
+              defaultValue="France"
+            />
+          </div>
         </div>
 
         <div>

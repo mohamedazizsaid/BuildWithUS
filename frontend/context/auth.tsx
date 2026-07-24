@@ -22,7 +22,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   // redirectTo lets the paid-plan funnel land on /checkout after signup
   // instead of the default /dashboard.
-  register: (data: { tenantName: string; email: string; password: string; firstName: string; lastName: string }, redirectTo?: string) => Promise<void>;
+  register: (data: { tenantName: string; email: string; password: string; firstName: string; lastName: string; phone: string; addressLine: string; postalCode: string; city: string; country: string }, redirectTo?: string) => Promise<void>;
   acceptInvite: (data: { token: string; password: string; firstName: string; lastName: string }) => Promise<void>;
   logout: () => Promise<void>;
   // Flip first_log → true locally and persist it. Called when the onboarding
@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/dashboard');
   };
 
-  const register = async (body: { tenantName: string; email: string; password: string; firstName: string; lastName: string }, redirectTo = '/dashboard') => {
+  const register = async (body: { tenantName: string; email: string; password: string; firstName: string; lastName: string; phone: string; addressLine: string; postalCode: string; city: string; country: string }, redirectTo = '/dashboard') => {
     await auth.register(body);
     const me = await auth.getMe();
     setUser({ ...me.user, tenant_name: me.tenant_name });

@@ -33,8 +33,9 @@ export interface Plan {
   tagline: string;
   /** €/month on the flexible monthly plan (cancel anytime). `null` ⇒ free/custom. */
   priceMonthly: number | null;
-  /** €/month on the annual plan — cheaper, but a 12-month commitment. Still
-   *  billed EVERY MONTH (never one lump sum), just at this lower rate. */
+  /** €/YEAR on the annual plan — a single lump sum charged once a year (e.g. 240),
+   *  cheaper than 12× the monthly rate. Billed one year in advance, renews on the
+   *  anniversary. `null` ⇒ free/custom. */
   priceAnnual: number | null;
   /** Overrides the numeric price display, e.g. "Gratuit" or "Sur devis". */
   priceLabel?: string;
@@ -66,8 +67,8 @@ export const PLANS: Plan[] = [
     id: 'pro',
     name: 'Pro',
     tagline: 'Pour les professionnels et les TPE.',
-    priceMonthly: 25, // flexible — Stripe price_1TqZNu3SDTmZuxcVRdoiNXbh
-    priceAnnual: 20, // annual commitment, billed monthly — Stripe price_1TqYDA3SDTmZuxcVMG7DwZn7
+    priceMonthly: 25, // €/mois flexible — Stripe price_1TqZNu3SDTmZuxcVRdoiNXbh
+    priceAnnual: 240, // €/an, un seul prélèvement annuel — Stripe (yearly price)
     features: [
       'Usage illimité — emails, contrats, factures',
       "Interactions illimitées avec l'assistant IA",
@@ -81,8 +82,8 @@ export const PLANS: Plan[] = [
     id: 'pro_org',
     name: 'Pro Organisation',
     tagline: 'Pour les équipes et les structures.',
-    priceMonthly: 55, // flexible — Stripe price_1TqZNu3SDTmZuxcVAAtZ6hJc
-    priceAnnual: 50, // annual commitment, billed monthly — Stripe price_1TqYLc3SDTmZuxcVF4VRSK10
+    priceMonthly: 55, // €/mois flexible — Stripe price_1TqZNu3SDTmZuxcVAAtZ6hJc
+    priceAnnual: 600, // €/an, un seul prélèvement annuel — Stripe (yearly price)
     features: [
       'Tout ce qui est inclus dans Pro',
       'Invitez et gérez plusieurs utilisateurs',
@@ -94,18 +95,21 @@ export const PLANS: Plan[] = [
   },
 ];
 
-// Stripe Price IDs (TEST mode). All four are MONTHLY-recurring — the annual
-// plans are billed monthly at a lower rate with a 12-month commitment (enforced
-// in our cancel/change logic), NOT charged as one yearly lump sum.
-// Used server-side to open a Checkout Session. Swap for live-mode IDs at launch.
+// Stripe Price IDs (TEST mode). Monthly prices are month-interval; annual prices
+// are YEAR-interval — one lump charge per year (240€ / 600€ HT), renewed on the
+// anniversary. Must stay in sync with api-gateway PRICE_IDS.
+// ⚠️ The two annual IDs are PLACEHOLDERS — create the yearly prices in Stripe
+// (scripts/create-annual-prices.js or the dashboard) and paste the real ids here
+// AND in api-gateway/src/controllers/billing.controller.ts.
+// Swap for live-mode IDs at launch.
 export const STRIPE_PRICE_IDS: Record<'pro' | 'pro_org', Record<BillingCycle, string>> = {
   pro: {
     monthly: 'price_1TqZNu3SDTmZuxcVRdoiNXbh', // 25€/mois — flexible
-    annual: 'price_1TqYDA3SDTmZuxcVMG7DwZn7', // 20€/mois — 12-mo commitment
+    annual: 'price_1TwMMv3SDTmZuxcVlulvXqwv', // 240€/an — one yearly charge
   },
   pro_org: {
     monthly: 'price_1TqZNu3SDTmZuxcVAAtZ6hJc', // 55€/mois — flexible
-    annual: 'price_1TqYLc3SDTmZuxcVF4VRSK10', // 50€/mois — 12-mo commitment
+    annual: 'price_1TwMNm3SDTmZuxcVAjqTtEcZ', // 600€/an — one yearly charge
   },
 };
 

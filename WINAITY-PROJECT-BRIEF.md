@@ -96,7 +96,8 @@ treatments (hero-over-image, rounded cards, brand color bars, pricing boxes).
 ### 3.5 Subscriptions & Billing (Stripe)
 - **Plans:** Free, Pro (25€/mo), Pro Organisation (55€/mo), plus an internal unlimited plan.
 - **Embedded Stripe Checkout** (payment stays on Winaity's page), monthly vs. annual billing
-  (annual = lower rate, 12-month commitment, still billed monthly), **French VAT (TVA 20%)**
+  (monthly = flexible, billed each month; annual = one yearly lump charge at a lower rate,
+  240€/600€ HT, 12-month commitment, renews on the anniversary), **French VAT (TVA 20%)**
   correctly applied.
 - **Plan enforcement:** free tier limited to email + 1 template + 1 AI interaction (lifetime,
   monotonic); Pro unlocks all channels and unlimited AI; Pro Org adds team invites + API access.

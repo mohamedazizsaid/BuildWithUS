@@ -83,10 +83,14 @@ function CheckoutInner() {
     );
   }
 
-  const price = planPrice(plan, cycle) ?? 0; // €/month HT (both cycles billed monthly)
+  const price = planPrice(plan, cycle) ?? 0; // monthly ⇒ €/mois HT · annual ⇒ €/an HT
   // Single source of truth: same VAT_RATE the gateway attaches to the Stripe
   // line item, so this total ALWAYS equals what Stripe charges.
   const { vat, ttc } = vatBreakdown(price);
+  // Per-cycle wording: annual is a single yearly charge, monthly recurs monthly.
+  const perUnit = isAnnual ? '/ an' : '/ mois';
+  const recurrence = isAnnual ? 'chaque année' : 'chaque mois';
+  const lineLabel = isAnnual ? 'Abonnement (1 an, HT)' : 'Abonnement (1 mois, HT)';
 
   return (
     <div className="min-h-screen bg-white lg:grid lg:grid-cols-2">
@@ -106,10 +110,10 @@ function CheckoutInner() {
 
             <div className="mt-6 flex items-baseline gap-2">
               <span className="text-4xl font-bold text-slate-900">{ttc.toFixed(2)}€</span>
-              <span className="text-slate-400">/ mois TTC</span>
+              <span className="text-slate-400">{perUnit} TTC</span>
             </div>
             <p className="mt-1 text-sm text-slate-500">
-              {isAnnual ? 'Engagement 12 mois · prélevé chaque mois' : 'Sans engagement · prélevé chaque mois'}
+              {isAnnual ? 'Engagement 12 mois · prélevé une fois par an' : 'Sans engagement · prélevé chaque mois'}
             </p>
 
             <ul className="mt-8 space-y-3">
@@ -123,10 +127,10 @@ function CheckoutInner() {
               ))}
             </ul>
 
-            {/* Totals — charged today, then the same amount every month */}
+            {/* Totals — charged today, then the same amount each period */}
             <div className="mt-10 space-y-2 border-t border-slate-200 pt-6 text-sm">
               <div className="flex justify-between text-slate-500">
-                <span>Abonnement (1 mois, HT)</span>
+                <span>{lineLabel}</span>
                 <span>{price.toFixed(2)}€</span>
               </div>
               <div className="flex justify-between text-slate-500">
@@ -134,12 +138,13 @@ function CheckoutInner() {
                 <span>{vat.toFixed(2)}€</span>
               </div>
               <div className="flex justify-between pt-2 text-base font-semibold text-slate-900">
-                <span>Total par mois (TTC)</span>
+                <span>{isAnnual ? 'Total par an (TTC)' : 'Total par mois (TTC)'}</span>
                 <span>{ttc.toFixed(2)}€</span>
               </div>
               {isAnnual && (
                 <p className="pt-1 text-xs text-slate-400">
-                  Engagement de 12 mois. Résiliation possible à la fin de la période engagée.
+                  Facturé une fois par an. Renouvellement automatique à la date
+                  anniversaire ; résiliation possible pour la fin de l&apos;année en cours.
                 </p>
               )}
             </div>
@@ -195,7 +200,7 @@ function CheckoutInner() {
           </div>
 
           <p className="mt-4 text-center text-xs text-slate-400">
-            En continuant, vous acceptez d&apos;être prélevé {ttc.toFixed(2)}€ chaque mois jusqu&apos;à
+            En continuant, vous acceptez d&apos;être prélevé {ttc.toFixed(2)}€ {recurrence} jusqu&apos;à
             résiliation.
           </p>
         </div>

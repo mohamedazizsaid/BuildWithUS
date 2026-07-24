@@ -75,7 +75,7 @@ export default function PricingPage() {
           </div>
           <div className="pricing-note">
             {cycle === 'annual'
-              ? 'Engagement 12 mois, facturé mensuellement au tarif réduit.'
+              ? 'Facturé une fois par an, à tarif réduit. Engagement 12 mois.'
               : 'Facturation mensuelle, sans engagement.'}
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function PricingPage() {
                     {isFree
                       ? 'Pour toujours'
                       : cycle === 'annual'
-                        ? 'par mois, HT · engagement 12 mois'
+                        ? 'par an, HT · engagement 12 mois'
                         : 'par mois, HT · sans engagement'}
                   </div>
 
@@ -280,7 +280,7 @@ export default function PricingPage() {
               },
               {
                 q: 'Quelle différence entre facturation mensuelle et annuelle ?',
-                a: "Le tarif mensuel est flexible et sans engagement. Le tarif annuel est moins cher mais implique un engagement de 12 mois — il reste facturé chaque mois, simplement à un tarif réduit.",
+                a: "Le tarif mensuel est flexible et sans engagement, prélevé chaque mois. Le tarif annuel est moins cher : vous réglez l'année entière en une seule fois, avec un engagement de 12 mois, puis le renouvellement se fait automatiquement à la date anniversaire.",
               },
               {
                 q: 'Mes documents sont-ils conformes à la législation française ?',

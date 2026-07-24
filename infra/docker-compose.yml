@@ -157,6 +157,16 @@ services:
       # every line/subscription item so Stripe charges + shows TVA. Must match
       # frontend VAT_RATE (lib/plans.ts). Empty ⇒ prices stay HT-only.
       STRIPE_TAX_RATE_ID: ${STRIPE_TAX_RATE_ID}
+      # CRM Gestion payment forwarding (invoice.paid/failed, subscription cancel).
+      # host.docker.internal lets this container reach the fake CRM on the host.
+      CRM_FORWARD_ENABLED: ${CRM_FORWARD_ENABLED}
+      CRM_API_URL: ${CRM_API_URL}
+      CRM_API_KEY: ${CRM_API_KEY}
+      CRM_HMAC_SECRET: ${CRM_HMAC_SECRET}
+      CRM_CLIENT_ID: ${CRM_CLIENT_ID}
+      CRM_CLIENT_SECRET: ${CRM_CLIENT_SECRET}
+      CRM_TOKEN_URL: ${CRM_TOKEN_URL}
+      CRM_SCOPE: ${CRM_SCOPE}
       # JWT — MUST match auth-service's secret or tokens won't validate
       JWT_SECRET: ${JWT_SECRET}
       # PDF export (Two-View): gateway signs short-lived print tokens that

@@ -65,6 +65,11 @@ export class AuthController implements OnModuleInit {
         password: body.password,
         first_name: body.firstName,
         last_name: body.lastName,
+        phone: body.phone,
+        address_line: body.addressLine,
+        postal_code: body.postalCode,
+        city: body.city,
+        country: body.country,
       }),
     );
 
