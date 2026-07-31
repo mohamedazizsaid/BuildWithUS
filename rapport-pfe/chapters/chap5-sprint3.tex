@@ -1,0 +1,201 @@
+% =====================================================================
+%  Chapitre 5 — Sprint 3 : Assistant d'intelligence artificielle agentique
+% =====================================================================
+\chapter{Sprint~3 : Assistant d'intelligence artificielle agentique}
+\label{chap:sprint3}
+
+\section*{Introduction}
+Ce sprint porte la principale valeur ajoutée du projet : un assistant
+conversationnel capable de générer et de modifier des modèles d'e-mail en
+manipulant de véritables blocs éditables, et même de reconstruire une
+campagne à partir d'une affiche. Nous présentons d'abord les objectifs du
+sprint, puis la conception de l'assistant — modèles employés, architecture
+de génération, protocole d'exposition des outils et chaîne de traitement de
+l'image —, avant de décrire les diagrammes de séquence et la réalisation.
+
+\section{Objectifs du sprint}
+Ce sprint couvre les epics~7 à~10 du backlog. Le
+tableau~\ref{tab:backlog-s3} en détaille les user stories.
+
+\begin{table}[H]
+\centering
+\caption{Backlog du sprint~3}
+\label{tab:backlog-s3}
+\small
+\begin{tabularx}{\linewidth}{clX}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Description} \\
+\midrule
+7.1 & Générer par consigne & En tant qu'éditeur, je veux qu'un e-mail complet et à ma marque soit généré à partir d'une consigne en langage naturel. \\
+8.1 & Éditer en conversation & En tant qu'éditeur, je veux modifier mon e-mail par dialogue (thème, image, disposition, ajout ou déplacement de blocs). \\
+8.2 & Éditer par sélection & En tant qu'éditeur, je veux sélectionner un élément et lui appliquer une consigne ciblée. \\
+9.1 & Affiche vers e-mail & En tant qu'éditeur, je veux importer une affiche et obtenir un e-mail éditable reprenant la campagne. \\
+10.1 & Exposition des outils (MCP) & En tant que système, je veux exposer les outils de construction via un protocole standardisé afin que le modèle les découvre dynamiquement. \\
+10.2 & Modèle auto-hébergé & En tant qu'entreprise, je veux que l'inférence s'exécute sur un serveur privé afin de préserver la confidentialité des données. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Conception de l'assistant}
+
+\subsection{Le modèle de blocs comme contrat d'outils}
+Le principe fondateur de l'assistant est le suivant : au lieu de produire un
+bloc de HTML monolithique, le modèle de langage \textbf{appelle des outils}
+de construction qui renvoient exactement le même format de blocs
+(\texttt{BlockData}) que l'éditeur manuel décrit au
+chapitre~\ref{chap:sprint2}. Le HTML n'est généré qu'au moment de l'export.
+Cette approche, dite \emph{agentique}, présente deux avantages décisifs :
+les modifications visuelles et les modifications par IA opèrent sur la même
+structure de données (elles sont donc interchangeables), et le résultat est
+immédiatement et finement éditable par l'utilisateur.
+
+Un ensemble de \textbf{32 outils} a été défini : un outil par type de bloc,
+complété par des outils transversaux (définition du thème, ouverture de
+section, carte, en-tête sur image, barre de couleurs de marque, changement
+de disposition, déplacement, édition et suppression de blocs).
+
+\subsection{Modèles et infrastructure}
+L'inférence repose sur un \textbf{serveur de modèle de langage
+auto-hébergé} exploitant le moteur haute performance vLLM, exposé via une
+API compatible OpenAI et protégé par authentification. Deux modèles à poids
+ouverts y sont servis : \textbf{Gemma} (modèle par défaut) et un modèle de
+repli, tous deux dotés d'un large contexte. Ce choix d'auto-hébergement est
+central : il garantit qu'aucune donnée de l'entreprise n'est transmise à une
+API tierce, répondant ainsi à l'exigence de souveraineté formulée dans les
+besoins non fonctionnels.
+
+\subsection{Architecture de génération : planificateur et exécuteur}
+Le chemin principal de génération d'un e-mail neuf repose sur un
+\textbf{planificateur déterministe}. Plutôt que de laisser le modèle
+enchaîner librement des dizaines d'appels d'outils — approche fragile avec
+un modèle de taille modérée —, une \textbf{unique requête contrainte par un
+schéma} produit une spécification de design (\emph{DesignSpec}) : système de
+design, ambiance, palette de couleurs et liste ordonnée de sections. Cette
+spécification est ensuite \textbf{exécutée par le code} pour construire les
+blocs de manière déterministe. Il en résulte une génération rapide, sans
+duplication et avec un pied de page unique. Lorsque le planificateur échoue
+ou renvoie un résultat trop pauvre, une \textbf{voie agentique de repli}
+prend le relais, laissant le modèle appeler directement les outils. La
+figure~\ref{fig:archi-ia} synthétise cette architecture.
+
+% [FIGURE : architecture de l'assistant IA — source architecture-ia.drawio]
+\figplaceholder{Architecture de l'assistant d'intelligence artificielle}{fig:archi-ia}{7.5cm}
+
+\subsection{Exposition des outils via le protocole MCP}
+Pour les tours pilotés par le modèle (édition et repli agentique), les
+outils de construction sont exposés au moyen du \textbf{Model Context
+Protocol} (MCP). Un point d'accès dédié agit comme serveur MCP : le modèle y
+\textbf{découvre dynamiquement} les 32 outils disponibles plutôt que de se
+les voir énumérer dans l'invite. Cette décorrélation entre la définition des
+outils et l'invite constitue une architecture agentique moderne et
+standardisée. Le serveur MCP réutilise exactement les mêmes définitions
+d'outils que l'éditeur, garantissant une source de vérité unique.
+
+\subsection{Chaîne « affiche vers e-mail »}
+La fonction d'import d'affiche traite une image en \textbf{trois étapes}.
+\begin{enumerate}[leftmargin=1.4cm]
+  \item \textbf{Lecture par vision.} L'image est analysée par le modèle
+  multimodal, qui en extrait un rapport structuré : texte exact (OCR),
+  offre (prix, cadeaux, forfaits, code promotionnel, appel à l'action),
+  couleurs dominantes, ambiance, marque et disposition. Cette étape, la seule
+  réellement multimodale, s'appuie sur un décodage contraint par schéma pour
+  fiabiliser l'extraction.
+  \item \textbf{Rapport vers directive.} Le rapport et la consigne de
+  l'utilisateur sont transformés en une directive de génération et en une
+  amorce de thème, qui alimentent le générateur de blocs déjà décrit :
+  l'image gouverne la marque et le contenu, la consigne oriente la
+  structure.
+  \item \textbf{Passe critique.} Une passe d'auto-vérification compare
+  l'e-mail produit à l'affiche d'origine et signale les écarts (prix erroné,
+  élément manquant), corrigés par une passe finale.
+\end{enumerate}
+Il est essentiel de noter que la plateforme ne colle jamais l'affiche : elle
+\textbf{reconstruit} nativement la campagne en blocs éditables. La
+figure~\ref{fig:pipeline-image} illustre cette chaîne de traitement.
+
+% [FIGURE : chaîne de traitement « affiche → e-mail »]
+\figplaceholder{Chaîne de traitement « affiche vers e-mail »}{fig:pipeline-image}{6cm}
+
+\subsection{Intelligence de design et fiabilité}
+Plusieurs mécanismes garantissent la qualité et la fiabilité du résultat.
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Cinq systèmes de design} (éditorial, audacieux, minimal,
+  luxe, corporate) paramètrent l'échelle typographique, les alignements, les
+  espacements et le traitement des boutons et des cartes~; le système est
+  choisi en fonction du sujet.
+  \item Un \textbf{dériveur de palette} et une \textbf{garde de contraste}
+  assurent que le texte reste toujours lisible sur son fond, quelle que soit
+  la couleur choisie.
+  \item Un \textbf{routeur d'intention} classe chaque tour (effacer,
+  réécrire, image, éditer, changer de thème) afin d'aiguiller la requête vers
+  le traitement — déterministe ou piloté par le modèle — le plus adapté.
+  \item Des \textbf{confirmations honnêtes} garantissent que l'assistant
+  n'annonce un succès que si le modèle a réellement été modifié, un
+  compteur de mutations servant de preuve de changement.
+\end{itemize}
+
+\section{Diagrammes de séquence}
+
+\subsection{Séquence « Générer un e-mail par consigne »}
+La figure~\ref{fig:seq-generate} décrit le flux de génération : la consigne
+est transmise à la route d'IA, le planificateur produit une spécification de
+design via le serveur d'inférence, le code exécute cette spécification en
+blocs, les images sont résolues, puis le modèle est renvoyé au client et
+appliqué au canevas.
+
+% [FIGURE : diagramme de séquence « Générer un e-mail par consigne »]
+\figplaceholder{Diagramme de séquence « Générer un e-mail par consigne »}{fig:seq-generate}{7.5cm}
+
+\subsection{Séquence « Reconstruire depuis une affiche »}
+La figure~\ref{fig:seq-image} illustre la chaîne complète de l'import
+d'affiche : lecture par vision, transformation en directive, génération des
+blocs et passe critique.
+
+% [FIGURE : diagramme de séquence « Reconstruire depuis une affiche »]
+\figplaceholder{Diagramme de séquence « Reconstruire depuis une affiche »}{fig:seq-image}{7.5cm}
+
+\section{Réalisation}
+
+\subsection{Panneau de discussion et génération}
+L'assistant se présente sous la forme d'un panneau de discussion intégré à
+l'éditeur d'e-mail (figure~\ref{fig:ui-ai-chat}). À partir d'une simple
+consigne — par exemple « crée un e-mail Black Friday pour notre boutique » —
+l'assistant produit en une dizaine de secondes un e-mail complet et à la
+marque : en-tête, section d'offre, grille de produits et pied de page.
+
+% [FIGURE : capture — panneau de discussion IA et e-mail généré]
+\figplaceholder{Panneau de discussion IA et e-mail généré}{fig:ui-ai-chat}{6.5cm}
+
+\subsection{Édition conversationnelle et ciblée}
+L'utilisateur peut ensuite affiner son e-mail par le dialogue : « passe-le
+en thème sombre », « change la première image », « déplace la section des
+produits avant l'offre », « ajoute une boîte de prix ». L'assistant vise le
+bon bloc et applique la modification. Il est également possible de
+\textbf{sélectionner} un bloc ou une section dans le canevas puis de saisir
+une consigne : la modification s'applique alors précisément à l'élément
+sélectionné. La figure~\ref{fig:ui-ai-edit} illustre l'édition ciblée par
+sélection.
+
+% [FIGURE : capture — édition ciblée par sélection]
+\figplaceholder{Édition ciblée par sélection}{fig:ui-ai-edit}{6cm}
+
+\subsection{Import d'une affiche}
+La figure~\ref{fig:ui-image-import} présente l'import d'une affiche : après
+téléversement, l'assistant affiche l'avancement des étapes (lecture, analyse,
+génération) puis produit l'e-mail éditable reconstruit, fidèle à la marque
+et à l'offre de l'affiche d'origine.
+
+% [FIGURE : capture — import d'affiche et e-mail reconstruit]
+\figplaceholder{Import d'une affiche et e-mail reconstruit}{fig:ui-image-import}{6.5cm}
+
+\section*{Conclusion}
+Ce sprint a doté la plateforme de son principal différenciateur : un
+assistant agentique qui génère et modifie de véritables blocs éditables,
+reconstruit une campagne à partir d'une affiche grâce à la vision, et
+s'appuie sur un modèle de langage auto-hébergé garantissant la souveraineté
+des données. L'architecture combine un planificateur déterministe rapide,
+une voie agentique de repli et une exposition des outils via le protocole
+MCP, le tout renforcé par une intelligence de design et des mécanismes de
+fiabilité. Le sprint suivant transforme cette plateforme fonctionnellement
+riche en un service commercialisable : abonnements, intégrations et mise en
+production.

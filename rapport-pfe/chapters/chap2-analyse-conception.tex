@@ -1,0 +1,347 @@
+% =====================================================================
+%  Chapitre 2 — Analyse des besoins et conception
+% =====================================================================
+\chapter{Analyse des besoins et conception}
+\label{chap:analyse}
+
+\section*{Introduction}
+Après avoir situé le projet, ce chapitre en établit les fondations. Nous
+identifions d'abord les acteurs de la plateforme et exprimons les besoins
+fonctionnels et non fonctionnels. Nous présentons ensuite la conception à
+travers le diagramme de cas d'utilisation global, le diagramme de classes
+et l'architecture applicative. Nous terminons par l'initialisation du
+projet : le backlog produit, la planification des sprints et
+l'environnement de développement.
+
+\section{Analyse des besoins}
+
+\subsection{Identification des acteurs}
+Un acteur désigne un rôle joué par une entité externe qui interagit avec le
+système. Pour Winaity Template Builder, nous distinguons les acteurs
+suivants.
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Utilisateur / Éditeur.} Membre d'une entreprise cliente. Il
+  crée, modifie, prévisualise et exporte des modèles, utilise l'assistant
+  d'IA et organise ses modèles (favoris, duplication).
+
+  \item \textbf{Administrateur d'entreprise (Admin).} Utilisateur disposant
+  de droits étendus au sein de son entreprise. Outre les capacités d'un
+  éditeur, il invite et gère les membres de son équipe, souscrit un
+  abonnement et gère la facturation, et génère des clés d'intégration
+  (API).
+
+  \item \textbf{Membre marketing.} Rôle spécialisé se comportant comme un
+  éditeur, mais habilité en plus à constituer et maintenir la galerie de
+  modèles prédéfinis propre à son entreprise, par catégorie.
+
+  \item \textbf{Super-administrateur.} Acteur interne à l'éditeur de la
+  plateforme. Il supervise l'ensemble des entreprises, consulte les
+  abonnements et attribue les plans, y compris le plan interne réservé aux
+  entités du groupe.
+
+  \item \textbf{Client applicatif (M2M).} Système externe (par exemple un
+  CRM) authentifié par une clé d'API, qui embarque l'éditeur pour ses
+  propres utilisateurs via le flux d'intégration.
+\end{itemize}
+
+\subsection{Besoins fonctionnels}
+Les besoins fonctionnels décrivent les services que la plateforme doit
+rendre. Ils sont regroupés ci-dessous par domaine.
+
+\paragraph{Authentification et gestion des comptes.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item S'inscrire et créer une entreprise, ou rejoindre une entreprise
+  existante sur invitation.
+  \item S'authentifier de manière sécurisée (jeton JWT) et gérer sa
+  session.
+  \item Consulter et modifier son profil.
+\end{itemize}
+
+\paragraph{Multi-entreprises et gestion des utilisateurs.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item Garantir l'isolation stricte des données par entreprise.
+  \item Inviter des membres, accepter une invitation, lister l'équipe.
+  \item Attribuer des rôles (administrateur, éditeur, marketing).
+\end{itemize}
+
+\paragraph{Édition de modèles multi-canal.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item Créer, modifier, dupliquer, supprimer et lister des modèles.
+  \item Éditer un e-mail par glisser-déposer de blocs, prévisualiser en
+  direct et éditer le code.
+  \item Créer des factures, contrats, SMS et messages RCS.
+  \item Exporter en HTML responsive et en PDF, substituer des variables de
+  personnalisation.
+  \item Gérer les favoris et la galerie de modèles prédéfinis.
+\end{itemize}
+
+\paragraph{Assistance par intelligence artificielle.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item Générer un e-mail complet à partir d'une consigne en langage
+  naturel.
+  \item Modifier un modèle en conversation (thème, image, disposition,
+  ajout ou déplacement de blocs).
+  \item Appliquer une modification à un élément précis sélectionné dans le
+  canevas.
+  \item Reconstruire un e-mail éditable à partir d'une affiche marketing.
+\end{itemize}
+
+\paragraph{Abonnements, intégrations et administration.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item Souscrire, changer, annuler et réactiver un abonnement~; appliquer
+  les quotas par plan.
+  \item Générer des clés d'API et embarquer l'éditeur depuis un outil
+  externe.
+  \item Superviser les entreprises et attribuer les plans (super-admin).
+\end{itemize}
+
+\subsection{Besoins non fonctionnels}
+Les besoins non fonctionnels définissent les contraintes de qualité que la
+plateforme doit respecter.
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Sécurité et confidentialité.} Authentification par jeton,
+  cloisonnement rigoureux des données par \texttt{tenant\_id}, contrôle
+  d'accès basé sur les rôles, secrets tenus hors du dépôt de code, et
+  \textbf{souveraineté des données} garantie par un modèle de langage
+  auto-hébergé.
+  \item \textbf{Performance.} Génération d'un e-mail par l'IA en une dizaine
+  de secondes, rendu et prévisualisation réactifs.
+  \item \textbf{Évolutivité (scalabilité).} Architecture microservices
+  permettant de faire évoluer et de déployer chaque service
+  indépendamment.
+  \item \textbf{Maintenabilité.} Séparation des responsabilités, patron
+  CQRS côté services, modèle de données partagé entre édition manuelle et
+  édition IA.
+  \item \textbf{Utilisabilité.} Interface intuitive, accessible à un
+  utilisateur métier sans compétence technique.
+  \item \textbf{Fiabilité.} Confirmations honnêtes de l'assistant (aucun
+  succès annoncé si le modèle n'a pas réellement changé), garde de
+  contraste garantissant la lisibilité, gestion propre des erreurs.
+\end{itemize}
+
+\section{Conception}
+
+\subsection{Diagramme de cas d'utilisation global}
+Le diagramme de cas d'utilisation offre une vue d'ensemble du comportement
+fonctionnel de la plateforme et des interactions entre acteurs et cas
+d'utilisation. La figure~\ref{fig:uc-global} présente le diagramme global du
+système.
+
+% [FIGURE : diagramme de cas d'utilisation global — source cas-utilisation.wsd]
+\figplaceholder{Diagramme de cas d'utilisation global}{fig:uc-global}{8cm}
+
+\subsection{Diagramme de classes}
+Le diagramme de classes décrit la structure statique du système : les
+entités, leurs attributs et leurs relations. Les principales entités du
+domaine sont \texttt{Tenant} (entreprise), \texttt{User} (utilisateur et
+son rôle), \texttt{Template} (modèle, caractérisé par son type de canal et
+son contenu), les entités d'invitation et de jeton, ainsi que les entités
+liées à l'abonnement (plan, cycle de facturation, statut). La
+figure~\ref{fig:classes} présente le diagramme de classes.
+
+% [FIGURE : diagramme de classes — source diagramme-classes.wsd]
+\figplaceholder{Diagramme de classes}{fig:classes}{9cm}
+
+\subsection{Architecture de l'application}
+La plateforme adopte une \textbf{architecture microservices}. Cette section
+en présente les vues physique et logique.
+
+\subsubsection{Architecture physique}
+L'architecture physique décrit les composants déployés et leurs
+interactions. Elle se compose des éléments suivants~:
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Client (navigateur).} Interface utilisateur exécutée dans le
+  navigateur.
+  \item \textbf{Application frontend.} Application Next.js servant
+  l'interface et hébergeant les routes d'IA côté serveur.
+  \item \textbf{Passerelle API (API Gateway).} Unique surface REST publique~;
+  elle traduit les appels REST en appels gRPC vers les services internes et
+  gère l'authentification, la facturation et l'application des quotas.
+  \item \textbf{Service d'authentification.} Gère les comptes, les
+  entreprises, les rôles et les abonnements.
+  \item \textbf{Service de modèles.} Gère le cycle de vie des modèles
+  (CRUD, rendu, duplication, favoris).
+  \item \textbf{Services d'IA et d'images.} Services auxiliaires
+  (suggestions de palettes, mapping de variables, recherche d'images) et
+  \textbf{serveur de modèle de langage auto-hébergé}.
+  \item \textbf{Bases de données PostgreSQL} (\texttt{auth\_db} et
+  \texttt{templates\_db}) et \textbf{stockage objet MinIO} pour les médias.
+\end{itemize}
+
+% [FIGURE : architecture physique — source architecture-technique.drawio]
+\figplaceholder{Architecture physique de l'application}{fig:archi-phys}{7cm}
+
+\subsubsection{Architecture logique}
+Sur le plan logique, la plateforme suit un modèle en couches communiquant
+selon un schéma requête/réponse. Le client émet une requête REST
+(authentifiée par un jeton JWT porté par un \emph{cookie}) vers la
+passerelle API. Celle-ci relaie la requête, via \textbf{gRPC}, au service
+concerné. Les services, développés avec le framework NestJS, appliquent le
+patron \textbf{CQRS} (séparation des commandes et des requêtes) et
+persistent leurs données au moyen de l'ORM TypeORM. La
+figure~\ref{fig:archi-log} illustre cette architecture.
+
+% [FIGURE : architecture logique — source architecture-logique.drawio]
+\figplaceholder{Architecture logique de l'application}{fig:archi-log}{7cm}
+
+Le choix du \textbf{gRPC} pour la communication inter-services se justifie
+par ses performances (sérialisation binaire via Protocol Buffers) et par le
+contrat d'interface fort qu'il impose. Le jeton JWT transporte la charge
+utile \texttt{\{ userId, tenantId, email, role \}}, où le
+\texttt{tenant\_id} constitue la clé d'isolation présente dans tous les
+services.
+
+\section{Initialisation du projet}
+
+\subsection{Backlog produit}
+Le backlog produit recense les fonctionnalités attendues, exprimées sous
+forme d'\emph{epics} et priorisées. Le tableau~\ref{tab:backlog} en présente
+la synthèse.
+
+\begin{table}[H]
+\centering
+\caption{Backlog produit (synthèse par epic)}
+\label{tab:backlog}
+\small
+\begin{tabularx}{\linewidth}{clXc}
+\toprule
+\textbf{ID} & \textbf{Epic} & \textbf{Description} & \textbf{Priorité} \\
+\midrule
+1  & Authentification & Inscription, connexion sécurisée (JWT), profil. & Haute \\
+2  & Multi-entreprises & Isolation des données par \texttt{tenant\_id}. & Haute \\
+3  & Gestion des utilisateurs & Invitations, équipe, rôles (admin / éditeur / marketing), super-admin. & Haute \\
+4  & Éditeur d'e-mail & Canevas de blocs, glisser-déposer, aperçu, code, export HTML/PDF. & Haute \\
+5  & Modèles multi-canal & Facture, contrat, SMS, RCS. & Haute \\
+6  & Bibliothèque de modèles & Favoris, duplication, galerie de modèles prédéfinis. & Moyenne \\
+7  & Génération IA par consigne & E-mail complet à partir d'une invite en langage naturel. & Haute \\
+8  & Édition IA conversationnelle & Modification par dialogue et édition ciblée par sélection. & Haute \\
+9  & Affiche $\rightarrow$ e-mail & Reconstruction d'un e-mail éditable à partir d'une image. & Haute \\
+10 & MCP \& LLM auto-hébergé & Exposition des outils via MCP, inférence sur serveur vLLM privé. & Moyenne \\
+11 & Abonnements et facturation & Plans, paiement Stripe, TVA, quotas par plan. & Haute \\
+12 & Super-administration & Supervision des entreprises, attribution des plans. & Moyenne \\
+13 & Intégrations et embed & Clés d'API, embarquement de l'éditeur par un outil externe. & Moyenne \\
+14 & Site marketing & Site public de présentation (accueil, offres, contact\dots). & Basse \\
+15 & Mise en production & Conteneurisation, déploiement, exposition sécurisée. & Haute \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Planification des sprints}
+Le projet a été organisé en quatre sprints regroupant les epics du backlog
+de manière cohérente, comme le résume le tableau~\ref{tab:sprints}.
+
+\begin{table}[H]
+\centering
+\caption{Planification des sprints}
+\label{tab:sprints}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Sprint} & \textbf{Contenu} \\
+\midrule
+Sprint 1 & Authentification, multi-entreprises et gestion des utilisateurs (epics 1--3). \\
+Sprint 2 & Éditeur de modèles multi-canal et bibliothèque de modèles (epics 4--6). \\
+Sprint 3 & Assistant d'intelligence artificielle agentique (epics 7--10). \\
+Sprint 4 & Abonnements, intégrations et mise en production (epics 11--15). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Environnement de développement}
+
+\subsubsection{Environnement matériel}
+Le développement s'est appuyé sur les ressources suivantes~:
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item un poste de travail personnel~: [À COMPLÉTER — processeur, mémoire
+  RAM, système d'exploitation]~;
+  \item un \textbf{serveur d'entreprise doté d'un accélérateur graphique
+  (GPU)} hébergeant le moteur d'inférence vLLM et servant également au
+  déploiement en production.
+\end{itemize}
+
+\subsubsection{Environnement logiciel et technologies}
+Le tableau~\ref{tab:techno} récapitule la pile technologique. Les
+principaux choix sont ensuite justifiés.
+
+\begin{table}[H]
+\centering
+\caption{Pile technologique du projet}
+\label{tab:techno}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Couche} & \textbf{Technologies} \\
+\midrule
+Frontend & Next.js~16 (App Router), React~19, TypeScript, Tailwind CSS, Framer Motion \\
+Édition & dnd-kit (glisser-déposer), Monaco (éditeur de code), MJML (rendu e-mail), Tiptap (texte riche) \\
+Backend & NestJS, gRPC / Protocol Buffers, patron CQRS, TypeORM \\
+Données & PostgreSQL (\texttt{auth\_db}, \texttt{templates\_db}), MinIO (stockage objet) \\
+IA & Vercel AI SDK, MCP SDK, serveur vLLM auto-hébergé (Gemma / Qwen), services Python auxiliaires \\
+Paiement & Stripe (Checkout intégré, abonnements, TVA) \\
+Industrialisation & Docker \& Docker Compose, GitLab (CI), Cloudflare Tunnel \\
+Outils & Visual Studio Code, Git, Postman, PlantUML / draw.io \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Frontend — Next.js et React.}
+Next.js, fondé sur React, a été retenu pour son \emph{App Router}, sa
+capacité à exécuter du code côté serveur (indispensable pour héberger en
+toute sécurité les appels au modèle de langage) et son rendu performant.
+React apporte son modèle de composants et son écosystème mature~\cite{nextjs,react}.
+
+% [FIGURE : logos Next.js et React]
+\figplaceholder{Next.js et React}{fig:logo-next-react}{2.5cm}
+
+\paragraph{Backend — NestJS et gRPC.}
+NestJS structure le code serveur autour de modules, contrôleurs et
+services, et facilite l'application du patron CQRS. La communication
+inter-services repose sur gRPC, qui offre un contrat d'interface fort et une
+sérialisation binaire efficace via Protocol Buffers~\cite{nestjs,grpc}.
+
+% [FIGURE : logos NestJS et gRPC]
+\figplaceholder{NestJS et gRPC}{fig:logo-nest-grpc}{2.5cm}
+
+\paragraph{Données — PostgreSQL, TypeORM et MinIO.}
+PostgreSQL assure la persistance relationnelle des deux bases du système.
+TypeORM fait le pont entre les entités du domaine et la base. MinIO, compatible
+avec l'API S3, stocke les médias (images) de la plateforme~\cite{postgresql,typeorm,minio}.
+
+% [FIGURE : logos PostgreSQL et MinIO]
+\figplaceholder{PostgreSQL et MinIO}{fig:logo-pg-minio}{2.5cm}
+
+\paragraph{Rendu e-mail — MJML.}
+MJML est un langage de balisage qui compile vers du HTML d'e-mail
+responsive compatible avec la majorité des clients de messagerie~; il
+constitue le format d'export de l'éditeur d'e-mail~\cite{mjml}.
+
+\paragraph{Intelligence artificielle — Vercel AI SDK, MCP et vLLM.}
+Le Vercel AI SDK orchestre la boucle agentique d'appel d'outils côté
+serveur. Le Model Context Protocol (MCP) expose les outils de construction
+au modèle de manière standardisée. L'inférence est assurée par un serveur
+\textbf{vLLM auto-hébergé} exécutant le modèle Gemma (et Qwen en repli),
+tous deux compatibles avec l'API OpenAI, ce qui garantit que les données ne
+quittent pas l'infrastructure du groupe~\cite{vercelaisdk,mcp,vllm,gemma}.
+
+% [FIGURE : logos Vercel AI SDK, vLLM et Gemma]
+\figplaceholder{Vercel AI SDK, vLLM et Gemma}{fig:logo-ai}{2.5cm}
+
+\paragraph{Paiement — Stripe.}
+Stripe gère les abonnements récurrents, le Checkout intégré et le calcul de
+la TVA~\cite{stripe}.
+
+\paragraph{Industrialisation — Docker, GitLab et Cloudflare.}
+Docker et Docker Compose conteneurisent l'ensemble des services et
+garantissent la reproductibilité des environnements. Le dépôt est hébergé
+sur GitLab. L'exposition publique en production s'appuie sur un tunnel
+Cloudflare, sécurisé et sans ouverture de port entrant~\cite{docker,cloudflaretunnel}.
+
+\section*{Conclusion}
+Ce chapitre a précisé les acteurs et les besoins de la plateforme, présenté
+sa conception (cas d'utilisation, classes, architecture microservices) et
+posé les bases de sa réalisation : backlog produit, planification en quatre
+sprints et environnement technique. Les chapitres suivants détaillent, sprint
+par sprint, la mise en \oe{}uvre de ces choix.

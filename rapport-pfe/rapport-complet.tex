@@ -1,0 +1,2014 @@
+% =====================================================================
+%  RAPPORT DE PROJET DE FIN D'ÉTUDES — FICHIER UNIQUE
+%  Winaity Template Builder — France Téléphone / Groupe Winvest Capital
+%
+%  * Un seul fichier, aucun dossier, aucun \input.
+%  * Compilation : pdfLaTeX uniquement (PAS de biber). Compile 2 fois
+%    pour que la table des matières et les renvois \ref se mettent à jour.
+%  * Sur Overleaf : Menu -> Compiler = pdfLaTeX.
+% =====================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---- Encodage & langue ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{mathptmx}         % Times New Roman (texte + math), exigé par ESPRIT
+\usepackage{textcomp}
+
+% ---- Mise en page (conforme ESPRIT) ----
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.15}             % interligne 1.15
+\usepackage{indentfirst}
+\setlength{\parindent}{0.5cm} % alinéa de première ligne 0,5 cm
+\setlength{\parskip}{0.4em}   % petit espace entre paragraphes
+
+% ---- Figures & tableaux ----
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{amssymb}          % \checkmark
+\usepackage{pgfgantt}         % diagramme de Gantt (planning) — charge aussi TikZ
+\usepackage{pdfpages}         % inclure la couverture/pages décoratives ESPRIT (PDF)
+\usepackage{listings}         % code en annexe
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  showstringspaces=false,
+  keepspaces=true,
+  xleftmargin=1em
+}
+
+% ---- Divers ----
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
+\usepackage{fancyhdr}
+
+% ---- En-têtes ----
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{28pt}
+\addtolength{\topmargin}{-16pt}
+
+% ---- Placeholder de figure (à remplacer par \includegraphics) ----
+\newcommand{\figplaceholder}[3]{%
+  \begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#3][c]{0.7\linewidth}{\centering\itshape%
+      [\,EMPLACEMENT FIGURE\,]\\ #1}}
+    \caption{#1}
+    \label{#2}
+  \end{figure}%
+}
+
+% ---- Couleur ESPRIT ----
+\definecolor{espritred}{RGB}{150,22,30}
+
+% ---- Image si le fichier existe, sinon un cadre "à remplacer" ----
+% Usage : \imgorbox{chemin.png}{largeur}{hauteurCadre}{texteCadre}
+\newcommand{\imgorbox}[4]{%
+  \IfFileExists{#1}{\includegraphics[width=#2]{#1}}%
+  {\fbox{\parbox[c][#3][c]{#2}{\centering\itshape\small #4}}}%
+}
+
+\begin{document}
+
+% =====================================================================
+%  PAGE DE GARDE  (remplace par la page de garde officielle ESPRIT)
+% =====================================================================
+% ---------------------------------------------------------------------
+%  PAGE DE GARDE (modèle ESPRIT)
+%  -> Dépose les images dans un dossier images/ :
+%       images/esprit-logo.png            (logo « esprit — se former autrement »)
+%       images/logo-entreprise.png        (logo France Téléphone / Winvest)
+%       images/esprit-accreditations.png  (bandeau UNESCO/CDIO/EUR-ACE/CGE)
+%     Tant qu'une image manque, un cadre « à remplacer » s'affiche.
+% ---------------------------------------------------------------------
+% ===== MÉTHODE A (RECOMMANDÉE, rendu identique) =====================
+% Remplis le modèle ESPRIT dans Word, exporte-le en PDF sous
+%   images/page-de-garde.pdf   -> il est inséré ici tel quel (pixel-parfait).
+% ===== MÉTHODE B (secours) : version LaTeX si le PDF n'est pas fourni =
+\IfFileExists{images/page-de-garde.pdf}{%
+  \includepdf[pages=-,fitpaper=true]{images/page-de-garde.pdf}%
+}{%
+\begin{titlepage}
+\thispagestyle{empty}
+% Fond décoratif ESPRIT optionnel : exporte la page du modèle SANS son
+% texte (garde les triangles + bandeau) en images/esprit-fond.png
+\IfFileExists{images/esprit-fond.png}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node at (current page.center)
+      {\includegraphics[width=\paperwidth,height=\paperheight]{images/esprit-fond.png}};
+  \end{tikzpicture}}{}
+\centering
+
+\imgorbox{images/esprit-logo.png}{6cm}{2.2cm}{[ Logo ESPRIT ]}\\[1cm]
+
+{\color{espritred}\Huge\bfseries 2025 -- 2026}\\[0.35cm]
+{\Huge\bfseries PROJET DE FIN D'ÉTUDES}\\[1cm]
+
+{\setlength{\fboxsep}{0pt}%
+\noindent\colorbox{espritred}{\makebox[\textwidth][c]{%
+  \rule[-0.4cm]{0pt}{1.2cm}\color{white}\LARGE\bfseries
+  DIPLÔME NATIONAL D'INGÉNIEUR}}}\\[1cm]
+
+{\Large\bfseries SPÉCIALITÉ : INFORMATIQUE}\\[1.2cm]
+
+{\LARGE\bfseries Winaity Template Builder}\\[0.4cm]
+{\large\itshape Conception et développement d'une plateforme SaaS
+multi-entreprises de création de modèles de communication assistée par IA}\\[1.4cm]
+
+\begin{flushleft}\large
+\hspace{1.5cm}\textbf{Réalisé par :} [À COMPLÉTER — Prénom Nom]\\[0.45cm]
+\hspace{1.5cm}\textbf{Encadré par :}\\[0.3cm]
+\hspace{2.3cm}\textbf{Encadrant ESPRIT :} [À COMPLÉTER]\\[0.3cm]
+\hspace{2.3cm}\textbf{Encadrant Entreprise :} [À COMPLÉTER]
+\end{flushleft}
+
+\vspace{0.5cm}
+\hfill\imgorbox{images/logo-entreprise.png}{5cm}{2.4cm}{[ LOGO ENTREPRISE ]}\hspace{1.5cm}
+
+\vfill
+\imgorbox{images/esprit-accreditations.png}{\textwidth}{1.8cm}{[ Bandeau d'accréditations ESPRIT : UNESCO/UniTwin -- CDIO -- EUR-ACE/Cti -- Conférence des Grandes Écoles ]}
+\end{titlepage}
+}
+
+% ===== PAGE DÉCORATIVE ESPRIT (toque de diplômé) ====================
+% Exporte cette page du modèle en images/esprit-decorative.pdf (ou .png)
+\IfFileExists{images/esprit-decorative.pdf}{%
+  \includepdf[pages=-,fitpaper=true]{images/esprit-decorative.pdf}%
+}{\IfFileExists{images/esprit-decorative.png}{%
+  \thispagestyle{empty}%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node at (current page.center)
+      {\includegraphics[width=\paperwidth,height=\paperheight]{images/esprit-decorative.png}};
+  \end{tikzpicture}\clearpage}{}}
+
+% ---------------------------------------------------------------------
+%  FORMULAIRE DE VALIDATION (à insérer APRÈS la page de garde)
+%  Reconstruit intégralement en LaTeX — à imprimer, signer et scanner.
+% ---------------------------------------------------------------------
+\thispagestyle{empty}
+\vspace*{1cm}
+\noindent Je valide le dépôt du rapport PFE relatif à l'étudiant nommé
+ci-dessous / \emph{I validate the submission of the student's report~:}
+
+\vspace{0.4cm}
+\noindent\hspace{0.8cm}\textbullet\hspace{0.3cm}Nom \& Prénom / \emph{Name \& Surname} : \dotfill
+
+\vspace{0.8cm}
+\noindent\fbox{\begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
+\vspace{0.2cm}
+\centering{\large Encadrant Entreprise / \emph{Business site Supervisor}}
+\vspace{0.5cm}
+\begin{flushleft}
+\hspace{0.5cm}\textbullet\hspace{0.3cm}Nom \& Prénom / \emph{Name \& Surname} : \dotfill
+\end{flushleft}
+\centering\textbf{Cachet \& Signature / \emph{Stamp \& Signature}}
+\vspace{3cm}
+\end{minipage}}
+
+\vspace{0.8cm}
+\noindent\fbox{\begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
+\vspace{0.2cm}
+\centering{\large Encadrant Académique / \emph{Academic Supervisor}}
+\vspace{0.5cm}
+\begin{flushleft}
+\hspace{0.5cm}\textbullet\hspace{0.3cm}Nom \& Prénom / \emph{Name \& Surname} : \dotfill
+\end{flushleft}
+\centering\textbf{Signature / \emph{Signature}}
+\vspace{3cm}
+\end{minipage}}
+
+\vspace{0.8cm}
+\noindent\small Ce formulaire doit être rempli, signé et \underline{scanné} /
+\emph{This form must be completed, signed and \underline{scanned}.}\par
+\noindent\small Ce formulaire doit être introduit après la page de garde /
+\emph{This form must be inserted after the cover page.}
+\clearpage
+
+\pagenumbering{roman}
+
+% =====================================================================
+%  DÉDICACE
+% =====================================================================
+\chapter*{Dédicace}
+\addcontentsline{toc}{chapter}{Dédicace}
+\thispagestyle{empty}
+\begin{center}
+\itshape
+\vspace{2cm}
+
+Je dédie ce modeste travail
+
+\vspace{1cm}
+
+À mes chers parents,\\
+pour leur amour inconditionnel, leurs sacrifices et leurs encouragements
+constants qui m'ont accompagné tout au long de mon parcours.
+Que ce travail soit le témoignage de ma profonde reconnaissance.
+
+\vspace{1cm}
+
+À toute ma famille et à mes amis,\\
+pour leur soutien et leur présence dans les moments les plus exigeants.
+
+\vspace{1cm}
+
+À tous ceux qui, de près ou de loin,\\
+ont contribué à faire de ce projet une réussite.
+
+\vspace{2cm}
+
+[À COMPLÉTER — Signature]
+\end{center}
+
+% =====================================================================
+%  REMERCIEMENTS
+% =====================================================================
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+\thispagestyle{empty}
+
+Au terme de ce projet de fin d'études, je tiens à exprimer ma gratitude
+à toutes les personnes qui ont contribué, chacune à sa manière, à
+l'aboutissement de ce travail.
+
+J'adresse mes remerciements les plus sincères à mon encadrant
+professionnel, \textbf{[À COMPLÉTER]}, au sein de \textbf{France Téléphone}
+(groupe \textbf{Winvest Capital}), pour la confiance qu'il m'a accordée,
+pour son accompagnement tout au long du stage et pour la richesse des
+échanges techniques qui ont orienté les choix de conception de la
+plateforme.
+
+Je tiens également à remercier chaleureusement mon encadrant académique,
+\textbf{[À COMPLÉTER]}, pour sa disponibilité, ses conseils avisés et sa
+rigueur méthodologique, qui m'ont permis de structurer ma démarche et de
+mener ce projet à son terme dans les meilleures conditions.
+
+Mes remerciements s'étendent à l'ensemble de l'équipe de
+\textbf{France Téléphone} pour leur accueil, leur esprit de collaboration
+et l'environnement de travail stimulant dans lequel j'ai évolué.
+
+J'exprime enfin ma reconnaissance aux membres du jury pour l'honneur qu'ils
+me font en acceptant d'évaluer ce travail, ainsi qu'à l'ensemble du corps
+enseignant de \textbf{ESPRIT} pour la qualité de la formation dispensée
+tout au long de mon cursus.
+
+% =====================================================================
+%  SOMMAIRE + LISTES
+% =====================================================================
+\tableofcontents
+\listoffigures
+\listoftables
+
+% =====================================================================
+%  GLOSSAIRE
+% =====================================================================
+\chapter*{Glossaire}
+\addcontentsline{toc}{chapter}{Glossaire}
+
+\begin{description}[leftmargin=3.2cm,style=nextline,font=\bfseries]
+  \item[API] Application Programming Interface (interface de programmation applicative)
+  \item[CQRS] Command Query Responsibility Segregation (séparation commandes / requêtes)
+  \item[CRM] Customer Relationship Management (gestion de la relation client)
+  \item[CSS] Cascading Style Sheets
+  \item[DnD] Drag and Drop (glisser-déposer)
+  \item[DTO] Data Transfer Object (objet de transfert de données)
+  \item[gRPC] gRPC Remote Procedure Call (framework d'appel de procédure distante)
+  \item[HT] Hors Taxes
+  \item[HTML] HyperText Markup Language
+  \item[IA] Intelligence Artificielle
+  \item[JSON] JavaScript Object Notation
+  \item[JWT] JSON Web Token
+  \item[LLM] Large Language Model (grand modèle de langage)
+  \item[M2M] Machine to Machine (communication de service à service)
+  \item[MCP] Model Context Protocol (protocole d'exposition d'outils à un modèle)
+  \item[MJML] Mailjet Markup Language (langage de balisage pour e-mails responsives)
+  \item[OCR] Optical Character Recognition (reconnaissance optique de caractères)
+  \item[ORM] Object-Relational Mapping (mapping objet-relationnel)
+  \item[PDF] Portable Document Format
+  \item[RBAC] Role-Based Access Control (contrôle d'accès basé sur les rôles)
+  \item[REST] Representational State Transfer
+  \item[SaaS] Software as a Service (logiciel en tant que service)
+  \item[SSO] Single Sign-On (authentification unique)
+  \item[TTC] Toutes Taxes Comprises
+  \item[TVA] Taxe sur la Valeur Ajoutée
+  \item[UI/UX] User Interface / User Experience
+  \item[vLLM] Moteur d'inférence haute performance pour grands modèles de langage
+\end{description}
+
+% =====================================================================
+%  CORPS
+% =====================================================================
+\cleardoublepage
+\pagenumbering{arabic}
+
+% ---------------------------------------------------------------------
+%  INTRODUCTION GÉNÉRALE
+% ---------------------------------------------------------------------
+\chapter*{Introduction générale}
+\addcontentsline{toc}{chapter}{Introduction générale}
+\markboth{Introduction générale}{Introduction générale}
+
+La communication constitue aujourd'hui un pilier stratégique de toute
+organisation. Qu'il s'agisse d'une campagne promotionnelle par e-mail,
+d'une facture adressée à un client, d'un contrat à signer ou d'un message
+enrichi sur mobile, chaque point de contact véhicule l'image de marque de
+l'entreprise et participe à la relation qu'elle entretient avec ses
+publics. La multiplication des canaux numériques a rendu cette
+communication à la fois plus riche et plus exigeante : les entreprises
+doivent produire, rapidement et à grande échelle, des supports cohérents,
+personnalisés et fidèles à leur identité visuelle.
+
+Or la fabrication de ces supports demeure, dans bien des cas, un exercice
+lent et technique. Concevoir un e-mail responsive correct suppose de
+maîtriser des langages de balisage tels que le HTML ou le MJML~; produire
+une facture ou un contrat exige de la rigueur documentaire~; et l'ensemble
+requiert le plus souvent l'intervention conjointe de profils créatifs et
+techniques. Les équipes métier, en particulier les équipes marketing,
+souhaitent au contraire pouvoir \emph{décrire} ce qu'elles veulent — ou
+\emph{réutiliser} un visuel existant — et obtenir instantanément un
+résultat professionnel et immédiatement modifiable.
+
+C'est dans ce contexte que s'inscrit le présent projet de fin d'études,
+réalisé au sein de \textbf{France Téléphone}, filiale du groupe
+\textbf{Winvest Capital}. Il a consisté à concevoir et à développer
+\textbf{Winaity Template Builder}, une plateforme logicielle en mode SaaS
+(\emph{Software as a Service}) multi-entreprises destinée à la création, à
+la gestion et à la génération de modèles de communication sur trois canaux :
+l'e-mail, la facture et le contrat. Le c\oe{}ur de
+la plateforme est un éditeur visuel par glisser-déposer, augmenté d'un
+assistant d'intelligence artificielle \emph{agentique} capable de générer
+et de modifier de véritables blocs éditables, voire de reconstruire une
+campagne complète à partir d'une simple affiche marketing.
+
+L'avènement récent des grands modèles de langage a ouvert des perspectives
+inédites en matière d'assistance à la création de contenu. Le projet
+explore précisément cette convergence entre l'ingénierie logicielle et
+l'intelligence artificielle, en s'appuyant sur un modèle de langage
+auto-hébergé afin de préserver la souveraineté des données de l'entreprise.
+
+Ce rapport rend compte de la démarche suivie et des réalisations
+accomplies. Il s'organise en six chapitres.
+
+Le \textbf{premier chapitre} présente le cadre général du projet :
+l'organisme d'accueil, la problématique, une étude critique des solutions
+existantes, la solution proposée et la méthodologie de travail retenue.
+
+Le \textbf{deuxième chapitre} est consacré à l'analyse des besoins et à la
+conception : identification des acteurs, expression des besoins
+fonctionnels et non fonctionnels, diagrammes de conception, architecture de
+l'application, backlog produit et environnement de développement.
+
+Les \textbf{quatre chapitres suivants} détaillent le déroulement des quatre
+sprints du projet. Le troisième chapitre traite de l'authentification, de
+l'isolation multi-entreprises et de la gestion des utilisateurs. Le
+quatrième porte sur l'éditeur de modèles multi-canal. Le cinquième, c\oe{}ur
+de la valeur ajoutée du projet, décrit l'assistant d'intelligence
+artificielle agentique. Le sixième aborde les abonnements, les
+intégrations et la mise en production.
+
+Enfin, une \textbf{conclusion générale} dresse le bilan du travail réalisé,
+des compétences acquises et des perspectives d'évolution de la plateforme.
+
+% ---------------------------------------------------------------------
+%  CHAPITRE 1
+% ---------------------------------------------------------------------
+\chapter{Contexte général du projet}
+\label{chap:contexte}
+
+\section*{Introduction}
+Ce premier chapitre pose le cadre du projet. Nous présentons d'abord
+l'organisme d'accueil au sein duquel le stage a été réalisé, puis le
+projet lui-même : sa problématique, une étude critique des solutions
+existantes sur le marché et la solution que nous proposons. Nous concluons
+par la présentation et la justification de la méthodologie de travail
+adoptée.
+
+\section{Présentation de l'organisme d'accueil}
+
+\subsection{Le groupe Winvest Capital}
+Le présent projet de fin d'études a été réalisé au sein de
+\textbf{France Téléphone}, entité rattachée au groupe
+\textbf{Winvest Capital}. Winvest Capital est un groupe
+[À COMPLÉTER — secteur / activité principale du groupe] regroupant plusieurs
+entités opérationnelles, dont France Téléphone.
+
+\figplaceholder{Logo du groupe Winvest Capital}{fig:logo-winvest}{3cm}
+
+\begin{description}[leftmargin=2.2cm,style=nextline,font=\bfseries]
+  \item[Raison sociale] [À COMPLÉTER]
+  \item[Date de création] [À COMPLÉTER]
+  \item[Siège social] [À COMPLÉTER]
+  \item[Secteur d'activité] [À COMPLÉTER]
+  \item[Effectif] [À COMPLÉTER]
+\end{description}
+
+\subsection{France Téléphone}
+\textbf{France Téléphone} est l'entité du groupe au sein de laquelle s'est
+déroulé le stage. Son activité s'inscrit dans le domaine
+[À COMPLÉTER — ex. de la distribution de forfaits et de services de
+télécommunication], ce qui l'amène à produire de manière régulière des
+supports de communication commerciale : offres promotionnelles, campagnes
+e-mail, factures, contrats d'abonnement et messages à destination de sa
+clientèle.
+
+\figplaceholder{Logo de France Téléphone}{fig:logo-ft}{3cm}
+
+Cette intensité de communication commerciale, sur des canaux multiples et
+à un rythme soutenu, constitue précisément le terrain qui a fait émerger le
+besoin à l'origine de ce projet.
+
+\subsection{Cadre du stage}
+Le stage s'est déroulé sur une durée de six mois, du 2 février au
+31 juillet 2026, au sein de l'équipe [À COMPLÉTER — ex. développement /
+systèmes d'information]. La mission confiée consistait à concevoir et
+développer,
+de bout en bout, une plateforme interne et commercialisable de création de
+modèles de communication assistée par intelligence artificielle. Le travail
+a couvert l'ensemble du cycle de vie logiciel : analyse des besoins,
+conception, développement, tests et mise en production.
+
+\section{Présentation du projet}
+
+\subsection{Problématique}
+La production de supports de communication professionnels se heurte à
+plusieurs difficultés récurrentes que l'on peut synthétiser ainsi.
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Une fabrication lente et technique.} La création d'un
+  e-mail responsive de qualité suppose la maîtrise du HTML ou du MJML et
+  une bonne connaissance des contraintes de compatibilité entre clients de
+  messagerie. Les documents structurés — factures, contrats — imposent en
+  outre une mise en forme rigoureuse et paginée.
+
+  \item \textbf{Une dépendance à des compétences croisées.} Obtenir un
+  résultat à la fois esthétique et techniquement correct requiert souvent
+  la collaboration de profils créatifs (design) et de profils techniques
+  (intégration), ce qui allonge les délais et alourdit le processus.
+
+  \item \textbf{La multiplicité des canaux.} Une même campagne peut devoir
+  associer un e-mail, une facture et un contrat. Or les outils du marché
+  sont le plus souvent spécialisés sur un seul canal.
+
+  \item \textbf{Le cloisonnement des données.} Dans un contexte
+  multi-entreprises, chaque société doit disposer d'un espace de travail
+  strictement isolé : ses modèles, ses utilisateurs et son identité de
+  marque ne doivent jamais être visibles par une autre.
+
+  \item \textbf{La rigidité des assistants existants.} Les générateurs
+  automatiques disponibles produisent généralement du code HTML figé,
+  difficile à reprendre et à modifier finement, plutôt que des éléments
+  structurés directement éditables.
+\end{itemize}
+
+La problématique centrale du projet peut dès lors se formuler ainsi :
+\emph{comment permettre à une équipe métier, sans compétence technique
+particulière, de produire rapidement des supports de communication
+multi-canaux, cohérents avec l'identité de son entreprise, tout en
+garantissant l'isolation des données propre à un contexte
+multi-entreprises et en tirant parti de l'intelligence artificielle sans
+compromettre la souveraineté de ces données~?}
+
+\subsection{Étude de l'existant}
+Afin de situer notre solution, nous avons analysé plusieurs catégories
+d'outils existants représentatifs du marché.
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Canva} — Outil de conception graphique généraliste très
+  répandu. Il excelle pour produire des visuels, mais n'est pas pensé pour
+  l'e-mail responsive (pas de sortie MJML/HTML native robuste), ne couvre
+  pas les documents transactionnels (facture, contrat) ni la logique
+  multi-entreprises, et son assistance IA reste orientée image plutôt que
+  génération de structures éditables par canal.
+
+  \item \textbf{Mailchimp} — Plateforme d'e-mailing reconnue, dotée d'un
+  éditeur par blocs et de fonctions marketing. Elle demeure toutefois
+  centrée sur un seul canal (l'e-mail), pensée pour un compte unique plutôt
+  que pour une architecture multi-locataire déléguée, et ne propose pas de
+  reconstruction de campagne à partir d'une image.
+
+  \item \textbf{Stripo et Beefree} — Éditeurs d'e-mails par glisser-déposer
+  produisant du HTML/MJML de bonne qualité et exportables. Ils offrent une
+  expérience visuelle soignée, mais ne fournissent pas d'assistant
+  \emph{agentique} générant de vrais blocs éditables, ne couvrent pas
+  l'ensemble des canaux (facture, contrat) et n'intègrent pas de
+  fonction «~affiche vers e-mail~».
+
+  \item \textbf{Éditeurs MJML bruts} — Des outils tels que l'éditeur
+  officiel MJML s'adressent à des développeurs et supposent l'écriture
+  directe de balises~; ils sont donc inaccessibles à un utilisateur métier.
+
+  \item \textbf{Générateurs d'e-mails par IA} — Certains services génèrent
+  un e-mail à partir d'une invite en langage naturel, mais restituent un
+  bloc de HTML monolithique, difficile à retoucher, sans modèle de données
+  structuré ni contrôle fin du rendu.
+\end{itemize}
+
+\subsection{Critique de l'existant}
+De cette étude se dégage un constat clair : aucun des outils analysés ne
+réunit simultanément l'ensemble des propriétés requises par notre contexte.
+Le tableau~\ref{tab:comparatif-existant} synthétise cette comparaison.
+
+\begin{table}[H]
+\centering
+\caption{Comparaison synthétique des solutions existantes}
+\label{tab:comparatif-existant}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{Xccccc}
+\toprule
+\textbf{Critère} & \textbf{Canva} & \textbf{Mailchimp} & \textbf{Stripo /}
+& \textbf{Éditeurs} & \textbf{Winaity} \\
+ & & & \textbf{Beefree} & \textbf{MJML} & \\
+\midrule
+Éditeur visuel par blocs        & \checkmark & \checkmark & \checkmark & --         & \checkmark \\
+Multi-canal (3 types)           & --         & --         & --         & --         & \checkmark \\
+Multi-entreprises (tenants)     & --         & partiel    & --         & --         & \checkmark \\
+IA agentique (blocs éditables)  & --         & partiel    & --         & --         & \checkmark \\
+Affiche $\rightarrow$ e-mail    & --         & --         & --         & --         & \checkmark \\
+LLM auto-hébergé (souveraineté) & --         & --         & --         & --         & \checkmark \\
+Accessible sans compétence tech.& \checkmark & \checkmark & \checkmark & --         & \checkmark \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Les principales lacunes identifiées sont les suivantes~:
+\begin{itemize}[leftmargin=1.4cm]
+  \item une \textbf{spécialisation mono-canal} qui oblige à multiplier les
+  outils~;
+  \item l'\textbf{absence d'un vrai modèle de blocs éditables} partagé
+  entre l'édition manuelle et l'édition assistée par IA~;
+  \item l'\textbf{absence d'isolation multi-entreprises déléguée} adaptée à
+  un éditeur de logiciels souhaitant l'intégrer à ses propres outils~;
+  \item la \textbf{dépendance à des API d'IA tierces}, incompatible avec les
+  exigences de confidentialité des données d'une entreprise.
+\end{itemize}
+
+\subsection{Solution proposée}
+Pour répondre à ces limites, nous proposons \textbf{Winaity Template
+Builder} : une plateforme SaaS multi-entreprises de création de modèles de
+communication, articulée autour de trois idées directrices.
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item \textbf{Un éditeur visuel multi-canal unique.} Trois types de
+  modèles — e-mail, facture et contrat — sont créés depuis une
+  même plateforme, chacun disposant d'un éditeur dédié. L'éditeur d'e-mail,
+  produit phare, repose sur un canevas de blocs manipulés par
+  glisser-déposer et sur un modèle de données structuré.
+
+  \item \textbf{Un assistant d'IA agentique produisant de vrais blocs.} Au
+  lieu de générer du HTML jetable, l'assistant appelle des \emph{outils} de
+  construction qui renvoient exactement le même format de blocs que
+  l'éditeur manuel. Édition visuelle et édition par IA sont donc
+  parfaitement interchangeables. L'assistant sait générer un e-mail complet
+  à partir d'une consigne, le modifier en conversation, ou reconstruire une
+  campagne à partir d'une \emph{affiche} lue par vision par ordinateur.
+
+  \item \textbf{Une plateforme d'entreprise souveraine.} L'ensemble des
+  données est cloisonné par entreprise (\emph{tenant}). Le modèle de langage
+  qui alimente l'IA est \textbf{auto-hébergé}, ce qui garantit que les
+  données ne quittent jamais l'infrastructure du groupe. La plateforme
+  intègre par ailleurs la gestion des rôles, un système d'abonnements et
+  une couche d'intégration permettant à des outils externes de l'embarquer.
+\end{enumerate}
+
+\section{Méthodologie de travail}
+
+\subsection{Choix d'une méthodologie agile}
+Le projet se caractérise par un périmètre fonctionnel large, des exigences
+susceptibles d'évoluer au fil des retours de l'entreprise, et une forte
+composante d'exploration technique (notamment sur le volet intelligence
+artificielle). Ces caractéristiques rendent inadaptées les approches de
+développement séquentielles, dites «~en cascade~», qui figent les besoins
+en début de projet et n'autorisent que tardivement la validation par le
+client. Nous avons donc opté pour une \textbf{approche agile}, qui privilégie
+les livraisons incrémentales, les retours fréquents et l'adaptation
+continue. Le tableau~\ref{tab:agile-vs-cascade} résume cette comparaison.
+
+\begin{table}[H]
+\centering
+\caption{Approche agile versus approche traditionnelle}
+\label{tab:agile-vs-cascade}
+\small
+\begin{tabularx}{\linewidth}{lXX}
+\toprule
+\textbf{Aspect} & \textbf{Approche agile} & \textbf{Approche en cascade} \\
+\midrule
+Cycle de développement & Itératif et incrémental & Séquentiel et linéaire \\
+Gestion du changement & Adaptation continue & Faible tolérance au changement \\
+Livraison & Incréments fréquents & Livraison en fin de projet \\
+Implication du client & Retours réguliers & Implication tardive \\
+Gestion du risque & Réduite par itérations & Concentrée en fin de cycle \\
+Documentation & Progressive & Exhaustive en amont \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Choix de Scrum}
+Parmi les méthodes agiles (Scrum, Extreme Programming, Kanban), nous avons
+retenu \textbf{Scrum} pour la clarté de son cadre organisationnel et son
+adéquation à un projet mené sur plusieurs mois. Scrum structure le travail
+en itérations de durée fixe appelées \emph{sprints}, à l'issue desquelles
+un incrément potentiellement livrable est produit. Il définit trois rôles :
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item le \textbf{Product Owner}, qui porte la vision du produit et
+  priorise le \emph{backlog}~;
+  \item le \textbf{Scrum Master}, qui veille au bon déroulement du cadre et
+  lève les obstacles~;
+  \item l'\textbf{équipe de développement}, qui réalise l'incrément.
+\end{itemize}
+
+Dans le contexte particulier de ce stage, ces rôles ont été adaptés à une
+configuration réduite : l'encadrant professionnel a joué le rôle de Product
+Owner en exprimant et en priorisant les besoins, tandis que la réalisation
+technique a été assurée dans le cadre du stage. Des points d'avancement
+réguliers ont tenu lieu de cérémonies Scrum (planification, revue de
+sprint, rétrospective).
+
+\figplaceholder{Le processus Scrum}{fig:scrum}{5cm}
+
+Le projet a été découpé en \textbf{quatre sprints}, chacun correspondant à
+un ensemble cohérent de fonctionnalités~: (1) authentification, isolation
+multi-entreprises et gestion des utilisateurs~; (2) éditeur de modèles
+multi-canal~; (3) assistant d'intelligence artificielle agentique~; (4)
+abonnements, intégrations et mise en production. Ce découpage est détaillé
+au chapitre suivant.
+
+\section*{Conclusion}
+Ce chapitre a introduit l'organisme d'accueil, France Téléphone au sein du
+groupe Winvest Capital, puis a posé la problématique du projet à travers
+une étude critique des solutions existantes, faisant ressortir l'absence
+d'un outil combinant approche multi-canal, isolation multi-entreprises,
+intelligence artificielle agentique et souveraineté des données. Nous avons
+enfin justifié le choix de la méthodologie Scrum. Le chapitre suivant
+détaille l'analyse des besoins et la conception de la plateforme.
+
+% ---------------------------------------------------------------------
+%  CHAPITRE 2
+% ---------------------------------------------------------------------
+\chapter{Analyse des besoins et conception}
+\label{chap:analyse}
+
+\section*{Introduction}
+Après avoir situé le projet, ce chapitre en établit les fondations. Nous
+identifions d'abord les acteurs de la plateforme et exprimons les besoins
+fonctionnels et non fonctionnels. Nous présentons ensuite la conception à
+travers le diagramme de cas d'utilisation global, le diagramme de classes
+et l'architecture applicative. Nous terminons par l'initialisation du
+projet : le backlog produit, la planification des sprints et
+l'environnement de développement.
+
+\section{Analyse des besoins}
+
+\subsection{Identification des acteurs}
+Un acteur désigne un rôle joué par une entité externe qui interagit avec le
+système. Pour Winaity Template Builder, nous distinguons les acteurs
+suivants.
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Utilisateur / Éditeur.} Membre d'une entreprise cliente. Il
+  crée, modifie, prévisualise et exporte des modèles, utilise l'assistant
+  d'IA et organise ses modèles (favoris, duplication).
+
+  \item \textbf{Administrateur d'entreprise (Admin).} Utilisateur disposant
+  de droits étendus au sein de son entreprise. Outre les capacités d'un
+  éditeur, il invite et gère les membres de son équipe, souscrit un
+  abonnement et gère la facturation, et génère des clés d'intégration
+  (API).
+
+  \item \textbf{Membre marketing.} Rôle spécialisé se comportant comme un
+  éditeur, mais habilité en plus à constituer et maintenir la galerie de
+  modèles prédéfinis propre à son entreprise, par catégorie.
+
+  \item \textbf{Super-administrateur.} Acteur interne à l'éditeur de la
+  plateforme. Il supervise l'ensemble des entreprises, consulte les
+  abonnements et attribue les plans, y compris le plan interne réservé aux
+  entités du groupe.
+
+  \item \textbf{Client applicatif (M2M).} Système externe (par exemple un
+  CRM) authentifié par une clé d'API, qui embarque l'éditeur pour ses
+  propres utilisateurs via le flux d'intégration.
+\end{itemize}
+
+\subsection{Besoins fonctionnels}
+Les besoins fonctionnels décrivent les services que la plateforme doit
+rendre. Ils sont regroupés ci-dessous par domaine.
+
+\paragraph{Authentification et gestion des comptes.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item S'inscrire et créer une entreprise, ou rejoindre une entreprise
+  existante sur invitation.
+  \item S'authentifier de manière sécurisée (jeton JWT) et gérer sa
+  session.
+  \item Consulter et modifier son profil.
+\end{itemize}
+
+\paragraph{Multi-entreprises et gestion des utilisateurs.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item Garantir l'isolation stricte des données par entreprise.
+  \item Inviter des membres, accepter une invitation, lister l'équipe.
+  \item Attribuer des rôles (administrateur, éditeur, marketing).
+\end{itemize}
+
+\paragraph{Édition de modèles multi-canal.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item Créer, modifier, dupliquer, supprimer et lister des modèles.
+  \item Éditer un e-mail par glisser-déposer de blocs, prévisualiser en
+  direct et éditer le code.
+  \item Créer des factures et des contrats.
+  \item Exporter en HTML responsive et en PDF, substituer des variables de
+  personnalisation.
+  \item Gérer les favoris et la galerie de modèles prédéfinis.
+\end{itemize}
+
+\paragraph{Assistance par intelligence artificielle.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item Générer un e-mail complet à partir d'une consigne en langage
+  naturel.
+  \item Modifier un modèle en conversation (thème, image, disposition,
+  ajout ou déplacement de blocs).
+  \item Appliquer une modification à un élément précis sélectionné dans le
+  canevas.
+  \item Reconstruire un e-mail éditable à partir d'une affiche marketing.
+\end{itemize}
+
+\paragraph{Abonnements, intégrations et administration.}
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item Souscrire, changer, annuler et réactiver un abonnement~; appliquer
+  les quotas par plan.
+  \item Générer des clés d'API et embarquer l'éditeur depuis un outil
+  externe.
+  \item Superviser les entreprises et attribuer les plans (super-admin).
+\end{itemize}
+
+\subsection{Besoins non fonctionnels}
+Les besoins non fonctionnels définissent les contraintes de qualité que la
+plateforme doit respecter.
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Sécurité et confidentialité.} Authentification par jeton,
+  cloisonnement rigoureux des données par \texttt{tenant\_id}, contrôle
+  d'accès basé sur les rôles, secrets tenus hors du dépôt de code, et
+  \textbf{souveraineté des données} garantie par un modèle de langage
+  auto-hébergé.
+  \item \textbf{Performance.} Génération d'un e-mail par l'IA en une dizaine
+  de secondes, rendu et prévisualisation réactifs.
+  \item \textbf{Évolutivité (scalabilité).} Architecture microservices
+  permettant de faire évoluer et de déployer chaque service
+  indépendamment.
+  \item \textbf{Maintenabilité.} Séparation des responsabilités, patron
+  CQRS côté services, modèle de données partagé entre édition manuelle et
+  édition IA.
+  \item \textbf{Utilisabilité.} Interface intuitive, accessible à un
+  utilisateur métier sans compétence technique.
+  \item \textbf{Fiabilité.} Confirmations honnêtes de l'assistant (aucun
+  succès annoncé si le modèle n'a pas réellement changé), garde de
+  contraste garantissant la lisibilité, gestion propre des erreurs.
+\end{itemize}
+
+\section{Conception}
+
+\subsection{Diagramme de cas d'utilisation global}
+Le diagramme de cas d'utilisation offre une vue d'ensemble du comportement
+fonctionnel de la plateforme et des interactions entre acteurs et cas
+d'utilisation. La figure~\ref{fig:uc-global} présente le diagramme global du
+système.
+
+\figplaceholder{Diagramme de cas d'utilisation global}{fig:uc-global}{8cm}
+
+\subsection{Diagramme de classes}
+Le diagramme de classes décrit la structure statique du système : les
+entités, leurs attributs et leurs relations. Les principales entités du
+domaine sont \texttt{Tenant} (entreprise), \texttt{User} (utilisateur et
+son rôle), \texttt{Template} (modèle, caractérisé par son type de canal et
+son contenu), les entités d'invitation et de jeton, ainsi que les entités
+liées à l'abonnement (plan, cycle de facturation, statut). La
+figure~\ref{fig:classes} présente le diagramme de classes.
+
+\figplaceholder{Diagramme de classes}{fig:classes}{9cm}
+
+\subsection{Architecture de l'application}
+La plateforme adopte une \textbf{architecture microservices}. Cette section
+en présente les vues physique et logique.
+
+\subsubsection{Architecture physique}
+L'architecture physique décrit les composants déployés et leurs
+interactions. Elle se compose des éléments suivants~:
+
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Client (navigateur).} Interface utilisateur exécutée dans le
+  navigateur.
+  \item \textbf{Application frontend.} Application Next.js servant
+  l'interface et hébergeant les routes d'IA côté serveur.
+  \item \textbf{Passerelle API (API Gateway).} Unique surface REST publique~;
+  elle traduit les appels REST en appels gRPC vers les services internes et
+  gère l'authentification, la facturation et l'application des quotas.
+  \item \textbf{Service d'authentification.} Gère les comptes, les
+  entreprises, les rôles et les abonnements.
+  \item \textbf{Service de modèles.} Gère le cycle de vie des modèles
+  (CRUD, rendu, duplication, favoris).
+  \item \textbf{Services d'IA et d'images.} Services auxiliaires
+  (suggestions de palettes, mapping de variables, recherche d'images) et
+  \textbf{serveur de modèle de langage auto-hébergé}.
+  \item \textbf{Bases de données PostgreSQL} (\texttt{auth\_db} et
+  \texttt{templates\_db}) et \textbf{stockage objet MinIO} pour les médias.
+\end{itemize}
+
+\figplaceholder{Architecture physique de l'application}{fig:archi-phys}{7cm}
+
+\subsubsection{Architecture logique}
+Sur le plan logique, la plateforme suit un modèle en couches communiquant
+selon un schéma requête/réponse. Le client émet une requête REST
+(authentifiée par un jeton JWT porté par un \emph{cookie}) vers la
+passerelle API. Celle-ci relaie la requête, via \textbf{gRPC}, au service
+concerné. Les services, développés avec le framework NestJS, appliquent le
+patron \textbf{CQRS} (séparation des commandes et des requêtes) et
+persistent leurs données au moyen de l'ORM TypeORM. La
+figure~\ref{fig:archi-log} illustre cette architecture.
+
+\figplaceholder{Architecture logique de l'application}{fig:archi-log}{7cm}
+
+Le choix du \textbf{gRPC} pour la communication inter-services se justifie
+par ses performances (sérialisation binaire via Protocol Buffers) et par le
+contrat d'interface fort qu'il impose. Le jeton JWT transporte la charge
+utile \texttt{\{ userId, tenantId, email, role \}}, où le
+\texttt{tenant\_id} constitue la clé d'isolation présente dans tous les
+services.
+
+\section{Initialisation du projet}
+
+\subsection{Backlog produit}
+Le backlog produit recense les fonctionnalités attendues, exprimées sous
+forme d'\emph{epics} et priorisées. Le tableau~\ref{tab:backlog} en présente
+la synthèse.
+
+\begin{table}[H]
+\centering
+\caption{Backlog produit (synthèse par epic)}
+\label{tab:backlog}
+\small
+\begin{tabularx}{\linewidth}{clXc}
+\toprule
+\textbf{ID} & \textbf{Epic} & \textbf{Description} & \textbf{Priorité} \\
+\midrule
+1  & Authentification & Inscription, connexion sécurisée (JWT), profil. & Haute \\
+2  & Multi-entreprises & Isolation des données par \texttt{tenant\_id}. & Haute \\
+3  & Gestion des utilisateurs & Invitations, équipe, rôles (admin / éditeur / marketing), super-admin. & Haute \\
+4  & Éditeur d'e-mail & Canevas de blocs, glisser-déposer, aperçu, code, export HTML/PDF. & Haute \\
+5  & Modèles multi-canal & Facture et contrat. & Haute \\
+6  & Bibliothèque de modèles & Favoris, duplication, galerie de modèles prédéfinis. & Moyenne \\
+7  & Génération IA par consigne & E-mail complet à partir d'une invite en langage naturel. & Haute \\
+8  & Édition IA conversationnelle & Modification par dialogue et édition ciblée par sélection. & Haute \\
+9  & Affiche $\rightarrow$ e-mail & Reconstruction d'un e-mail éditable à partir d'une image. & Haute \\
+10 & MCP \& LLM auto-hébergé & Exposition des outils via MCP, inférence sur serveur vLLM privé. & Moyenne \\
+11 & Abonnements et facturation & Plans, paiement Stripe, TVA, quotas par plan. & Haute \\
+12 & Super-administration & Supervision des entreprises, attribution des plans. & Moyenne \\
+13 & Intégrations et embed & Clés d'API, embarquement de l'éditeur par un outil externe. & Moyenne \\
+14 & Site marketing & Site public de présentation (accueil, offres, contact\dots). & Basse \\
+15 & Mise en production & Conteneurisation, déploiement, exposition sécurisée. & Haute \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Planification des sprints}
+Le projet a été organisé en quatre sprints regroupant les epics du backlog
+de manière cohérente, comme le résume le tableau~\ref{tab:sprints}.
+
+\begin{table}[H]
+\centering
+\caption{Planification des sprints}
+\label{tab:sprints}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Sprint} & \textbf{Contenu} \\
+\midrule
+Sprint 1 & Authentification, multi-entreprises et gestion des utilisateurs (epics 1--3). \\
+Sprint 2 & Éditeur de modèles multi-canal et bibliothèque de modèles (epics 4--6). \\
+Sprint 3 & Assistant d'intelligence artificielle agentique (epics 7--10). \\
+Sprint 4 & Abonnements, intégrations et mise en production (epics 11--15). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La figure~\ref{fig:gantt} présente le diagramme de Gantt du projet, qui
+positionne dans le temps la phase d'analyse et de conception, les quatre
+sprints de réalisation et la rédaction du rapport, sur la durée du stage
+(du 2 février au 31 juillet 2026).
+
+\begin{figure}[H]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{ganttchart}[
+  hgrid, vgrid,
+  x unit=2.2cm,
+  y unit title=0.7cm,
+  y unit chart=0.8cm,
+  title label font=\bfseries\small,
+  bar/.append style={fill=blue!30},
+  bar height=.6,
+  bar label font=\small
+]{1}{6}
+\gantttitle{Février}{1}\gantttitle{Mars}{1}\gantttitle{Avril}{1}\gantttitle{Mai}{1}\gantttitle{Juin}{1}\gantttitle{Juillet}{1}\\
+\ganttbar{Analyse \& conception}{1}{1}\\
+\ganttbar{Sprint 1 : Authentification \& multi-entreprises}{1}{2}\\
+\ganttbar{Sprint 2 : Éditeur multi-canal}{2}{3}\\
+\ganttbar{Sprint 3 : Assistant IA agentique}{4}{5}\\
+\ganttbar{Sprint 4 : Abonnements \& mise en production}{5}{6}\\
+\ganttbar{Rédaction du rapport}{6}{6}
+\end{ganttchart}}
+\caption{Diagramme de Gantt du projet (février--juillet 2026)}
+\label{fig:gantt}
+\end{figure}
+
+\subsection{Environnement de développement}
+
+\subsubsection{Environnement matériel}
+Le développement s'est appuyé sur les ressources suivantes~:
+\begin{itemize}[leftmargin=1.4cm,nosep]
+  \item un poste de travail personnel~: [À COMPLÉTER — processeur, mémoire
+  RAM, système d'exploitation]~;
+  \item un \textbf{serveur d'entreprise doté d'un accélérateur graphique
+  (GPU)} hébergeant le moteur d'inférence vLLM et servant également au
+  déploiement en production.
+\end{itemize}
+
+\subsubsection{Environnement logiciel et technologies}
+Le tableau~\ref{tab:techno} récapitule la pile technologique. Les
+principaux choix sont ensuite justifiés.
+
+\begin{table}[H]
+\centering
+\caption{Pile technologique du projet}
+\label{tab:techno}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Couche} & \textbf{Technologies} \\
+\midrule
+Frontend & Next.js~16 (App Router), React~19, TypeScript, Tailwind CSS, Framer Motion \\
+Édition & dnd-kit (glisser-déposer), Monaco (éditeur de code), MJML (rendu e-mail), Tiptap (texte riche) \\
+Backend & NestJS, gRPC / Protocol Buffers, patron CQRS, TypeORM \\
+Données & PostgreSQL (\texttt{auth\_db}, \texttt{templates\_db}), MinIO (stockage objet) \\
+IA & Vercel AI SDK, MCP SDK, serveur vLLM auto-hébergé (Gemma / Qwen), services Python auxiliaires \\
+Paiement & Stripe (Checkout intégré, abonnements, TVA) \\
+Industrialisation & Docker \& Docker Compose, GitLab (CI), Cloudflare Tunnel \\
+Outils & Visual Studio Code, Git, Postman, PlantUML / draw.io \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Frontend — Next.js et React.}
+Next.js, fondé sur React, a été retenu pour son \emph{App Router}, sa
+capacité à exécuter du code côté serveur (indispensable pour héberger en
+toute sécurité les appels au modèle de langage) et son rendu performant.
+React apporte son modèle de composants et son écosystème mature~[1,~2].
+
+\figplaceholder{Next.js et React}{fig:logo-next-react}{2.5cm}
+
+\paragraph{Backend — NestJS et gRPC.}
+NestJS structure le code serveur autour de modules, contrôleurs et
+services, et facilite l'application du patron CQRS. La communication
+inter-services repose sur gRPC, qui offre un contrat d'interface fort et une
+sérialisation binaire efficace via Protocol Buffers~[3,~4].
+
+\paragraph{Données — PostgreSQL, TypeORM et MinIO.}
+PostgreSQL assure la persistance relationnelle des deux bases du système.
+TypeORM fait le pont entre les entités du domaine et la base. MinIO,
+compatible avec l'API S3, stocke les médias (images) de la
+plateforme~[5,~6,~7].
+
+\paragraph{Rendu e-mail — MJML.}
+MJML est un langage de balisage qui compile vers du HTML d'e-mail
+responsive compatible avec la majorité des clients de messagerie~; il
+constitue le format d'export de l'éditeur d'e-mail~[8].
+
+\paragraph{Intelligence artificielle — Vercel AI SDK, MCP et vLLM.}
+Le Vercel AI SDK orchestre la boucle agentique d'appel d'outils côté
+serveur. Le Model Context Protocol (MCP) expose les outils de construction
+au modèle de manière standardisée. L'inférence est assurée par un serveur
+\textbf{vLLM auto-hébergé} exécutant le modèle Gemma (et Qwen en repli),
+tous deux compatibles avec l'API OpenAI, ce qui garantit que les données ne
+quittent pas l'infrastructure du groupe~[9,~10,~11,~12].
+
+\paragraph{Paiement — Stripe.}
+Stripe gère les abonnements récurrents, le Checkout intégré et le calcul de
+la TVA~[13].
+
+\paragraph{Industrialisation — Docker, GitLab et Cloudflare.}
+Docker et Docker Compose conteneurisent l'ensemble des services et
+garantissent la reproductibilité des environnements. Le dépôt est hébergé
+sur GitLab. L'exposition publique en production s'appuie sur un tunnel
+Cloudflare, sécurisé et sans ouverture de port entrant~[14,~15].
+
+\section*{Conclusion}
+Ce chapitre a précisé les acteurs et les besoins de la plateforme, présenté
+sa conception (cas d'utilisation, classes, architecture microservices) et
+posé les bases de sa réalisation : backlog produit, planification en quatre
+sprints et environnement technique. Les chapitres suivants détaillent, sprint
+par sprint, la mise en \oe{}uvre de ces choix.
+
+% ---------------------------------------------------------------------
+%  CHAPITRE 3
+% ---------------------------------------------------------------------
+\chapter{Sprint~1 : Authentification, multi-entreprises et gestion des utilisateurs}
+\label{chap:sprint1}
+
+\section*{Introduction}
+Ce premier sprint pose les fondations de la plateforme : la manière dont un
+utilisateur accède au système, dont ses données sont cloisonnées par
+entreprise, et dont les membres d'une même organisation sont gérés. Nous
+présentons successivement les objectifs du sprint, le raffinement des cas
+d'utilisation concernés, les diagrammes de séquence associés, puis la
+réalisation obtenue.
+
+\section{Objectifs du sprint}
+Ce sprint couvre les epics~1 à~3 du backlog produit. Le
+tableau~\ref{tab:backlog-s1} en détaille les user stories.
+
+\begin{table}[H]
+\centering
+\caption{Backlog du sprint~1}
+\label{tab:backlog-s1}
+\small
+\begin{tabularx}{\linewidth}{clX}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Description} \\
+\midrule
+1.1 & S'inscrire & En tant qu'utilisateur, je veux créer un compte et une entreprise afin de disposer d'un espace de travail. \\
+1.2 & Se connecter & En tant qu'utilisateur, je veux m'authentifier de façon sécurisée pour accéder à la plateforme. \\
+1.3 & Gérer mon profil & En tant qu'utilisateur, je veux consulter et modifier mes informations personnelles. \\
+2.1 & Isolation des données & En tant qu'entreprise, je veux que mes modèles et mes membres soient invisibles pour les autres entreprises. \\
+3.1 & Inviter un membre & En tant qu'administrateur, je veux inviter des collaborateurs à rejoindre mon entreprise. \\
+3.2 & Rejoindre une entreprise & En tant qu'invité, je veux accepter une invitation pour intégrer une entreprise. \\
+3.3 & Gérer l'équipe & En tant qu'administrateur, je veux lister les membres et leur attribuer un rôle (administrateur, éditeur, marketing). \\
+3.4 & Superviser les entreprises & En tant que super-administrateur, je veux consulter l'ensemble des entreprises et de leurs abonnements. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Raffinement et description des cas d'utilisation}
+Nous précisons dans cette section le fonctionnement des services
+implémentés, en détaillant les processus clés et les interactions entre
+acteurs et système.
+
+\subsection{Cas d'utilisation « Authentification et inscription »}
+La figure~\ref{fig:uc-auth} illustre les cas d'utilisation relatifs à
+l'inscription et à l'authentification. L'inscription crée conjointement un
+compte utilisateur et l'entreprise associée~; la connexion s'effectue par
+identifiants et délivre un jeton de session.
+
+\figplaceholder{Cas d'utilisation « Authentification et inscription »}{fig:uc-auth}{7cm}
+
+Le tableau~\ref{tab:uc-inscription} décrit textuellement le scénario
+« S'inscrire ».
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle du cas d'utilisation « S'inscrire »}
+\label{tab:uc-inscription}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Cas d'utilisation} & S'inscrire \\
+\textbf{Acteur} & Utilisateur \\
+\textbf{Préconditions} & L'utilisateur n'est pas connecté. \\
+\textbf{Postconditions} & Un compte et une entreprise sont créés~; l'utilisateur est authentifié. \\
+\midrule
+\textbf{Scénario nominal} &
+1.~L'utilisateur accède au formulaire d'inscription.\newline
+2.~Il saisit ses informations et le nom de son entreprise.\newline
+3.~Le système valide les données fournies.\newline
+4.~Le système crée l'entreprise puis le compte associé.\newline
+5.~Le système génère un jeton de session et redirige l'utilisateur vers le tableau de bord. \\
+\midrule
+\textbf{Scénario alternatif} &
+3.a.~Si l'adresse e-mail ou le nom d'entreprise existe déjà, le système en informe l'utilisateur et l'invite à corriger sa saisie. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Cas d'utilisation « Gestion des utilisateurs »}
+La figure~\ref{fig:uc-users} présente les cas d'utilisation relatifs à la
+gestion de l'équipe : invitation d'un membre, acceptation d'une invitation,
+consultation des membres et attribution des rôles.
+
+\figplaceholder{Cas d'utilisation « Gestion des utilisateurs »}{fig:uc-users}{7cm}
+
+Le tableau~\ref{tab:uc-invite} décrit le scénario « Inviter un membre ».
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle du cas d'utilisation « Inviter un membre »}
+\label{tab:uc-invite}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Cas d'utilisation} & Inviter un membre \\
+\textbf{Acteur} & Administrateur d'entreprise \\
+\textbf{Préconditions} & L'administrateur est connecté. \\
+\textbf{Postconditions} & Une invitation est émise et le futur membre est notifié. \\
+\midrule
+\textbf{Scénario nominal} &
+1.~L'administrateur ouvre la page de gestion de l'équipe.\newline
+2.~Il saisit l'adresse e-mail de l'invité et sélectionne un rôle.\newline
+3.~Le système crée une invitation rattachée à l'entreprise et envoie un lien à l'invité.\newline
+4.~L'invité suit le lien, définit son mot de passe et rejoint l'entreprise. \\
+\midrule
+\textbf{Scénario alternatif} &
+2.a.~Si l'adresse correspond déjà à un membre de l'entreprise, le système signale que l'utilisateur en fait partie. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Diagrammes de séquence}
+
+\subsection{Séquence « S'inscrire »}
+La figure~\ref{fig:seq-inscription} décrit les échanges entre le client, la
+passerelle API et le service d'authentification lors d'une inscription. La
+passerelle traduit la requête REST en appel gRPC~; le service valide les
+données, crée l'entreprise et le compte, puis renvoie un jeton porté par un
+\emph{cookie} sécurisé.
+
+\figplaceholder{Diagramme de séquence « S'inscrire »}{fig:seq-inscription}{7cm}
+
+\subsection{Séquence « Inviter un membre »}
+La figure~\ref{fig:seq-invite} illustre le flux d'invitation d'un membre,
+depuis la demande de l'administrateur jusqu'à l'acceptation par l'invité.
+
+\figplaceholder{Diagramme de séquence « Inviter un membre »}{fig:seq-invite}{7cm}
+
+\section{Réalisation}
+Cette section présente les résultats obtenus au cours du sprint, tant sur le
+plan technique que du point de vue des interfaces.
+
+\subsection{Service d'authentification et modèle multi-entreprises}
+Le service d'authentification a été développé avec NestJS selon le patron
+CQRS et expose ses opérations en gRPC. Il prend en charge l'inscription, la
+connexion, la validation de jeton, l'invitation et l'acceptation de membres,
+la consultation et la mise à jour du profil, ainsi que le listage des
+membres d'une entreprise. Les données sont persistées dans la base
+\texttt{auth\_db} via l'ORM TypeORM.
+
+Le c\oe{}ur du modèle multi-entreprises repose sur la notion de
+\emph{tenant} (entreprise). Chaque compte est rattaché à un
+\texttt{tenant\_id}, qui est embarqué dans la charge utile du jeton JWT aux
+côtés de l'identifiant utilisateur, de l'adresse e-mail et du rôle. Ce
+\texttt{tenant\_id} est systématiquement propagé aux services applicatifs
+et sert de filtre d'isolation : aucune requête ne peut accéder aux données
+d'une autre entreprise. La passerelle API constitue l'unique surface REST
+publique et vérifie le jeton, transporté par un \emph{cookie}, avant de
+relayer chaque appel en gRPC vers le service concerné.
+
+\subsection{Inscription et connexion}
+Les figures~\ref{fig:ui-register} et~\ref{fig:ui-login} présentent
+respectivement les interfaces d'inscription et de connexion. L'inscription
+recueille les informations de l'utilisateur ainsi que le nom de son
+entreprise, puis crée l'espace de travail correspondant. La connexion
+authentifie l'utilisateur et ouvre une session sécurisée.
+
+\figplaceholder{Interface d'inscription}{fig:ui-register}{6cm}
+
+\figplaceholder{Interface de connexion}{fig:ui-login}{6cm}
+
+\subsection{Gestion du profil}
+L'interface de profil (figure~\ref{fig:ui-profile}) permet à l'utilisateur
+de consulter et de modifier ses informations personnelles.
+
+\figplaceholder{Interface de gestion du profil}{fig:ui-profile}{6cm}
+
+\subsection{Gestion de l'équipe et des rôles}
+L'interface de gestion de l'équipe (figure~\ref{fig:ui-team}) permet à
+l'administrateur d'inviter de nouveaux membres, de consulter la liste des
+collaborateurs et de leur attribuer un rôle. Trois rôles ont été définis~:
+\textbf{administrateur} (droits étendus sur l'entreprise),
+\textbf{éditeur} (création et édition de modèles) et \textbf{marketing}
+(éditeur habilité à maintenir la galerie de modèles prédéfinis de
+l'entreprise). Un rôle machine à machine complète ce dispositif pour les
+clients applicatifs authentifiés par clé d'API.
+
+\figplaceholder{Interfaces d'invitation et de gestion de l'équipe}{fig:ui-team}{6cm}
+
+\subsection{Espace de super-administration}
+Un espace de super-administration, réservé à l'éditeur de la plateforme,
+offre une vue transverse sur l'ensemble des entreprises et de leurs
+abonnements. Il permet notamment d'attribuer un plan à une entreprise. Cet
+espace, dont les fonctions liées à la facturation sont approfondies au
+chapitre~\ref{chap:sprint4}, est présenté à la figure~\ref{fig:ui-superadmin}.
+
+\figplaceholder{Tableau de bord de super-administration}{fig:ui-superadmin}{6cm}
+
+\section*{Conclusion}
+Ce sprint a établi le socle de la plateforme : un service d'authentification
+robuste, un modèle multi-entreprises garantissant l'isolation des données
+par \texttt{tenant\_id}, et une gestion complète des utilisateurs et des
+rôles. Ces fondations conditionnent l'ensemble des fonctionnalités
+ultérieures. Le sprint suivant s'appuie sur cet acquis pour construire le
+c\oe{}ur métier de la plateforme : l'éditeur de modèles multi-canal.
+
+% ---------------------------------------------------------------------
+%  CHAPITRE 4
+% ---------------------------------------------------------------------
+\chapter{Sprint~2 : Éditeur de modèles multi-canal}
+\label{chap:sprint2}
+
+\section*{Introduction}
+Ce deuxième sprint constitue le c\oe{}ur métier de la plateforme. Il met en
+\oe{}uvre l'éditeur de modèles et, en particulier, l'éditeur d'e-mail par
+glisser-déposer qui en est le produit phare, ainsi que la prise en charge
+des trois canaux (e-mail, facture, contrat) et la bibliothèque de
+modèles. Après avoir énoncé les objectifs du sprint, nous détaillons les
+cas d'utilisation, les diagrammes de séquence et la réalisation.
+
+\section{Objectifs du sprint}
+Ce sprint couvre les epics~4 à~6 du backlog. Le
+tableau~\ref{tab:backlog-s2} en présente les user stories.
+
+\begin{table}[H]
+\centering
+\caption{Backlog du sprint~2}
+\label{tab:backlog-s2}
+\small
+\begin{tabularx}{\linewidth}{clX}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Description} \\
+\midrule
+4.1 & Éditer un e-mail & En tant qu'éditeur, je veux composer un e-mail en glissant-déposant des blocs sur un canevas. \\
+4.2 & Prévisualiser et coder & En tant qu'éditeur, je veux prévisualiser le rendu en direct et accéder à l'éditeur de code. \\
+4.3 & Exporter & En tant qu'éditeur, je veux exporter mon modèle en HTML responsive et en PDF. \\
+5.1 & Facture & En tant qu'éditeur, je veux construire une facture structurée avec variables. \\
+5.2 & Contrat & En tant qu'éditeur, je veux rédiger un contrat en texte riche paginé. \\
+6.1 & Favoris et duplication & En tant qu'éditeur, je veux mettre des modèles en favoris et les dupliquer. \\
+6.2 & Galerie prédéfinie & En tant que membre marketing, je veux constituer une galerie de modèles prédéfinis par catégorie. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Raffinement et description des cas d'utilisation}
+
+\subsection{Cas d'utilisation « Gérer les modèles »}
+La figure~\ref{fig:uc-templates} regroupe les cas d'utilisation liés à la
+gestion des modèles : création, édition, prévisualisation, export,
+duplication, mise en favori et gestion de la galerie prédéfinie.
+
+\figplaceholder{Cas d'utilisation « Gérer les modèles »}{fig:uc-templates}{7.5cm}
+
+Le tableau~\ref{tab:uc-create-template} décrit le scénario « Créer un
+modèle d'e-mail ».
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle du cas d'utilisation « Créer un modèle d'e-mail »}
+\label{tab:uc-create-template}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Cas d'utilisation} & Créer un modèle d'e-mail \\
+\textbf{Acteur} & Éditeur \\
+\textbf{Préconditions} & L'utilisateur est connecté et son plan autorise la création. \\
+\textbf{Postconditions} & Un modèle d'e-mail est créé et enregistré pour son entreprise. \\
+\midrule
+\textbf{Scénario nominal} &
+1.~L'éditeur choisit le canal « e-mail » et ouvre l'éditeur.\newline
+2.~Il glisse-dépose des blocs sur le canevas et ajuste leur contenu et leur style.\newline
+3.~Il prévisualise le rendu en direct.\newline
+4.~Il enregistre le modèle.\newline
+5.~Le système valide et persiste le modèle rattaché à son entreprise. \\
+\midrule
+\textbf{Scénario alternatif} &
+5.a.~Si le quota du plan est atteint, le système bloque la création et propose une montée en gamme. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Le tableau~\ref{tab:uc-export} décrit le scénario « Exporter un modèle ».
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle du cas d'utilisation « Exporter un modèle »}
+\label{tab:uc-export}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Cas d'utilisation} & Exporter un modèle \\
+\textbf{Acteur} & Éditeur \\
+\textbf{Préconditions} & Un modèle existe et est ouvert. \\
+\textbf{Postconditions} & Un fichier HTML ou PDF est généré et téléchargé. \\
+\midrule
+\textbf{Scénario nominal} &
+1.~L'éditeur demande l'export dans le format souhaité.\newline
+2.~Le système compile le contenu (MJML vers HTML pour l'e-mail) et substitue les variables.\newline
+3.~Le système produit le fichier et le met à disposition de l'utilisateur. \\
+\midrule
+\textbf{Scénario alternatif} &
+2.a.~En cas d'erreur de compilation, le système en informe l'utilisateur. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Diagrammes de séquence}
+
+\subsection{Séquence « Créer un modèle »}
+La figure~\ref{fig:seq-create-template} décrit les échanges entre l'éditeur,
+la passerelle API et le service de modèles lors de la création d'un modèle,
+depuis la saisie jusqu'à la persistance en base.
+
+\figplaceholder{Diagramme de séquence « Créer un modèle »}{fig:seq-create-template}{7cm}
+
+\subsection{Séquence « Exporter un modèle »}
+La figure~\ref{fig:seq-export} illustre le processus d'export : compilation
+du contenu, substitution des variables et génération du fichier.
+
+\figplaceholder{Diagramme de séquence « Exporter un modèle »}{fig:seq-export}{7cm}
+
+\section{Réalisation}
+
+\subsection{Service de modèles et modèle de données par blocs}
+Le service de modèles, développé avec NestJS selon le patron CQRS, expose en
+gRPC l'ensemble des opérations du cycle de vie d'un modèle : création,
+modification, suppression, consultation, listage, rendu, duplication,
+gestion des favoris et récupération des modèles populaires. Les données sont
+persistées dans la base \texttt{templates\_db}~; les médias (images) sont
+stockés dans MinIO.
+
+Chaque modèle est caractérisé par un \textbf{type de canal} — e-mail (1),
+facture (2) ou contrat (3) — et par un contenu dont la
+forme dépend du canal. Pour l'e-mail, le contenu suit un
+\textbf{modèle de blocs} structuré : un modèle est composé de rangées
+(\emph{rows}), chaque rangée pouvant comporter jusqu'à quatre colonnes, et
+chaque colonne contenant des blocs. Onze types de blocs sont disponibles :
+titre, texte, image, vidéo, bouton, séparateur, tableau, signature, réseaux
+sociaux, menu et liste à icônes. Ce modèle de données présente une propriété
+essentielle : il est \textbf{identique} à celui que produit l'assistant
+d'IA (chapitre~\ref{chap:sprint3}), de sorte que l'édition manuelle et
+l'édition assistée deviennent parfaitement interchangeables.
+
+\subsection{Liste des modèles et bibliothèque}
+La figure~\ref{fig:ui-templates-list} présente la liste des modèles de
+l'entreprise, avec aperçu, mise en favori, duplication et suppression. Une
+page dédiée regroupe les favoris, et une galerie expose les modèles
+prédéfinis maintenus par les membres marketing, organisés par catégorie.
+
+\figplaceholder{Liste des modèles}{fig:ui-templates-list}{6cm}
+
+\subsection{Éditeur d'e-mail visuel}
+L'éditeur d'e-mail (figure~\ref{fig:ui-email-editor}) est le composant phare
+de la plateforme. Il s'organise autour d'un canevas central sur lequel
+l'utilisateur glisse-dépose des blocs, d'un panneau de blocs à gauche et
+d'un panneau de style à droite permettant d'ajuster les propriétés (couleur,
+espacement, alignement, largeurs de colonnes, styles de section). Le
+glisser-déposer s'appuie sur la bibliothèque dnd-kit. Un aperçu de l'e-mail
+est rendu en direct, et un éditeur de code (Monaco) est mis à disposition
+des utilisateurs avancés. À l'export, le modèle est compilé en HTML
+responsive au moyen de MJML, ou en PDF.
+
+\figplaceholder{Éditeur d'e-mail visuel}{fig:ui-email-editor}{7cm}
+
+\subsection{Éditeurs de facture et de contrat}
+Les canaux transactionnel et documentaire disposent chacun d'un éditeur
+adapté. L'éditeur de \textbf{facture} propose un constructeur structuré avec
+variables de personnalisation et génération PDF. L'éditeur de
+\textbf{contrat} repose sur un composant de texte riche (Tiptap) avec
+pagination et export PDF. La figure~\ref{fig:ui-facture-contrat} en présente
+un aperçu.
+
+\figplaceholder{Éditeurs de facture et de contrat}{fig:ui-facture-contrat}{6cm}
+
+\section*{Conclusion}
+Ce sprint a livré le c\oe{}ur fonctionnel de la plateforme : un éditeur
+d'e-mail visuel complet reposant sur un modèle de blocs structuré, la prise
+en charge des trois canaux de communication, l'export HTML et PDF, ainsi que
+la bibliothèque de modèles (favoris, duplication, galerie prédéfinie). Le
+caractère structuré et partagé du modèle de blocs prépare directement le
+sprint suivant, consacré à l'assistant d'intelligence artificielle, qui
+produira et modifiera ces mêmes blocs.
+
+% ---------------------------------------------------------------------
+%  CHAPITRE 5
+% ---------------------------------------------------------------------
+\chapter{Sprint~3 : Assistant d'intelligence artificielle agentique}
+\label{chap:sprint3}
+
+\section*{Introduction}
+Ce sprint porte la principale valeur ajoutée du projet : un assistant
+conversationnel capable de générer et de modifier des modèles d'e-mail en
+manipulant de véritables blocs éditables, et même de reconstruire une
+campagne à partir d'une affiche. Nous présentons d'abord les objectifs du
+sprint, puis la conception de l'assistant — modèles employés, architecture
+de génération, protocole d'exposition des outils et chaîne de traitement de
+l'image —, avant de décrire les diagrammes de séquence et la réalisation.
+
+\section{Objectifs du sprint}
+Ce sprint couvre les epics~7 à~10 du backlog. Le
+tableau~\ref{tab:backlog-s3} en détaille les user stories.
+
+\begin{table}[H]
+\centering
+\caption{Backlog du sprint~3}
+\label{tab:backlog-s3}
+\small
+\begin{tabularx}{\linewidth}{clX}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Description} \\
+\midrule
+7.1 & Générer par consigne & En tant qu'éditeur, je veux qu'un e-mail complet et à ma marque soit généré à partir d'une consigne en langage naturel. \\
+8.1 & Éditer en conversation & En tant qu'éditeur, je veux modifier mon e-mail par dialogue (thème, image, disposition, ajout ou déplacement de blocs). \\
+8.2 & Éditer par sélection & En tant qu'éditeur, je veux sélectionner un élément et lui appliquer une consigne ciblée. \\
+9.1 & Affiche vers e-mail & En tant qu'éditeur, je veux importer une affiche et obtenir un e-mail éditable reprenant la campagne. \\
+10.1 & Exposition des outils (MCP) & En tant que système, je veux exposer les outils de construction via un protocole standardisé afin que le modèle les découvre dynamiquement. \\
+10.2 & Modèle auto-hébergé & En tant qu'entreprise, je veux que l'inférence s'exécute sur un serveur privé afin de préserver la confidentialité des données. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Conception de l'assistant}
+
+\subsection{Le modèle de blocs comme contrat d'outils}
+Le principe fondateur de l'assistant est le suivant : au lieu de produire un
+bloc de HTML monolithique, le modèle de langage \textbf{appelle des outils}
+de construction qui renvoient exactement le même format de blocs
+(\texttt{BlockData}) que l'éditeur manuel décrit au
+chapitre~\ref{chap:sprint2}. Le HTML n'est généré qu'au moment de l'export.
+Cette approche, dite \emph{agentique}, présente deux avantages décisifs :
+les modifications visuelles et les modifications par IA opèrent sur la même
+structure de données (elles sont donc interchangeables), et le résultat est
+immédiatement et finement éditable par l'utilisateur.
+
+Un ensemble de \textbf{32 outils} a été défini : un outil par type de bloc,
+complété par des outils transversaux (définition du thème, ouverture de
+section, carte, en-tête sur image, barre de couleurs de marque, changement
+de disposition, déplacement, édition et suppression de blocs).
+
+\subsection{Modèles et infrastructure}
+L'inférence repose sur un \textbf{serveur de modèle de langage
+auto-hébergé} exploitant le moteur haute performance vLLM, exposé via une
+API compatible OpenAI et protégé par authentification. Deux modèles à poids
+ouverts y sont servis : \textbf{Gemma} (modèle par défaut) et un modèle de
+repli, tous deux dotés d'un large contexte. Ce choix d'auto-hébergement est
+central : il garantit qu'aucune donnée de l'entreprise n'est transmise à une
+API tierce, répondant ainsi à l'exigence de souveraineté formulée dans les
+besoins non fonctionnels.
+
+\subsection{Architecture de génération : planificateur et exécuteur}
+Le chemin principal de génération d'un e-mail neuf repose sur un
+\textbf{planificateur déterministe}. Plutôt que de laisser le modèle
+enchaîner librement des dizaines d'appels d'outils — approche fragile avec
+un modèle de taille modérée —, une \textbf{unique requête contrainte par un
+schéma} produit une spécification de design (\emph{DesignSpec}) : système de
+design, ambiance, palette de couleurs et liste ordonnée de sections. Cette
+spécification est ensuite \textbf{exécutée par le code} pour construire les
+blocs de manière déterministe. Il en résulte une génération rapide, sans
+duplication et avec un pied de page unique. Lorsque le planificateur échoue
+ou renvoie un résultat trop pauvre, une \textbf{voie agentique de repli}
+prend le relais, laissant le modèle appeler directement les outils. La
+figure~\ref{fig:archi-ia} synthétise cette architecture.
+
+\figplaceholder{Architecture de l'assistant d'intelligence artificielle}{fig:archi-ia}{7.5cm}
+
+\subsection{Exposition des outils via le protocole MCP}
+Pour les tours pilotés par le modèle (édition et repli agentique), les
+outils de construction sont exposés au moyen du \textbf{Model Context
+Protocol} (MCP). Un point d'accès dédié agit comme serveur MCP : le modèle y
+\textbf{découvre dynamiquement} les 32 outils disponibles plutôt que de se
+les voir énumérer dans l'invite. Cette décorrélation entre la définition des
+outils et l'invite constitue une architecture agentique moderne et
+standardisée. Le serveur MCP réutilise exactement les mêmes définitions
+d'outils que l'éditeur, garantissant une source de vérité unique.
+
+\subsection{Chaîne « affiche vers e-mail »}
+La fonction d'import d'affiche traite une image en \textbf{trois étapes}.
+\begin{enumerate}[leftmargin=1.4cm]
+  \item \textbf{Lecture par vision.} L'image est analysée par le modèle
+  multimodal, qui en extrait un rapport structuré : texte exact (OCR),
+  offre (prix, cadeaux, forfaits, code promotionnel, appel à l'action),
+  couleurs dominantes, ambiance, marque et disposition. Cette étape, la seule
+  réellement multimodale, s'appuie sur un décodage contraint par schéma pour
+  fiabiliser l'extraction.
+  \item \textbf{Rapport vers directive.} Le rapport et la consigne de
+  l'utilisateur sont transformés en une directive de génération et en une
+  amorce de thème, qui alimentent le générateur de blocs déjà décrit :
+  l'image gouverne la marque et le contenu, la consigne oriente la
+  structure.
+  \item \textbf{Passe critique.} Une passe d'auto-vérification compare
+  l'e-mail produit à l'affiche d'origine et signale les écarts (prix erroné,
+  élément manquant), corrigés par une passe finale.
+\end{enumerate}
+Il est essentiel de noter que la plateforme ne colle jamais l'affiche : elle
+\textbf{reconstruit} nativement la campagne en blocs éditables. La
+figure~\ref{fig:pipeline-image} illustre cette chaîne de traitement.
+
+\figplaceholder{Chaîne de traitement « affiche vers e-mail »}{fig:pipeline-image}{6cm}
+
+\subsection{Intelligence de design et fiabilité}
+Plusieurs mécanismes garantissent la qualité et la fiabilité du résultat.
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{Cinq systèmes de design} (éditorial, audacieux, minimal,
+  luxe, corporate) paramètrent l'échelle typographique, les alignements, les
+  espacements et le traitement des boutons et des cartes~; le système est
+  choisi en fonction du sujet.
+  \item Un \textbf{dériveur de palette} et une \textbf{garde de contraste}
+  assurent que le texte reste toujours lisible sur son fond, quelle que soit
+  la couleur choisie.
+  \item Un \textbf{routeur d'intention} classe chaque tour (effacer,
+  réécrire, image, éditer, changer de thème) afin d'aiguiller la requête vers
+  le traitement — déterministe ou piloté par le modèle — le plus adapté.
+  \item Des \textbf{confirmations honnêtes} garantissent que l'assistant
+  n'annonce un succès que si le modèle a réellement été modifié, un
+  compteur de mutations servant de preuve de changement.
+\end{itemize}
+
+\section{Diagrammes de séquence}
+
+\subsection{Séquence « Générer un e-mail par consigne »}
+La figure~\ref{fig:seq-generate} décrit le flux de génération : la consigne
+est transmise à la route d'IA, le planificateur produit une spécification de
+design via le serveur d'inférence, le code exécute cette spécification en
+blocs, les images sont résolues, puis le modèle est renvoyé au client et
+appliqué au canevas.
+
+\figplaceholder{Diagramme de séquence « Générer un e-mail par consigne »}{fig:seq-generate}{7.5cm}
+
+\subsection{Séquence « Reconstruire depuis une affiche »}
+La figure~\ref{fig:seq-image} illustre la chaîne complète de l'import
+d'affiche : lecture par vision, transformation en directive, génération des
+blocs et passe critique.
+
+\figplaceholder{Diagramme de séquence « Reconstruire depuis une affiche »}{fig:seq-image}{7.5cm}
+
+\section{Réalisation}
+
+\subsection{Panneau de discussion et génération}
+L'assistant se présente sous la forme d'un panneau de discussion intégré à
+l'éditeur d'e-mail (figure~\ref{fig:ui-ai-chat}). À partir d'une simple
+consigne — par exemple « crée un e-mail Black Friday pour notre boutique » —
+l'assistant produit en une dizaine de secondes un e-mail complet et à la
+marque : en-tête, section d'offre, grille de produits et pied de page.
+
+\figplaceholder{Panneau de discussion IA et e-mail généré}{fig:ui-ai-chat}{6.5cm}
+
+\subsection{Édition conversationnelle et ciblée}
+L'utilisateur peut ensuite affiner son e-mail par le dialogue : « passe-le
+en thème sombre », « change la première image », « déplace la section des
+produits avant l'offre », « ajoute une boîte de prix ». L'assistant vise le
+bon bloc et applique la modification. Il est également possible de
+\textbf{sélectionner} un bloc ou une section dans le canevas puis de saisir
+une consigne : la modification s'applique alors précisément à l'élément
+sélectionné. La figure~\ref{fig:ui-ai-edit} illustre l'édition ciblée par
+sélection.
+
+\figplaceholder{Édition ciblée par sélection}{fig:ui-ai-edit}{6cm}
+
+\subsection{Import d'une affiche}
+La figure~\ref{fig:ui-image-import} présente l'import d'une affiche : après
+téléversement, l'assistant affiche l'avancement des étapes (lecture, analyse,
+génération) puis produit l'e-mail éditable reconstruit, fidèle à la marque
+et à l'offre de l'affiche d'origine.
+
+\figplaceholder{Import d'une affiche et e-mail reconstruit}{fig:ui-image-import}{6.5cm}
+
+\section*{Conclusion}
+Ce sprint a doté la plateforme de son principal différenciateur : un
+assistant agentique qui génère et modifie de véritables blocs éditables,
+reconstruit une campagne à partir d'une affiche grâce à la vision, et
+s'appuie sur un modèle de langage auto-hébergé garantissant la souveraineté
+des données. L'architecture combine un planificateur déterministe rapide,
+une voie agentique de repli et une exposition des outils via le protocole
+MCP, le tout renforcé par une intelligence de design et des mécanismes de
+fiabilité. Le sprint suivant transforme cette plateforme fonctionnellement
+riche en un service commercialisable : abonnements, intégrations et mise en
+production.
+
+% ---------------------------------------------------------------------
+%  CHAPITRE 6
+% ---------------------------------------------------------------------
+\chapter{Sprint~4 : Abonnements, intégrations et mise en production}
+\label{chap:sprint4}
+
+\section*{Introduction}
+Ce dernier sprint transforme une plateforme fonctionnellement complète en un
+service exploitable et commercialisable. Il met en place le système
+d'abonnements et de facturation, l'application des quotas par plan, la
+supervision par le super-administrateur, la couche d'intégration permettant
+d'embarquer l'éditeur, le site marketing public, et enfin le déploiement en
+production. Nous présentons les objectifs du sprint, les cas d'utilisation,
+les diagrammes de séquence, puis la réalisation.
+
+\section{Objectifs du sprint}
+Ce sprint couvre les epics~11 à~15 du backlog. Le
+tableau~\ref{tab:backlog-s4} en présente les user stories.
+
+\begin{table}[H]
+\centering
+\caption{Backlog du sprint~4}
+\label{tab:backlog-s4}
+\small
+\begin{tabularx}{\linewidth}{clX}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Description} \\
+\midrule
+11.1 & Souscrire un abonnement & En tant qu'administrateur, je veux souscrire un plan payant via un paiement en ligne sécurisé. \\
+11.2 & Gérer l'abonnement & En tant qu'administrateur, je veux changer, annuler ou réactiver mon abonnement. \\
+11.3 & Quotas par plan & En tant que système, je veux appliquer les limites propres à chaque plan. \\
+12.1 & Attribuer les plans & En tant que super-administrateur, je veux superviser les entreprises et leur attribuer un plan. \\
+13.1 & Clés d'API & En tant qu'administrateur, je veux générer des clés d'intégration. \\
+13.2 & Embarquer l'éditeur & En tant qu'outil externe, je veux envoyer mes utilisateurs dans l'éditeur sans seconde authentification. \\
+14.1 & Site marketing & En tant que visiteur, je veux consulter un site public présentant la plateforme et ses offres. \\
+15.1 & Mise en production & En tant qu'équipe, je veux déployer la plateforme de façon sécurisée et reproductible. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Raffinement et description des cas d'utilisation}
+
+\subsection{Cas d'utilisation « Gérer son abonnement »}
+La figure~\ref{fig:uc-billing} regroupe les cas d'utilisation liés à la
+facturation : souscription, changement de plan, annulation, réactivation, et
+attribution de plan par le super-administrateur.
+
+\figplaceholder{Cas d'utilisation « Gérer son abonnement »}{fig:uc-billing}{7cm}
+
+Le tableau~\ref{tab:uc-subscribe} décrit le scénario « Souscrire un
+abonnement ».
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle du cas d'utilisation « Souscrire un abonnement »}
+\label{tab:uc-subscribe}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Cas d'utilisation} & Souscrire un abonnement \\
+\textbf{Acteur} & Administrateur d'entreprise \\
+\textbf{Préconditions} & L'administrateur est connecté~; son entreprise est sur un plan inférieur. \\
+\textbf{Postconditions} & L'entreprise est passée au plan payant choisi. \\
+\midrule
+\textbf{Scénario nominal} &
+1.~L'administrateur choisit un plan et une périodicité (mensuelle ou annuelle).\newline
+2.~Le système ouvre le paiement intégré et présente le détail hors taxes et TTC.\newline
+3.~L'administrateur renseigne son moyen de paiement et confirme.\newline
+4.~Le prestataire de paiement valide la transaction.\newline
+5.~Le système met à jour le plan de l'entreprise et débloque les fonctionnalités correspondantes. \\
+\midrule
+\textbf{Scénario alternatif} &
+4.a.~En cas d'échec du paiement, le système en informe l'administrateur, qui peut réessayer. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Diagrammes de séquence}
+
+\subsection{Séquence « Souscrire un abonnement »}
+La figure~\ref{fig:seq-subscribe} décrit l'enchaînement entre le client, la
+passerelle API, le prestataire de paiement et le service
+d'authentification lors d'une souscription, jusqu'à la mise à jour du plan
+de l'entreprise.
+
+\figplaceholder{Diagramme de séquence « Souscrire un abonnement »}{fig:seq-subscribe}{7cm}
+
+\subsection{Séquence « Embarquer l'éditeur »}
+La figure~\ref{fig:seq-embed} illustre le flux d'intégration : un outil
+externe redirige son utilisateur vers l'éditeur avec une authentification
+déléguée, celui-ci construit un modèle, puis est redirigé vers l'outil
+d'origine.
+
+\figplaceholder{Diagramme de séquence « Embarquer l'éditeur »}{fig:seq-embed}{7cm}
+
+\section{Réalisation}
+
+\subsection{Plans et grille tarifaire}
+Quatre plans ont été définis : \textbf{Free} (gratuit), \textbf{Pro},
+\textbf{Pro Organisation}, ainsi qu'un plan \textbf{interne} non
+commercialisable réservé aux entités du groupe. Le
+tableau~\ref{tab:plans} récapitule leurs caractéristiques.
+
+\begin{table}[H]
+\centering
+\caption{Plans d'abonnement de la plateforme}
+\label{tab:plans}
+\small
+\begin{tabularx}{\linewidth}{lcX}
+\toprule
+\textbf{Plan} & \textbf{Tarif (HT/mois)} & \textbf{Fonctionnalités} \\
+\midrule
+Free & Gratuit & Canal e-mail uniquement, 1 modèle, 1 interaction IA. \\
+Pro & 25~€ & Tous les canaux, IA illimitée (hors invitations et clés d'API). \\
+Pro Organisation & 55~€ & Pro + gestion d'équipe + accès API / intégrations. \\
+Interne & — & Illimité~; attribué par le super-administrateur aux entités du groupe. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La grille tarifaire publique (figure~\ref{fig:ui-pricing}) propose une
+bascule entre facturation mensuelle et annuelle. La \textbf{TVA} française
+(20~\%) est correctement appliquée, le détail hors taxes et toutes taxes
+comprises étant présenté au moment du paiement.
+
+\figplaceholder{Page de tarification}{fig:ui-pricing}{6cm}
+
+\subsection{Paiement et facturation}
+Le paiement s'appuie sur le prestataire Stripe, au moyen d'un
+\textbf{Checkout intégré} : le règlement s'effectue sur la page de la
+plateforme, sans redirection externe (figure~\ref{fig:ui-checkout}). Les
+abonnements sont récurrents et peuvent être mensuels (flexibles) ou annuels
+(engagement de douze mois, à tarif réduit). Un onglet de facturation permet à
+l'administrateur de consulter son plan, de le changer, de l'annuler dans le
+respect de l'engagement, ou de le réactiver. Les événements de paiement sont
+répercutés sur le plan de l'entreprise, tant par confirmation directe que par
+\emph{webhook} de sécurité.
+
+\figplaceholder{Paiement intégré et onglet de facturation}{fig:ui-checkout}{6cm}
+
+\subsection{Application des quotas par plan}
+Les limites de chaque plan sont appliquées côté passerelle API à partir
+d'une source unique de vérité. Le plan gratuit est restreint au canal
+e-mail, à un modèle et à une interaction IA, ce décompte étant monotone (il
+n'est jamais décrémenté, de sorte qu'une suppression puis recréation ne
+permet pas de contourner la limite). Lorsqu'une limite est atteinte, une
+\textbf{fenêtre de montée en gamme} invite l'utilisateur à passer à un plan
+supérieur (figure~\ref{fig:ui-upgrade}).
+
+\figplaceholder{Fenêtre de montée en gamme}{fig:ui-upgrade}{5cm}
+
+\subsection{Supervision par le super-administrateur}
+L'espace de super-administration a été enrichi d'une vue des commandes et
+d'indicateurs clés (revenu récurrent, entreprises actives, impayés) obtenus
+par enrichissement des données de facturation. Le super-administrateur peut y
+attribuer un plan à toute entreprise, y compris le plan interne. La
+figure~\ref{fig:ui-superadmin-billing} présente cet espace.
+
+\figplaceholder{Supervision des abonnements}{fig:ui-superadmin-billing}{6cm}
+
+\subsection{Intégrations et embarquement}
+Un administrateur peut générer des \textbf{clés d'API} depuis le panneau
+« Intégrations » des paramètres. Un \textbf{flux d'embarquement} permet à un
+outil externe (par exemple un CRM) d'envoyer ses utilisateurs dans l'éditeur
+avec une authentification déléguée — sur le principe d'un Checkout délégué,
+sans seconde connexion —, de leur faire construire un modèle, puis de les
+rediriger vers l'outil d'origine, le tout cloisonné à l'entreprise
+concernée.
+
+\subsection{Site marketing public}
+Un site marketing public a été développé pour présenter la plateforme
+(accueil, fonctionnalités, tarifs, à propos, contact, démonstration). Sa page
+de tarification est reliée aux plans réels de la plateforme. La
+figure~\ref{fig:ui-marketing} en présente la page d'accueil.
+
+\figplaceholder{Site marketing public}{fig:ui-marketing}{6cm}
+
+\subsection{Mise en production}
+L'ensemble des services est \textbf{conteneurisé} avec Docker et orchestré
+par Docker Compose, deux piles distinctes étant maintenues pour le
+développement et la production. La plateforme est \textbf{déployée en
+production} sur un serveur du groupe. Son exposition publique repose sur un
+\textbf{tunnel Cloudflare}, sécurisé et sortant, qui ne nécessite l'ouverture
+d'aucun port entrant et confie la terminaison HTTPS à Cloudflare. Plusieurs
+noms d'hôte publics desservent respectivement le frontend, la passerelle API,
+le stockage MinIO et les services d'IA. Le code est hébergé sur GitLab, les
+secrets étant tenus hors du dépôt. La figure~\ref{fig:archi-deploy} présente
+l'architecture de déploiement.
+
+\figplaceholder{Architecture de déploiement}{fig:archi-deploy}{6.5cm}
+
+\section*{Conclusion}
+Ce sprint a doté la plateforme des attributs d'un véritable service SaaS de
+production : un système d'abonnements Stripe avec TVA et gestion complète du
+cycle de vie, l'application rigoureuse des quotas par plan, la supervision
+par le super-administrateur, une couche d'intégration et d'embarquement, un
+site marketing public, et un déploiement sécurisé via Docker et Cloudflare.
+La plateforme est ainsi passée de la preuve de concept fonctionnelle au
+produit exploitable en conditions réelles.
+
+% ---------------------------------------------------------------------
+%  CONCLUSION GÉNÉRALE
+% ---------------------------------------------------------------------
+\chapter*{Conclusion générale}
+\addcontentsline{toc}{chapter}{Conclusion générale}
+\markboth{Conclusion générale}{Conclusion générale}
+
+Réalisé au sein de France Téléphone, filiale du groupe Winvest Capital, ce
+projet de fin d'études avait pour ambition de concevoir et de développer,
+de bout en bout, une plateforme SaaS multi-entreprises de création de
+modèles de communication assistée par intelligence artificielle. Au terme
+de ce travail, l'objectif fixé a été atteint : \textbf{Winaity Template
+Builder} est une plateforme fonctionnelle et déployée en production.
+
+\paragraph{Récapitulation de la démarche.}
+La conduite du projet a suivi la méthodologie agile Scrum, structurée en
+quatre sprints. Après une phase d'analyse des besoins et de conception —
+identification des acteurs, expression des besoins, modélisation UML et
+définition de l'architecture microservices —, nous avons successivement mis
+en \oe{}uvre l'authentification et le modèle multi-entreprises (sprint~1),
+l'éditeur de modèles multi-canal (sprint~2), l'assistant d'intelligence
+artificielle agentique (sprint~3), puis les abonnements, les intégrations et
+la mise en production (sprint~4).
+
+\paragraph{Résultats obtenus.}
+La plateforme répond à la problématique posée en introduction. Elle permet à
+une équipe métier, sans compétence technique, de produire rapidement des
+supports sur trois canaux (e-mail, facture, contrat) au moyen d'un
+éditeur visuel. Son assistant d'IA génère et modifie de véritables blocs
+éditables et sait reconstruire une campagne à partir d'une simple affiche.
+L'isolation multi-entreprises garantit la confidentialité des données de
+chaque société, tandis que l'auto-hébergement du modèle de langage assure la
+souveraineté des données — deux exigences qu'aucune des solutions du marché
+étudiées ne réunissait. La plateforme intègre enfin la gestion des rôles, un
+système d'abonnements Stripe conforme sur le plan fiscal, une couche
+d'intégration, et un déploiement sécurisé.
+
+\paragraph{Difficultés rencontrées.}
+La principale difficulté a résidé dans la fiabilisation de l'assistant
+d'intelligence artificielle. Un modèle de langage de taille modérée, servi
+localement, se révèle peu fiable lorsqu'on le laisse enchaîner librement de
+nombreux appels d'outils : duplications, omissions ou actions inopérantes.
+Cette difficulté a été surmontée par une architecture hybride associant un
+planificateur déterministe contraint par schéma, une voie agentique de
+repli, un routeur d'intention et des mécanismes de fiabilité (garde de
+contraste, confirmations honnêtes, filtrage des sorties du modèle).
+L'exécution multimodale (lecture d'affiche) a également imposé d'isoler
+l'étape de vision et de la fiabiliser par décodage contraint. Sur le plan de
+l'ingénierie, la coordination d'une architecture microservices et sa mise en
+production ont nécessité une attention particulière à la configuration, aux
+secrets et à la reproductibilité des environnements.
+
+\paragraph{Apports du stage.}
+Ce projet a été l'occasion d'acquérir et d'approfondir de nombreuses
+compétences. Sur le plan technique : la maîtrise d'une architecture
+microservices moderne (NestJS, gRPC, CQRS, TypeORM, PostgreSQL, MinIO), du
+développement frontend avec Next.js et React, de l'intégration d'un système
+de paiement, et surtout de l'ingénierie appliquée aux grands modèles de
+langage — génération agentique par outils, planification contrainte par
+schéma, vision par ordinateur et protocole MCP, sur une infrastructure
+d'inférence auto-hébergée. Sur le plan professionnel et personnel, ce stage
+a permis d'évoluer au sein d'une équipe, de dialoguer avec des interlocuteurs
+métier, de conduire un projet de son analyse à sa mise en production, et de
+prendre des décisions d'architecture argumentées.
+
+\paragraph{Perspectives.}
+Plusieurs pistes d'évolution ont été identifiées. Sur le plan collaboratif,
+l'introduction de fonctionnalités temps réel (curseurs et synchronisation des
+brouillons) enrichirait le travail à plusieurs. Sur le plan de l'IA, le
+recours à un modèle plus puissant pour la seule étape de planification
+améliorerait la fidélité des mises en page complexes. Sur le
+plan de l'écosystème, l'approfondissement du flux d'intégration permettrait
+de connecter la plateforme à des outils tiers tels que des CRM, et le site
+marketing pourrait être enrichi (contenu, référencement, démonstrations). Ces
+perspectives confirment le potentiel de la plateforme et ouvrent la voie à
+son développement continu.
+
+% ---------------------------------------------------------------------
+%  ANNEXES
+% ---------------------------------------------------------------------
+\appendix
+\cleardoublepage
+
+\chapter{Structure de données d'un bloc (\emph{BlockData})}
+\label{annexe:blockdata}
+Le modèle de données ci-dessous est partagé entre l'éditeur manuel et
+l'assistant d'intelligence artificielle : c'est la même structure qui est
+produite dans les deux cas. Un modèle d'e-mail est un ensemble de rangées~;
+chaque rangée contient des colonnes~; chaque colonne contient des blocs.
+
+\begin{lstlisting}
+// Bloc atomique : meme structure produite par l'editeur et par l'IA
+interface BlockData {
+  id: string;
+  type: 'heading' | 'text' | 'image' | 'video' | 'button'
+      | 'divider' | 'table' | 'signature' | 'social'
+      | 'menu' | 'icon-list';
+  content: Record<string, unknown>;   // texte, src, items, ...
+  styles:  Record<string, string>;    // couleur, padding, alignement, ...
+}
+
+interface Column   { id: string; width: string; blocks: BlockData[]; styles?: object; }
+interface Row      { id: string; layout: string; columns: Column[]; styles: object; }
+interface Template { rows: Row[]; globalStyles: object; }
+\end{lstlisting}
+
+\chapter{Extrait de la configuration Docker Compose (production)}
+\label{annexe:compose}
+Extrait simplifié de l'orchestration des services en production. Les
+secrets ne figurent pas dans le fichier~: ils sont fournis par des
+variables d'environnement.
+
+\begin{lstlisting}
+services:
+  frontend:          # Next.js (interface + routes IA)
+    build: ./frontend
+    environment: [ NEXT_PUBLIC_API_URL, AI_BASE_URL ]
+  api-gateway:       # unique surface REST publique -> gRPC
+    build: ./api-gateway
+    environment: [ JWT_SECRET, FRONTEND_ORIGIN, STRIPE_SECRET_KEY ]
+    depends_on: [ auth-service, template-service ]
+  auth-service:      # comptes, tenants, roles, abonnements (gRPC)
+    build: ./auth-service
+    depends_on: [ postgres ]
+  template-service:  # CRUD + rendu des modeles (gRPC, CQRS)
+    build: ./template-service
+    depends_on: [ postgres, minio ]
+  postgres:          # bases auth_db + templates_db
+    image: postgres:18
+  minio:             # stockage objet (medias)
+    image: minio/minio
+  cloudflared:       # tunnel Cloudflare (exposition HTTPS sortante)
+    image: cloudflare/cloudflared
+\end{lstlisting}
+
+% ---------------------------------------------------------------------
+%  BIBLIOGRAPHIE / NETOGRAPHIE  (manuelle — pas de biber)
+% ---------------------------------------------------------------------
+\cleardoublepage
+\addcontentsline{toc}{chapter}{Bibliographie / Netographie}
+\begin{thebibliography}{99}
+
+\bibitem{nextjs} Vercel, \emph{Next.js Documentation}. \url{https://nextjs.org/docs} (consulté en 2026).
+\bibitem{react} Meta Open Source, \emph{React — The library for web and native user interfaces}. \url{https://react.dev/} (consulté en 2026).
+\bibitem{nestjs} NestJS, \emph{A progressive Node.js framework}. \url{https://docs.nestjs.com/} (consulté en 2026).
+\bibitem{grpc} Cloud Native Computing Foundation, \emph{gRPC — A high performance, open source universal RPC framework}. \url{https://grpc.io/docs/} (consulté en 2026).
+\bibitem{postgresql} The PostgreSQL Global Development Group, \emph{PostgreSQL Documentation}. \url{https://www.postgresql.org/docs/} (consulté en 2026).
+\bibitem{typeorm} TypeORM, \emph{Amazing ORM for TypeScript and JavaScript}. \url{https://typeorm.io/} (consulté en 2026).
+\bibitem{minio} MinIO Inc., \emph{High Performance Object Storage}. \url{https://min.io/docs/} (consulté en 2026).
+\bibitem{mjml} Mailjet, \emph{MJML — The only framework that makes responsive email easy}. \url{https://mjml.io/} (consulté en 2026).
+\bibitem{vercelaisdk} Vercel, \emph{AI SDK — The AI Toolkit for TypeScript}. \url{https://ai-sdk.dev/} (consulté en 2026).
+\bibitem{mcp} Anthropic, \emph{Model Context Protocol (MCP) Specification}. \url{https://modelcontextprotocol.io/} (consulté en 2026).
+\bibitem{vllm} vLLM Project, \emph{Easy, fast, and cheap LLM serving}. \url{https://docs.vllm.ai/} (consulté en 2026).
+\bibitem{gemma} Google DeepMind, \emph{Gemma open models}. \url{https://ai.google.dev/gemma} (consulté en 2026).
+\bibitem{stripe} Stripe, \emph{Documentation — Payments, Billing, Checkout}. \url{https://docs.stripe.com/} (consulté en 2026).
+\bibitem{docker} Docker Inc., \emph{Docker Documentation}. \url{https://docs.docker.com/} (consulté en 2026).
+\bibitem{cloudflaretunnel} Cloudflare, \emph{Cloudflare Tunnel Documentation}. \url{https://developers.cloudflare.com/cloudflare-one/} (consulté en 2026).
+\bibitem{scrumguide} K. Schwaber et J. Sutherland, \emph{The Scrum Guide}, 2020. \url{https://scrumguides.org/} (consulté en 2026).
+\bibitem{tailwind} Tailwind Labs, \emph{Tailwind CSS Documentation}. \url{https://tailwindcss.com/docs} (consulté en 2026).
+\bibitem{dndkit} dnd kit, \emph{A modern drag and drop toolkit for React}. \url{https://dndkit.com/} (consulté en 2026).
+
+\end{thebibliography}
+
+% ---------------------------------------------------------------------
+%  RÉSUMÉ / ABSTRACT
+% ---------------------------------------------------------------------
+\cleardoublepage
+\thispagestyle{empty}
+
+\section*{Résumé}
+Ce rapport présente la conception et le développement de
+\textbf{Winaity Template Builder}, une plateforme SaaS multi-entreprises
+permettant de créer, gérer et générer des modèles de communication
+professionnels sur trois canaux — e-mail, facture et contrat — à travers un
+éditeur visuel par glisser-déposer enrichi d'un
+assistant d'intelligence artificielle \emph{agentique}. L'assistant génère
+et modifie de véritables blocs éditables (et non du HTML jetable) au moyen
+d'un ensemble d'outils, et peut reconstruire une campagne à partir d'une
+simple affiche marketing grâce à la vision par ordinateur. La plateforme
+repose sur une architecture microservices (passerelle API, service
+d'authentification et service de modèles communiquant en gRPC), une base
+PostgreSQL, un stockage objet MinIO, et un serveur de modèle de langage
+auto-hébergé (vLLM / Gemma) garantissant la souveraineté des données. Elle
+intègre l'isolation multi-locataire, la gestion des rôles, un système
+d'abonnements Stripe avec TVA, ainsi qu'un déploiement en production. Le
+projet a été conduit selon la méthodologie agile Scrum au sein de
+France Téléphone (groupe Winvest Capital).
+
+\smallskip
+\noindent\textbf{Mots-clés :} Intelligence Artificielle agentique, SaaS
+multi-entreprises, éditeur de modèles, e-mail, MJML, microservices, gRPC,
+Next.js, NestJS, PostgreSQL, vLLM, MCP, Stripe.
+
+\vspace{1cm}
+
+\section*{Abstract}
+This report presents the design and development of
+\textbf{Winaity Template Builder}, a multi-tenant SaaS platform for
+creating, managing and generating professional communication templates
+across three channels — email, invoice and contract — through a
+drag-and-drop visual editor powered by an \emph{agentic}
+artificial-intelligence assistant. The assistant generates and edits real
+editable blocks (not throwaway HTML) through a set of tools, and can rebuild
+a marketing campaign from a single poster image using computer vision. The
+platform is built on a microservices architecture (API gateway,
+authentication service and template service communicating over gRPC), a
+PostgreSQL database, MinIO object storage, and a self-hosted large language
+model server (vLLM / Gemma) ensuring data sovereignty. It provides
+multi-tenant isolation, role-based access control, a Stripe subscription
+system with VAT, and a production deployment. The project was carried out
+using the agile Scrum methodology at France Téléphone (Winvest Capital
+group).
+
+\smallskip
+\noindent\textbf{Keywords:} Agentic Artificial Intelligence, Multi-tenant
+SaaS, Template builder, Email, MJML, Microservices, gRPC, Next.js, NestJS,
+PostgreSQL, vLLM, MCP, Stripe.
+
+\end{document}

@@ -190,6 +190,7 @@ services:
       CRM_CLIENT_SECRET: ${CRM_CLIENT_SECRET}
       CRM_TOKEN_URL: ${CRM_TOKEN_URL}
       CRM_SCOPE: ${CRM_SCOPE}
+      CRM_EVENTS: ${CRM_EVENTS}
       FRONTEND_URL: http://frontend:3000
       # Browser origin(s) allowed by CORS (the public frontend URL).
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}

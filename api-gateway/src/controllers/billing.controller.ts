@@ -95,7 +95,16 @@ function periodEnd(sub: Stripe.Subscription): number | null {
 //     We fetch a client_credentials access token (cached) and send it as Bearer.
 //   • Static key (local fake CRM): leave CRM_TOKEN_URL empty and set CRM_API_KEY.
 // If CRM_HMAC_SECRET is set we also HMAC-sign the raw body (fake CRM verifies it;
-// the real CRM likely ignores it — harmless).
+// the real CRM ignores unknown headers — harmless).
+//
+// Real CRM (confirmed 2026-07-30 by the CRM dev):
+//   POST https://api-gestion.winaity.com/api/webhook/abonnement
+//   token: POST https://api-gestion.winaity.com/oauth/token (client_credentials,
+//          form-urlencoded). ⚠️ always api-gestion.*, never gestion.winaity.com
+//          (that host 307-redirects and the POST body is lost).
+//   scope: MUST NOT be requested — the CRM ignores the `scope` param and grants
+//          the scopes configured on the client ("full").
+//   token TTL 1h, rate limit 1000 req/h → the cache below is mandatory.
 const CRM = {
   enabled: process.env.CRM_FORWARD_ENABLED === 'true',
   url: process.env.CRM_API_URL || '',
@@ -106,8 +115,35 @@ const CRM = {
   clientId: process.env.CRM_CLIENT_ID || '',
   clientSecret: process.env.CRM_CLIENT_SECRET || '',
   scope: process.env.CRM_SCOPE || '',
+  // Which event_type values the CRM currently accepts. Its DTO validation is
+  // STRICT — an event_type (or any field) it doesn't know about is rejected with
+  // 400 — and as of 2026-07-30 only `payment.succeeded` is live on their side.
+  // The other four (payment.failed, payment.refunded, subscription.updated,
+  // subscription.canceled) are built here and switch on by adding them to
+  // CRM_EVENTS once the CRM dev confirms they're deployed. No redeploy needed.
+  events: (process.env.CRM_EVENTS || 'payment.succeeded')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
 };
 const crmUsesOauth = () => Boolean(CRM.tokenUrl && CRM.clientId && CRM.clientSecret);
+
+// Outcome of one CRM POST. `skipped` = we never sent it.
+//
+// The CRM webhook is ASYNCHRONOUS: it answers 202 "queued for recording" with a
+// correlation_id and a status_url, then records the payment a moment later.
+// Verified 2026-07-30: a FIRST send and a replay of the same event_id both return
+// 202 with the SAME correlation_id (one record, no duplicate) — so the status code
+// alone can't tell them apart. We keep the correlation_id in the logs because it's
+// the only handle for asking the CRM dev what happened to a given payment
+// (GET /api/webhook/status/<correlation_id> → status SUCCESS / … ).
+type CrmResult = {
+  ok: boolean;
+  status?: number;
+  correlationId?: string;
+  skipped?: string;
+  error?: string;
+};
 
 // Cached OAuth2 token (module-level so it survives across webhook calls).
 let crmToken: { value: string; expiresAt: number } | null = null;
@@ -128,9 +164,14 @@ function invoiceSubscriptionId(inv: Stripe.Invoice): string | null {
   return typeof candidate === 'string' ? candidate : candidate?.id ?? null;
 }
 
+// Always UTC with an explicit `Z` offset — the CRM's DTO also accepts a naive
+// date but would then read it in the CRM SERVER's timezone, silently shifting
+// every payment date. toISOString() is what guarantees the offset is there.
 function unixToIso(unix: number | null | undefined): string | null {
   return unix ? new Date(unix * 1000).toISOString() : null;
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Total TVA on an invoice, in cents. Stripe keeps moving where tax lives: the
 // legacy top-level `tax` field is no longer populated on newer API versions
@@ -422,6 +463,83 @@ export class BillingController implements OnModuleInit {
     return { current_period_end: periodEnd(sub) };
   }
 
+  // ── Replay historical payments into the CRM ───────────────────────────────
+  // Payments collected BEFORE the CRM was wired up are missing on their side,
+  // which skews their MRR and account seniority from day one. The chain is
+  // replayable as-is: the CRM dedups on event_id (= our invoice id) and applies
+  // no date bound, so re-POSTing an old invoice either records it or answers 202.
+  //
+  // Ordered oldest-first so seniority lands correctly, and throttled — the CRM
+  // allows 1000 req/h, i.e. one every 3.6s. Keep `limit` modest (the request runs
+  // synchronously: limit × delay_ms must stay under your proxy timeout) and just
+  // run it again for the next page; re-running is harmless.
+  @Post('crm/backfill')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('super_admin')
+  async crmBackfill(
+    @Body()
+    body: { since?: string; limit?: number; delay_ms?: number; dry_run?: boolean },
+  ) {
+    if (!CRM.enabled) {
+      throw new BadRequestException('CRM forwarding is disabled (CRM_FORWARD_ENABLED)');
+    }
+    const limit = Math.min(Math.max(Number(body?.limit) || 25, 1), 100);
+    const rawDelay = Number(body?.delay_ms);
+    const delayMs = Math.max(Number.isFinite(rawDelay) ? rawDelay : 4000, 0);
+    const dryRun = body?.dry_run === true;
+
+    let createdGte: number | undefined;
+    if (body?.since) {
+      const t = Date.parse(body.since);
+      if (Number.isNaN(t)) throw new BadRequestException('`since` must be an ISO date');
+      createdGte = Math.floor(t / 1000);
+    }
+
+    const page = await this.stripe.invoices.list({
+      status: 'paid',
+      limit,
+      ...(createdGte ? { created: { gte: createdGte } } : {}),
+    });
+    // Stripe returns newest-first; replay chronologically.
+    const invoices = [...page.data].reverse();
+
+    const results: any[] = [];
+    for (const inv of invoices) {
+      const built = await this.buildInvoicePayload(inv, 'payment.succeeded');
+      if (!built) {
+        results.push({ invoice_id: inv.id, outcome: 'skipped', reason: 'no_tenant' });
+        continue;
+      }
+      if (dryRun) {
+        results.push({ invoice_id: inv.id, outcome: 'dry_run', payload: built.data });
+        continue;
+      }
+      const res = await this.forwardToCrm('payment.succeeded', built.eventId, built.data);
+      results.push({
+        invoice_id: inv.id,
+        // No "already recorded" outcome: the CRM answers 202 for a first send and
+        // for a replay alike, so we can't tell them apart here. Replaying is
+        // simply idempotent on their side — re-running this route is harmless.
+        outcome: res.ok ? 'accepted' : 'failed',
+        status: res.status ?? null,
+        correlation_id: res.correlationId ?? null,
+        reason: res.skipped || res.error || null,
+      });
+      if (delayMs) await sleep(delayMs);
+    }
+
+    const count = (o: string) => results.filter((r) => r.outcome === o).length;
+    return {
+      scanned: invoices.length,
+      has_more: page.has_more,
+      accepted: count('accepted'),
+      skipped: count('skipped'),
+      failed: count('failed'),
+      dry_run: dryRun,
+      results,
+    };
+  }
+
   // ── Stripe webhook — the source of truth for plan changes ─────────────────
   // NOTE: this route receives a RAW body (configured in main.ts) so the
   // signature can be verified. No AuthGuard — Stripe calls it, not a user.
@@ -458,14 +576,40 @@ export class BillingController implements OnModuleInit {
         if (tenantId) {
           const priceId = sub.items.data[0]?.price?.id || '';
           const mapped = PRICE_TO_PLAN[priceId];
+          const plan = mapped?.plan || sub.metadata?.plan || '';
+          const cycle = mapped?.cycle || sub.metadata?.billing_cycle || '';
+
+          // What we had on file BEFORE this event, so we can tell a real plan /
+          // cycle change from the many other things that fire
+          // subscription.updated (scheduled cancel, payment-method swap, …).
+          // Only a real change is worth a CRM subscription.updated.
+          let before: any = null;
+          try {
+            before = await firstValueFrom(
+              this.authService.GetTenantBilling({ tenant_id: tenantId }),
+            );
+          } catch {
+            /* unreachable — skip the change detection, still apply the plan */
+          }
+
           await this.applyPlan({
             tenantId,
-            plan: mapped?.plan || sub.metadata?.plan || '',
-            cycle: mapped?.cycle || sub.metadata?.billing_cycle || '',
+            plan,
+            cycle,
             status: sub.status,
             customerId: typeof sub.customer === 'string' ? sub.customer : '',
             subscriptionId: sub.id,
           });
+
+          const changed =
+            before && plan && (before.plan !== plan || before.billing_cycle !== cycle);
+          if (changed) {
+            await this.forwardToCrm(
+              'subscription.updated',
+              event.id,
+              await this.crmSubscriptionPayload(sub, tenantId, plan, cycle, sub.status),
+            );
+          }
         }
         break;
       }
@@ -485,31 +629,17 @@ export class BillingController implements OnModuleInit {
           // Tell the CRM the subscription is gone.
           const priceId = sub.items.data[0]?.price?.id || '';
           const mapped = PRICE_TO_PLAN[priceId];
-          const parties = await this.crmParties(tenantId);
-          await this.forwardToCrm('subscription.canceled', `${event.id}`, {
-            tenant: parties.tenant,
-            admin: parties.admin,
-            customer: {
-              email: '',
-              stripe_customer_id: typeof sub.customer === 'string' ? sub.customer : '',
-            },
-            payment: {
-              invoice_id: null,
-              amount_ht: null,
-              tva: null,
-              amount_ttc: null,
-              currency: sub.currency || null,
-              plan: mapped?.plan || sub.metadata?.plan || '',
-              billing_cycle: mapped?.cycle || sub.metadata?.billing_cycle || '',
-              status: 'canceled',
-              subscription_status: sub.status,
-              paid_at: null,
-              next_payment_at: null,
-              stripe_subscription_id: sub.id,
-              hosted_invoice_url: null,
-              invoice_pdf: null,
-            },
-          });
+          await this.forwardToCrm(
+            'subscription.canceled',
+            event.id,
+            await this.crmSubscriptionPayload(
+              sub,
+              tenantId,
+              mapped?.plan || sub.metadata?.plan || '',
+              mapped?.cycle || sub.metadata?.billing_cycle || '',
+              'canceled',
+            ),
+          );
         }
         break;
       }
@@ -520,7 +650,6 @@ export class BillingController implements OnModuleInit {
       // our plan state (the subscription.* events already do that).
       case 'invoice.paid': {
         await this.forwardInvoiceToCrm(
-          event,
           event.data.object as Stripe.Invoice,
           'payment.succeeded',
         );
@@ -528,10 +657,14 @@ export class BillingController implements OnModuleInit {
       }
       case 'invoice.payment_failed': {
         await this.forwardInvoiceToCrm(
-          event,
           event.data.object as Stripe.Invoice,
           'payment.failed',
         );
+        break;
+      }
+      // A full or partial refund on a subscription invoice → payment.refunded.
+      case 'charge.refunded': {
+        await this.forwardRefundToCrm(event, event.data.object as Stripe.Charge);
         break;
       }
       default:
@@ -608,18 +741,61 @@ export class BillingController implements OnModuleInit {
     return { tenant, admin };
   }
 
-  // Build the CRM payload from a Stripe invoice and forward it. Retrieves the
-  // subscription to get our metadata (tenant_id), the plan/cycle (via price id)
-  // and the next renewal date.
-  private async forwardInvoiceToCrm(
-    event: Stripe.Event,
+  // Envelope for the subscription-level events (updated / canceled). There is no
+  // invoice behind them, so the `payment` block carries plan + cycle + status and
+  // nulls everywhere else — the CRM's DTO is strict, so keeping the SAME shape as
+  // a payment event is what lets these ride the one agreed endpoint.
+  //
+  // NOTE: the CRM dev asked for a cancellation date + reason. The agreed schema
+  // has no field for either, so nothing is invented here — `occurred_at` is the
+  // cancellation time. Add canceled_at / cancel_reason only once he confirms the
+  // exact names (an unknown field 400s the whole payload).
+  private async crmSubscriptionPayload(
+    sub: Stripe.Subscription,
+    tenantId: string,
+    plan: string,
+    cycle: string,
+    status: string,
+  ): Promise<any> {
+    const parties = await this.crmParties(tenantId);
+    return {
+      tenant: parties.tenant,
+      admin: parties.admin,
+      customer: {
+        email: '',
+        stripe_customer_id: typeof sub.customer === 'string' ? sub.customer : '',
+      },
+      payment: {
+        invoice_id: null,
+        amount_ht: null,
+        tva: null,
+        amount_ttc: null,
+        currency: sub.currency || null,
+        plan,
+        billing_cycle: cycle,
+        status,
+        subscription_status: sub.status,
+        paid_at: null,
+        next_payment_at: status === 'canceled' ? null : unixToIso(periodEnd(sub)),
+        stripe_subscription_id: sub.id,
+        hosted_invoice_url: null,
+        invoice_pdf: null,
+      },
+    };
+  }
+
+  // Build the CRM payload for one Stripe invoice. Retrieves the subscription to
+  // get our metadata (tenant_id), the plan/cycle (via price id) and the next
+  // renewal date. Returns null when the invoice can't be attributed to a tenant.
+  //
+  // ⚠️ The field set here IS the contract agreed with the CRM dev — its DTO
+  // rejects any unknown field with a 400. Don't add keys without coordinating.
+  private async buildInvoicePayload(
     inv: Stripe.Invoice,
     eventType: 'payment.succeeded' | 'payment.failed',
-  ) {
-    if (!CRM.enabled) return;
-
+  ): Promise<{ eventId: string; data: any } | null> {
     const subId = invoiceSubscriptionId(inv);
-    if (!subId) return; // not a subscription invoice — nothing to report
+    if (!subId) return null; // not a subscription invoice — nothing to report
 
     let sub: Stripe.Subscription | null = null;
     try {
@@ -629,37 +805,91 @@ export class BillingController implements OnModuleInit {
     }
 
     const tenantId = sub?.metadata?.tenant_id || '';
-    if (!tenantId) return; // can't attribute the payment → skip
+    if (!tenantId) return null; // can't attribute the payment → skip
 
     const priceId = sub?.items?.data?.[0]?.price?.id || '';
     const mapped = PRICE_TO_PLAN[priceId];
     const i = inv as any;
     const parties = await this.crmParties(tenantId);
 
-    await this.forwardToCrm(eventType, inv.id || `${event.id}`, {
-      tenant: parties.tenant,
-      admin: parties.admin,
-      customer: {
-        email: i.customer_email || '',
-        stripe_customer_id: typeof inv.customer === 'string' ? inv.customer : '',
+    return {
+      // Dedup key on the CRM side. The invoice id is stable across Stripe webhook
+      // re-deliveries AND across a historical backfill of the same invoice, so
+      // both routes converge on the same record (replay ⇒ 202).
+      eventId: inv.id || '',
+      data: {
+        tenant: parties.tenant,
+        admin: parties.admin,
+        customer: {
+          email: i.customer_email || '',
+          stripe_customer_id: typeof inv.customer === 'string' ? inv.customer : '',
+        },
+        payment: {
+          invoice_id: inv.id,
+          amount_ht: i.subtotal ?? null, // cents, pre-tax
+          tva: invoiceTax(inv), // cents — total TVA (see helper: field moved across API versions)
+          amount_ttc: (eventType === 'payment.succeeded' ? i.amount_paid : i.amount_due) ?? i.total ?? null,
+          currency: inv.currency || null,
+          plan: mapped?.plan || sub?.metadata?.plan || '',
+          billing_cycle: mapped?.cycle || sub?.metadata?.billing_cycle || '',
+          status: i.status || (eventType === 'payment.succeeded' ? 'paid' : 'failed'),
+          subscription_status: sub?.status || null,
+          paid_at: unixToIso(i.status_transitions?.paid_at ?? i.created),
+          next_payment_at: sub ? unixToIso(periodEnd(sub)) : null,
+          stripe_subscription_id: subId,
+          hosted_invoice_url: i.hosted_invoice_url || null,
+          invoice_pdf: i.invoice_pdf || null,
+        },
       },
-      payment: {
-        invoice_id: inv.id,
-        amount_ht: i.subtotal ?? null, // cents, pre-tax
-        tva: invoiceTax(inv), // cents — total TVA (see helper: field moved across API versions)
-        amount_ttc: (eventType === 'payment.succeeded' ? i.amount_paid : i.amount_due) ?? i.total ?? null,
-        currency: inv.currency || null,
-        plan: mapped?.plan || sub?.metadata?.plan || '',
-        billing_cycle: mapped?.cycle || sub?.metadata?.billing_cycle || '',
-        status: i.status || (eventType === 'payment.succeeded' ? 'paid' : 'failed'),
-        subscription_status: sub?.status || null,
-        paid_at: unixToIso(i.status_transitions?.paid_at ?? i.created),
-        next_payment_at: sub ? unixToIso(periodEnd(sub)) : null,
-        stripe_subscription_id: subId,
-        hosted_invoice_url: i.hosted_invoice_url || null,
-        invoice_pdf: i.invoice_pdf || null,
-      },
-    });
+    };
+  }
+
+  private async forwardInvoiceToCrm(
+    inv: Stripe.Invoice,
+    eventType: 'payment.succeeded' | 'payment.failed',
+  ): Promise<CrmResult> {
+    if (!CRM.enabled) return { ok: false, skipped: 'disabled' };
+    const built = await this.buildInvoicePayload(inv, eventType);
+    if (!built) return { ok: false, skipped: 'no_tenant' };
+    return this.forwardToCrm(eventType, built.eventId, built.data);
+  }
+
+  // A refund on a subscription invoice → payment.refunded. Reuses the exact same
+  // payload shape (no new field names, so nothing to re-agree): invoice_id is the
+  // ORIGINAL invoice, amount_ttc is the refunded amount in cents, status
+  // 'refunded'. HT/TVA are only meaningful on a FULL refund — a partial refund
+  // sends them null rather than inventing a split. `occurred_at` carries the
+  // refund time (the schema has no refunded_at field).
+  private async forwardRefundToCrm(
+    event: Stripe.Event,
+    ch: Stripe.Charge,
+  ): Promise<CrmResult> {
+    if (!CRM.enabled) return { ok: false, skipped: 'disabled' };
+
+    const c = ch as any;
+    const invoiceId = typeof c.invoice === 'string' ? c.invoice : c.invoice?.id || '';
+    if (!invoiceId) return { ok: false, skipped: 'not_an_invoice_charge' }; // one-off charge
+
+    let inv: Stripe.Invoice | null = null;
+    try {
+      inv = await this.stripe.invoices.retrieve(invoiceId);
+    } catch {
+      return { ok: false, skipped: 'invoice_not_found' };
+    }
+
+    const built = await this.buildInvoicePayload(inv, 'payment.succeeded');
+    if (!built) return { ok: false, skipped: 'no_tenant' };
+
+    const full = c.amount_refunded >= c.amount;
+    const payment = built.data.payment;
+    payment.status = 'refunded';
+    payment.amount_ttc = c.amount_refunded ?? null;
+    payment.amount_ht = full ? payment.amount_ht : null;
+    payment.tva = full ? payment.tva : null;
+    // A refund must NOT dedup against the original payment.succeeded, so the
+    // event_id is the Stripe event id (unique per event, stable on re-delivery)
+    // rather than the invoice id.
+    return this.forwardToCrm('payment.refunded', event.id, built.data);
   }
 
   // POST a signed JSON payload to the CRM. Fire-and-forget: a CRM outage must
@@ -670,19 +900,32 @@ export class BillingController implements OnModuleInit {
     eventType: string,
     eventId: string,
     data: { tenant: any; admin?: any; customer: any; payment: any },
-  ) {
-    if (!CRM.enabled) return;
+  ): Promise<CrmResult> {
+    if (!CRM.enabled) return { ok: false, skipped: 'disabled' };
     if (!CRM.url) {
       console.warn('[CRM] CRM_FORWARD_ENABLED=true but CRM_API_URL is empty — skipping');
-      return;
+      return { ok: false, skipped: 'no_url' };
+    }
+    // Never POST an event_type the CRM hasn't deployed — strict validation turns
+    // it into a 400, which looks like a real failure in the logs.
+    if (!CRM.events.includes(eventType)) {
+      console.log(`[CRM] ${eventType} not in CRM_EVENTS — not sent (${eventId})`);
+      return { ok: false, skipped: 'event_type_not_enabled' };
     }
 
-    const payload = {
+    const payload: Record<string, any> = {
       event_id: eventId,
       event_type: eventType,
       occurred_at: new Date().toISOString(),
       ...data,
     };
+    // The CRM's DTO validates nested objects: sending `admin: null` (auth-service
+    // unreachable / no admin user) would 400 the whole payment. Drop the key
+    // instead — losing the contact is better than losing the payment.
+    if (!payload.admin) {
+      delete payload.admin;
+      console.warn(`[CRM] no admin resolved for ${eventType} ${eventId} — sending without it`);
+    }
     const body = JSON.stringify(payload);
 
     // Auth header: OAuth2 bearer (real CRM) or static key (fake CRM).
@@ -693,7 +936,7 @@ export class BillingController implements OnModuleInit {
         : `Bearer ${CRM.apiKey}`;
     } catch (err: any) {
       console.error(`[CRM] could not obtain access token (${eventType} ${eventId}):`, err?.message || err);
-      return;
+      return { ok: false, error: `token: ${err?.message || err}` };
     }
 
     const headers: Record<string, string> = {
@@ -711,14 +954,29 @@ export class BillingController implements OnModuleInit {
     try {
       const res = await fetch(CRM.url, { method: 'POST', headers, body });
       if (!res.ok) {
+        const text = await res.text();
         console.error(
-          `[CRM] forward failed (${eventType} ${eventId}): HTTP ${res.status} ${await res.text()}`,
+          `[CRM] forward failed (${eventType} ${eventId}): HTTP ${res.status} ${text}`,
         );
-      } else {
-        console.log(`[CRM] forwarded ${eventType} ${eventId} → ${res.status}`);
+        return { ok: false, status: res.status, error: text.slice(0, 500) };
       }
+      // 202 "queued for recording" is the normal success answer. The body carries
+      // a correlation_id — log it: it's how you ask the CRM what became of this
+      // payment, and the recording itself happens after this response.
+      let correlationId: string | undefined;
+      try {
+        correlationId = JSON.parse(await res.text())?.correlation_id;
+      } catch {
+        /* non-JSON success body — nothing to correlate */
+      }
+      console.log(
+        `[CRM] accepted ${eventType} ${eventId} → ${res.status}` +
+          (correlationId ? ` correlation_id=${correlationId}` : ''),
+      );
+      return { ok: true, status: res.status, correlationId };
     } catch (err: any) {
       console.error(`[CRM] forward error (${eventType} ${eventId}):`, err?.message || err);
+      return { ok: false, error: String(err?.message || err) };
     }
   }
 

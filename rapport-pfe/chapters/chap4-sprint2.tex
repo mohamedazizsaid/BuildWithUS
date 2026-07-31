@@ -1,0 +1,201 @@
+% =====================================================================
+%  Chapitre 4 — Sprint 2 : Éditeur de modèles multi-canal
+% =====================================================================
+\chapter{Sprint~2 : Éditeur de modèles multi-canal}
+\label{chap:sprint2}
+
+\section*{Introduction}
+Ce deuxième sprint constitue le c\oe{}ur métier de la plateforme. Il met en
+\oe{}uvre l'éditeur de modèles et, en particulier, l'éditeur d'e-mail par
+glisser-déposer qui en est le produit phare, ainsi que la prise en charge
+des cinq canaux (e-mail, facture, contrat, SMS, RCS) et la bibliothèque de
+modèles. Après avoir énoncé les objectifs du sprint, nous détaillons les
+cas d'utilisation, les diagrammes de séquence et la réalisation.
+
+\section{Objectifs du sprint}
+Ce sprint couvre les epics~4 à~6 du backlog. Le
+tableau~\ref{tab:backlog-s2} en présente les user stories.
+
+\begin{table}[H]
+\centering
+\caption{Backlog du sprint~2}
+\label{tab:backlog-s2}
+\small
+\begin{tabularx}{\linewidth}{clX}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Description} \\
+\midrule
+4.1 & Éditer un e-mail & En tant qu'éditeur, je veux composer un e-mail en glissant-déposant des blocs sur un canevas. \\
+4.2 & Prévisualiser et coder & En tant qu'éditeur, je veux prévisualiser le rendu en direct et accéder à l'éditeur de code. \\
+4.3 & Exporter & En tant qu'éditeur, je veux exporter mon modèle en HTML responsive et en PDF. \\
+5.1 & Facture & En tant qu'éditeur, je veux construire une facture structurée avec variables. \\
+5.2 & Contrat & En tant qu'éditeur, je veux rédiger un contrat en texte riche paginé. \\
+5.3 & SMS & En tant qu'éditeur, je veux composer un SMS avec des variables de personnalisation. \\
+5.4 & RCS & En tant qu'éditeur, je veux construire un message RCS (carte, carrousel, boutons) avec aperçu téléphone. \\
+6.1 & Favoris et duplication & En tant qu'éditeur, je veux mettre des modèles en favoris et les dupliquer. \\
+6.2 & Galerie prédéfinie & En tant que membre marketing, je veux constituer une galerie de modèles prédéfinis par catégorie. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Raffinement et description des cas d'utilisation}
+
+\subsection{Cas d'utilisation « Gérer les modèles »}
+La figure~\ref{fig:uc-templates} regroupe les cas d'utilisation liés à la
+gestion des modèles : création, édition, prévisualisation, export,
+duplication, mise en favori et gestion de la galerie prédéfinie.
+
+% [FIGURE : diagramme de cas d'utilisation « Gérer les modèles »]
+\figplaceholder{Cas d'utilisation « Gérer les modèles »}{fig:uc-templates}{7.5cm}
+
+Le tableau~\ref{tab:uc-create-template} décrit le scénario « Créer un
+modèle d'e-mail ».
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle du cas d'utilisation « Créer un modèle d'e-mail »}
+\label{tab:uc-create-template}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Cas d'utilisation} & Créer un modèle d'e-mail \\
+\textbf{Acteur} & Éditeur \\
+\textbf{Préconditions} & L'utilisateur est connecté et son plan autorise la création. \\
+\textbf{Postconditions} & Un modèle d'e-mail est créé et enregistré pour son entreprise. \\
+\midrule
+\textbf{Scénario nominal} &
+1.~L'éditeur choisit le canal « e-mail » et ouvre l'éditeur.\newline
+2.~Il glisse-dépose des blocs sur le canevas et ajuste leur contenu et leur style.\newline
+3.~Il prévisualise le rendu en direct.\newline
+4.~Il enregistre le modèle.\newline
+5.~Le système valide et persiste le modèle rattaché à son entreprise. \\
+\midrule
+\textbf{Scénario alternatif} &
+5.a.~Si le quota du plan est atteint, le système bloque la création et propose une montée en gamme. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Le tableau~\ref{tab:uc-export} décrit le scénario « Exporter un modèle ».
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle du cas d'utilisation « Exporter un modèle »}
+\label{tab:uc-export}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Cas d'utilisation} & Exporter un modèle \\
+\textbf{Acteur} & Éditeur \\
+\textbf{Préconditions} & Un modèle existe et est ouvert. \\
+\textbf{Postconditions} & Un fichier HTML ou PDF est généré et téléchargé. \\
+\midrule
+\textbf{Scénario nominal} &
+1.~L'éditeur demande l'export dans le format souhaité.\newline
+2.~Le système compile le contenu (MJML vers HTML pour l'e-mail) et substitue les variables.\newline
+3.~Le système produit le fichier et le met à disposition de l'utilisateur. \\
+\midrule
+\textbf{Scénario alternatif} &
+2.a.~En cas d'erreur de compilation, le système en informe l'utilisateur. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Diagrammes de séquence}
+
+\subsection{Séquence « Créer un modèle »}
+La figure~\ref{fig:seq-create-template} décrit les échanges entre l'éditeur,
+la passerelle API et le service de modèles lors de la création d'un modèle,
+depuis la saisie jusqu'à la persistance en base.
+
+% [FIGURE : diagramme de séquence « Créer un modèle »]
+\figplaceholder{Diagramme de séquence « Créer un modèle »}{fig:seq-create-template}{7cm}
+
+\subsection{Séquence « Exporter un modèle »}
+La figure~\ref{fig:seq-export} illustre le processus d'export : compilation
+du contenu, substitution des variables et génération du fichier.
+
+% [FIGURE : diagramme de séquence « Exporter un modèle »]
+\figplaceholder{Diagramme de séquence « Exporter un modèle »}{fig:seq-export}{7cm}
+
+\section{Réalisation}
+
+\subsection{Service de modèles et modèle de données par blocs}
+Le service de modèles, développé avec NestJS selon le patron CQRS, expose en
+gRPC l'ensemble des opérations du cycle de vie d'un modèle : création,
+modification, suppression, consultation, listage, rendu, duplication,
+gestion des favoris et récupération des modèles populaires. Les données sont
+persistées dans la base \texttt{templates\_db}~; les médias (images) sont
+stockés dans MinIO.
+
+Chaque modèle est caractérisé par un \textbf{type de canal} — e-mail (1),
+facture (2), contrat (3), SMS (4) ou RCS (5) — et par un contenu dont la
+forme dépend du canal. Pour l'e-mail, le contenu suit un
+\textbf{modèle de blocs} structuré : un modèle est composé de rangées
+(\emph{rows}), chaque rangée pouvant comporter jusqu'à quatre colonnes, et
+chaque colonne contenant des blocs. Onze types de blocs sont disponibles :
+titre, texte, image, vidéo, bouton, séparateur, tableau, signature, réseaux
+sociaux, menu et liste à icônes. Ce modèle de données présente une propriété
+essentielle : il est \textbf{identique} à celui que produit l'assistant
+d'IA (chapitre~\ref{chap:sprint3}), de sorte que l'édition manuelle et
+l'édition assistée deviennent parfaitement interchangeables.
+
+\subsection{Liste des modèles et bibliothèque}
+La figure~\ref{fig:ui-templates-list} présente la liste des modèles de
+l'entreprise, avec aperçu, mise en favori, duplication et suppression. Une
+page dédiée regroupe les favoris, et une galerie expose les modèles
+prédéfinis maintenus par les membres marketing, organisés par catégorie.
+
+% [FIGURE : capture — liste des modèles]
+\figplaceholder{Liste des modèles}{fig:ui-templates-list}{6cm}
+
+\subsection{Éditeur d'e-mail visuel}
+L'éditeur d'e-mail (figure~\ref{fig:ui-email-editor}) est le composant phare
+de la plateforme. Il s'organise autour d'un canevas central sur lequel
+l'utilisateur glisse-dépose des blocs, d'un panneau de blocs à gauche et
+d'un panneau de style à droite permettant d'ajuster les propriétés (couleur,
+espacement, alignement, largeurs de colonnes, styles de section). Le
+glisser-déposer s'appuie sur la bibliothèque dnd-kit. Un aperçu de l'e-mail
+est rendu en direct, et un éditeur de code (Monaco) est mis à disposition
+des utilisateurs avancés. À l'export, le modèle est compilé en HTML
+responsive au moyen de MJML, ou en PDF.
+
+% [FIGURE : capture — éditeur d'e-mail (canevas, panneaux blocs et style)]
+\figplaceholder{Éditeur d'e-mail visuel}{fig:ui-email-editor}{7cm}
+
+\subsection{Éditeurs de facture, de contrat et de SMS}
+Les canaux transactionnels et texte disposent chacun d'un éditeur adapté.
+L'éditeur de \textbf{facture} propose un constructeur structuré avec
+variables de personnalisation et génération PDF. L'éditeur de
+\textbf{contrat} repose sur un composant de texte riche (Tiptap) avec
+pagination et export PDF. L'éditeur de \textbf{SMS} offre une saisie simple
+intégrant des variables du type \texttt{\{\{prénom\}\}}. La
+figure~\ref{fig:ui-facture-contrat} en présente un aperçu.
+
+% [FIGURE : captures — éditeurs facture / contrat / SMS]
+\figplaceholder{Éditeurs de facture, de contrat et de SMS}{fig:ui-facture-contrat}{6cm}
+
+\subsection{Éditeur RCS et aperçu téléphone}
+Le canal RCS (\emph{Rich Communication Services}) a été ajouté comme
+cinquième type de modèle. Son éditeur (figure~\ref{fig:ui-rcs}) associe un
+formulaire de composition à un \textbf{aperçu téléphone en direct}. Il
+permet de construire un message texte, une carte enrichie, un carrousel de
+cartes, ainsi que des puces de suggestion (répondre, ouvrir une URL,
+appeler). Le message est stocké sous la forme d'une charge utile JSON,
+alignée sur la représentation RBM, dans le champ de contenu du modèle — de
+la même manière que le MJML sert de contenu à l'e-mail. La plateforme se
+concentre ici sur la construction, le stockage et le rendu avec substitution
+de variables~; l'envoi effectif via un opérateur RCS constitue une
+perspective d'évolution.
+
+% [FIGURE : capture — éditeur RCS et aperçu téléphone]
+\figplaceholder{Éditeur RCS avec aperçu téléphone}{fig:ui-rcs}{6cm}
+
+\section*{Conclusion}
+Ce sprint a livré le c\oe{}ur fonctionnel de la plateforme : un éditeur
+d'e-mail visuel complet reposant sur un modèle de blocs structuré, la prise
+en charge des cinq canaux de communication, l'export HTML et PDF, ainsi que
+la bibliothèque de modèles (favoris, duplication, galerie prédéfinie). Le
+caractère structuré et partagé du modèle de blocs prépare directement le
+sprint suivant, consacré à l'assistant d'intelligence artificielle, qui
+produira et modifiera ces mêmes blocs.

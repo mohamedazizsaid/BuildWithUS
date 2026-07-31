@@ -1,0 +1,208 @@
+% =====================================================================
+%  Chapitre 6 — Sprint 4 : Abonnements, intégrations et mise en production
+% =====================================================================
+\chapter{Sprint~4 : Abonnements, intégrations et mise en production}
+\label{chap:sprint4}
+
+\section*{Introduction}
+Ce dernier sprint transforme une plateforme fonctionnellement complète en un
+service exploitable et commercialisable. Il met en place le système
+d'abonnements et de facturation, l'application des quotas par plan, la
+supervision par le super-administrateur, la couche d'intégration permettant
+d'embarquer l'éditeur, le site marketing public, et enfin le déploiement en
+production. Nous présentons les objectifs du sprint, les cas d'utilisation,
+les diagrammes de séquence, puis la réalisation.
+
+\section{Objectifs du sprint}
+Ce sprint couvre les epics~11 à~15 du backlog. Le
+tableau~\ref{tab:backlog-s4} en présente les user stories.
+
+\begin{table}[H]
+\centering
+\caption{Backlog du sprint~4}
+\label{tab:backlog-s4}
+\small
+\begin{tabularx}{\linewidth}{clX}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Description} \\
+\midrule
+11.1 & Souscrire un abonnement & En tant qu'administrateur, je veux souscrire un plan payant via un paiement en ligne sécurisé. \\
+11.2 & Gérer l'abonnement & En tant qu'administrateur, je veux changer, annuler ou réactiver mon abonnement. \\
+11.3 & Quotas par plan & En tant que système, je veux appliquer les limites propres à chaque plan. \\
+12.1 & Attribuer les plans & En tant que super-administrateur, je veux superviser les entreprises et leur attribuer un plan. \\
+13.1 & Clés d'API & En tant qu'administrateur, je veux générer des clés d'intégration. \\
+13.2 & Embarquer l'éditeur & En tant qu'outil externe, je veux envoyer mes utilisateurs dans l'éditeur sans seconde authentification. \\
+14.1 & Site marketing & En tant que visiteur, je veux consulter un site public présentant la plateforme et ses offres. \\
+15.1 & Mise en production & En tant qu'équipe, je veux déployer la plateforme de façon sécurisée et reproductible. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Raffinement et description des cas d'utilisation}
+
+\subsection{Cas d'utilisation « Gérer son abonnement »}
+La figure~\ref{fig:uc-billing} regroupe les cas d'utilisation liés à la
+facturation : souscription, changement de plan, annulation, réactivation, et
+attribution de plan par le super-administrateur.
+
+% [FIGURE : diagramme de cas d'utilisation « Gérer son abonnement »]
+\figplaceholder{Cas d'utilisation « Gérer son abonnement »}{fig:uc-billing}{7cm}
+
+Le tableau~\ref{tab:uc-subscribe} décrit le scénario « Souscrire un
+abonnement ».
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle du cas d'utilisation « Souscrire un abonnement »}
+\label{tab:uc-subscribe}
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Cas d'utilisation} & Souscrire un abonnement \\
+\textbf{Acteur} & Administrateur d'entreprise \\
+\textbf{Préconditions} & L'administrateur est connecté~; son entreprise est sur un plan inférieur. \\
+\textbf{Postconditions} & L'entreprise est passée au plan payant choisi. \\
+\midrule
+\textbf{Scénario nominal} &
+1.~L'administrateur choisit un plan et une périodicité (mensuelle ou annuelle).\newline
+2.~Le système ouvre le paiement intégré et présente le détail hors taxes et TTC.\newline
+3.~L'administrateur renseigne son moyen de paiement et confirme.\newline
+4.~Le prestataire de paiement valide la transaction.\newline
+5.~Le système met à jour le plan de l'entreprise et débloque les fonctionnalités correspondantes. \\
+\midrule
+\textbf{Scénario alternatif} &
+4.a.~En cas d'échec du paiement, le système en informe l'administrateur, qui peut réessayer. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Diagrammes de séquence}
+
+\subsection{Séquence « Souscrire un abonnement »}
+La figure~\ref{fig:seq-subscribe} décrit l'enchaînement entre le client, la
+passerelle API, le prestataire de paiement et le service
+d'authentification lors d'une souscription, jusqu'à la mise à jour du plan
+de l'entreprise.
+
+% [FIGURE : diagramme de séquence « Souscrire un abonnement »]
+\figplaceholder{Diagramme de séquence « Souscrire un abonnement »}{fig:seq-subscribe}{7cm}
+
+\subsection{Séquence « Embarquer l'éditeur »}
+La figure~\ref{fig:seq-embed} illustre le flux d'intégration : un outil
+externe redirige son utilisateur vers l'éditeur avec une authentification
+déléguée, celui-ci construit un modèle, puis est redirigé vers l'outil
+d'origine.
+
+% [FIGURE : diagramme de séquence « Embarquer l'éditeur »]
+\figplaceholder{Diagramme de séquence « Embarquer l'éditeur »}{fig:seq-embed}{7cm}
+
+\section{Réalisation}
+
+\subsection{Plans et grille tarifaire}
+Quatre plans ont été définis : \textbf{Free} (gratuit), \textbf{Pro},
+\textbf{Pro Organisation}, ainsi qu'un plan \textbf{interne} non
+commercialisable réservé aux entités du groupe. Le
+tableau~\ref{tab:plans} récapitule leurs caractéristiques.
+
+\begin{table}[H]
+\centering
+\caption{Plans d'abonnement de la plateforme}
+\label{tab:plans}
+\small
+\begin{tabularx}{\linewidth}{lcX}
+\toprule
+\textbf{Plan} & \textbf{Tarif (HT/mois)} & \textbf{Fonctionnalités} \\
+\midrule
+Free & Gratuit & Canal e-mail uniquement, 1 modèle, 1 interaction IA. \\
+Pro & 25~€ & Tous les canaux, IA illimitée (hors invitations et clés d'API). \\
+Pro Organisation & 55~€ & Pro + gestion d'équipe + accès API / intégrations. \\
+Interne & — & Illimité~; attribué par le super-administrateur aux entités du groupe. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La grille tarifaire publique (figure~\ref{fig:ui-pricing}) propose une
+bascule entre facturation mensuelle et annuelle. La \textbf{TVA} française
+(20~\%) est correctement appliquée, le détail hors taxes et toutes taxes
+comprises étant présenté au moment du paiement.
+
+% [FIGURE : capture — page de tarification]
+\figplaceholder{Page de tarification}{fig:ui-pricing}{6cm}
+
+\subsection{Paiement et facturation}
+Le paiement s'appuie sur le prestataire Stripe, au moyen d'un
+\textbf{Checkout intégré} : le règlement s'effectue sur la page de la
+plateforme, sans redirection externe (figure~\ref{fig:ui-checkout}). Les
+abonnements sont récurrents et peuvent être mensuels (flexibles) ou annuels
+(engagement de douze mois, à tarif réduit). Un onglet de facturation permet à
+l'administrateur de consulter son plan, de le changer, de l'annuler dans le
+respect de l'engagement, ou de le réactiver. Les événements de paiement sont
+répercutés sur le plan de l'entreprise, tant par confirmation directe que par
+\emph{webhook} de sécurité.
+
+% [FIGURE : capture — paiement intégré Stripe et onglet facturation]
+\figplaceholder{Paiement intégré et onglet de facturation}{fig:ui-checkout}{6cm}
+
+\subsection{Application des quotas par plan}
+Les limites de chaque plan sont appliquées côté passerelle API à partir
+d'une source unique de vérité. Le plan gratuit est restreint au canal
+e-mail, à un modèle et à une interaction IA, ce décompte étant monotone (il
+n'est jamais décrémenté, de sorte qu'une suppression puis recréation ne
+permet pas de contourner la limite). Lorsqu'une limite est atteinte, une
+\textbf{fenêtre de montée en gamme} invite l'utilisateur à passer à un plan
+supérieur (figure~\ref{fig:ui-upgrade}).
+
+% [FIGURE : capture — fenêtre de montée en gamme]
+\figplaceholder{Fenêtre de montée en gamme}{fig:ui-upgrade}{5cm}
+
+\subsection{Supervision par le super-administrateur}
+L'espace de super-administration a été enrichi d'une vue des commandes et
+d'indicateurs clés (revenu récurrent, entreprises actives, impayés) obtenus
+par enrichissement des données de facturation. Le super-administrateur peut y
+attribuer un plan à toute entreprise, y compris le plan interne. La
+figure~\ref{fig:ui-superadmin-billing} présente cet espace.
+
+% [FIGURE : capture — supervision des abonnements (super-admin)]
+\figplaceholder{Supervision des abonnements}{fig:ui-superadmin-billing}{6cm}
+
+\subsection{Intégrations et embarquement}
+Un administrateur peut générer des \textbf{clés d'API} depuis le panneau
+« Intégrations » des paramètres. Un \textbf{flux d'embarquement} permet à un
+outil externe (par exemple un CRM) d'envoyer ses utilisateurs dans l'éditeur
+avec une authentification déléguée — sur le principe d'un Checkout délégué,
+sans seconde connexion —, de leur faire construire un modèle, puis de les
+rediriger vers l'outil d'origine, le tout cloisonné à l'entreprise
+concernée.
+
+\subsection{Site marketing public}
+Un site marketing public a été développé pour présenter la plateforme
+(accueil, fonctionnalités, tarifs, à propos, contact, démonstration). Sa page
+de tarification est reliée aux plans réels de la plateforme. La
+figure~\ref{fig:ui-marketing} en présente la page d'accueil.
+
+% [FIGURE : capture — site marketing (accueil)]
+\figplaceholder{Site marketing public}{fig:ui-marketing}{6cm}
+
+\subsection{Mise en production}
+L'ensemble des services est \textbf{conteneurisé} avec Docker et orchestré
+par Docker Compose, deux piles distinctes étant maintenues pour le
+développement et la production. La plateforme est \textbf{déployée en
+production} sur un serveur du groupe. Son exposition publique repose sur un
+\textbf{tunnel Cloudflare}, sécurisé et sortant, qui ne nécessite l'ouverture
+d'aucun port entrant et confie la terminaison HTTPS à Cloudflare. Plusieurs
+noms d'hôte publics desservent respectivement le frontend, la passerelle API,
+le stockage MinIO et les services d'IA. Le code est hébergé sur GitLab, les
+secrets étant tenus hors du dépôt. La figure~\ref{fig:archi-deploy} présente
+l'architecture de déploiement.
+
+% [FIGURE : architecture de déploiement (Docker + Cloudflare Tunnel)]
+\figplaceholder{Architecture de déploiement}{fig:archi-deploy}{6.5cm}
+
+\section*{Conclusion}
+Ce sprint a doté la plateforme des attributs d'un véritable service SaaS de
+production : un système d'abonnements Stripe avec TVA et gestion complète du
+cycle de vie, l'application rigoureuse des quotas par plan, la supervision
+par le super-administrateur, une couche d'intégration et d'embarquement, un
+site marketing public, et un déploiement sécurisé via Docker et Cloudflare.
+La plateforme est ainsi passée de la preuve de concept fonctionnelle au
+produit exploitable en conditions réelles.

@@ -1,0 +1,140 @@
+% =====================================================================
+%  Rapport de Projet de Fin d'Études — Winaity Template Builder
+%  France Téléphone — Groupe Winvest Capital
+%
+%  NOTE : Ce fichier est un squelette autonome (classe report) pour
+%  Overleaf. Si tu utilises le MODÈLE ESPRIT officiel, garde ta propre
+%  page de garde / classe et récupère seulement les \input{...} de
+%  chapitres ci-dessous.
+%
+%  Compilation : pdfLaTeX (UTF-8). Bibliographie : biber/biblatex.
+% =====================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---- Encodage & langue ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{textcomp}          % symbole €, etc.
+
+% ---- Mise en page ----
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{parskip}
+\usepackage{indentfirst}
+
+% ---- Figures & tableaux ----
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{amssymb}          % \checkmark
+
+% ---- Divers ----
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
+\usepackage{fancyhdr}
+
+% ---- Bibliographie ----
+\usepackage[french]{csquotes}   % requis par biblatex + babel (français)
+\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+\addbibresource{references.bib}
+
+% ---- En-têtes ----
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{28pt}    % évite le warning fancyhdr "headheight too small"
+\addtolength{\topmargin}{-16pt}  % compense l'en-tête pour garder la marge haute
+
+% ---- Commande de placeholder de figure (à remplacer plus tard) ----
+% Usage : \figplaceholder{Légende de la figure}{label}{hauteur}
+\newcommand{\figplaceholder}[3]{%
+  \begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#3][c]{0.7\linewidth}{\centering\itshape%
+      [\,EMPLACEMENT FIGURE\,]\\ #1}}
+    \caption{#1}
+    \label{#2}
+  \end{figure}%
+}
+
+\begin{document}
+
+% =====================================================================
+%  PAGE DE GARDE
+%  -> Remplace ce bloc par la page de garde officielle ESPRIT.
+% =====================================================================
+\begin{titlepage}
+  \centering
+  \vspace*{1cm}
+  {\large ESPRIT — École Supérieure Privée d'Ingénierie et de Technologies\par}
+  \vspace{0.5cm}
+  {\large Projet de Fin d'Études\par}
+  \vspace{2cm}
+  {\Huge\bfseries Winaity Template Builder\par}
+  \vspace{0.5cm}
+  {\Large Conception et développement d'une plateforme SaaS multi-entreprises\\
+   de création de modèles de communication assistée par IA\par}
+  \vspace{2cm}
+  {\large Réalisé par : \textbf{[À COMPLÉTER — Nom Prénom]}\par}
+  \vspace{0.3cm}
+  {\large Encadrant académique : \textbf{[À COMPLÉTER]}\par}
+  {\large Encadrant professionnel : \textbf{[À COMPLÉTER]}\par}
+  \vspace{1cm}
+  {\large Entreprise d'accueil : \textbf{France Téléphone — Groupe Winvest Capital}\par}
+  \vfill
+  {\large Année universitaire [À COMPLÉTER — ex. 2025--2026]\par}
+\end{titlepage}
+
+% =====================================================================
+%  PAGES LIMINAIRES
+% =====================================================================
+\pagenumbering{roman}
+
+\input{chapters/dedicace}
+\input{chapters/remerciements}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\input{chapters/glossaire}
+
+% =====================================================================
+%  CORPS DU RAPPORT
+% =====================================================================
+\cleardoublepage
+\pagenumbering{arabic}
+
+\input{chapters/introduction}
+\input{chapters/chap1-contexte}
+\input{chapters/chap2-analyse-conception}
+\input{chapters/chap3-sprint1}
+\input{chapters/chap4-sprint2}
+\input{chapters/chap5-sprint3}
+\input{chapters/chap6-sprint4}
+\input{chapters/conclusion}
+
+% =====================================================================
+%  BIBLIOGRAPHIE
+% =====================================================================
+\cleardoublepage
+\addcontentsline{toc}{chapter}{Bibliographie / Netographie}
+\printbibliography[title={Bibliographie / Netographie}]
+
+% =====================================================================
+%  RÉSUMÉ / ABSTRACT (4e de couverture)
+% =====================================================================
+\input{chapters/resume}
+
+\end{document}
