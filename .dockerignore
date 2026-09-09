@@ -1,8 +1,0 @@
-auth-service/node_modules
-auth-service/dist
-api-gateway/node_modules
-api-gateway/dist
-template-service/node_modules
-template-service/dist
-**/.env*
-.git
