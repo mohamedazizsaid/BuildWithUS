@@ -1,0 +1,218 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# render.yaml — Render Blueprint (Infrastructure as Code)
+# https://render.com/docs/blueprint-spec
+#
+# Deploy all backend services in one click.
+# 1. Push this file to your GitHub repository root.
+# 2. Go to Render Dashboard → Blueprints → New Blueprint Instance.
+# 3. Connect your GitHub repo — Render will read this file automatically.
+# ──────────────────────────────────────────────────────────────────────────────
+
+databases:
+  # ── Shared PostgreSQL instance ──────────────────────────────────────────────
+  - name: buildwithus-db
+    databaseName: buildwithus
+    user: winaity
+    plan: free          # Upgrade to "starter" or higher for production SLA
+    region: frankfurt   # Pick the region closest to your users
+    ipAllowList: []     # Open to all Render services (private network only)
+
+services:
+  # ── auth-service (gRPC Private Service) ─────────────────────────────────────
+  - type: private_service
+    name: auth-service
+    runtime: docker
+    dockerfilePath: ./auth-service/Dockerfile
+    dockerContext: ./auth-service
+    region: frankfurt
+    plan: starter
+    scaling:
+      minInstances: 1
+      maxInstances: 2
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GRPC_PORT
+        value: "50055"
+      - key: DB_HOST
+        fromDatabase:
+          name: buildwithus-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: buildwithus-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: buildwithus-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: buildwithus-db
+          property: password
+      - key: DB_NAME
+        value: auth_db
+      - key: DB_SYNC
+        value: "false"   # Use migrations in production — never true
+      - key: JWT_SECRET
+        generateValue: true   # Render generates a secure random value
+
+  # ── template-service (gRPC Private Service) ──────────────────────────────────
+  - type: private_service
+    name: template-service
+    runtime: docker
+    dockerfilePath: ./template-service/Dockerfile
+    dockerContext: ./           # Repo root — needs packages/shared-kernel
+    region: frankfurt
+    plan: starter
+    scaling:
+      minInstances: 1
+      maxInstances: 2
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GRPC_PORT
+        value: "50054"
+      - key: DB_HOST
+        fromDatabase:
+          name: buildwithus-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: buildwithus-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: buildwithus-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: buildwithus-db
+          property: password
+      - key: DB_NAME
+        value: templates_db
+      - key: DB_SYNC
+        value: "false"
+      # MinIO / S3-compatible storage (fill in after setting up Cloudflare R2 or MinIO)
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_PORT
+        value: "9000"
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+      - key: MINIO_BUCKET
+        value: templates
+      - key: MINIO_USE_SSL
+        value: "true"
+
+  # ── api-gateway (Public Web Service) ─────────────────────────────────────────
+  - type: web
+    name: api-gateway
+    runtime: docker
+    dockerfilePath: ./api-gateway/Dockerfile
+    dockerContext: ./api-gateway
+    region: frankfurt
+    plan: starter
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: FRONTEND_ORIGIN
+        sync: false   # Set to your Vercel domain e.g. https://buildwithus.vercel.app
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: auth-service
+          type: private_service
+          property: hostport
+      - key: TEMPLATE_SERVICE_URL
+        fromService:
+          name: template-service
+          type: private_service
+          property: hostport
+      - key: AI_TEMPLATE_SERVICE_URL
+        fromService:
+          name: ai-template-service
+          type: web
+          property: url
+      - key: IMAGE_PIPELINE_URL
+        fromService:
+          name: image-pipeline
+          type: web
+          property: url
+      - key: STRIPE_SECRET_KEY
+        sync: false   # Never commit — set in Render dashboard
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_TAX_RATE_ID
+        value: txr_1UE7vQ8TxBKnCf98aX2ogENp
+      - key: STRIPE_RETURN_URL
+        sync: false   # Set to your Vercel domain e.g. https://buildwithus.vercel.app
+      # Email (Resend)
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: noreply@buildwithus.app
+      # MinIO / S3 (same as template-service)
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_PORT
+        value: "9000"
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+      - key: MINIO_BUCKET
+        value: templates
+      - key: MINIO_USE_SSL
+        value: "true"
+      - key: JWT_SECRET
+        fromService:
+          name: auth-service
+          type: private_service
+          property: envVars
+          envVarKey: JWT_SECRET
+
+  # ── ai-template-service (Web Service) ────────────────────────────────────────
+  - type: web
+    name: ai-template-service
+    runtime: docker
+    dockerfilePath: ./ai-template-service/Dockerfile
+    dockerContext: ./ai-template-service
+    region: frankfurt
+    plan: starter
+    envVars:
+      - key: PORT
+        value: "8001"
+      - key: AI_MODEL
+        value: deepseek/deepseek-v3.2
+      - key: OPENROUTER_API_KEY
+        sync: false   # Set in Render dashboard
+      - key: FRONTEND_ORIGIN
+        sync: false   # Set to your Vercel domain
+
+  # ── image-pipeline (Web Service) ─────────────────────────────────────────────
+  - type: web
+    name: image-pipeline
+    runtime: docker
+    dockerfilePath: ./image-pipeline/Dockerfile
+    dockerContext: ./image-pipeline
+    region: frankfurt
+    plan: starter
+    # Note: chromadb requires a persistent disk for vector storage
+    disk:
+      name: chroma-data
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: PORT
+        value: "8002"
+      - key: PEXELS_API_KEY
+        sync: false   # Set in Render dashboard
+      - key: CHROMA_DB_PATH
+        value: /data/chroma

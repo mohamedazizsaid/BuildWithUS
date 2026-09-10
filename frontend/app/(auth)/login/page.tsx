@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -14,7 +14,7 @@ interface LoginForm {
   password: string;
 }
 
-export default function LoginPage() {
+function LoginInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
@@ -108,5 +108,13 @@ export default function LoginPage() {
         </p>
       </form>
     </motion.div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
   );
 }
