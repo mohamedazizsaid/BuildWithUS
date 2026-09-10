@@ -29,9 +29,11 @@ export class AuthGuard implements CanActivate {
 
     // Authorization header takes priority over cookie
     // Header: machines/APIs always send Bearer token explicitly
-    // Cookie: browser users — fallback when no header present
+    const authHeader = request.headers.authorization;
     const token =
-      request.headers.authorization?.replace("Bearer ", "") ||
+      (authHeader && authHeader.toLowerCase().startsWith("bearer ")
+        ? authHeader.slice(7).trim()
+        : authHeader?.trim()) ||
       request.cookies?.token;
 
     if (!token) {

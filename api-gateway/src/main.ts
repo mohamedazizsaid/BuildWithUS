@@ -27,19 +27,30 @@ async function bootstrap() {
   // Turn gRPC / unexpected errors into clean JSON the frontend can display.
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // CORS — allow the dev frontends, plus any production origin(s) from env.
-  // FRONTEND_ORIGIN can be a comma-separated list (e.g. the server URL).
-  const corsOrigins = [
-    'http://localhost:3001',
-    'http://localhost:5173',
-    ...(process.env.FRONTEND_ORIGIN ?? '')
-      .split(',')
-      .map((o) => o.trim())
-      .filter(Boolean),
-  ];
+  // CORS — allow frontend with credentials support across all environments (Vercel, Render, dev)
+  const configuredOrigins = (process.env.FRONTEND_ORIGIN ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      // If FRONTEND_ORIGIN is explicitly configured, check matches or wildcard
+      if (configuredOrigins.length > 0 && !configuredOrigins.includes('*')) {
+        const isAllowed = configuredOrigins.some((allowed) =>
+          allowed === origin || allowed === '*' || origin.endsWith(allowed.replace(/^\*/, ''))
+        );
+        if (isAllowed) return callback(null, true);
+      }
+      // Allow origin dynamically with credentials
+      callback(null, true);
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Set-Cookie'],
   });
 
   const port = process.env.PORT || 3000;

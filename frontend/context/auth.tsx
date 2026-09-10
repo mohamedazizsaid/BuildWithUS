@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { auth, isEmbedMode, getEmbedToken, decodeJwtPayload } from '@/lib/api';
+import { auth, isEmbedMode, getEmbedToken, decodeJwtPayload, setAuthToken } from '@/lib/api';
 import { useRouter, usePathname } from 'next/navigation';
 
 interface User {
@@ -76,7 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     auth.getMe()
       .then((data) => setUser({ ...data.user, tenant_name: data.tenant_name }))
-      .catch(() => setUser(null))
+      .catch(() => {
+        setAuthToken(null);
+        setUser(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 

@@ -84,36 +84,6 @@ services:
       - key: DB_SYNC
         value: "false"   # Creates tables on first boot. Set to false after first deploy.
 
-    name: api-gateway
-    runtime: docker
-    dockerfilePath: ./api-gateway/Dockerfile
-    dockerContext: ./api-gateway
-    region: frankfurt
-    plan: free
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: "3000"
-      - key: AUTH_SERVICE_URL
-        value: http://auth-service:10000
-      - key: TEMPLATE_SERVICE_URL
-        value: http://template-service:10000
-      - key: FRONTEND_ORIGIN
-        sync: false   # Set to your Vercel/production frontend domain
-      - key: JWT_SECRET
-        sync: false   # Same as auth-service JWT_SECRET
-      - key: STRIPE_SECRET_KEY
-        sync: false
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false
-      - key: STRIPE_TAX_RATE_ID
-        sync: false
-      - key: STRIPE_RETURN_URL
-        sync: false
-      - key: CLOUDINARY_URL
-        sync: false
-
   # ── ai-template-service (Web Service) ────────────────────────────────────────
   - type: web
     name: ai-template-service

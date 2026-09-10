@@ -15,6 +15,22 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 let embedToken: string | null = null;
 const TOKEN_KEY  = 'winaity_embed_token';
 const ORIGIN_KEY = 'winaity_embed_return_origin';
+const AUTH_TOKEN_KEY = 'winaity_auth_token';
+
+export function getAuthToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        return localStorage.getItem(AUTH_TOKEN_KEY);
+    } catch { return null; }
+}
+
+export function setAuthToken(token: string | null): void {
+    if (typeof window === 'undefined') return;
+    try {
+        if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
+        else localStorage.removeItem(AUTH_TOKEN_KEY);
+    } catch { /* ignore */ }
+}
 
 export function setEmbedToken(token: string | null): void {
     embedToken = token;
@@ -74,10 +90,14 @@ async function request(endpoint: string, options: RequestInit = {}){
         ...(options.headers as Record<string, string> | undefined),
     };
     let credentials: RequestCredentials = 'include';
-    const t = activeEmbedToken();
-    if (t) {
-        headers.Authorization = `Bearer ${t}`;
-        credentials = 'omit';
+    const embedTok = activeEmbedToken();
+    const userTok = getAuthToken();
+    const tok = embedTok || userTok;
+    if (tok) {
+        headers.Authorization = `Bearer ${tok}`;
+        if (embedTok) {
+            credentials = 'omit';
+        }
     }
     let res: Response;
     try {
@@ -125,13 +145,25 @@ function httpFallbackMessage(status: number): string {
 
 // ------- AUTH ---------
 export const auth = {
-    register: (body: {tenantName: string; email: string; password: string; firstName: string; lastName: string; phone: string; addressLine: string; postalCode: string; city: string; country: string;}) =>
-        request('/auth/register', { method: 'POST' , body: JSON.stringify(body)}),
+    register: async (body: {tenantName: string; email: string; password: string; firstName: string; lastName: string; phone: string; addressLine: string; postalCode: string; city: string; country: string;}) => {
+        const data = await request('/auth/register', { method: 'POST' , body: JSON.stringify(body)});
+        if (data?.token) setAuthToken(data.token);
+        return data;
+    },
 
-    login: (body: { email: string; password: string}) =>
-        request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+    login: async (body: { email: string; password: string}) => {
+        const data = await request('/auth/login', { method: 'POST', body: JSON.stringify(body) });
+        if (data?.token) setAuthToken(data.token);
+        return data;
+    },
 
-    logout: () => request('/auth/logout', { method: 'POST' }),
+    logout: async () => {
+        try {
+            await request('/auth/logout', { method: 'POST' });
+        } finally {
+            setAuthToken(null);
+        }
+    },
 
     getMe: () => request('/auth/me'),
 
@@ -145,8 +177,11 @@ export const auth = {
     invite: (body: { email: string; role: string }) =>
         request('/auth/invite', { method: 'POST', body: JSON.stringify(body)}),
 
-    acceptInvite: (body: { token: string; password: string; firstName: string; lastName: string}) =>
-        request('/auth/accept-invite', { method: 'POST', body: JSON.stringify(body) }),
+    acceptInvite: async (body: { token: string; password: string; firstName: string; lastName: string}) => {
+        const data = await request('/auth/accept-invite', { method: 'POST', body: JSON.stringify(body) });
+        if (data?.token) setAuthToken(data.token);
+        return data;
+    },
 
     forgotPassword: (body: { email: string }) =>
         request('/auth/forgot-password', { method: 'POST', body: JSON.stringify(body) }),

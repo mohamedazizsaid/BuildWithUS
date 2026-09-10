@@ -55,14 +55,16 @@ export class AuthController {
       country: body.country,
     });
 
+    const isProd = process.env.NODE_ENV === "production";
+
     res.cookie("token", result.token, {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    return res.json({ user: result.user });
+    return res.json({ user: result.user, token: result.token });
   }
 
   /**
@@ -75,14 +77,16 @@ export class AuthController {
       password: body.password,
     });
 
+    const isProd = process.env.NODE_ENV === "production";
+
     res.cookie("token", result.token, {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    return res.json({ user: result.user });
+    return res.json({ user: result.user, token: result.token });
   }
 
   /**
@@ -90,7 +94,12 @@ export class AuthController {
    */
   @Post("logout")
   async logout(@Res() res: Response) {
-    res.clearCookie("token");
+    const isProd = process.env.NODE_ENV === "production";
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+    });
     return res.json({ message: "Logged out" });
   }
 
@@ -201,13 +210,25 @@ export class AuthController {
    * POST /auth/accept-invite — PUBLIC
    */
   @Post("accept-invite")
-  async acceptInvite(@Body() body: any) {
-    return this.authClient.acceptInvite({
+  async acceptInvite(@Body() body: any, @Res() res: Response) {
+    const result = await this.authClient.acceptInvite({
       token: body.token,
       password: body.password,
       first_name: body.firstName || body.first_name,
       last_name: body.lastName || body.last_name,
     });
+
+    if (result?.token) {
+      const isProd = process.env.NODE_ENV === "production";
+      res.cookie("token", result.token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
+
+    return res.json(result);
   }
 
   /**
