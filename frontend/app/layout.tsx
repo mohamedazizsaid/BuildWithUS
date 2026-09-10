@@ -22,6 +22,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Build withUs - Template Builder",
   description: "Build beautiful email templates, invoices, and contracts",
+  icons: {
+    icon: "/BuildwithUs.ico",
+    shortcut: "/BuildwithUs.ico",
+    apple: "/BuildwithUs.ico",
+  },
 };
 
 export default function RootLayout({

@@ -395,16 +395,16 @@ export default function DesignSystemPage() {
           </div>
           <div className="ds-logo-grid">
             <div className="ds-logo-card light">
-              <div className="nav-logo"><span className="nav-logo-mark">W</span><span>Wina<span className="nav-logo-italic">ity</span></span></div>
+              <div className="nav-logo"><img src="/buildwithuslogo.png" alt="Build withUs" className="nav-logo-img" /><span>Build <span className="nav-logo-italic">withUs</span></span></div>
               <div className="ds-logo-context">Fond clair — Usage principal</div>
             </div>
             <div className="ds-logo-card dark">
-              <div className="nav-logo"><span className="nav-logo-mark">W</span><span>Wina<span className="nav-logo-italic">ity</span></span></div>
+              <div className="nav-logo"><img src="/buildwithuslogo.png" alt="Build withUs" className="nav-logo-img" /><span>Build <span className="nav-logo-italic">withUs</span></span></div>
               <div className="ds-logo-context">Fond sombre — Sections dark</div>
             </div>
             <div className="ds-logo-card accent">
-              <div className="nav-logo"><span className="nav-logo-mark">W</span><span>Wina<span className="nav-logo-italic">ity</span></span></div>
-              <div className="ds-logo-context">Fond bleu — CTA, packaging</div>
+              <div className="nav-logo"><img src="/buildwithuslogo.png" alt="Build withUs" className="nav-logo-img" /><span>Build <span className="nav-logo-italic">withUs</span></span></div>
+              <div className="ds-logo-context">Fond violet — CTA, packaging</div>
             </div>
           </div>
         </div>

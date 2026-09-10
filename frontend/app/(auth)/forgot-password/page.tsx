@@ -42,9 +42,9 @@ export default function ForgotPasswordPage() {
         <Link
           href="/"
           aria-label="Retour à l'accueil"
-          className="inline-flex w-10 h-10 bg-slate-900 rounded-lg items-center justify-center mb-6 transition-transform hover:scale-105 active:scale-95"
+          className="inline-flex w-12 h-12 bg-violet-950/20 border border-violet-500/20 rounded-xl items-center justify-center mb-6 p-1.5 transition-transform hover:scale-105 active:scale-95 shadow-sm"
         >
-          <span className="text-white font-bold text-lg">B</span>
+          <img src="/buildwithuslogo.png" alt="Build withUs" className="w-full h-full object-contain" />
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Mot de passe oublié ?</h1>
         <p className="text-slate-500 mt-1">

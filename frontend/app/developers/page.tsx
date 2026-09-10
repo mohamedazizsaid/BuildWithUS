@@ -33,10 +33,8 @@ export default function DevelopersPage() {
     <div className="min-h-screen bg-black text-white">
       <nav className="border-b border-white/10 bg-black/80 backdrop-blur sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-              <span className="text-black font-black text-sm">B</span>
-            </div>
+          <Link href="/" className="flex items-center gap-2.5">
+            <img src="/buildwithuslogo.png" alt="Build withUs" className="w-8 h-8 object-contain" />
             <span className="text-white font-semibold text-sm">Build withUs Developers</span>
           </Link>
           <div className="hidden md:flex items-center gap-5 text-sm">

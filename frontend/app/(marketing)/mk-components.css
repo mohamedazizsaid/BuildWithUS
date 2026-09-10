@@ -32,6 +32,9 @@
   font-family: var(--font-display); font-size: var(--text-xl); font-weight: 400;
   letter-spacing: -0.02em; color: var(--ink-900);
 }
+.tb .nav-logo-img {
+  width: 32px; height: 32px; object-fit: contain; display: block;
+}
 .tb .nav-logo-mark {
   width: 28px; height: 28px; border-radius: 8px;
   background: linear-gradient(135deg, var(--blue-500), var(--blue-700));

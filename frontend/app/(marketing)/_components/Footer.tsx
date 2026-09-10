@@ -29,7 +29,7 @@ export default function Footer() {
         <div className="footer-grid">
           <div className="footer-brand">
             <div className="nav-logo">
-              <span className="nav-logo-mark">B</span>
+              <img src="/buildwithuslogo.png" alt="Build withUs Logo" className="nav-logo-img" />
               <span>Build <span className="nav-logo-italic">withUs</span></span>
             </div>
             <p className="footer-tagline">Le Template Builder nouvelle génération pour emails, factures et contrats. Boosté à l&apos;IA, pensé en France.</p>
