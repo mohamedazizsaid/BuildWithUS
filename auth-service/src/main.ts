@@ -9,6 +9,9 @@ import * as http from 'http';
 dotenv.config({ path: '.env.development' });
 
 async function bootstrap() {
+  // =========================
+  // gRPC
+  // =========================
   const grpcPort = process.env.GRPC_PORT || '50055';
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
@@ -30,46 +33,85 @@ async function bootstrap() {
     },
   );
 
-  // Preserve real error messages across gRPC (NestJS hides them by default).
   app.useGlobalFilters(new AllRpcExceptionsFilter());
 
   await app.listen();
+
   console.log(`Auth service running on gRPC port ${grpcPort}`);
 
-  // Register with Consul if available
+  // =========================
+  // HTTP server for Render
+  // =========================
+  const httpPort = Number(process.env.PORT) || 10000;
+
+  const httpServer = http.createServer((req, res) => {
+    if (req.url === '/health' || req.url === '/') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+      });
+
+      res.end(
+        JSON.stringify({
+          status: 'ok',
+          service: 'auth-service',
+          grpc: `0.0.0.0:${grpcPort}`,
+        }),
+      );
+
+      return;
+    }
+
+    res.writeHead(404, {
+      'Content-Type': 'application/json',
+    });
+
+    res.end(
+      JSON.stringify({
+        status: 'not_found',
+      }),
+    );
+  });
+
+  httpServer.listen(httpPort, '0.0.0.0', () => {
+    console.log(`HTTP health server running on 0.0.0.0:${httpPort}`);
+  });
+
+  // =========================
+  // Consul
+  // =========================
   const consulHost = process.env.CONSUL_HOST || 'consul';
   const consulPort = process.env.CONSUL_PORT || '8500';
   const serviceHost = process.env.SERVICE_HOST || 'auth-service';
+
   try {
-    const res = await fetch(`http://${consulHost}:${consulPort}/v1/agent/service/register`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ID: 'auth-service-1',
-        Name: 'auth-service',
-        Address: serviceHost,
-        Port: parseInt(grpcPort),
-        Tags: ['grpc', 'auth'],
-        Check: {
-          TCP: `${serviceHost}:${grpcPort}`,
-          Interval: '10s',
-          Timeout: '5s',
+    const res = await fetch(
+      `http://${consulHost}:${consulPort}/v1/agent/service/register`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      }),
-    });
-    if (res.ok) console.log('Registered with Consul');
+        body: JSON.stringify({
+          ID: 'auth-service-1',
+          Name: 'auth-service',
+          Address: serviceHost,
+          Port: parseInt(grpcPort),
+          Tags: ['grpc', 'auth'],
+          Check: {
+            TCP: `${serviceHost}:${grpcPort}`,
+            Interval: '10s',
+            Timeout: '5s',
+          },
+        }),
+      },
+    );
+
+    if (res.ok) {
+      console.log('Registered with Consul');
+    }
   } catch {
     console.log('Consul not available, skipping registration');
   }
-
-const PORT: number = Number(process.env.PORT) || 10000;
-
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('OK');
-}).listen(PORT, '0.0.0.0', () => {
-  console.log(`Health check HTTP server listening on ${PORT}`);
-});
 }
 
 bootstrap();
