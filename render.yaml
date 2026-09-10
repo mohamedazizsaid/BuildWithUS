@@ -19,7 +19,7 @@ databases:
 
 services:
   # ── auth-service (gRPC Private Service) ─────────────────────────────────────
-  - type: private_service
+  - type: pserv
     name: auth-service
     runtime: docker
     dockerfilePath: ./auth-service/Dockerfile
@@ -55,10 +55,10 @@ services:
       - key: DB_SYNC
         value: "false"   # Use migrations in production — never true
       - key: JWT_SECRET
-        generateValue: true   # Render generates a secure random value
+        sync: false   # Set a strong random secret (min 64 chars). Use the same value in api-gateway
 
   # ── template-service (gRPC Private Service) ──────────────────────────────────
-  - type: private_service
+  - type: pserv
     name: template-service
     runtime: docker
     dockerfilePath: ./template-service/Dockerfile
@@ -128,12 +128,12 @@ services:
       - key: AUTH_SERVICE_URL
         fromService:
           name: auth-service
-          type: private_service
+          type: pserv
           property: hostport
       - key: TEMPLATE_SERVICE_URL
         fromService:
           name: template-service
-          type: private_service
+          type: pserv
           property: hostport
       - key: AI_TEMPLATE_SERVICE_URL
         fromService:
@@ -172,11 +172,7 @@ services:
       - key: MINIO_USE_SSL
         value: "true"
       - key: JWT_SECRET
-        fromService:
-          name: auth-service
-          type: private_service
-          property: envVars
-          envVarKey: JWT_SECRET
+        sync: false   # IMPORTANT: must match the JWT_SECRET set in auth-service
 
   # ── ai-template-service (Web Service) ────────────────────────────────────────
   - type: web
