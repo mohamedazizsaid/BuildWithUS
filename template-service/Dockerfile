@@ -54,12 +54,16 @@ COPY --from=svc-builder /app/dist ./dist
 COPY --from=svc-builder /app/proto ./proto
 COPY --from=svc-builder /app/package.json /app/package-lock.json ./
 
-# Runtime deps (no devDeps)
-RUN npm ci --omit=dev
+# Copy node_modules from the build stage — already has all runtime deps installed.
+# This avoids re-running npm ci which would try to resolve file:../packages/shared-kernel
+# and create a broken symlink outside /app.
+COPY --from=svc-builder /app/node_modules ./node_modules
 
-# Place shared-kernel dist in node_modules (runtime only needs the JS)
+# Inject the pre-built shared-kernel dist — overwrites the file: symlink npm created.
+# /app/node_modules/@nestjs/cqrs already exists here, so require('@nestjs/cqrs') works.
 COPY --from=kernel-builder /kernel/dist /app/node_modules/@winaity/shared-kernel/dist
 COPY --from=kernel-builder /kernel/package.json /app/node_modules/@winaity/shared-kernel/package.json
+
 
 RUN useradd -r -s /bin/false appuser && chown -R appuser /app
 USER appuser

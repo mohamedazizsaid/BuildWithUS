@@ -52,7 +52,7 @@ services:
       - key: DB_NAME
         value: buildwithus   # Single shared Render DB — auth tables live here
       - key: DB_SYNC
-        value: "true"   # Creates tables on first boot. Set to false after first deploy.
+        value: "false"   # Creates tables on first boot. Set to false after first deploy.
       - key: JWT_SECRET
         sync: false   # Set a strong random secret (min 64 chars). Use the same value in api-gateway
 
@@ -90,13 +90,13 @@ services:
       - key: DB_NAME
         value: buildwithus   # Single shared Render DB — template tables live here
       - key: DB_SYNC
-        value: "true"   # Creates tables on first boot. Set to false after first deploy.
+        value: "false"   # Creates tables on first boot. Set to false after first deploy.
   # ── api-gateway (Public Web Service) ─────────────────────────────────────────
   - type: web
     name: api-gateway
     runtime: docker
     dockerfilePath: ./api-gateway/Dockerfile
-    dockerContext: ./api-gateway
+    dockerContext: ./           # Repo root — Dockerfile uses api-gateway/ prefix paths
     region: frankfurt
     plan: free
     envVars:
