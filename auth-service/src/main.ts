@@ -4,6 +4,7 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 import { AllRpcExceptionsFilter } from './all-rpc-exceptions.filter';
 import * as dotenv from 'dotenv';
+import * as http from 'http';
 
 dotenv.config({ path: '.env.development' });
 
@@ -60,6 +61,15 @@ async function bootstrap() {
   } catch {
     console.log('Consul not available, skipping registration');
   }
+
+const PORT: number = Number(process.env.PORT) || 10000;
+
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('OK');
+}).listen(PORT, '0.0.0.0', () => {
+  console.log(`Health check HTTP server listening on ${PORT}`);
+});
 }
 
 bootstrap();
