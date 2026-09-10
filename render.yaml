@@ -18,8 +18,8 @@ databases:
     ipAllowList: []     # Open to all Render services (private network only)
 
 services:
-  # ── auth-service (gRPC Private Service) ─────────────────────────────────────
-  - type: pserv
+  # ── auth-service (gRPC Web Service - Free Plan Compatible) ───────────────────
+  - type: web
     name: auth-service
     runtime: docker
     dockerfilePath: ./auth-service/Dockerfile
@@ -29,6 +29,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: "50055"
       - key: GRPC_PORT
         value: "50055"
       - key: DB_HOST
@@ -54,8 +56,8 @@ services:
       - key: JWT_SECRET
         sync: false   # Set a strong random secret (min 64 chars). Use the same value in api-gateway
 
-  # ── template-service (gRPC Private Service) ──────────────────────────────────
-  - type: pserv
+  # ── template-service (gRPC Web Service - Free Plan Compatible) ────────────────
+  - type: web
     name: template-service
     runtime: docker
     dockerfilePath: ./template-service/Dockerfile
@@ -65,6 +67,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: "50054"
       - key: GRPC_PORT
         value: "50054"
       - key: DB_HOST
@@ -105,12 +109,12 @@ services:
       - key: AUTH_SERVICE_URL
         fromService:
           name: auth-service
-          type: pserv
+          type: web
           property: hostport
       - key: TEMPLATE_SERVICE_URL
         fromService:
           name: template-service
-          type: pserv
+          type: web
           property: hostport
       - key: AI_TEMPLATE_SERVICE_URL
         sync: false   # Paste the ai-template-service URL from Render dashboard after deploy
@@ -130,9 +134,8 @@ services:
       - key: EMAIL_FROM
         value: noreply@buildwithus.app
       # Storage Cloudinary (100% GRATUIT SANS CARTE BANCAIRE : https://cloudinary.com)
-      # Sur votre Dashboard Cloudinary, copiez l'"API Environment variable" (CLOUDINARY_URL)
       - key: CLOUDINARY_URL
-        sync: false
+        value: cloudinary://826948159658395:ugHBScB9rskNnKZnk29XC7WOxmY@dhlnfpfen
       # Storage Fallback (MinIO/S3 - non-bloquant)
       - key: MINIO_ENDPOINT
         value: localhost
