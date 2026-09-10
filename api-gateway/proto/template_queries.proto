@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package templates.queries;
+
+import "common.proto";
+import "template_commands.proto";
+
+message GetTemplateRequest {
+  string id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  optional string external_org_ref = 4;
+}
+
+message ListTemplatesRequest {
+  string user_id = 1;
+  int32 page = 2;
+  string tenant_id = 8;
+  int32 limit = 3;
+  string type = 4;
+  string sort_by = 5;
+  bool ascending = 6;
+  string search = 7;
+  bool favorites_only = 9;
+  bool exclude_predefined_overrides = 10;
+  bool predefined_overrides_only = 11;
+  optional string external_org_ref = 12;
+}
+
+message RenderTemplateRequest {
+  string id = 1;
+  string user_id = 2;
+  map<string, string> variables = 3;
+}
+
+message GetPopularTemplatesRequest {
+  int32 limit = 1;
+  string user_id = 2;
+  string type = 3;
+}
+
+message TemplateResponse {
+  templates.commands.TemplateDTO template = 1;
+}
+
+message ListTemplatesResponse {
+  repeated templates.commands.TemplateDTO templates = 1;
+  PaginationInfo pagination = 2;
+}
+
+message RenderTemplateResponse {
+  string rendered_subject = 1;
+  string rendered_content = 2;
+  repeated string variables_used = 3;
+}
+
+message GetPopularTemplatesResponse {
+  repeated templates.commands.TemplateDTO templates = 1;
+}
+
+message PaginationInfo {
+  int32 total = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  int32 total_pages = 4;
+  bool has_next = 5;
+  bool has_previous = 6;
+}
+
+message GetTenantVariablesRequest {
+  string tenant_id = 1;
+}
+
+message TenantVariablesResponse {
+  string custom_variables_json = 1;
+  string custom_names_json = 2;
+}
+
+// Template Query Service - Read operations (CQRS)
+service TemplateQueryService {
+  rpc HealthCheck (common.HealthCheckRequest) returns (common.HealthCheckResponse);
+  rpc GetTemplate (GetTemplateRequest) returns (TemplateResponse);
+  rpc ListTemplates (ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc GetPopularTemplates (GetPopularTemplatesRequest) returns (GetPopularTemplatesResponse);
+  rpc RenderTemplate (RenderTemplateRequest) returns (RenderTemplateResponse);
+  rpc GetTenantVariables (GetTenantVariablesRequest) returns (TenantVariablesResponse);
+}

@@ -1,0 +1,379 @@
+syntax = "proto3";
+
+package auth;
+
+service AuthService{
+    rpc Register (RegisterRequest) returns (AuthResponse);
+    rpc Login (LoginRequest) returns (AuthResponse);
+    rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+    rpc InviteUser (InviteUserRequest) returns (InviteUserResponse);
+    rpc AcceptInvite (AcceptInviteRequest) returns (AuthResponse);
+    rpc RequestPasswordReset (RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
+    rpc ResetPassword (ResetPasswordRequest) returns (ResetPasswordResponse);
+    rpc GetMe (GetMeRequest) returns (GetMeResponse);
+    rpc ListMembers (ListMembersRequest) returns (ListMembersResponse);
+    rpc UpdateProfile (UpdateProfileRequest) returns (UpdateProfileResponse);
+    rpc MarkFirstLog (MarkFirstLogRequest) returns (UpdateProfileResponse);
+    rpc GenerateApiClient (GenerateApiClientRequest) returns (GenerateApiClientResponse);
+    rpc IssueClientToken (IssueClientTokenRequest) returns (IssueClientTokenResponse);
+    rpc RegisterApiClient (RegisterApiClientRequest) returns (RegisterApiClientResponse);
+    rpc ListAllTenants (ListAllTenantsRequest) returns (ListAllTenantsResponse);
+    rpc UpdateTenantPlan (UpdateTenantPlanRequest) returns (TenantInfo);
+    rpc GetTenantBilling (GetTenantBillingRequest) returns (TenantInfo);
+    rpc GetTenantAdmin (GetTenantAdminRequest) returns (UserInfo);
+    rpc GetTenantUsage (GetTenantUsageRequest) returns (TenantUsageInfo);
+    rpc IncrementTenantUsage (IncrementTenantUsageRequest) returns (TenantUsageInfo);
+    rpc ListApiClients (ListApiClientsRequest) returns (ListApiClientsResponse);
+    rpc RevokeApiClient (RevokeApiClientRequest) returns (RevokeApiClientResponse);
+    // Super-admin user management (cross-tenant)
+    rpc ListAllUsers (ListAllUsersRequest) returns (ListAllUsersResponse);
+    rpc AdminSetTenantPlan (AdminSetTenantPlanRequest) returns (TenantInfo);
+    rpc AdminUpdateUserRole (AdminUpdateUserRoleRequest) returns (AdminUserActionResponse);
+    rpc AdminResetPassword (AdminResetPasswordRequest) returns (AdminUserActionResponse);
+    rpc AdminDeleteUser (AdminDeleteUserRequest) returns (AdminUserActionResponse);
+    rpc RegisterDeveloper (RegisterDeveloperRequest) returns (RegisterDeveloperResponse);
+    rpc UpdateAllowedReturnUrls (UpdateAllowedReturnUrlsRequest) returns (UpdateAllowedReturnUrlsResponse);
+    rpc SetTenantReturnUrls (SetTenantReturnUrlsRequest) returns (UpdateAllowedReturnUrlsResponse);
+    rpc MintBuilderSession (MintBuilderSessionRequest) returns (MintBuilderSessionResponse);
+    rpc ExchangeBuilderSession (ExchangeBuilderSessionRequest) returns (ExchangeBuilderSessionResponse);
+}
+
+message RegisterRequest {
+    string tenant_name = 1;
+    string email = 2;
+    string password = 3;
+    string first_name = 4;
+    string last_name = 5;
+    // Company contact/billing details (collected at signup, forwarded to the CRM).
+    string phone = 6;
+    string address_line = 7;
+    string postal_code = 8;
+    string city = 9;
+    string country = 10;
+}
+
+message LoginRequest {
+    string email = 1;
+    string password= 2;
+}
+
+message ValidateTokenRequest {
+    string token = 1;
+}
+
+message InviteUserRequest {
+    string tenant_id = 1;
+    string email = 2;
+    string role = 3;
+    string invited_by = 4;
+}
+
+message AcceptInviteRequest {
+    string token = 1;
+    string password = 2;
+    string first_name = 3;
+    string last_name = 4;
+}
+
+message AuthResponse {
+    string token= 1;
+    UserInfo user = 2;
+}
+
+message RequestPasswordResetRequest {
+    string email = 1;
+}
+
+// Always returns generic success to avoid leaking whether an account exists.
+// token + email are populated only when a matching user was found, so the
+// gateway knows whether to actually send the email.
+message RequestPasswordResetResponse {
+    bool email_exists = 1;
+    string email = 2;
+    string token = 3;
+    string first_name = 4;
+}
+
+message ResetPasswordRequest {
+    string token = 1;
+    string password = 2;
+}
+
+message ResetPasswordResponse {
+    bool success = 1;
+    string email = 2;
+}
+
+message ValidateTokenResponse{
+    bool valid = 1;
+    UserInfo user = 2;
+    string token_type = 3;
+    string organisation_id = 4;
+    repeated string scopes = 5;
+    string user_ref = 6;
+}
+
+message InviteUserResponse {
+    InviteInfo invite = 1;
+}
+
+message InviteInfo {
+    string id = 1;
+    string email = 2;
+    string role = 3;
+    string token = 4;
+}
+
+message GetMeRequest {
+    string token = 1;
+}
+
+message GetMeResponse {
+    UserInfo user = 1;
+    string tenant_name = 2;
+}
+
+message ListMembersRequest {
+    string token = 1;
+}
+
+message ListMembersResponse {
+    repeated UserInfo members = 1;
+}
+
+message UpdateProfileRequest {
+    string token = 1;
+    string first_name = 2;
+    string last_name = 3;
+}
+
+message UpdateProfileResponse {
+    UserInfo user = 1;
+}
+
+message UserInfo {
+    string id = 1;
+    string tenant_id= 2;
+    string email = 3;
+    string first_name = 4;
+    string last_name = 5;
+    string role = 6;
+    bool first_log = 7;
+}
+
+message MarkFirstLogRequest {
+    string token = 1;
+}
+
+message GenerateApiClientRequest {
+    string tenant_id = 1;
+    string scopes = 2;
+    string label = 3;
+}
+
+message GenerateApiClientResponse {
+    string client_id = 1;
+    string client_secret = 2;
+}
+
+message IssueClientTokenRequest {
+    string client_id = 1;
+    string client_secret = 2;
+    string user_id = 3;
+    string organisation_id = 4;
+}
+
+message IssueClientTokenResponse {
+    string access_token = 1;
+    string token_type = 2;
+    int32 expires_in = 3;
+}
+
+message RegisterApiClientRequest {
+    string app_name = 1;
+    string contact_email = 2;
+    string scopes = 3;
+}
+
+message RegisterApiClientResponse {
+    string tenant_id = 1;
+    string client_id = 2;
+    string client_secret = 3;
+    string scopes = 4;
+}
+
+message TenantInfo {
+    string id = 1;
+    string name = 2;
+    string plan = 3;
+    string created_at = 4;
+    string billing_cycle = 5;
+    string subscription_status = 6;
+    string stripe_customer_id = 7;
+    string stripe_subscription_id = 8;
+    int32 email_templates_created = 9;
+    int32 ai_interactions_used = 10;
+    // Company contact/billing details.
+    string phone = 11;
+    string address_line = 12;
+    string postal_code = 13;
+    string city = 14;
+    string country = 15;
+}
+
+// Lightweight usage snapshot (no Stripe round-trip) used by the gateway to
+// enforce plan limits on hot paths (template create, AI interaction).
+message TenantUsageInfo {
+    string tenant_id = 1;
+    string plan = 2;
+    int32 email_templates_created = 3;
+    int32 ai_interactions_used = 4;
+}
+
+message GetTenantUsageRequest {
+    string tenant_id = 1;
+}
+
+// kind = "email_template" | "ai_interaction"
+message IncrementTenantUsageRequest {
+    string tenant_id = 1;
+    string kind = 2;
+}
+
+message UpdateTenantPlanRequest {
+    string tenant_id = 1;
+    string plan = 2;
+    string billing_cycle = 3;
+    string subscription_status = 4;
+    string stripe_customer_id = 5;
+    string stripe_subscription_id = 6;
+}
+
+message GetTenantBillingRequest {
+    string tenant_id = 1;
+}
+
+message GetTenantAdminRequest {
+    string tenant_id = 1;
+}
+
+// Super-admin plan override (no Stripe involved) — assigns free/pro/pro_org/
+// internal directly. Preserves any existing Stripe fields (unlike the
+// webhook-driven UpdateTenantPlan).
+message AdminSetTenantPlanRequest {
+    string tenant_id = 1;
+    string plan = 2;
+}
+
+message ListAllTenantsRequest {}
+
+message ListAllTenantsResponse {
+    repeated TenantInfo tenants = 1;
+}
+
+message ApiClientInfo {
+    string id = 1;
+    string tenant_id = 2;
+    string client_id = 3;
+    string scopes = 4;
+    string created_at = 5;
+    string label = 6;
+    repeated string allowed_return_urls = 7;
+}
+
+message ListApiClientsRequest {
+    string tenant_id = 1;
+}
+
+message ListApiClientsResponse {
+    repeated ApiClientInfo clients = 1;
+}
+
+message RevokeApiClientRequest {
+    string id = 1;
+}
+
+message RevokeApiClientResponse {
+    bool success = 1;
+}
+
+// ── Super-admin user management ──────────────────────────────────────────
+message ListAllUsersRequest {}
+
+message ListAllUsersResponse {
+    repeated UserInfo users = 1;
+}
+
+message AdminUpdateUserRoleRequest {
+    string user_id = 1;
+    string role = 2;
+}
+
+message AdminResetPasswordRequest {
+    string user_id = 1;
+    string new_password = 2;
+}
+
+message AdminDeleteUserRequest {
+    string user_id = 1;
+}
+
+message AdminUserActionResponse {
+    bool success = 1;
+    UserInfo user = 2;
+}
+
+message RegisterDeveloperRequest {
+    string name = 1;
+    string email = 2;
+}
+
+message RegisterDeveloperResponse {
+    string tenant_id = 1;
+    string client_id = 2;
+    string client_secret = 3;
+    string scopes = 4;
+}
+
+message UpdateAllowedReturnUrlsRequest {
+    string client_id = 1;
+    string client_secret = 2;
+    repeated string urls = 3;
+}
+
+message UpdateAllowedReturnUrlsResponse {
+    string client_id = 1;
+    repeated string allowed_return_urls = 2;
+}
+
+message SetTenantReturnUrlsRequest {
+    string tenant_id = 1;
+    string client_id = 2;
+    repeated string urls = 3;
+}
+
+message MintBuilderSessionRequest {
+    string client_id = 1;
+    string client_secret = 2;
+    string mode = 3;
+    string return_url = 4;
+    string template_id = 5;
+    string user_ref = 6;
+}
+
+message MintBuilderSessionResponse {
+    string token = 1;
+    string expires_at = 2;
+}
+
+message ExchangeBuilderSessionRequest {
+    string token = 1;
+}
+
+message ExchangeBuilderSessionResponse {
+    string access_token = 1;
+    int32 expires_in = 2;
+    string mode = 3;
+    string template_id = 4;
+    string return_url = 5;
+}

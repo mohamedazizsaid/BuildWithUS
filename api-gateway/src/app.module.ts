@@ -1,17 +1,31 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { join } from 'path';
-import { AuthController, OAuthController, DevelopersController, IntegrationsController } from '../src/controllers/auth.controller';
-import { SuperAdminController } from '../src/controllers/super-admin.controller';
-import { TemplateController } from '../src/controllers/template.controller';
+import { existsSync } from 'fs';
+import { AuthController, OAuthController, DevelopersController, IntegrationsController } from './controllers/auth.controller';
+import { SuperAdminController } from './controllers/super-admin.controller';
+import { TemplateController } from './controllers/template.controller';
 import { MediaController } from './controllers/media.controller';
 import { BillingController } from './controllers/billing.controller';
-import { AuthGuard } from '../src/guards/auth.guard';
+import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { ScopesGuard } from './guards/scopes.guard';
 import { Reflector } from '@nestjs/core';
 import { PdfService } from './services/pdf.service';
 import { TemplateRendererService } from './services/template-renderer.service';
+
+const resolveProto = (envVar: string | undefined, localRel: string, fallbackRel: string): string => {
+  if (envVar) return envVar;
+  const local = join(__dirname, localRel);
+  if (existsSync(local)) return local;
+  return join(__dirname, fallbackRel);
+};
+
+const protoIncludeDirs = [
+  join(__dirname, '../proto'),
+  join(__dirname, '../../packages/proto'),
+  join(__dirname, '../../auth-service/proto'),
+].filter((d) => existsSync(d));
 
 /**
  * AppModule — the main module of the API Gateway.
@@ -36,13 +50,18 @@ import { TemplateRendererService } from './services/template-renderer.service';
         options: {
           url: process.env.AUTH_SERVICE_URL || 'localhost:50055',
           package: 'auth', // matches "package auth;" in auth.proto
-          protoPath: process.env.AUTH_PROTO_PATH || join(__dirname, '../../auth-service/proto/auth.proto'),
+          protoPath: resolveProto(
+            process.env.AUTH_PROTO_PATH,
+            '../proto/auth.proto',
+            '../../auth-service/proto/auth.proto',
+          ),
           loader: {
             keepCase: true,   // keep snake_case field names (tenant_id, not tenantId)
             longs: String,
             enums: String,
             defaults: true,
             oneofs: true,
+            includeDirs: protoIncludeDirs,
           },
         },
       },
@@ -55,13 +74,18 @@ import { TemplateRendererService } from './services/template-renderer.service';
         options: {
           url: process.env.TEMPLATE_SERVICE_URL || 'localhost:50054',
           package: 'templates.commands', // matches "package templates.commands;" in proto
-          protoPath: process.env.TEMPLATE_CMD_PROTO_PATH || join(__dirname, '../../packages/proto/template_commands.proto'),
+          protoPath: resolveProto(
+            process.env.TEMPLATE_CMD_PROTO_PATH,
+            '../proto/template_commands.proto',
+            '../../packages/proto/template_commands.proto',
+          ),
           loader: {
             keepCase: true,
             longs: String,
             enums: String,
             defaults: true,
             oneofs: true,
+            includeDirs: protoIncludeDirs,
           },
         },
       },
@@ -75,13 +99,18 @@ import { TemplateRendererService } from './services/template-renderer.service';
         options: {
           url: process.env.TEMPLATE_SERVICE_URL || 'localhost:50054',
           package: 'templates.queries', // matches "package templates.queries;" in proto
-          protoPath: process.env.TEMPLATE_QUERY_PROTO_PATH || join(__dirname, '../../packages/proto/template_queries.proto'),
+          protoPath: resolveProto(
+            process.env.TEMPLATE_QUERY_PROTO_PATH,
+            '../proto/template_queries.proto',
+            '../../packages/proto/template_queries.proto',
+          ),
           loader: {
             keepCase: true,
             longs: String,
             enums: String,
             defaults: true,
             oneofs: true,
+            includeDirs: protoIncludeDirs,
           },
         },
       },

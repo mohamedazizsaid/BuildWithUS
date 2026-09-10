@@ -46,8 +46,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy compiled output + package files
+# Copy compiled output + proto files + package files
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/proto ./proto
 COPY --from=builder /app/package.json /app/package-lock.json ./
 
 # Install production deps only
