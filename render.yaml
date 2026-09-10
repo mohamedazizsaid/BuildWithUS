@@ -95,8 +95,9 @@ services:
   - type: web
     name: api-gateway
     runtime: docker
-    dockerfilePath: ./api-gateway/Dockerfile
-    dockerContext: ./api-gateway   # Dockerfile uses context-relative paths (no api-gateway/ prefix)
+    rootDir: ./api-gateway      # Render treats this as the service root
+    dockerfilePath: ./Dockerfile  # Relative to rootDir
+    dockerContext: .              # Relative to rootDir = api-gateway/
     region: frankfurt
     plan: free
     envVars:
