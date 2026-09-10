@@ -96,7 +96,7 @@ services:
     name: api-gateway
     runtime: docker
     dockerfilePath: ./api-gateway/Dockerfile
-    dockerContext: ./           # Repo root — Dockerfile uses api-gateway/ prefix paths
+    dockerContext: ./api-gateway   # Dockerfile uses context-relative paths (no api-gateway/ prefix)
     region: frankfurt
     plan: free
     envVars:

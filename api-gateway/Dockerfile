@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # api-gateway — Production Dockerfile
-# Build context: repository root (so we can access packages/proto if needed)
-# docker build -f api-gateway/Dockerfile -t api-gateway .
+# Build context: ./api-gateway  (Render sets this — all paths are relative to api-gateway/)
+# docker build -f api-gateway/Dockerfile api-gateway/
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
@@ -9,14 +9,14 @@ FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Copy package manifests first for layer caching
-COPY api-gateway/package.json api-gateway/package-lock.json ./
+# Copy package manifests first for layer caching (context = api-gateway/, so no prefix needed)
+COPY package.json package-lock.json ./
 
 # Install ALL deps (including devDeps — need TypeScript compiler)
 RUN npm ci
 
 # Copy source
-COPY api-gateway/ ./
+COPY . ./
 
 # Compile TypeScript → dist/
 RUN npx tsc --project tsconfig.json
