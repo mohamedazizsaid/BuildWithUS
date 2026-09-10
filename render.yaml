@@ -127,15 +127,9 @@ services:
           type: pserv
           property: hostport
       - key: AI_TEMPLATE_SERVICE_URL
-        fromService:
-          name: ai-template-service
-          type: web
-          property: url
+        sync: false   # Paste the ai-template-service URL from Render dashboard after deploy
       - key: IMAGE_PIPELINE_URL
-        fromService:
-          name: image-pipeline
-          type: web
-          property: url
+        sync: false   # Paste the image-pipeline URL from Render dashboard after deploy
       - key: STRIPE_SECRET_KEY
         sync: false   # Never commit — set in Render dashboard
       - key: STRIPE_WEBHOOK_SECRET
