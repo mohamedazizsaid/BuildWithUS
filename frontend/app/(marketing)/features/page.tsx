@@ -10,8 +10,8 @@ export default function FeaturesPage() {
       <section className="features-hero">
         <div className="container">
           <div className="eyebrow">Fonctionnalités</div>
-          <h1>Tout pour créer, <em>sans jamais</em> rogner sur la qualité.</h1>
-          <p className="lead">Des emails qui envoient, des factures conformes, des contrats solides. Un seul outil, pensé pour les pros qui n&apos;ont pas de temps à perdre.</p>
+          <h1>Tout pour créer, <em>sans jamais</em> sacrifier la qualité.</h1>
+          <p className="lead">Des emails qui convertissent, des factures conformes, des contrats solides. Un seul outil, conçu pour les pros qui n&apos;ont pas de temps à perdre.</p>
 
           <nav className="features-nav">
             <a href="#emails">Emails</a>
@@ -47,8 +47,8 @@ export default function FeaturesPage() {
             <svg viewBox="0 0 600 450" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="emailHero" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#6366F1" />
-                  <stop offset="100%" stopColor="#4338CA" />
+                  <stop offset="0%" stopColor="#7C3AED" />
+                  <stop offset="100%" stopColor="#6D28D9" />
                 </linearGradient>
               </defs>
               <rect x="40" y="30" width="520" height="390" rx="12" fill="#FFFFFF" stroke="#E8ECF4" />
@@ -57,7 +57,7 @@ export default function FeaturesPage() {
               <circle cx="74" cy="46" r="4" fill="#FBBF24" />
               <circle cx="90" cy="46" r="4" fill="#10B981" />
               <rect x="40" y="62" width="120" height="358" fill="#FAFBFE" />
-              <rect x="56" y="82" width="88" height="8" rx="2" fill="#6366F1" />
+              <rect x="56" y="82" width="88" height="8" rx="2" fill="#7C3AED" />
               <rect x="56" y="102" width="60" height="6" rx="2" fill="#D8DEED" />
               <rect x="56" y="118" width="70" height="6" rx="2" fill="#D8DEED" />
               <rect x="56" y="134" width="50" height="6" rx="2" fill="#D8DEED" />
@@ -227,7 +227,7 @@ export default function FeaturesPage() {
               <rect x="160" y="70" width="320" height="320" rx="8" fill="#FFFFFF" stroke="#E8ECF4" transform="rotate(2 320 230)" />
               <rect x="130" y="60" width="340" height="340" rx="10" fill="#FFFFFF" stroke="#D8DEED" />
               <rect x="160" y="90" width="150" height="14" rx="2" fill="#0A0E1A" />
-              <rect x="160" y="112" width="80" height="6" rx="2" fill="#6366F1" />
+              <rect x="160" y="112" width="80" height="6" rx="2" fill="#7C3AED" />
               <rect x="160" y="140" width="280" height="5" rx="2" fill="#8590A8" />
               <rect x="160" y="152" width="260" height="5" rx="2" fill="#8590A8" />
               <rect x="160" y="164" width="270" height="5" rx="2" fill="#8590A8" />
@@ -241,7 +241,7 @@ export default function FeaturesPage() {
               <rect x="160" y="292" width="250" height="5" rx="2" fill="#8590A8" />
               <rect x="160" y="330" width="120" height="50" rx="4" fill="#F4F6FB" />
               <rect x="170" y="340" width="50" height="5" rx="2" fill="#8590A8" />
-              <path d="M170 360 Q 185 350 200 360 T 230 360" stroke="#6366F1" strokeWidth="2" fill="none" />
+              <path d="M170 360 Q 185 350 200 360 T 230 360" stroke="#7C3AED" strokeWidth="2" fill="none" />
               <rect x="320" y="330" width="120" height="50" rx="4" fill="#0A0E1A" />
               <rect x="330" y="340" width="50" height="5" rx="2" fill="#8590A8" />
               <rect x="330" y="355" width="80" height="14" rx="7" fill="#F59E0B" />
@@ -271,8 +271,8 @@ export default function FeaturesPage() {
             <svg viewBox="0 0 600 450" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="aiCard" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#6366F1" />
-                  <stop offset="100%" stopColor="#312E81" />
+                  <stop offset="0%" stopColor="#7C3AED" />
+                  <stop offset="100%" stopColor="#4C1D95" />
                 </linearGradient>
               </defs>
               <rect x="80" y="80" width="440" height="110" rx="16" fill="url(#aiCard)" />
@@ -297,7 +297,7 @@ export default function FeaturesPage() {
               <rect x="100" y="342" width="70" height="52" rx="6" fill="#F43F5E" />
               <rect x="180" y="342" width="70" height="52" rx="6" fill="#10B981" />
               <rect x="260" y="342" width="70" height="52" rx="6" fill="#FBBF24" />
-              <rect x="340" y="342" width="70" height="52" rx="6" fill="#6366F1" />
+              <rect x="340" y="342" width="70" height="52" rx="6" fill="#7C3AED" />
               <rect x="420" y="342" width="70" height="52" rx="6" fill="#F59E0B" />
             </svg>
           </div>
@@ -307,8 +307,8 @@ export default function FeaturesPage() {
       {/* INTEGRATIONS */}
       <section className="integrations-section" id="integrations">
         <div className="container">
-          <h2>Branchez <em>votre stack</em>, ça marche.</h2>
-          <p className="lead">Build withUs se connecte à vos outils mailing et CRM préférés. Ou fonctionne en standalone, vous choisissez.</p>
+          <h2>Connectez <em>votre stack</em> — on s&apos;adapte.</h2>
+          <p className="lead">Build withUs s’intègre à vos outils mailing et CRM. Ou fonctionne en standalone. Vous choisissez.</p>
 
           <div className="integrations-grid">
             <div className="integration-card"><span>Brevo</span></div>
@@ -328,7 +328,7 @@ export default function FeaturesPage() {
       {/* CTA FINAL */}
       <section className="features-cta">
         <div className="container">
-          <h2>Prêt à <em>passer à l&apos;acte</em> ?</h2>
+          <h2>Prêt à <em>changer de vitesse</em> ?</h2>
           <p>Plan gratuit, sans carte bancaire. Vous créez, vous testez, vous décidez.</p>
           <div className="cta-row">
             <a href="/register" className="btn btn-accent btn-lg" data-magnet>Démarrer gratuitement

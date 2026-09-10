@@ -21,8 +21,10 @@ export default function HomePage() {
           </a>
 
           <h1 className="hero-title blur-in" style={{ animationDelay: '120ms' }}>
-            Des templates qui<br />
-            <em>claquent</em>, faits<br />
+            Documents qui
+            <br />
+            <em>captivent</em>. Créés
+            <br />
             en deux minutes.
           </h1>
 
@@ -49,7 +51,7 @@ export default function HomePage() {
 
           <div className="hero-trust">
             <span className="hero-trust-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Plan gratuit</span>
-            <span className="hero-trust-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Hébergé en France 🇫🇷</span>
+            <span className="hero-trust-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>+10000 templates</span>
           </div>
 
           {/* Product preview */}
@@ -68,18 +70,18 @@ export default function HomePage() {
                       <stop offset="100%" stopColor="#F3F4F6" />
                     </linearGradient>
                     <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#6366F1" />
-                      <stop offset="100%" stopColor="#4338CA" />
+                      <stop offset="0%" stopColor="#7C3AED" />
+                      <stop offset="100%" stopColor="#6D28D9" />
                     </linearGradient>
                   </defs>
                   <rect width="1200" height="675" fill="url(#bgGrad)" />
                   <rect x="0" y="0" width="260" height="675" fill="white" stroke="#E5E7EB" />
                   <rect x="20" y="24" width="220" height="40" rx="10" fill="#F3F4F6" />
-                  <circle cx="40" cy="44" r="8" fill="#6366F1" />
+                  <circle cx="40" cy="44" r="8" fill="#7C3AED" />
                   <rect x="56" y="40" width="140" height="8" rx="4" fill="#374151" />
                   <text x="20" y="100" fontFamily="system-ui" fontSize="11" fill="#9CA3AF" fontWeight="600" letterSpacing="1">BLOCS</text>
                   <rect x="20" y="115" width="105" height="80" rx="10" fill="white" stroke="#E5E7EB" />
-                  <rect x="35" y="135" width="75" height="6" rx="3" fill="#6366F1" />
+                  <rect x="35" y="135" width="75" height="6" rx="3" fill="#7C3AED" />
                   <rect x="35" y="150" width="60" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="35" y="160" width="70" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="35" y="170" width="50" height="4" rx="2" fill="#E5E7EB" />
@@ -88,7 +90,7 @@ export default function HomePage() {
                   <rect x="195" y="135" width="35" height="6" rx="3" fill="#374151" />
                   <rect x="195" y="148" width="30" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="20" y="205" width="105" height="80" rx="10" fill="white" stroke="#E5E7EB" />
-                  <circle cx="72" cy="245" r="18" fill="#6366F1" opacity="0.15" />
+                  <circle cx="72" cy="245" r="18" fill="#7C3AED" opacity="0.18" />
                   <rect x="54" y="268" width="36" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="135" y="205" width="105" height="80" rx="10" fill="white" stroke="#E5E7EB" />
                   <rect x="150" y="220" width="75" height="20" rx="10" fill="#111827" />
@@ -121,7 +123,7 @@ export default function HomePage() {
                   <rect x="995" y="185" width="80" height="18" rx="9" fill="#F59E0B" />
                   <text x="1010" y="197" fontFamily="system-ui" fontSize="9" fill="#111827" fontWeight="600">Générer</text>
                   <rect x="980" y="235" width="60" height="10" rx="5" fill="#111827" />
-                  <circle cx="985" cy="265" r="10" fill="#6366F1" />
+                  <circle cx="985" cy="265" r="10" fill="#7C3AED" />
                   <circle cx="1010" cy="265" r="10" fill="#F59E0B" />
                   <circle cx="1035" cy="265" r="10" fill="#111827" />
                   <circle cx="1060" cy="265" r="10" fill="#F43F5E" />
@@ -132,7 +134,7 @@ export default function HomePage() {
                   <rect x="980" y="370" width="80" height="8" rx="4" fill="#374151" />
                   <rect x="980" y="390" width="180" height="34" rx="8" fill="#F3F4F6" stroke="#E5E7EB" />
                   <rect x="980" y="445" width="100" height="8" rx="4" fill="#374151" />
-                  <rect x="1130" y="440" width="30" height="16" rx="8" fill="#6366F1" />
+                  <rect x="1130" y="440" width="30" height="16" rx="8" fill="#7C3AED" />
                   <circle cx="1152" cy="448" r="6" fill="white" />
                 </svg>
 
@@ -168,14 +170,14 @@ export default function HomePage() {
       <section className="section" id="product">
         <div className="container">
           <div className="section-header reveal">
-            <div className="section-eyebrow">→ Un outil, trois mondes</div>
+            <div className="section-eyebrow">→ Un outil, trois puissances</div>
             <h2 className="section-title">
               Tout ce qu&apos;il faut pour produire<br />
-              des documents <em>remarquables</em>.
+              des documents <em>inoubliables</em>.
             </h2>
             <p className="section-subtitle">
-              Emails, factures, contrats. Un seul builder, infiniment adaptable.
-              Connecté à votre CRM ou en standalone. L&apos;IA suggère, vous validez.
+              Emails, factures, contrats — un seul builder, infiniment adaptable.
+              Connecté à votre CRM ou en standalone. L&apos;IA s&apos;occupe du fond, vous gardez la forme.
             </p>
           </div>
 
@@ -249,9 +251,9 @@ export default function HomePage() {
               <p className="bento-desc">Banque intégrée de visuels haute définition, classés par thème.</p>
               <div className="bento-visual" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', minHeight: 'auto', marginTop: '12px' }}>
                 <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#FBBF24,#F43F5E)', borderRadius: '4px' }}></div>
-                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#10B981,#6366F1)', borderRadius: '4px' }}></div>
-                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#F59E0B,#FBBF24)', borderRadius: '4px' }}></div>
-                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#6366F1,#312E81)', borderRadius: '4px' }}></div>
+                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#10B981,#7C3AED)', borderRadius: '4px' }}></div>
+                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#F59E0B,#FF5722)', borderRadius: '4px' }}></div>
+                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#7C3AED,#4C1D95)', borderRadius: '4px' }}></div>
               </div>
             </article>
 
@@ -352,7 +354,7 @@ export default function HomePage() {
               <div className="template-preview">
                 <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                   <rect width="400" height="500" fill="#FAFAFB" />
-                  <rect x="24" y="24" width="352" height="100" rx="8" fill="#6366F1" />
+                  <rect x="24" y="24" width="352" height="100" rx="8" fill="#7C3AED" />
                   <text x="50" y="74" fontFamily="Geist" fontSize="32" fill="white">Newsletter</text>
                   <text x="50" y="95" fontFamily="Geist Mono" fontSize="10" fill="white" opacity="0.8">#042 — MAI 2026</text>
                   <rect x="24" y="144" width="352" height="140" rx="8" fill="#E5E7EB" />
@@ -403,18 +405,18 @@ export default function HomePage() {
               <div className="template-preview">
                 <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                   <rect width="400" height="500" fill="white" />
-                  <rect x="24" y="40" width="48" height="48" rx="12" fill="#6366F1" />
+                  <rect x="24" y="40" width="48" height="48" rx="12" fill="#7C3AED" />
                   <text x="42" y="72" fontFamily="Geist" fontSize="22" fill="white" fontWeight="700">✦</text>
                   <text x="24" y="130" fontFamily="Geist" fontSize="30" fill="#111827">Bienvenue 👋</text>
                   <rect x="24" y="150" width="280" height="5" rx="2" fill="#D1D5DB" />
                   <rect x="24" y="162" width="240" height="5" rx="2" fill="#D1D5DB" />
                   <rect x="24" y="200" width="352" height="60" rx="8" fill="#F3F4F6" stroke="#E5E7EB" />
-                  <circle cx="54" cy="230" r="14" fill="#6366F1" />
+                  <circle cx="54" cy="230" r="14" fill="#7C3AED" />
                   <text x="48" y="235" fontFamily="Geist" fontSize="14" fill="white" fontWeight="700">1</text>
                   <rect x="82" y="220" width="160" height="8" rx="4" fill="#111827" />
                   <rect x="82" y="236" width="240" height="5" rx="2" fill="#6B7280" />
                   <rect x="24" y="275" width="352" height="60" rx="8" fill="#F3F4F6" stroke="#E5E7EB" />
-                  <circle cx="54" cy="305" r="14" fill="#6366F1" />
+                  <circle cx="54" cy="305" r="14" fill="#7C3AED" />
                   <text x="48" y="310" fontFamily="Geist" fontSize="14" fill="white" fontWeight="700">2</text>
                   <rect x="82" y="295" width="180" height="8" rx="4" fill="#111827" />
                   <rect x="82" y="311" width="220" height="5" rx="2" fill="#6B7280" />
@@ -495,7 +497,7 @@ export default function HomePage() {
                   <text x="240" y="360" fontFamily="Geist Mono" fontSize="10" fill="#6B7280">TVA 20%</text>
                   <rect x="320" y="353" width="40" height="8" rx="2" fill="#374151" />
                   <text x="240" y="390" fontFamily="Geist" fontSize="12" fill="#111827" fontWeight="700">TOTAL TTC</text>
-                  <rect x="320" y="380" width="56" height="14" rx="2" fill="#6366F1" />
+                  <rect x="320" y="380" width="56" height="14" rx="2" fill="#7C3AED" />
                 </svg>
               </div>
               <div className="template-info">
@@ -531,8 +533,8 @@ export default function HomePage() {
                   <rect x="216" y="310" width="160" height="1" fill="#E5E7EB" />
                   <text x="24" y="330" fontFamily="Geist Mono" fontSize="9" fill="#6B7280">LE PRESTATAIRE</text>
                   <text x="216" y="330" fontFamily="Geist Mono" fontSize="9" fill="#6B7280">LE CLIENT</text>
-                  <path d="M30 355 Q 60 345 90 360 T 150 355" stroke="#6366F1" strokeWidth="1.5" fill="none" />
-                  <path d="M226 360 Q 256 348 286 365 T 346 360" stroke="#6366F1" strokeWidth="1.5" fill="none" />
+                  <path d="M30 355 Q 60 345 90 360 T 150 355" stroke="#7C3AED" strokeWidth="1.5" fill="none" />
+                  <path d="M226 360 Q 256 348 286 365 T 346 360" stroke="#7C3AED" strokeWidth="1.5" fill="none" />
                 </svg>
               </div>
               <div className="template-info">
@@ -576,8 +578,8 @@ export default function HomePage() {
                 <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                   <defs>
                     <linearGradient id="g8" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#6366F1" />
-                      <stop offset="100%" stopColor="#312E81" />
+                      <stop offset="0%" stopColor="#7C3AED" />
+                      <stop offset="100%" stopColor="#4C1D95" />
                     </linearGradient>
                   </defs>
                   <rect width="400" height="500" fill="url(#g8)" />
@@ -615,8 +617,8 @@ export default function HomePage() {
           <div className="section-header reveal">
             <div className="section-eyebrow">→ Comment ça marche</div>
             <h2 className="section-title">
-              De l&apos;<em>idée</em> au document,<br />
-              en 4 étapes.
+              De l&apos;<em>idée</em> au document livrable,<br />
+              en 4 étapes nettes.
             </h2>
           </div>
 
@@ -648,8 +650,8 @@ export default function HomePage() {
               <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                 <defs>
                   <linearGradient id="blueG" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#6366F1" />
-                    <stop offset="100%" stopColor="#4338CA" />
+                    <stop offset="0%" stopColor="#7C3AED" />
+                    <stop offset="100%" stopColor="#6D28D9" />
                   </linearGradient>
                 </defs>
                 <rect width="500" height="500" fill="#FAFAFB" rx="20" />
@@ -685,12 +687,12 @@ export default function HomePage() {
       <section className="section pricing-teaser" id="pricing">
         <div className="container">
           <div className="section-header reveal">
-            <div className="section-eyebrow">→ Tarifs simples</div>
+            <div className="section-eyebrow">→ Tarifs transparents</div>
             <h2 className="section-title">
-              Le bon outil,<br />
-              au <em>bon prix</em>.
+              L&apos;outil qu&apos;il vous faut,<br />
+              au <em>juste prix</em>.
             </h2>
-            <p className="section-subtitle">Commencez gratuitement, sans carte bancaire. Évoluez quand votre volume l&apos;exige.</p>
+            <p className="section-subtitle">Démarrez sans carte bancaire. Montez en puissance quand vous êtes prêt.</p>
           </div>
 
           <div className="pricing-teaser-grid stagger">
@@ -760,8 +762,8 @@ export default function HomePage() {
           <div className="section-header reveal">
             <div className="section-eyebrow">→ Pour qui ?</div>
             <h2 className="section-title">
-              Conçu pour les équipes<br />
-              qui n&apos;ont pas le temps.
+              Conçu pour ceux qui produisent<br />
+              sans avoir le temps.
             </h2>
           </div>
 
@@ -853,8 +855,8 @@ export default function HomePage() {
           <div className="section-header reveal">
             <div className="section-eyebrow">→ Ils en parlent</div>
             <h2 className="section-title">
-              Des équipes nous font<br />
-              <em>confiance</em>.
+              Des équipes qui nous font<br />
+              <em>confiance dès le premier jour</em>.
             </h2>
           </div>
 
@@ -887,7 +889,7 @@ export default function HomePage() {
               <div className="testimonial-stars">★★★★★</div>
               <p className="testimonial-quote">&laquo;&nbsp;Enfin un outil français qui gère Chorus Pro correctement. Factur-X natif, c&apos;est un game-changer.&nbsp;&raquo;</p>
               <div className="testimonial-author">
-                <div className="testimonial-avatar" style={{ background: 'linear-gradient(135deg, #C6F24E, #4EF2B3)', color: '#111827' }}>SL</div>
+                <div className="testimonial-avatar" style={{ background: 'linear-gradient(135deg, #FF5722, #F43F5E)', color: 'white' }}>SL</div>
                 <div>
                   <div className="testimonial-name">Sophie Lemaire</div>
                   <div className="testimonial-role">DAF — Groupe Altheys</div>
@@ -902,13 +904,13 @@ export default function HomePage() {
       <section className="cta-final">
         <div className="container cta-final-inner">
           <div className="reveal">
-            <div className="section-eyebrow" style={{ justifyContent: 'center', display: 'inline-flex' }}>→ Derniers mots</div>
+            <div className="section-eyebrow" style={{ justifyContent: 'center', display: 'inline-flex' }}>→ La décision s&apos;impose</div>
             <h2>
-              Un essai, puis vous<br />
-              <em>ne reviendrez plus</em><br />
+              Un essai, et vous ne<br />
+              <em>regardez plus</em><br />
               en arrière.
             </h2>
-            <p>Démarrez gratuitement. Sans engagement. Sans carte bancaire.<br />Testez toute la puissance de l&apos;outil.</p>
+            <p>Démarrez gratuitement. Sans engagement. Sans carte bancaire.<br />Découvrez toute la puissance de la plateforme.</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' } as CSSProperties}>
               <a href="/register" className="btn btn-primary btn-xl" data-magnet>
                 Créer mon compte

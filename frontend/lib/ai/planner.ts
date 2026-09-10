@@ -69,17 +69,20 @@ export interface PlanSeed {
  * for exact brand fidelity.
  */
 export async function planDesign(opts: { brief: string; seed?: PlanSeed }): Promise<DesignSpec | null> {
-  if (!BASE || !KEY) return null;
+  const base = process.env.AI_BASE_URL || BASE;
+  const key = process.env.AI_API_KEY || KEY;
+  const model = process.env.AI_MODEL || MODEL || 'deepseek/deepseek-chat';
+  if (!base || !key) return null;
   const jsonSchema = z.toJSONSchema(DesignSpecSchema, { target: 'draft-7', reused: 'inline' }) as Record<string, unknown>;
   delete jsonSchema.$schema;
 
   let raw: string;
   try {
-    const res = await fetch(`${BASE}/chat/completions`, {
+    const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         // Low temperature: fidelity to the brief's facts/prices matters more than
         // creative wording. Design variety comes from the design-system choice.
         temperature: 0.3,

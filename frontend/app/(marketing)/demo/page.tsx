@@ -14,10 +14,10 @@ export default function DemoPage() {
       <section className="demo-hero">
         <div className="container">
           <div className="demo-hero__inner reveal">
-            <span className="eyebrow">Démo · 30 min · Personnalisée</span>
-            <h1 className="demo-hero__title">Voyez Build withUs <em>en action.</em></h1>
+            <span className="eyebrow">Démo · 30 min · Sur-mesure</span>
+            <h1 className="demo-hero__title">Build withUs <em>en action.</em></h1>
             <p className="demo-hero__sub">
-              Une démo adaptée à votre activité, animée par un expert produit. Vous repartez avec un plan d&apos;action clair et un environnement de test pré-configuré.
+              Une démo adaptée à votre activité, animée par un expert produit. Vous repartez avec un plan d&apos;action clair et un environnement pré-configuré.
             </p>
           </div>
         </div>

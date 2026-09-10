@@ -7,18 +7,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Brand Signature: Electric Indigo / Iris */
-  --blue-50:  #EEF2FF;
-  --blue-100: #E0E7FF;
-  --blue-200: #C7D2FE;
-  --blue-300: #A5B4FC;
-  --blue-400: #818CF8;
-  --blue-500: #6366F1;
-  --blue-600: #4F46E5;
-  --blue-700: #4338CA;
-  --blue-800: #3730A3;
-  --blue-900: #312E81;
-  --blue-950: #0F0E26;
+  /* Brand Signature: Electric Amethyst / Deep Violet */
+  --blue-50:  #FAF5FF;
+  --blue-100: #F3E8FF;
+  --blue-200: #E9D5FF;
+  --blue-300: #D8B4FE;
+  --blue-400: #C084FC;
+  --blue-500: #A855F7;
+  --blue-600: #7C3AED;
+  --blue-700: #6D28D9;
+  --blue-800: #5B21B6;
+  --blue-900: #4C1D95;
+  --blue-950: #130924;
 
   /* Modern Slate / Obsidian Neutrals */
   --ink-0:   #FFFFFF;
@@ -34,16 +34,16 @@
   --ink-900: #0F172A;
   --ink-950: #020617;
 
-  /* Expressive Accents: Solar Amber, Coral, Mint */
-  --accent-lime:   #F59E0B;
+  /* Expressive Accents: Sunset Tangerine, Neon Coral, Solar Amber, Mint */
+  --accent-lime:   #FF5722;
   --accent-coral:  #F43F5E;
-  --accent-amber:  #FBBF24;
+  --accent-amber:  #F59E0B;
   --accent-mint:   #10B981;
 
   --success: #10B981;
   --warning: #F59E0B;
   --danger:  #EF4444;
-  --info:    var(--blue-500);
+  --info:    var(--blue-600);
 
   --bg-primary:   var(--ink-0);
   --bg-secondary: var(--ink-50);
@@ -110,8 +110,8 @@
   --shadow-lg:  0 12px 32px rgba(15, 23, 42, 0.10), 0 4px 8px rgba(15, 23, 42, 0.06);
   --shadow-xl:  0 24px 48px rgba(15, 23, 42, 0.14), 0 8px 16px rgba(15, 23, 42, 0.08);
   --shadow-2xl: 0 40px 80px rgba(15, 23, 42, 0.18), 0 16px 32px rgba(15, 23, 42, 0.10);
-  --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.35);
-  --shadow-glow-lg: 0 0 80px rgba(99, 102, 241, 0.45);
+  --shadow-glow: 0 0 40px rgba(124, 58, 237, 0.35);
+  --shadow-glow-lg: 0 0 80px rgba(124, 58, 237, 0.50);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
@@ -340,7 +340,7 @@
   transition: all var(--duration-fast) var(--ease-out);
   outline: none;
 }
-.tb .input:focus, .tb .textarea:focus, .tb .select:focus { border-color: var(--blue-500); box-shadow: 0 0 0 4px rgba(46, 95, 240, 0.12); }
+.tb .input:focus, .tb .textarea:focus, .tb .select:focus { border-color: var(--blue-600); box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15); }
 .tb .input-label { display: block; font-size: var(--text-sm); font-weight: 500; margin-bottom: var(--space-2); color: var(--text-primary); }
 
 /* =========================================================
@@ -376,7 +376,7 @@
 @keyframes gradientMove { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 @keyframes blurIn { from { opacity: 0; filter: blur(12px); transform: translateY(16px); } to { opacity: 1; filter: blur(0); transform: translateY(0); } }
 @keyframes drawLine { from { stroke-dashoffset: 100%; } to { stroke-dashoffset: 0; } }
-@keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(46, 95, 240, 0.35); } 50% { box-shadow: 0 0 0 16px rgba(46, 95, 240, 0); } }
+@keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.35); } 50% { box-shadow: 0 0 0 16px rgba(124, 58, 237, 0); } }
 @keyframes tickerDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
 @keyframes slideRight { from { transform: translateX(-40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes revealFallback { to { opacity: 1; transform: translateY(0); } }
@@ -434,7 +434,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(400px circle at var(--mx) var(--my), rgba(46, 95, 240, 0.10), transparent 45%);
+  background: radial-gradient(400px circle at var(--mx) var(--my), rgba(124, 58, 237, 0.12), transparent 45%);
   opacity: 0;
   transition: opacity 250ms var(--ease-out);
   pointer-events: none;
@@ -442,13 +442,13 @@
 }
 .tb .cursor-glow:hover::before { opacity: 1; }
 .tb .cursor-glow > * { position: relative; z-index: 1; }
-.tb .cursor-glow.cg-lime::before { background: radial-gradient(400px circle at var(--mx) var(--my), rgba(198, 242, 78, 0.12), transparent 45%); }
+.tb .cursor-glow.cg-lime::before { background: radial-gradient(400px circle at var(--mx) var(--my), rgba(255, 87, 34, 0.15), transparent 45%); }
 .tb .cursor-glow.cg-light::before { background: radial-gradient(400px circle at var(--mx) var(--my), rgba(255, 255, 255, 0.15), transparent 45%); }
 
 .tb .tilt-hover { transition: transform 350ms var(--ease-out); transform-style: preserve-3d; }
 .tb .tilt-hover:hover { transform: translateY(-2px) scale(1.01); }
 .tb .lift-on-hover { transition: transform 300ms var(--ease-out), box-shadow 300ms var(--ease-out), border-color 200ms; }
-.tb .lift-on-hover:hover { transform: translateY(-3px); box-shadow: 0 16px 40px -12px rgba(11, 30, 92, 0.15); }
+.tb .lift-on-hover:hover { transform: translateY(-3px); box-shadow: 0 16px 40px -12px rgba(19, 9, 36, 0.15); }
 
 .tb .link-underline { position: relative; display: inline-block; }
 .tb .link-underline::after {
@@ -473,7 +473,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(600px circle at var(--sx) var(--sy), rgba(46, 95, 240, 0.06), transparent 50%);
+  background: radial-gradient(600px circle at var(--sx) var(--sy), rgba(124, 58, 237, 0.08), transparent 50%);
   opacity: 0;
   transition: opacity 600ms var(--ease-out);
   z-index: 0;
@@ -517,7 +517,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(400px circle at var(--mx) var(--my), rgba(46, 95, 240, 0.08), transparent 45%);
+  background: radial-gradient(400px circle at var(--mx) var(--my), rgba(124, 58, 237, 0.08), transparent 45%);
   opacity: 0;
   transition: opacity 250ms var(--ease-out);
   pointer-events: none;
@@ -547,7 +547,7 @@
 .tb .ds-logo-card > *,
 .tb .ds-motion-card > *,
 .tb .ds-voice-card > * { position: relative; z-index: 0; }
-.tb .price-card--featured::before { background: radial-gradient(400px circle at var(--mx) var(--my), rgba(198, 242, 78, 0.12), transparent 45%) !important; }
+.tb .price-card--featured::before { background: radial-gradient(400px circle at var(--mx) var(--my), rgba(255, 87, 34, 0.15), transparent 45%) !important; }
 
 /* =========================================================
    SCINTILLEMENT SOURIS
@@ -563,10 +563,10 @@
   opacity: 0;
   animation: sparkleFade 1500ms ease-out forwards;
   will-change: transform, opacity;
-  box-shadow: 0 0 4px rgba(46, 95, 240, 0.4);
+  box-shadow: 0 0 4px rgba(124, 58, 237, 0.45);
 }
-.tb-sparkle.sparkle--lime { background: var(--accent-lime, #C6F24E); box-shadow: 0 0 4px rgba(198, 242, 78, 0.4); }
-.tb-sparkle.sparkle--blue { background: var(--blue-300); box-shadow: 0 0 5px rgba(138, 173, 255, 0.5); }
+.tb-sparkle.sparkle--lime { background: var(--accent-lime, #FF5722); box-shadow: 0 0 4px rgba(255, 87, 34, 0.45); }
+.tb-sparkle.sparkle--blue { background: var(--blue-300); box-shadow: 0 0 5px rgba(196, 181, 253, 0.5); }
 @keyframes sparkleFade {
   0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
   20% { opacity: 0.45; transform: translate(var(--dx, 0), var(--dy, -8px)) scale(1); }

@@ -4,7 +4,7 @@
 .tb .pricing-hero { padding: 160px 0 60px; position: relative; overflow: hidden; text-align: center; }
 .tb .pricing-hero::before {
   content: ""; position: absolute; inset: 0;
-  background: radial-gradient(ellipse 800px 400px at 50% 0%, rgba(46, 95, 240, 0.12), transparent 60%), linear-gradient(180deg, var(--blue-50), transparent);
+  background: radial-gradient(ellipse 800px 400px at 50% 0%, rgba(124, 58, 237, 0.14), transparent 60%), linear-gradient(180deg, var(--blue-50), transparent);
   z-index: -1;
 }
 .tb .pricing-hero__eyebrow { margin-bottom: 20px; }
@@ -27,7 +27,7 @@
 .tb .price-card { background: white; border: 1px solid var(--ink-200); border-radius: var(--radius-xl); padding: 32px 28px; display: flex; flex-direction: column; position: relative; transition: all var(--ease-smooth) 300ms; }
 .tb .price-card:hover { border-color: var(--blue-300); transform: translateY(-4px); box-shadow: var(--shadow-lg); }
 .tb .price-card--featured { background: var(--ink-950); color: white; border-color: var(--ink-950); transform: translateY(-8px); }
-.tb .price-card--featured:hover { transform: translateY(-12px); box-shadow: 0 30px 60px -20px rgba(46, 95, 240, 0.4); }
+.tb .price-card--featured:hover { transform: translateY(-12px); box-shadow: 0 30px 60px -20px rgba(124, 58, 237, 0.45); }
 .tb .price-card__badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--lime); color: var(--ink-950); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
 .tb .price-card__badge--current { background: var(--success); color: white; }
 .tb .price-card__name { font-family: var(--font-display); font-size: 24px; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 4px; }
@@ -76,9 +76,9 @@
 
 .tb .trial-banner { padding: 80px 0; }
 .tb .trial-banner__inner { background: linear-gradient(135deg, var(--blue-950) 0%, var(--blue-800) 100%); border-radius: var(--radius-2xl); padding: 80px 60px; position: relative; overflow: hidden; color: white; text-align: center; }
-.tb .trial-banner__inner::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 20% 30%, rgba(198, 242, 78, 0.15), transparent 40%), radial-gradient(circle at 80% 70%, rgba(78, 242, 179, 0.1), transparent 40%); }
+.tb .trial-banner__inner::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 20% 30%, rgba(255, 87, 34, 0.18), transparent 40%), radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.15), transparent 40%); }
 .tb .trial-banner__content { position: relative; max-width: 680px; margin: 0 auto; }
-.tb .trial-banner__eyebrow { display: inline-flex; align-items: center; gap: 8px; background: rgba(198, 242, 78, 0.15); border: 1px solid rgba(198, 242, 78, 0.3); color: var(--lime); padding: 6px 14px; border-radius: 999px; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 24px; }
+.tb .trial-banner__eyebrow { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 87, 34, 0.15); border: 1px solid rgba(255, 87, 34, 0.35); color: var(--accent-lime); padding: 6px 14px; border-radius: 999px; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 24px; }
 .tb .trial-banner__title { font-family: var(--font-display); font-size: clamp(40px, 6vw, 72px); font-weight: 400; line-height: 1.05; letter-spacing: -0.03em; margin-bottom: 20px; }
 .tb .trial-banner__title em { font-style: italic; color: var(--lime); }
 .tb .trial-banner__sub { font-size: 18px; line-height: 1.6; color: rgba(255, 255, 255, 0.75); margin-bottom: 32px; }
@@ -94,7 +94,7 @@
 .tb .faq-list { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
 .tb .faq-item { background: white; border: 1px solid var(--ink-200); border-radius: var(--radius-lg); overflow: hidden; transition: all var(--ease-smooth) 200ms; }
 .tb .faq-item:hover { border-color: var(--blue-300); }
-.tb .faq-item.is-open { border-color: var(--blue-500); box-shadow: 0 8px 24px -8px rgba(46, 95, 240, 0.2); }
+.tb .faq-item.is-open { border-color: var(--blue-600); box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.25); }
 .tb .faq-item__q { width: 100%; padding: 22px 28px; background: none; border: none; font: inherit; font-size: 17px; font-weight: 500; color: var(--ink-900); text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 20px; cursor: pointer; }
 .tb .faq-item__icon { width: 28px; height: 28px; border-radius: 50%; background: var(--ink-100); display: flex; align-items: center; justify-content: center; transition: all 200ms; flex-shrink: 0; }
 .tb .faq-item.is-open .faq-item__icon { background: var(--blue-500); color: white; transform: rotate(45deg); }

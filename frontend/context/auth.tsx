@@ -19,7 +19,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, redirectTo?: string) => Promise<void>;
   // redirectTo lets the paid-plan funnel land on /checkout after signup
   // instead of the default /dashboard.
   register: (data: { tenantName: string; email: string; password: string; firstName: string; lastName: string; phone: string; addressLine: string; postalCode: string; city: string; country: string }, redirectTo?: string) => Promise<void>;
@@ -98,11 +98,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [pathname, user]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, redirectTo = '/dashboard') => {
     await auth.login({ email, password });
     const me = await auth.getMe();
     setUser({ ...me.user, tenant_name: me.tenant_name });
-    router.push('/dashboard');
+    router.push(redirectTo);
   };
 
   const register = async (body: { tenantName: string; email: string; password: string; firstName: string; lastName: string; phone: string; addressLine: string; postalCode: string; city: string; country: string }, redirectTo = '/dashboard') => {

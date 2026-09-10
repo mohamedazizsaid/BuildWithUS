@@ -226,7 +226,10 @@ export async function visionJSON<T>(
   task: string,
   imageDataUrl: string,
 ): Promise<T> {
-  if (!BASE || !KEY) {
+  const base = process.env.AI_BASE_URL || BASE;
+  const key = process.env.AI_API_KEY || KEY;
+  const model = process.env.AI_MODEL || MODEL || 'deepseek/deepseek-chat';
+  if (!base || !key) {
     throw new Error('AI server not configured: set AI_BASE_URL and AI_API_KEY (server-side).');
   }
 
@@ -239,11 +242,11 @@ export async function visionJSON<T>(
   delete jsonSchema.$schema;
 
   const call = async (messages: unknown[]): Promise<string> => {
-    const res = await fetch(`${BASE}/chat/completions`, {
+    const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         temperature: 0, // faithful reading, not creativity
         max_tokens: 1600,
         messages,

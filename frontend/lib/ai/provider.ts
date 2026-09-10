@@ -9,29 +9,33 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
  * handler (server runtime).
  */
 
-const baseURL = process.env.AI_BASE_URL;
-const apiKey = process.env.AI_API_KEY;
-
-/** Default model — validated to drive the tool/agent loop cleanly (gemma4-26b). */
-export const DEFAULT_MODEL = process.env.AI_MODEL || 'gemma4-26b';
-/** Fallback / A-B alternative (qwen35-35b-a3b). */
-export const FALLBACK_MODEL = process.env.AI_MODEL_FALLBACK || 'qwen35-35b-a3b';
+export const DEFAULT_MODEL = process.env.AI_MODEL || 'deepseek/deepseek-chat';
+export const FALLBACK_MODEL = process.env.AI_MODEL_FALLBACK || 'deepseek/deepseek-v3.2';
 
 let cached: ReturnType<typeof createOpenAICompatible> | null = null;
+let cachedBaseURL = '';
+let cachedApiKey = '';
 
 function provider() {
+  const baseURL = process.env.AI_BASE_URL;
+  const apiKey = process.env.AI_API_KEY;
+
   if (!baseURL || !apiKey) {
     throw new Error(
       'AI server not configured: set AI_BASE_URL and AI_API_KEY in the environment (server-side).',
     );
   }
-  if (!cached) {
-    cached = createOpenAICompatible({ name: 'finanssor', baseURL, apiKey });
+  if (!cached || cachedBaseURL !== baseURL || cachedApiKey !== apiKey) {
+    cached = createOpenAICompatible({ name: 'openrouter', baseURL, apiKey });
+    cachedBaseURL = baseURL;
+    cachedApiKey = apiKey;
   }
   return cached;
 }
 
 /** Resolve a chat model by id (defaults to DEFAULT_MODEL). */
-export function getModel(id: string = DEFAULT_MODEL) {
-  return provider()(id);
+export function getModel(id?: string) {
+  const modelId = id || process.env.AI_MODEL || DEFAULT_MODEL;
+  return provider()(modelId);
 }
+

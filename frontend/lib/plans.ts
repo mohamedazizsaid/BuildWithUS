@@ -104,12 +104,12 @@ export const PLANS: Plan[] = [
 // Swap for live-mode IDs at launch.
 export const STRIPE_PRICE_IDS: Record<'pro' | 'pro_org', Record<BillingCycle, string>> = {
   pro: {
-    monthly: 'price_1TqZNu3SDTmZuxcVRdoiNXbh', // 25€/mois — flexible
-    annual: 'price_1TwMMv3SDTmZuxcVlulvXqwv', // 240€/an — one yearly charge
+    monthly: 'price_1UE7vR8TxBKnCf988VYj8ZNB', // 25€/mois — flexible
+    annual: 'price_1UE7vR8TxBKnCf987oTWyefX', // 240€/an — one yearly charge
   },
   pro_org: {
-    monthly: 'price_1TqZNu3SDTmZuxcVAAtZ6hJc', // 55€/mois — flexible
-    annual: 'price_1TwMNm3SDTmZuxcVAjqTtEcZ', // 600€/an — one yearly charge
+    monthly: 'price_1UE7vS8TxBKnCf98EgvPufpR', // 55€/mois — flexible
+    annual: 'price_1UE7vS8TxBKnCf98kzBpwsXX', // 600€/an — one yearly charge
   },
 };
 

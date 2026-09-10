@@ -52,10 +52,10 @@ export default function PricingPage() {
       {/* HERO */}
       <section className="pricing-hero">
         <div className="container">
-          <span className="eyebrow pricing-hero__eyebrow">Tarifs · Sans engagement</span>
-          <h1 className="pricing-hero__title">Un plan pour<br />chaque <em>équipe.</em></h1>
+          <span className="eyebrow pricing-hero__eyebrow">Tarifs · Transparent. Sans surprise.</span>
+          <h1 className="pricing-hero__title">Le bon plan,<br />pour chaque <em>équipe.</em></h1>
           <p className="pricing-hero__sub">
-            Commencez gratuitement. Passez à la vitesse supérieure quand vous êtes prêt. Aucune carte bancaire requise pour démarrer.
+            Démarrez gratuitement. Montez en puissance quand vous êtes prêt. Aucune carte bancaire pour commencer.
           </p>
 
           <div className="pricing-toggle" role="group">

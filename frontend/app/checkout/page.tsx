@@ -60,6 +60,10 @@ function CheckoutInner() {
       .catch((err) => {
         if (!alive) return;
         const msg = err instanceof Error ? err.message : 'Impossible de démarrer le paiement';
+        if (msg.includes('401') || msg.toLowerCase().includes('token') || msg.toLowerCase().includes('unauthorized')) {
+          window.location.href = `/login?redirect=${encodeURIComponent(`/checkout?plan=${plan.id}&billing=${cycle}`)}`;
+          return;
+        }
         setError(msg);
         toast.error(msg);
       });

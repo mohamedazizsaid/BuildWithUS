@@ -35,12 +35,12 @@ import { limitsFor } from '../plan-limits';
 // `price_…` ids here AND in frontend/lib/plans.ts, then redeploy.
 const PRICE_IDS: Record<string, Record<string, string>> = {
   pro: {
-    monthly: 'price_1TqZNu3SDTmZuxcVRdoiNXbh', // 25€/mois — flexible
-    annual: 'price_1TwMMv3SDTmZuxcVlulvXqwv', // 240€/an — one yearly charge
+    monthly: 'price_1UE7vR8TxBKnCf988VYj8ZNB', // 25€/mois — flexible
+    annual: 'price_1UE7vR8TxBKnCf987oTWyefX', // 240€/an — one yearly charge
   },
   pro_org: {
-    monthly: 'price_1TqZNu3SDTmZuxcVAAtZ6hJc', // 55€/mois — flexible
-    annual: 'price_1TwMNm3SDTmZuxcVAjqTtEcZ', // 600€/an — one yearly charge
+    monthly: 'price_1UE7vS8TxBKnCf98EgvPufpR', // 55€/mois — flexible
+    annual: 'price_1UE7vS8TxBKnCf98kzBpwsXX', // 600€/an — one yearly charge
   },
 };
 

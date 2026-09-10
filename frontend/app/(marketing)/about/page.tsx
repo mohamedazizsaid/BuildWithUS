@@ -13,12 +13,12 @@ export default function AboutPage() {
             <div className="reveal">
               <span className="eyebrow">Qui nous sommes</span>
               <h1 className="about-hero__title">
-                On croit que la<br />
+                Nous croyons que la<br />
                 <em>création</em> doit être<br />
-                <em>honnête.</em>
+                <em>accessible</em> à tous.
               </h1>
               <p className="about-hero__sub">
-                Build withUs est née d&apos;une conviction simple : les équipes marketing, les freelances, les juristes et les PME méritent mieux que de copier-coller des modèles Word approximatifs ou payer trois outils pour générer un email, une facture et un contrat.
+                Build withUs est née d&apos;une conviction simple : les équipes, les freelances et les PME méritent un seul outil pour générer emails, factures et contrats — sans compromis sur la qualité ni la conformité.
               </p>
 
               <div className="about-hero__meta">
@@ -33,7 +33,7 @@ export default function AboutPage() {
               <div className="about-hero__visual-grid"></div>
               <div className="about-hero__stamp">
                 <div className="about-hero__stamp-label">Depuis 2024 · Paris · France</div>
-                <div className="about-hero__stamp-title">Un outil <em>honnête.</em><br />Pour des équipes <em>sérieuses.</em></div>
+                <div className="about-hero__stamp-title">Un outil <em>puissant.</em><br />Pour des équipes <em>ambitieuses.</em></div>
               </div>
             </div>
           </div>
@@ -46,7 +46,7 @@ export default function AboutPage() {
           <div className="about-mission__inner reveal">
             <span className="eyebrow about-mission__eyebrow">Notre mission</span>
             <p className="about-mission__text">
-              Rendre la création de documents <em>professionnels</em> aussi simple qu&apos;envoyer un SMS. Sans sacrifier la <em>rigueur juridique</em>, la conformité légale, ni la qualité du design. Pour que vos équipes passent moins de temps à formater — et plus à vendre, convaincre et créer.
+              Rendre la création de documents <em>professionnels</em> aussi simple qu&apos;envoyer un message. Sans sacrifier la <em>rigueur juridique</em>, la conformité légale ni la qualité du design. Pour que vos équipes passent moins de temps à formater — et plus à vendre, convaincre et créer.
             </p>
             <div className="about-mission__signature">
               <span className="about-mission__signature-line"></span>

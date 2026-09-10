@@ -168,13 +168,16 @@ En cas de doute, réponds "edit". Ne réponds RIEN d'autre que le JSON.`;
  * the server is unavailable or the output is unusable (caller defaults to 'edit').
  */
 export async function classifyIntent(message: string): Promise<EditAction | null> {
-  if (!CLS_BASE || !CLS_KEY || !message.trim()) return null;
+  const base = process.env.AI_BASE_URL || CLS_BASE;
+  const key = process.env.AI_API_KEY || CLS_KEY;
+  const model = process.env.AI_MODEL || CLS_MODEL || 'deepseek/deepseek-chat';
+  if (!base || !key || !message.trim()) return null;
   try {
-    const res = await fetch(`${CLS_BASE}/chat/completions`, {
+    const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${CLS_KEY}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model: CLS_MODEL,
+        model,
         temperature: 0,
         max_tokens: 20,
         messages: [

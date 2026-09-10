@@ -39,16 +39,16 @@ const CARDS: CardConfig[] = [
     content: (
       <>
         <div className="mb-3 flex items-center gap-1.5">
-          <div className="h-5 w-5 rounded bg-sky-400/50" />
+          <div className="h-5 w-5 rounded bg-violet-400/50" />
           <div className="h-2.5 w-16 rounded bg-white/25" />
         </div>
-        <div className="mb-3 h-9 w-full rounded-lg bg-gradient-to-r from-sky-400/40 to-blue-400/25" />
-        <div className="mb-2 text-[10px] font-semibold text-sky-100/80">{'Bienvenue {{prenom}} !'}</div>
+        <div className="mb-3 h-9 w-full rounded-lg bg-gradient-to-r from-violet-400/40 to-purple-400/25" />
+        <div className="mb-2 text-[10px] font-semibold text-violet-100/80">{'Bienvenue {{prenom}} !'}</div>
         <div className="mb-1.5 h-2 w-full rounded bg-white/15" />
         <div className="mb-1.5 h-2 w-5/6 rounded bg-white/15" />
         <div className="mb-4 h-2 w-2/3 rounded bg-white/15" />
         <div className="flex justify-center">
-          <div className="rounded-full bg-sky-500 px-4 py-1.5 text-[9px] font-bold text-white shadow-lg shadow-sky-500/30">
+          <div className="rounded-full bg-violet-500 px-4 py-1.5 text-[9px] font-bold text-white shadow-lg shadow-violet-500/30">
             Commencer →
           </div>
         </div>
@@ -84,7 +84,7 @@ const CARDS: CardConfig[] = [
         <div className="rounded-md bg-white/5 p-2 text-[8px]">
           <div className="flex justify-between text-white/40"><span>HT</span><span>3 020 €</span></div>
           <div className="mb-1 flex justify-between text-white/40"><span>TVA 20%</span><span>604 €</span></div>
-          <div className="flex justify-between rounded bg-sky-500/40 px-1.5 py-1 font-bold text-white">
+          <div className="flex justify-between rounded bg-violet-500/40 px-1.5 py-1 font-bold text-white">
             <span>TTC</span><span>3 624 €</span>
           </div>
         </div>
@@ -107,13 +107,13 @@ const CARDS: CardConfig[] = [
           Contrat de prestation
         </div>
         <div className="mb-2 h-px w-full bg-white/15" />
-        <div className="mb-1.5 text-[9px] font-bold text-sky-100/80">Article 1 — Objet</div>
+        <div className="mb-1.5 text-[9px] font-bold text-violet-100/80">Article 1 — Objet</div>
         <div className="mb-1 h-2 w-full rounded bg-white/15" />
         <div className="mb-2 h-2 w-4/5 rounded bg-white/15" />
-        <div className="mb-2.5 inline-block rounded bg-sky-400/20 px-1.5 py-0.5 text-[8px] text-sky-100/80">
+        <div className="mb-2.5 inline-block rounded bg-violet-400/20 px-1.5 py-0.5 text-[8px] text-violet-100/80">
           {'{{client_nom}}'}
         </div>
-        <div className="mb-1.5 text-[9px] font-bold text-sky-100/80">Article 2 — Durée</div>
+        <div className="mb-1.5 text-[9px] font-bold text-violet-100/80">Article 2 — Durée</div>
         <div className="mb-1 h-2 w-full rounded bg-white/15" />
         <div className="mb-4 h-2 w-3/5 rounded bg-white/15" />
         <div className="flex items-end justify-between">
@@ -137,14 +137,14 @@ const CARDS: CardConfig[] = [
       <>
         <div className="mb-1 text-[9px] text-white/50">Taux d&apos;ouverture</div>
         <div className="mb-3 text-3xl font-black leading-none text-white">
-          68<span className="text-lg text-sky-300">%</span>
+          68<span className="text-lg text-violet-300">%</span>
         </div>
         <div className="flex h-16 items-end gap-1.5">
-          <div className="h-1/3 w-full rounded-t bg-sky-400/30" />
-          <div className="h-2/3 w-full rounded-t bg-sky-400/50" />
-          <div className="h-1/2 w-full rounded-t bg-blue-400/40" />
-          <div className="h-full w-full rounded-t bg-sky-400/70" />
-          <div className="h-3/4 w-full rounded-t bg-cyan-400/50" />
+          <div className="h-1/3 w-full rounded-t bg-violet-400/30" />
+          <div className="h-2/3 w-full rounded-t bg-violet-400/50" />
+          <div className="h-1/2 w-full rounded-t bg-orange-400/40" />
+          <div className="h-full w-full rounded-t bg-violet-400/70" />
+          <div className="h-3/4 w-full rounded-t bg-orange-400/50" />
         </div>
       </>
     ),
@@ -168,10 +168,10 @@ const CARDS: CardConfig[] = [
         <div className="mb-2 w-fit rounded-2xl rounded-bl-sm bg-white/10 px-2.5 py-1.5 text-[9px] text-white/70">
           {'Bonjour {{prenom}} 👋'}
         </div>
-        <div className="mb-1 ml-auto w-fit rounded-2xl rounded-br-sm bg-sky-500/60 px-2.5 py-1.5 text-[9px] text-white">
+        <div className="mb-1 ml-auto w-fit rounded-2xl rounded-br-sm bg-violet-500/60 px-2.5 py-1.5 text-[9px] text-white">
           Code : 4829
         </div>
-        <div className="ml-auto text-[7px] text-sky-200/50">Envoyé ✓✓</div>
+        <div className="ml-auto text-[7px] text-violet-200/50">Envoyé ✓✓</div>
       </>
     ),
   },
@@ -327,14 +327,14 @@ export default function AuthImage() {
       ref={containerRef}
       onMouseMove={handleMove}
       onMouseLeave={handleLeave}
-      className="relative h-full w-full overflow-hidden bg-[#04162e]"
+      className="relative h-full w-full overflow-hidden bg-[#1a0230]"
     >
-      {/* Sky-blue gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0b6fb8] via-[#0a3a78] to-[#03142e]" />
+      {/* Violet-amethyst gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#3b0764] via-[#4c1d95] to-[#1a0230]" />
 
-      {/* Soft sky-blue glows for depth */}
-      <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-sky-500/30 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 right-0 h-96 w-96 rounded-full bg-sky-600/20 blur-3xl" />
+      {/* Soft violet/tangerine glows for depth */}
+      <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-violet-500/30 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 right-0 h-96 w-96 rounded-full bg-orange-500/20 blur-3xl" />
 
       {/* Big white title above the floating cards */}
       <motion.h1
@@ -354,9 +354,9 @@ export default function AuthImage() {
       ))}
 
       {/* Glowing orbs */}
-      <div className="pointer-events-none absolute right-[25%] top-[20%] h-4 w-4 rounded-full bg-sky-400 shadow-lg shadow-sky-400/60" />
-      <div className="pointer-events-none absolute bottom-[30%] left-[12%] h-3 w-3 rounded-full bg-blue-400 shadow-lg shadow-blue-400/60" />
-      <div className="pointer-events-none absolute right-[15%] top-[62%] h-2 w-2 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/60" />
+      <div className="pointer-events-none absolute right-[25%] top-[20%] h-4 w-4 rounded-full bg-violet-400 shadow-lg shadow-violet-400/60" />
+      <div className="pointer-events-none absolute bottom-[30%] left-[12%] h-3 w-3 rounded-full bg-orange-400 shadow-lg shadow-orange-400/60" />
+      <div className="pointer-events-none absolute right-[15%] top-[62%] h-2 w-2 rounded-full bg-violet-300 shadow-lg shadow-violet-300/60" />
 
       {/* Bottom text */}
       <div className="pointer-events-none absolute bottom-10 left-10 right-10 z-20">

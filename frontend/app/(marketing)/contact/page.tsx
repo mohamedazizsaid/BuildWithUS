@@ -14,9 +14,9 @@ export default function ContactPage() {
       <section className="contact-hero">
         <div className="container">
           <span className="eyebrow">→ Contact</span>
-          <h1 className="contact-hero__title">Parlons de <em>votre projet.</em></h1>
+          <h1 className="contact-hero__title">On est là — <em>parlons.</em></h1>
           <p className="contact-hero__sub">
-            Une équipe humaine, basée à Paris, qui répond vite. Choisissez le canal qui vous convient.
+            Une équipe humaine, basée à Paris, qui répond en moins de 2 h ouvrables. Choisissez le canal qui vous convient.
           </p>
         </div>
       </section>

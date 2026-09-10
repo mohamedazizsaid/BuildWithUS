@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth';
 import toast from '@/lib/toast';
 
@@ -16,13 +17,15 @@ interface LoginForm {
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      await login(data.email, data.password);
+      const redirect = searchParams.get('redirect') || '/dashboard';
+      await login(data.email, data.password, redirect);
       toast.success('Bon retour !');
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
@@ -62,7 +65,7 @@ export default function LoginPage() {
             type="email"
             {...register('email', { required: 'L\'e-mail est obligatoire', pattern: { value: /^\S+@\S+$/i, message: 'E-mail invalide' } })}
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
-            placeholder="ahmed@buildwithus.com"
+            placeholder="aziz@buildwithus.com"
           />
           {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
         </div>
