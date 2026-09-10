@@ -106,7 +106,7 @@ function CheckoutInner() {
 
           <div className="mt-10">
             <p className="text-sm text-slate-500">Vous vous abonnez à</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">Winaity {plan.name}</h1>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">Build withUs {plan.name}</h1>
 
             <div className="mt-6 flex items-baseline gap-2">
               <span className="text-4xl font-bold text-slate-900">{ttc.toFixed(2)}€</span>
@@ -162,7 +162,7 @@ function CheckoutInner() {
         <div className="mx-auto w-full max-w-md">
           <h2 className="text-lg font-semibold text-slate-900">Finaliser l&apos;abonnement</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Paiement sécurisé, directement sur Winaity. Vos informations de carte sont chiffrées et
+            Paiement sécurisé, directement sur Build withUs. Vos informations de carte sont chiffrées et
             traitées par Stripe.
           </p>
 

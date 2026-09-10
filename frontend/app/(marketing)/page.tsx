@@ -1,4 +1,4 @@
-// Winaity home page (marketing). Static markup — interactivity (reveal, tabs,
+// Build withUs home page (marketing). Static markup — interactivity (reveal, tabs,
 // counters, magnet, sparkles) is wired globally by <MarketingFX/> in the layout.
 import type { CSSProperties } from 'react';
 
@@ -27,7 +27,7 @@ export default function HomePage() {
           </h1>
 
           <p className="hero-subtitle blur-in" style={{ animationDelay: '280ms' }}>
-            Email, facture, contrat — Winaity génère, édite et déploie vos documents
+            Email, facture, contrat — Build withUs génère, édite et déploie vos documents
             professionnels. Connecté à votre CRM ou en standalone. Boosté par l&apos;IA,
             nourri par une banque d&apos;images libres.
           </p>
@@ -57,7 +57,7 @@ export default function HomePage() {
             <div className="hero-preview-frame">
               <div className="hero-preview-topbar">
                 <div className="hero-preview-dots"><span></span><span></span><span></span></div>
-                <div className="hero-preview-url">app.winaity.com/editor/new</div>
+                <div className="hero-preview-url">app.buildwithus.com/editor/new</div>
                 <div style={{ width: '44px' }}></div>
               </div>
               <div className="hero-preview-content">
@@ -68,27 +68,27 @@ export default function HomePage() {
                       <stop offset="100%" stopColor="#F3F4F6" />
                     </linearGradient>
                     <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#2E5FF0" />
-                      <stop offset="100%" stopColor="#1738A8" />
+                      <stop offset="0%" stopColor="#6366F1" />
+                      <stop offset="100%" stopColor="#4338CA" />
                     </linearGradient>
                   </defs>
                   <rect width="1200" height="675" fill="url(#bgGrad)" />
                   <rect x="0" y="0" width="260" height="675" fill="white" stroke="#E5E7EB" />
                   <rect x="20" y="24" width="220" height="40" rx="10" fill="#F3F4F6" />
-                  <circle cx="40" cy="44" r="8" fill="#2E5FF0" />
+                  <circle cx="40" cy="44" r="8" fill="#6366F1" />
                   <rect x="56" y="40" width="140" height="8" rx="4" fill="#374151" />
                   <text x="20" y="100" fontFamily="system-ui" fontSize="11" fill="#9CA3AF" fontWeight="600" letterSpacing="1">BLOCS</text>
                   <rect x="20" y="115" width="105" height="80" rx="10" fill="white" stroke="#E5E7EB" />
-                  <rect x="35" y="135" width="75" height="6" rx="3" fill="#2E5FF0" />
+                  <rect x="35" y="135" width="75" height="6" rx="3" fill="#6366F1" />
                   <rect x="35" y="150" width="60" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="35" y="160" width="70" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="35" y="170" width="50" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="135" y="115" width="105" height="80" rx="10" fill="white" stroke="#E5E7EB" />
-                  <rect x="150" y="135" width="40" height="40" rx="6" fill="#C6F24E" />
+                  <rect x="150" y="135" width="40" height="40" rx="6" fill="#F59E0B" />
                   <rect x="195" y="135" width="35" height="6" rx="3" fill="#374151" />
                   <rect x="195" y="148" width="30" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="20" y="205" width="105" height="80" rx="10" fill="white" stroke="#E5E7EB" />
-                  <circle cx="72" cy="245" r="18" fill="#2E5FF0" opacity="0.15" />
+                  <circle cx="72" cy="245" r="18" fill="#6366F1" opacity="0.15" />
                   <rect x="54" y="268" width="36" height="4" rx="2" fill="#E5E7EB" />
                   <rect x="135" y="205" width="105" height="80" rx="10" fill="white" stroke="#E5E7EB" />
                   <rect x="150" y="220" width="75" height="20" rx="10" fill="#111827" />
@@ -115,30 +115,30 @@ export default function HomePage() {
                   <rect x="980" y="60" width="80" height="10" rx="5" fill="#111827" />
                   <rect x="980" y="90" width="180" height="6" rx="3" fill="#9CA3AF" />
                   <rect x="980" y="120" width="180" height="90" rx="10" fill="#111827" />
-                  <text x="995" y="145" fontFamily="system-ui" fontSize="10" fill="#C6F24E" fontWeight="600">✦ AI ASSIST</text>
+                  <text x="995" y="145" fontFamily="system-ui" fontSize="10" fill="#F59E0B" fontWeight="600">✦ AI ASSIST</text>
                   <rect x="995" y="160" width="150" height="4" rx="2" fill="white" opacity="0.4" />
                   <rect x="995" y="170" width="120" height="4" rx="2" fill="white" opacity="0.4" />
-                  <rect x="995" y="185" width="80" height="18" rx="9" fill="#C6F24E" />
+                  <rect x="995" y="185" width="80" height="18" rx="9" fill="#F59E0B" />
                   <text x="1010" y="197" fontFamily="system-ui" fontSize="9" fill="#111827" fontWeight="600">Générer</text>
                   <rect x="980" y="235" width="60" height="10" rx="5" fill="#111827" />
-                  <circle cx="985" cy="265" r="10" fill="#2E5FF0" />
-                  <circle cx="1010" cy="265" r="10" fill="#C6F24E" />
+                  <circle cx="985" cy="265" r="10" fill="#6366F1" />
+                  <circle cx="1010" cy="265" r="10" fill="#F59E0B" />
                   <circle cx="1035" cy="265" r="10" fill="#111827" />
-                  <circle cx="1060" cy="265" r="10" fill="#FF6B5B" />
-                  <circle cx="1085" cy="265" r="10" fill="#FFB547" />
+                  <circle cx="1060" cy="265" r="10" fill="#F43F5E" />
+                  <circle cx="1085" cy="265" r="10" fill="#FBBF24" />
                   <rect x="980" y="300" width="60" height="8" rx="4" fill="#374151" />
                   <rect x="980" y="320" width="180" height="34" rx="8" fill="#F3F4F6" stroke="#E5E7EB" />
                   <rect x="995" y="334" width="60" height="6" rx="3" fill="#9CA3AF" />
                   <rect x="980" y="370" width="80" height="8" rx="4" fill="#374151" />
                   <rect x="980" y="390" width="180" height="34" rx="8" fill="#F3F4F6" stroke="#E5E7EB" />
                   <rect x="980" y="445" width="100" height="8" rx="4" fill="#374151" />
-                  <rect x="1130" y="440" width="30" height="16" rx="8" fill="#2E5FF0" />
+                  <rect x="1130" y="440" width="30" height="16" rx="8" fill="#6366F1" />
                   <circle cx="1152" cy="448" r="6" fill="white" />
                 </svg>
 
                 <div className="preview-card-float top-left">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #C6F24E, #4EF2B3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #F59E0B, #6366F1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6L12 2z" fill="#111827" /></svg>
                     </div>
                     <div>
@@ -248,10 +248,10 @@ export default function HomePage() {
               <h3 className="bento-title">Banque d&apos;<em>images</em> libres</h3>
               <p className="bento-desc">Banque intégrée de visuels haute définition, classés par thème.</p>
               <div className="bento-visual" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', minHeight: 'auto', marginTop: '12px' }}>
-                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#FFB547,#FF6B5B)', borderRadius: '4px' }}></div>
-                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#4EF2B3,#2E5FF0)', borderRadius: '4px' }}></div>
-                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#C6F24E,#FFB547)', borderRadius: '4px' }}></div>
-                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#2E5FF0,#0B1E5C)', borderRadius: '4px' }}></div>
+                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#FBBF24,#F43F5E)', borderRadius: '4px' }}></div>
+                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#10B981,#6366F1)', borderRadius: '4px' }}></div>
+                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#F59E0B,#FBBF24)', borderRadius: '4px' }}></div>
+                <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg,#6366F1,#312E81)', borderRadius: '4px' }}></div>
               </div>
             </article>
 
@@ -352,12 +352,12 @@ export default function HomePage() {
               <div className="template-preview">
                 <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                   <rect width="400" height="500" fill="#FAFAFB" />
-                  <rect x="24" y="24" width="352" height="100" rx="8" fill="#2E5FF0" />
+                  <rect x="24" y="24" width="352" height="100" rx="8" fill="#6366F1" />
                   <text x="50" y="74" fontFamily="Geist" fontSize="32" fill="white">Newsletter</text>
                   <text x="50" y="95" fontFamily="Geist Mono" fontSize="10" fill="white" opacity="0.8">#042 — MAI 2026</text>
                   <rect x="24" y="144" width="352" height="140" rx="8" fill="#E5E7EB" />
                   <path d="M100 200 L150 240 L220 210 L280 270 L320 260 L320 284 L100 284 Z" fill="#D1D5DB" />
-                  <circle cx="170" cy="200" r="14" fill="#FFB547" />
+                  <circle cx="170" cy="200" r="14" fill="#FBBF24" />
                   <rect x="24" y="304" width="260" height="14" rx="4" fill="#111827" />
                   <rect x="24" y="328" width="352" height="5" rx="2" fill="#D1D5DB" />
                   <rect x="24" y="340" width="320" height="5" rx="2" fill="#D1D5DB" />
@@ -379,14 +379,14 @@ export default function HomePage() {
               <div className="template-preview">
                 <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                   <rect width="400" height="500" fill="#111827" />
-                  <rect x="24" y="24" width="352" height="200" rx="8" fill="#C6F24E" />
+                  <rect x="24" y="24" width="352" height="200" rx="8" fill="#F59E0B" />
                   <text x="200" y="110" fontFamily="Geist" fontSize="48" fill="#111827" textAnchor="middle" fontStyle="italic">-50%</text>
                   <text x="200" y="150" fontFamily="Geist" fontSize="14" fill="#111827" textAnchor="middle" fontWeight="600">BLACK FRIDAY</text>
                   <text x="200" y="180" fontFamily="Geist Mono" fontSize="10" fill="#111827" textAnchor="middle" opacity="0.7">Jusqu&apos;au 30 novembre</text>
                   <rect x="24" y="244" width="280" height="14" rx="4" fill="white" />
                   <rect x="24" y="268" width="352" height="5" rx="2" fill="#6B7280" />
                   <rect x="24" y="280" width="320" height="5" rx="2" fill="#6B7280" />
-                  <rect x="24" y="312" width="160" height="40" rx="20" fill="#C6F24E" />
+                  <rect x="24" y="312" width="160" height="40" rx="20" fill="#F59E0B" />
                   <text x="48" y="337" fontFamily="Geist" fontSize="13" fill="#111827" fontWeight="700">J&apos;en profite maintenant</text>
                 </svg>
               </div>
@@ -403,18 +403,18 @@ export default function HomePage() {
               <div className="template-preview">
                 <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                   <rect width="400" height="500" fill="white" />
-                  <rect x="24" y="40" width="48" height="48" rx="12" fill="#2E5FF0" />
+                  <rect x="24" y="40" width="48" height="48" rx="12" fill="#6366F1" />
                   <text x="42" y="72" fontFamily="Geist" fontSize="22" fill="white" fontWeight="700">✦</text>
                   <text x="24" y="130" fontFamily="Geist" fontSize="30" fill="#111827">Bienvenue 👋</text>
                   <rect x="24" y="150" width="280" height="5" rx="2" fill="#D1D5DB" />
                   <rect x="24" y="162" width="240" height="5" rx="2" fill="#D1D5DB" />
                   <rect x="24" y="200" width="352" height="60" rx="8" fill="#F3F4F6" stroke="#E5E7EB" />
-                  <circle cx="54" cy="230" r="14" fill="#2E5FF0" />
+                  <circle cx="54" cy="230" r="14" fill="#6366F1" />
                   <text x="48" y="235" fontFamily="Geist" fontSize="14" fill="white" fontWeight="700">1</text>
                   <rect x="82" y="220" width="160" height="8" rx="4" fill="#111827" />
                   <rect x="82" y="236" width="240" height="5" rx="2" fill="#6B7280" />
                   <rect x="24" y="275" width="352" height="60" rx="8" fill="#F3F4F6" stroke="#E5E7EB" />
-                  <circle cx="54" cy="305" r="14" fill="#2E5FF0" />
+                  <circle cx="54" cy="305" r="14" fill="#6366F1" />
                   <text x="48" y="310" fontFamily="Geist" fontSize="14" fill="white" fontWeight="700">2</text>
                   <rect x="82" y="295" width="180" height="8" rx="4" fill="#111827" />
                   <rect x="82" y="311" width="220" height="5" rx="2" fill="#6B7280" />
@@ -495,7 +495,7 @@ export default function HomePage() {
                   <text x="240" y="360" fontFamily="Geist Mono" fontSize="10" fill="#6B7280">TVA 20%</text>
                   <rect x="320" y="353" width="40" height="8" rx="2" fill="#374151" />
                   <text x="240" y="390" fontFamily="Geist" fontSize="12" fill="#111827" fontWeight="700">TOTAL TTC</text>
-                  <rect x="320" y="380" width="56" height="14" rx="2" fill="#2E5FF0" />
+                  <rect x="320" y="380" width="56" height="14" rx="2" fill="#6366F1" />
                 </svg>
               </div>
               <div className="template-info">
@@ -531,8 +531,8 @@ export default function HomePage() {
                   <rect x="216" y="310" width="160" height="1" fill="#E5E7EB" />
                   <text x="24" y="330" fontFamily="Geist Mono" fontSize="9" fill="#6B7280">LE PRESTATAIRE</text>
                   <text x="216" y="330" fontFamily="Geist Mono" fontSize="9" fill="#6B7280">LE CLIENT</text>
-                  <path d="M30 355 Q 60 345 90 360 T 150 355" stroke="#2E5FF0" strokeWidth="1.5" fill="none" />
-                  <path d="M226 360 Q 256 348 286 365 T 346 360" stroke="#2E5FF0" strokeWidth="1.5" fill="none" />
+                  <path d="M30 355 Q 60 345 90 360 T 150 355" stroke="#6366F1" strokeWidth="1.5" fill="none" />
+                  <path d="M226 360 Q 256 348 286 365 T 346 360" stroke="#6366F1" strokeWidth="1.5" fill="none" />
                 </svg>
               </div>
               <div className="template-info">
@@ -576,17 +576,17 @@ export default function HomePage() {
                 <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                   <defs>
                     <linearGradient id="g8" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#2E5FF0" />
-                      <stop offset="100%" stopColor="#0B1E5C" />
+                      <stop offset="0%" stopColor="#6366F1" />
+                      <stop offset="100%" stopColor="#312E81" />
                     </linearGradient>
                   </defs>
                   <rect width="400" height="500" fill="url(#g8)" />
-                  <circle cx="350" cy="80" r="60" fill="#C6F24E" opacity="0.2" />
-                  <circle cx="50" cy="400" r="80" fill="#FF6B5B" opacity="0.2" />
+                  <circle cx="350" cy="80" r="60" fill="#F59E0B" opacity="0.2" />
+                  <circle cx="50" cy="400" r="80" fill="#F43F5E" opacity="0.2" />
                   <text x="200" y="180" fontFamily="Geist" fontSize="48" fill="white" textAnchor="middle" fontStyle="italic">Nouveau.</text>
-                  <rect x="150" y="200" width="100" height="2" fill="#C6F24E" />
+                  <rect x="150" y="200" width="100" height="2" fill="#F59E0B" />
                   <text x="200" y="240" fontFamily="Geist" fontSize="13" fill="white" textAnchor="middle" opacity="0.8">Notre nouvelle collection arrive</text>
-                  <rect x="120" y="290" width="160" height="48" rx="24" fill="#C6F24E" />
+                  <rect x="120" y="290" width="160" height="48" rx="24" fill="#F59E0B" />
                   <text x="200" y="320" fontFamily="Geist" fontSize="13" fill="#111827" textAnchor="middle" fontWeight="700">Découvrir →</text>
                 </svg>
               </div>
@@ -648,8 +648,8 @@ export default function HomePage() {
               <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                 <defs>
                   <linearGradient id="blueG" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#2E5FF0" />
-                    <stop offset="100%" stopColor="#1738A8" />
+                    <stop offset="0%" stopColor="#6366F1" />
+                    <stop offset="100%" stopColor="#4338CA" />
                   </linearGradient>
                 </defs>
                 <rect width="500" height="500" fill="#FAFAFB" rx="20" />

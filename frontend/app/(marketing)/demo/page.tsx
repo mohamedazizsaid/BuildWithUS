@@ -1,4 +1,4 @@
-// Winaity demo page (marketing). Topic/slot chips are toggled globally by
+// Build withUs demo page (marketing). Topic/slot chips are toggled globally by
 // MarketingFX (data-demo-topic / data-demo-slot). Form is a visual placeholder.
 const CheckLi = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -15,7 +15,7 @@ export default function DemoPage() {
         <div className="container">
           <div className="demo-hero__inner reveal">
             <span className="eyebrow">Démo · 30 min · Personnalisée</span>
-            <h1 className="demo-hero__title">Voyez Winaity <em>en action.</em></h1>
+            <h1 className="demo-hero__title">Voyez Build withUs <em>en action.</em></h1>
             <p className="demo-hero__sub">
               Une démo adaptée à votre activité, animée par un expert produit. Vous repartez avec un plan d&apos;action clair et un environnement de test pré-configuré.
             </p>
@@ -66,7 +66,7 @@ export default function DemoPage() {
                   <div className="demo-aside__contact-avatar">TC</div>
                   <div>
                     <div className="demo-aside__contact-name">Thomas Caron</div>
-                    <div className="demo-aside__contact-role">Senior Product Specialist · Winaity</div>
+                    <div className="demo-aside__contact-role">Senior Product Specialist · Build withUs</div>
                   </div>
                 </div>
               </div>

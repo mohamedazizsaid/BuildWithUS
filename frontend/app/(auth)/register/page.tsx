@@ -72,9 +72,9 @@ function RegisterInner() {
           aria-label="Retour à l'accueil"
           className="inline-flex w-10 h-10 bg-slate-900 rounded-lg items-center justify-center mb-6 transition-transform hover:scale-105 active:scale-95"
         >
-          <span className="text-white font-bold text-lg">W</span>
+          <span className="text-white font-bold text-lg">B</span>
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900">Bienvenue sur Winaity Template Builder</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Bienvenue sur Build withUs Template Builder</h1>
         <p className="text-slate-500 mt-1">
           Vous avez déjà un compte ?{' '}
           <Link href="/login" className="text-slate-900 font-medium underline underline-offset-4 hover:text-indigo-600 transition-colors">
@@ -85,7 +85,7 @@ function RegisterInner() {
         {paidPlan && (
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
             <span className="text-slate-500">Vous vous inscrivez pour&nbsp;</span>
-            <span className="font-semibold text-slate-900">Winaity {paidPlan.name}</span>
+            <span className="font-semibold text-slate-900">Build withUs {paidPlan.name}</span>
             <span className="text-slate-500"> — paiement à l&apos;étape suivante.</span>
           </div>
         )}
@@ -97,7 +97,7 @@ function RegisterInner() {
           <input
             {...register('tenantName', { required: 'Le nom de l\'organisation est obligatoire' })}
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
-            placeholder="Winaity"
+            placeholder="Build withUs"
           />
           {errors.tenantName && <p className="text-red-500 text-xs mt-1">{errors.tenantName.message}</p>}
         </div>
@@ -127,7 +127,7 @@ function RegisterInner() {
             type="email"
             {...register('email', { required: 'L\'e-mail est obligatoire', pattern: { value: /^\S+@\S+$/i, message: 'E-mail invalide' } })}
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
-            placeholder="ahmed@winaity.com"
+            placeholder="ahmed@buildwithus.com"
           />
         </div>
 

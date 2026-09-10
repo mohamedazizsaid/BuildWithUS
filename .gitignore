@@ -9,3 +9,4 @@ dist/
 # server backups (DB dumps + MinIO archives) — never commit
 infra/backups/
 infra/backup.log
+*.log

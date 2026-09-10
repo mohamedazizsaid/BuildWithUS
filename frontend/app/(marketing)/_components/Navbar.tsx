@@ -9,8 +9,8 @@ export default function Navbar() {
       <nav className="navbar" role="navigation" aria-label="Navigation principale">
         <div className="navbar-inner">
           <a href="/" className="nav-logo" aria-label="Retour à l'accueil">
-            <span className="nav-logo-mark">W</span>
-            <span>Wina<span className="nav-logo-italic">ity</span></span>
+            <span className="nav-logo-mark">B</span>
+            <span>Build <span className="nav-logo-italic">withUs</span></span>
           </a>
           <ul className="nav-menu">
             <li><a href="/#product" className="nav-link">Produit</a></li>
@@ -36,8 +36,8 @@ export default function Navbar() {
       <div className="mobile-menu" data-mobile-menu>
         <div className="mobile-menu-header">
           <div className="nav-logo" style={{ color: 'var(--ink-0)' }}>
-            <span className="nav-logo-mark">W</span>
-            <span>Wina<span className="nav-logo-italic" style={{ color: 'var(--blue-400)' }}>ity</span></span>
+            <span className="nav-logo-mark">B</span>
+            <span>Build <span className="nav-logo-italic" style={{ color: 'var(--blue-400)' }}>withUs</span></span>
           </div>
           <button className="btn-icon" data-menu-close style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>

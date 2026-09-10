@@ -1,4 +1,4 @@
-// Winaity about page (marketing).
+// Build withUs about page (marketing).
 const Linkedin = () => (
   <a href="#" aria-label="LinkedIn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.59 0 4.27 2.37 4.27 5.44v6.3zM5.34 7.43c-1.14 0-2.07-.93-2.07-2.07s.93-2.07 2.07-2.07 2.07.93 2.07 2.07-.93 2.07-2.07 2.07zm1.78 13.02H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.21 0 22.23 0z" /></svg></a>
 );
@@ -18,7 +18,7 @@ export default function AboutPage() {
                 <em>honnête.</em>
               </h1>
               <p className="about-hero__sub">
-                Winaity est née d&apos;une conviction simple : les équipes marketing, les freelances, les juristes et les PME méritent mieux que de copier-coller des modèles Word approximatifs ou payer trois outils pour générer un email, une facture et un contrat.
+                Build withUs est née d&apos;une conviction simple : les équipes marketing, les freelances, les juristes et les PME méritent mieux que de copier-coller des modèles Word approximatifs ou payer trois outils pour générer un email, une facture et un contrat.
               </p>
 
               <div className="about-hero__meta">
@@ -50,7 +50,7 @@ export default function AboutPage() {
             </p>
             <div className="about-mission__signature">
               <span className="about-mission__signature-line"></span>
-              <span>L&apos;équipe Winaity</span>
+              <span>L&apos;équipe Build withUs</span>
               <span className="about-mission__signature-line"></span>
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function AboutPage() {
               <div className="timeline-item__date">Mars 2024</div>
               <h3 className="timeline-item__title">Le <em>déclic.</em></h3>
               <p className="timeline-item__text">
-                Un week-end passé à compter le temps perdu à formater des documents. Le calcul fait mal. Le projet Winaity démarre le lundi matin.
+                Un week-end passé à compter le temps perdu à formater des documents. Le calcul fait mal. Le projet Build withUs démarre le lundi matin.
               </p>
             </div>
 

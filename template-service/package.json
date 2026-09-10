@@ -13,7 +13,7 @@
     "proto:clean": "rm -rf proto/generated/*",
     "prestart": "npm run proto:sync",
     "start": "nest start",
-    "prestart:dev": "npm run proto:generate",
+    "prestart:dev": "npm run proto:sync",
     "start:dev": "nest start --watch",
     "prestart:debug": "npm run proto:sync",
     "start:debug": "nest start --debug --watch",

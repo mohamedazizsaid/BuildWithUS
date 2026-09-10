@@ -220,9 +220,9 @@ export class AuthController implements OnModuleInit {
     console.log("Sending invite email to:", body.email);
     try {
       const emailResult = await this.transporter.sendMail({
-        from: `Winaity <${process.env.GMAIL_USER}>`,
+        from: `Build withUs <${process.env.GMAIL_USER}>`,
         to: body.email,
-        subject: "You've been invited to join an organization on Winaity",
+        subject: "You've been invited to join an organization on Build withUs",
         html: `
           <div style="background:#eef2f8;padding:32px 12px;font-family:Inter,'Helvetica Neue',Arial,sans-serif;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
@@ -233,7 +233,7 @@ export class AuthController implements OnModuleInit {
                   <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
                     <tr>
                       <td style="width:44px;height:44px;background:#2563eb;border-radius:12px;text-align:center;vertical-align:middle;">
-                        <span style="color:#ffffff;font-weight:800;font-size:20px;">W</span>
+                        <span style="color:#ffffff;font-weight:800;font-size:20px;">B</span>
                       </td>
                     </tr>
                   </table>
@@ -243,7 +243,7 @@ export class AuthController implements OnModuleInit {
                     Vous êtes invité·e à nous rejoindre
                   </h1>
                   <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:24px;">
-                    Vous avez été invité·e à rejoindre une organisation sur Winaity. Vous la rejoindrez avec le rôle ci-dessous.
+                    Vous avez été invité·e à rejoindre une organisation sur Build withUs. Vous la rejoindrez avec le rôle ci-dessous.
                   </p>
 
                   <!-- Badge rôle -->
@@ -276,7 +276,7 @@ export class AuthController implements OnModuleInit {
               <tr>
                 <td style="padding:24px 0 8px;text-align:center;">
                   <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
-                    © 2026 Winaity · <a href="#" style="color:#64748b;text-decoration:underline;">Centre d'aide</a> · Paris, FR
+                    © 2026 Build withUs · <a href="#" style="color:#64748b;text-decoration:underline;">Centre d'aide</a> · Paris, FR
                   </p>
                 </td>
               </tr>
@@ -346,9 +346,9 @@ export class AuthController implements OnModuleInit {
       console.log("Sending password reset email to:", result.email);
       try {
         const emailResult = await this.transporter.sendMail({
-          from: `Winaity <${process.env.GMAIL_USER}>`,
+          from: `Build withUs <${process.env.GMAIL_USER}>`,
           to: result.email,
-          subject: "Reset your Winaity password",
+          subject: "Reset your Build withUs password",
           html: `
             <div style="background:#eef2f8;padding:32px 12px;font-family:Inter,'Helvetica Neue',Arial,sans-serif;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
@@ -359,7 +359,7 @@ export class AuthController implements OnModuleInit {
                     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
                       <tr>
                         <td style="width:44px;height:44px;background:#2563eb;border-radius:12px;text-align:center;vertical-align:middle;">
-                          <span style="color:#ffffff;font-weight:800;font-size:20px;">W</span>
+                          <span style="color:#ffffff;font-weight:800;font-size:20px;">B</span>
                         </td>
                       </tr>
                     </table>
@@ -369,7 +369,7 @@ export class AuthController implements OnModuleInit {
                       Réinitialisez votre mot de passe
                     </h1>
                     <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:24px;">
-                      ${result.first_name ? `Bonjour ${result.first_name},<br/><br/>` : ""}Nous avons reçu une demande de réinitialisation de votre mot de passe Winaity. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
+                      ${result.first_name ? `Bonjour ${result.first_name},<br/><br/>` : ""}Nous avons reçu une demande de réinitialisation de votre mot de passe Build withUs. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
                     </p>
 
                     <!-- Bouton -->
@@ -393,7 +393,7 @@ export class AuthController implements OnModuleInit {
                 <tr>
                   <td style="padding:24px 0 8px;text-align:center;">
                     <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
-                      © 2026 Winaity · <a href="#" style="color:#64748b;text-decoration:underline;">Centre d'aide</a> · Paris, FR
+                      © 2026 Build withUs · <a href="#" style="color:#64748b;text-decoration:underline;">Centre d'aide</a> · Paris, FR
                     </p>
                   </td>
                 </tr>

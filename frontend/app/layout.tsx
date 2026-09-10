@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Winaity - Template Builder",
+  title: "Build withUs - Template Builder",
   description: "Build beautiful email templates, invoices, and contracts",
 };
 

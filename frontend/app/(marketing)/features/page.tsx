@@ -1,4 +1,4 @@
-// Winaity features page (marketing).
+// Build withUs features page (marketing).
 const Check = () => (
   <span className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg></span>
 );
@@ -47,17 +47,17 @@ export default function FeaturesPage() {
             <svg viewBox="0 0 600 450" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="emailHero" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#2E5FF0" />
-                  <stop offset="100%" stopColor="#1A3FA8" />
+                  <stop offset="0%" stopColor="#6366F1" />
+                  <stop offset="100%" stopColor="#4338CA" />
                 </linearGradient>
               </defs>
               <rect x="40" y="30" width="520" height="390" rx="12" fill="#FFFFFF" stroke="#E8ECF4" />
               <rect x="40" y="30" width="520" height="32" rx="12" fill="#F4F6FB" />
-              <circle cx="58" cy="46" r="4" fill="#FF6B5B" />
-              <circle cx="74" cy="46" r="4" fill="#FFB547" />
-              <circle cx="90" cy="46" r="4" fill="#4EF2B3" />
+              <circle cx="58" cy="46" r="4" fill="#F43F5E" />
+              <circle cx="74" cy="46" r="4" fill="#FBBF24" />
+              <circle cx="90" cy="46" r="4" fill="#10B981" />
               <rect x="40" y="62" width="120" height="358" fill="#FAFBFE" />
-              <rect x="56" y="82" width="88" height="8" rx="2" fill="#2E5FF0" />
+              <rect x="56" y="82" width="88" height="8" rx="2" fill="#6366F1" />
               <rect x="56" y="102" width="60" height="6" rx="2" fill="#D8DEED" />
               <rect x="56" y="118" width="70" height="6" rx="2" fill="#D8DEED" />
               <rect x="56" y="134" width="50" height="6" rx="2" fill="#D8DEED" />
@@ -227,7 +227,7 @@ export default function FeaturesPage() {
               <rect x="160" y="70" width="320" height="320" rx="8" fill="#FFFFFF" stroke="#E8ECF4" transform="rotate(2 320 230)" />
               <rect x="130" y="60" width="340" height="340" rx="10" fill="#FFFFFF" stroke="#D8DEED" />
               <rect x="160" y="90" width="150" height="14" rx="2" fill="#0A0E1A" />
-              <rect x="160" y="112" width="80" height="6" rx="2" fill="#2E5FF0" />
+              <rect x="160" y="112" width="80" height="6" rx="2" fill="#6366F1" />
               <rect x="160" y="140" width="280" height="5" rx="2" fill="#8590A8" />
               <rect x="160" y="152" width="260" height="5" rx="2" fill="#8590A8" />
               <rect x="160" y="164" width="270" height="5" rx="2" fill="#8590A8" />
@@ -241,10 +241,10 @@ export default function FeaturesPage() {
               <rect x="160" y="292" width="250" height="5" rx="2" fill="#8590A8" />
               <rect x="160" y="330" width="120" height="50" rx="4" fill="#F4F6FB" />
               <rect x="170" y="340" width="50" height="5" rx="2" fill="#8590A8" />
-              <path d="M170 360 Q 185 350 200 360 T 230 360" stroke="#2E5FF0" strokeWidth="2" fill="none" />
+              <path d="M170 360 Q 185 350 200 360 T 230 360" stroke="#6366F1" strokeWidth="2" fill="none" />
               <rect x="320" y="330" width="120" height="50" rx="4" fill="#0A0E1A" />
               <rect x="330" y="340" width="50" height="5" rx="2" fill="#8590A8" />
-              <rect x="330" y="355" width="80" height="14" rx="7" fill="#C6F24E" />
+              <rect x="330" y="355" width="80" height="14" rx="7" fill="#F59E0B" />
               <text x="370" y="365" textAnchor="middle" fontFamily="system-ui" fontSize="9" fontWeight="700" fill="#0A0E1A">SIGNÉ</text>
             </svg>
           </div>
@@ -271,34 +271,34 @@ export default function FeaturesPage() {
             <svg viewBox="0 0 600 450" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="aiCard" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#2E5FF0" />
-                  <stop offset="100%" stopColor="#0B1E5C" />
+                  <stop offset="0%" stopColor="#6366F1" />
+                  <stop offset="100%" stopColor="#312E81" />
                 </linearGradient>
               </defs>
               <rect x="80" y="80" width="440" height="110" rx="16" fill="url(#aiCard)" />
-              <circle cx="120" cy="135" r="22" fill="#C6F24E" />
+              <circle cx="120" cy="135" r="22" fill="#F59E0B" />
               <path d="M112 135 L 118 141 L 130 127" stroke="#0A0E1A" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               <rect x="160" y="110" width="100" height="8" rx="2" fill="#FFFFFF" />
               <rect x="160" y="126" width="320" height="6" rx="2" fill="#FFFFFF" opacity="0.7" />
               <rect x="160" y="140" width="280" height="6" rx="2" fill="#FFFFFF" opacity="0.7" />
               <rect x="160" y="154" width="260" height="6" rx="2" fill="#FFFFFF" opacity="0.7" />
               <rect x="80" y="210" width="210" height="80" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" />
-              <rect x="100" y="228" width="60" height="6" rx="2" fill="#C6F24E" />
+              <rect x="100" y="228" width="60" height="6" rx="2" fill="#F59E0B" />
               <rect x="100" y="244" width="170" height="5" rx="2" fill="#FFFFFF" opacity="0.8" />
               <rect x="100" y="256" width="150" height="5" rx="2" fill="#FFFFFF" opacity="0.8" />
               <rect x="100" y="268" width="120" height="5" rx="2" fill="#FFFFFF" opacity="0.8" />
               <rect x="310" y="210" width="210" height="80" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" />
-              <rect x="330" y="228" width="60" height="6" rx="2" fill="#C6F24E" />
+              <rect x="330" y="228" width="60" height="6" rx="2" fill="#F59E0B" />
               <rect x="330" y="244" width="170" height="5" rx="2" fill="#FFFFFF" opacity="0.8" />
               <rect x="330" y="256" width="150" height="5" rx="2" fill="#FFFFFF" opacity="0.8" />
               <rect x="330" y="268" width="120" height="5" rx="2" fill="#FFFFFF" opacity="0.8" />
               <rect x="80" y="310" width="440" height="100" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" />
               <rect x="100" y="326" width="80" height="6" rx="2" fill="#FFFFFF" />
-              <rect x="100" y="342" width="70" height="52" rx="6" fill="#FF6B5B" />
-              <rect x="180" y="342" width="70" height="52" rx="6" fill="#4EF2B3" />
-              <rect x="260" y="342" width="70" height="52" rx="6" fill="#FFB547" />
-              <rect x="340" y="342" width="70" height="52" rx="6" fill="#2E5FF0" />
-              <rect x="420" y="342" width="70" height="52" rx="6" fill="#C6F24E" />
+              <rect x="100" y="342" width="70" height="52" rx="6" fill="#F43F5E" />
+              <rect x="180" y="342" width="70" height="52" rx="6" fill="#10B981" />
+              <rect x="260" y="342" width="70" height="52" rx="6" fill="#FBBF24" />
+              <rect x="340" y="342" width="70" height="52" rx="6" fill="#6366F1" />
+              <rect x="420" y="342" width="70" height="52" rx="6" fill="#F59E0B" />
             </svg>
           </div>
         </div>
@@ -308,7 +308,7 @@ export default function FeaturesPage() {
       <section className="integrations-section" id="integrations">
         <div className="container">
           <h2>Branchez <em>votre stack</em>, ça marche.</h2>
-          <p className="lead">Winaity se connecte à vos outils mailing et CRM préférés. Ou fonctionne en standalone, vous choisissez.</p>
+          <p className="lead">Build withUs se connecte à vos outils mailing et CRM préférés. Ou fonctionne en standalone, vous choisissez.</p>
 
           <div className="integrations-grid">
             <div className="integration-card"><span>Brevo</span></div>

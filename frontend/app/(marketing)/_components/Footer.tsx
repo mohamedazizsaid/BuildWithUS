@@ -1,4 +1,4 @@
-// Marketing footer — static, rebranded to Winaity.
+// Marketing footer — static, rebranded to Build withUs.
 
 export default function Footer() {
   return (
@@ -19,7 +19,7 @@ export default function Footer() {
               <svg className="arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </a>
             <a href="/login" style={{ color: 'var(--ink-300)', fontSize: '13px', fontFamily: 'var(--font-mono)', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
-              <span className="ticker-dot" style={{ background: 'var(--accent-lime)', boxShadow: '0 0 0 2px rgba(198,242,78,0.2)' }}></span>
+              <span className="ticker-dot" style={{ background: 'var(--accent-lime)', boxShadow: '0 0 0 2px rgba(245,158,11,0.25)' }}></span>
               ou se connecter →
             </a>
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-500)', fontFamily: 'var(--font-mono)' }}>Sans carte bancaire • Annulation à tout moment</span>
@@ -29,8 +29,8 @@ export default function Footer() {
         <div className="footer-grid">
           <div className="footer-brand">
             <div className="nav-logo">
-              <span className="nav-logo-mark">W</span>
-              <span>Wina<span className="nav-logo-italic">ity</span></span>
+              <span className="nav-logo-mark">B</span>
+              <span>Build <span className="nav-logo-italic">withUs</span></span>
             </div>
             <p className="footer-tagline">Le Template Builder nouvelle génération pour emails, factures et contrats. Boosté à l&apos;IA, pensé en France.</p>
             <div className="footer-social">
@@ -88,12 +88,12 @@ export default function Footer() {
         </div>
 
         <div className="footer-bottom">
-          <span>© 2026 Winaity — Fait avec soin à Paris 🇫🇷</span>
-          <span>contact@winaity.com</span>
+          <span>© 2026 Build withUs — Fait avec soin à Paris 🇫🇷</span>
+          <span>contact@buildwithus.com</span>
         </div>
 
         <div className="footer-wordmark" aria-hidden="true">
-          Wina<em>ity</em>
+          Build <em>withUs</em>
         </div>
       </div>
     </footer>

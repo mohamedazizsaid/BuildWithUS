@@ -45,9 +45,9 @@ class AiService:
     /api/ai/chat (tool-based block generation)."""
 
     def __init__(self):
-        self.api_key = os.getenv("OPENROUTER_API_KEY")
+        self.api_key = os.getenv("OPENROUTER_API_KEY", "")
         if not self.api_key:
-            raise ValueError("OPENROUTER_API_KEY is not set in environment variables")
+            logger.warning("[AiService] OPENROUTER_API_KEY is not set in environment variables. Running in fallback mode.")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
         self.model = os.getenv("AI_MODEL", "deepseek/deepseek-v3.2")
 
@@ -75,6 +75,8 @@ class AiService:
         curated static set on any error so the wizard never blocks.
         """
         fallback = _FALLBACK_PALETTES.get(email_type, _FALLBACK_PALETTES["generic"])
+        if not self.api_key:
+            return fallback
 
         vibe_line = f" The brand vibe is: {vibe}." if vibe else ""
         system = (
@@ -147,6 +149,8 @@ class AiService:
         """
         if not template_vars or not file_columns:
             return {}
+        if not self.api_key:
+            return {var: None for var in template_vars}
 
         sample_lines = ""
         if sample_row:
@@ -241,6 +245,8 @@ class AiService:
         """
         if not targets or not file_columns:
             return {}
+        if not self.api_key:
+            return {t["path"]: None for t in targets}
 
         sample_lines = ""
         if sample_row:

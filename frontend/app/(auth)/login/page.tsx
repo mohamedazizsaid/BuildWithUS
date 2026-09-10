@@ -44,7 +44,7 @@ export default function LoginPage() {
           aria-label="Retour à l'accueil"
           className="inline-flex w-10 h-10 bg-slate-900 rounded-lg items-center justify-center mb-6 transition-transform hover:scale-105 active:scale-95"
         >
-          <span className="text-white font-bold text-lg">W</span>
+          <span className="text-white font-bold text-lg">B</span>
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Bon retour</h1>
         <p className="text-slate-500 mt-1">
@@ -62,7 +62,7 @@ export default function LoginPage() {
             type="email"
             {...register('email', { required: 'L\'e-mail est obligatoire', pattern: { value: /^\S+@\S+$/i, message: 'E-mail invalide' } })}
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
-            placeholder="ahmed@winaity.com"
+            placeholder="ahmed@buildwithus.com"
           />
           {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
         </div>

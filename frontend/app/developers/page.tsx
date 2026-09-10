@@ -35,9 +35,9 @@ export default function DevelopersPage() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-              <span className="text-black font-black text-sm">W</span>
+              <span className="text-black font-black text-sm">B</span>
             </div>
-            <span className="text-white font-semibold text-sm">WinTemplate Developers</span>
+            <span className="text-white font-semibold text-sm">Build withUs Developers</span>
           </Link>
           <div className="hidden md:flex items-center gap-5 text-sm">
             {TOC.map((t) => (
@@ -72,7 +72,7 @@ export default function DevelopersPage() {
               <Zap className="w-3 h-3" /> Documentation d&apos;intégration · v1
             </div>
             <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">
-              Intègre le builder WinTemplate dans ton produit
+              Intègre le builder Build withUs dans ton produit
             </h1>
             <p className="text-white/60 text-lg max-w-2xl mx-auto">
               Laisse tes utilisateurs créer et gérer des templates depuis ton app — sans second
@@ -141,7 +141,7 @@ export default function DevelopersPage() {
               <p className="text-white/60 text-sm leading-relaxed mb-4">
                 Tu n&apos;as qu&apos;<strong>une seule</strong> paire de clés, même si ton produit
                 sert des centaines d&apos;organisations. À chaque requête, tu indiques pour quelle
-                organisation tu agis via <Mono>custom_champ.external_org_ref</Mono>. WinTemplate
+                organisation tu agis via <Mono>custom_champ.external_org_ref</Mono>. Build withUs
                 tague chaque template avec cette valeur et filtre automatiquement les lectures.
                 Résultat : l&apos;org <Mono>acme</Mono> ne voit jamais les templates de l&apos;org{' '}
                 <Mono>globex</Mono>, alors qu&apos;elles partagent le même secret.
@@ -205,7 +205,7 @@ export default function DevelopersPage() {
         <div className="bg-zinc-950 border border-white/10 rounded-xl p-5">
           <p className="text-xs text-white/40 mb-3 font-mono">Parcours A — séquence détaillée</p>
           <pre className="text-[11px] sm:text-xs overflow-x-auto text-white/70 leading-relaxed">
-{`  TON APP (serveur)                WINTEMPLATE                  TON USER (navigateur)
+{`  TON APP (serveur)                BUILD WITHUS                 TON USER (navigateur)
        │                                │                               │
        │  POST /api/builder-sessions    │                               │
        │  { client_id, client_secret,   │                               │
@@ -238,7 +238,7 @@ export default function DevelopersPage() {
             <h2 className="text-2xl font-semibold">Récupère tes clés</h2>
           </div>
           <p className="text-white/60 text-sm mb-6 max-w-xl">
-            Les clés API se génèrent depuis ton compte WinTemplate. Connecte-toi (ou crée un
+            Les clés API se génèrent depuis ton compte Build withUs. Connecte-toi (ou crée un
             compte), puis ouvre <Mono>Paramètres → Intégrations</Mono> pour générer une paire{' '}
             <Mono>client_id</Mono> / <Mono>client_secret</Mono>. Le secret ne s&apos;affiche
             qu&apos;une seule fois.
@@ -268,7 +268,7 @@ export default function DevelopersPage() {
       {/* ── API reference ────────────────────────────────────────────────── */}
       <Section id="reference" eyebrow="Référence" title="Endpoints">
         <p className="text-white/60 text-sm mb-8 max-w-2xl">
-          Base URL : <Mono>https://api-template-builder.winaity.com</Mono>. Les endpoints
+          Base URL : <Mono>https://api-template-builder.buildwithus.com</Mono>. Les endpoints
           d&apos;intégration s&apos;authentifient par <Mono>client_id</Mono> +{' '}
           <Mono>client_secret</Mono> (jamais de cookie). Les lectures de templates utilisent un{' '}
           <Mono>Bearer</Mono> token.
@@ -324,7 +324,7 @@ export default function DevelopersPage() {
   }
 }`}
             response={`{
-  "url":        "https://app.winaity.com/s/8f3c...e1",
+  "url":        "https://app.buildwithus.com/s/8f3c...e1",
   "expires_at": "2026-06-11T12:00:00.000Z"
 }`}
           />
@@ -437,7 +437,7 @@ Content-Type: application/json
           code={`const ORG_REF = req.user.orgId; // l'org de TON côté (ton DB / ta session)
 
 app.get('/create-template', async (req, res) => {
-  const r = await fetch('https://api-template-builder.winaity.com/api/builder-sessions', {
+  const r = await fetch('https://api-template-builder.buildwithus.com/api/builder-sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -452,7 +452,7 @@ app.get('/create-template', async (req, res) => {
   res.redirect(url); // → l'utilisateur va sur builder.com/s/<token>
 });
 
-// Au save, WinTemplate renvoie l'utilisateur ici :
+// Au save, Build withUs renvoie l'utilisateur ici :
 app.get('/builder/callback', (req, res) => {
   const templateId = req.query.template_id; // "tpl_123"
   saveTemplateForOrg(ORG_REF, templateId);  // stocke chez toi
@@ -466,7 +466,7 @@ app.get('/builder/callback', (req, res) => {
         <CodeBlock
           code={`async function listTemplates(orgRef) {
   // a) token M2M scopé à l'org
-  const t = await fetch('https://api-template-builder.winaity.com/oauth/token', {
+  const t = await fetch('https://api-template-builder.buildwithus.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -478,7 +478,7 @@ app.get('/builder/callback', (req, res) => {
   const { access_token } = await t.json();
 
   // b) la liste est déjà filtrée à orgRef — rien à passer
-  const list = await fetch('https://api-template-builder.winaity.com/templates', {
+  const list = await fetch('https://api-template-builder.buildwithus.com/templates', {
     headers: { Authorization: 'Bearer ' + access_token },
   });
   return (await list.json()).templates;
@@ -497,7 +497,7 @@ app.get('/builder/callback', (req, res) => {
         <CodeBlock
           code={`async function renderTemplate(orgRef, templateId) {
   // token M2M scopé à l'org (comme ci-dessus)
-  const t = await fetch('https://api-template-builder.winaity.com/oauth/token', {
+  const t = await fetch('https://api-template-builder.buildwithus.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -509,7 +509,7 @@ app.get('/builder/callback', (req, res) => {
   const { access_token } = await t.json();
 
   // compile le MJML → HTML (simple GET)
-  const r = await fetch(\`https://api-template-builder.winaity.com/templates/\${templateId}/render\`, {
+  const r = await fetch(\`https://api-template-builder.buildwithus.com/templates/\${templateId}/render\`, {
     headers: { Authorization: 'Bearer ' + access_token },
   });
 
@@ -552,7 +552,7 @@ app.get('/builder/callback', (req, res) => {
 
       <footer className="border-t border-white/10">
         <div className="max-w-5xl mx-auto px-6 py-10 text-center text-white/40 text-sm">
-          WinTemplate Developers · scopes : <Mono>templates:read</Mono> ·{' '}
+          Build withUs Developers · scopes : <Mono>templates:read</Mono> ·{' '}
           <Mono>templates:write</Mono>
         </div>
       </footer>

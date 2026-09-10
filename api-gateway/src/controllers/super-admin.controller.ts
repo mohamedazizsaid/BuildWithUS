@@ -61,8 +61,8 @@ export class SuperAdminController implements OnModuleInit {
     private readonly commandClient: ClientGrpc,
   ) {
     const key = process.env.STRIPE_SECRET_KEY || "";
-    this.stripe = new Stripe(key);
-    this.stripeReady = key.startsWith("sk_");
+    this.stripe = new Stripe(key || "sk_test_placeholder");
+    this.stripeReady = Boolean(key && key.startsWith("sk_") && key !== "sk_test_placeholder");
   }
 
   onModuleInit() {

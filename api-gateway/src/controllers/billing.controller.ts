@@ -198,7 +198,8 @@ export class BillingController implements OnModuleInit {
   private stripe: Stripe;
 
   constructor(@Inject('AUTH_SERVICE') private readonly client: ClientGrpc) {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+    const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
+    this.stripe = new Stripe(stripeKey);
   }
 
   onModuleInit() {

@@ -161,7 +161,7 @@ export default function EmbedPage() {
       <div style={cardStyle}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
           <div>
-            <h1 style={h1Style}>Winaity — mode embed</h1>
+            <h1 style={h1Style}>Build withUs — mode embed</h1>
             <p style={{ ...pStyle, margin: '4px 0 0' }}>
               Mode : <strong>{params.mode}</strong>
               {params.templateId && <> · template : <code style={codeStyle}>{params.templateId}</code></>}

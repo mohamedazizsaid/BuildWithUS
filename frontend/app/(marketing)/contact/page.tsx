@@ -1,4 +1,4 @@
-// Winaity contact page (marketing). The form is a visual placeholder (no
+// Build withUs contact page (marketing). The form is a visual placeholder (no
 // backend wired); dept switch is handled globally by MarketingFX (data-dept).
 const Arrow = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
@@ -32,7 +32,7 @@ export default function ContactPage() {
                 <p className="channel-row__text">Plans, volumes, facturation annuelle, marchés publics. Réponse sous 2h ouvrées.</p>
               </div>
               <div className="channel-row__right">
-                <a href="mailto:contact@winaity.com" className="channel-row__link">contact@winaity.com <Arrow /></a>
+                <a href="mailto:contact@buildwithus.com" className="channel-row__link">contact@buildwithus.com <Arrow /></a>
                 <div className="channel-row__status"><span className="status-dot status-dot--live"></span>Disponible</div>
               </div>
             </div>
@@ -44,7 +44,7 @@ export default function ContactPage() {
                 <p className="channel-row__text">Problème technique ? Contactez l&apos;équipe produit. Priorité absolue pour les clients Pro.</p>
               </div>
               <div className="channel-row__right">
-                <a href="mailto:support@winaity.com" className="channel-row__link">support@winaity.com <Arrow /></a>
+                <a href="mailto:support@buildwithus.com" className="channel-row__link">support@buildwithus.com <Arrow /></a>
                 <div className="channel-row__status"><span className="status-dot status-dot--live"></span>Tous services opérationnels</div>
               </div>
             </div>
@@ -154,7 +154,7 @@ export default function ContactPage() {
                     <h3 className="office-line__city">Support <span className="office-line__flag">💬</span></h3>
                     <span className="office-line__tag">En ligne</span>
                   </div>
-                  <div className="office-line__addr">support@winaity.com</div>
+                  <div className="office-line__addr">support@buildwithus.com</div>
                   <div className="office-line__hours"><Clock /> Réponse sous 24h ouvrées</div>
                 </div>
               </div>
@@ -162,8 +162,8 @@ export default function ContactPage() {
               <div className="aside-section">
                 <span className="eyebrow">→ Informations légales</span>
                 <dl className="legal-list">
-                  <div className="legal-row"><dt>Raison sociale</dt><dd>Winaity SAS</dd></div>
-                  <div className="legal-row"><dt>Contact</dt><dd>contact@winaity.com</dd></div>
+                  <div className="legal-row"><dt>Raison sociale</dt><dd>Build withUs SAS</dd></div>
+                  <div className="legal-row"><dt>Contact</dt><dd>contact@buildwithus.com</dd></div>
                   <div className="legal-row"><dt>Hébergement</dt><dd>France</dd></div>
                   <div className="legal-row"><dt>Conformité</dt><dd>RGPD</dd></div>
                 </dl>

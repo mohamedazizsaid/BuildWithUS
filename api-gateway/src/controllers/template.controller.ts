@@ -557,12 +557,12 @@ async sendTestEmail(@Req() req: any, @Body() body: any) {
   });
 
   const to = body.to || req.user.email;
-  const subject = body.subject || "Test — Winaity Template Builder";
+  const subject = body.subject || "Test — Build withUs Template Builder";
   const html = body.content || "<p>No content</p>";
 
   try {
     await transporter.sendMail({
-      from: `"Winaity" <test@winaity.com>`,
+      from: `"Build withUs" <test@buildwithus.com>`,
       to,
       subject,
       html,

@@ -1,4 +1,4 @@
-// Winaity design system — living styleguide (marketing). TOC anchors use the
+// Build withUs design system — living styleguide (marketing). TOC anchors use the
 // global smooth-scroll from MarketingFX.
 
 function Swatch({ hex, name }: { hex: string; name: string }) {
@@ -15,17 +15,17 @@ function Swatch({ hex, name }: { hex: string; name: string }) {
 
 export default function DesignSystemPage() {
   const blues: Array<[string, string]> = [
-    ['#EEF4FF', 'Blue 50'], ['#DCE7FF', 'Blue 100'], ['#B8CEFF', 'Blue 200'], ['#8BAEFF', 'Blue 300'],
-    ['#5A87FC', 'Blue 400'], ['#2E5FF0', 'Blue 500 · Primary'], ['#1E47D1', 'Blue 600'], ['#1738A8', 'Blue 700'],
-    ['#122B80', 'Blue 800'], ['#0B1E5C', 'Blue 900'], ['#060F33', 'Blue 950'],
+    ['#EEF2FF', 'Indigo 50'], ['#E0E7FF', 'Indigo 100'], ['#C7D2FE', 'Indigo 200'], ['#A5B4FC', 'Indigo 300'],
+    ['#818CF8', 'Indigo 400'], ['#6366F1', 'Indigo 500 · Signature'], ['#4F46E5', 'Indigo 600 · Primary'], ['#4338CA', 'Indigo 700'],
+    ['#3730A3', 'Indigo 800'], ['#312E81', 'Indigo 900'], ['#0F0E26', 'Indigo 950 · Nightfall'],
   ];
   const inks: Array<[string, string]> = [
-    ['#FFFFFF', 'Ink 0'], ['#FAFAFB', 'Ink 50'], ['#F3F4F6', 'Ink 100'], ['#E5E7EB', 'Ink 200'],
-    ['#D1D5DB', 'Ink 300'], ['#9CA3AF', 'Ink 400'], ['#6B7280', 'Ink 500'], ['#4B5563', 'Ink 600'],
-    ['#374151', 'Ink 700'], ['#1F2937', 'Ink 800'], ['#111827', 'Ink 900'], ['#0A0E1A', 'Ink 950'],
+    ['#FFFFFF', 'Ink 0'], ['#F8FAFC', 'Ink 50'], ['#F1F5F9', 'Ink 100'], ['#E2E8F0', 'Ink 200'],
+    ['#CBD5E1', 'Ink 300'], ['#94A3B8', 'Ink 400'], ['#64748B', 'Ink 500'], ['#475569', 'Ink 600'],
+    ['#334155', 'Ink 700'], ['#1E293B', 'Ink 800'], ['#0F172A', 'Ink 900'], ['#020617', 'Ink 950 · Obsidian'],
   ];
   const accents: Array<[string, string]> = [
-    ['#C6F24E', 'Lime · CTA'], ['#FF6B5B', 'Coral'], ['#FFB547', 'Amber'], ['#4EF2B3', 'Mint'],
+    ['#F59E0B', 'Amber · Solar CTA'], ['#F43F5E', 'Coral'], ['#FBBF24', 'Sunburst'], ['#10B981', 'Mint · Success'],
   ];
   const spacing: Array<[string, string, number]> = [
     ['--space-1', '4px', 4], ['--space-2', '8px', 8], ['--space-3', '12px', 12], ['--space-4', '16px', 16],
@@ -42,7 +42,7 @@ export default function DesignSystemPage() {
             <div className="eyebrow" style={{ marginBottom: 'var(--space-4)', justifyContent: 'center', display: 'flex' }}>
               <span>CHARTE GRAPHIQUE · v1.0 · 2026</span>
             </div>
-            <h1>Le langage visuel de <em>Winaity</em></h1>
+            <h1>Le langage visuel de <em>Build withUs</em></h1>
             <p>Un système de design vivant, pensé pour créer des interfaces honnêtes, lisibles et durables. Chaque token, chaque composant, chaque pixel compte.</p>
             <div className="ds-hero-meta">
               <span>Palette complète</span>
@@ -99,11 +99,11 @@ export default function DesignSystemPage() {
           <div className="ds-section-header">
             <div className="ds-section-number">02 — COULEURS</div>
             <h2 className="ds-section-title">Palette <em>complète</em></h2>
-            <p className="ds-section-desc">Le bleu est notre signature — il porte la confiance, la précision, l&apos;infrastructure. Il se combine avec une échelle d&apos;encre neutre et quatre accents fonctionnels.</p>
+            <p className="ds-section-desc">L&apos;Indigo électrique est notre signature — il porte la confiance, la précision, l&apos;infrastructure et la créativité. Il se combine avec une échelle d&apos;encre neutre et quatre accents fonctionnels.</p>
           </div>
 
           <div className="ds-color-family">
-            <div className="ds-color-family-title"><h3>Bleu primaire</h3><span>Signature de marque — CTAs, liens, emphase</span></div>
+            <div className="ds-color-family-title"><h3>Indigo signature</h3><span>Signature de marque — CTAs, liens, emphase</span></div>
             <div className="ds-swatches">{blues.map(([hex, name]) => <Swatch key={name} hex={hex} name={name} />)}</div>
           </div>
           <div className="ds-color-family">
