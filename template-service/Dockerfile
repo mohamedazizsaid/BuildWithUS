@@ -20,10 +20,7 @@ FROM node:20-bookworm-slim AS svc-builder
 
 WORKDIR /app
 
-# Copy proto files (packages/proto → used to generate typed stubs)
-COPY packages/proto/ /packages/proto/
-
-# Copy template-service
+# Copy package manifests first (cache layer)
 COPY template-service/package.json template-service/package-lock.json ./
 
 # Install all deps (devDeps needed to compile TS)
@@ -33,10 +30,11 @@ RUN npm ci
 COPY --from=kernel-builder /kernel/dist /app/node_modules/@winaity/shared-kernel/dist
 COPY --from=kernel-builder /kernel/package.json /app/node_modules/@winaity/shared-kernel/package.json
 
-# Copy source
+# Copy source + the pre-generated proto/generated TypeScript stubs (committed to git)
 COPY template-service/ ./
 
-# Compile NestJS
+# proto/generated is already committed — no cp/generation needed.
+# NestJS build only: nest build + tsc-alias path rewriting
 RUN npm run build
 
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
@@ -48,10 +46,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy proto files for runtime gRPC loader
+# Copy .proto files for runtime gRPC loader (for dynamic reflection)
 COPY packages/proto/ /packages/proto/
 
 COPY --from=svc-builder /app/dist ./dist
+# Copy proto/generated TS stubs as well (runtime may reflect on them)
 COPY --from=svc-builder /app/proto ./proto
 COPY --from=svc-builder /app/package.json /app/package-lock.json ./
 

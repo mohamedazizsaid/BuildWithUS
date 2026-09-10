@@ -50,9 +50,9 @@ services:
           name: buildwithus-db
           property: password
       - key: DB_NAME
-        value: auth_db
+        value: buildwithus   # Single shared Render DB — auth tables live here
       - key: DB_SYNC
-        value: "false"   # Use migrations in production — never true
+        value: "true"   # Creates tables on first boot. Set to false after first deploy.
       - key: JWT_SECRET
         sync: false   # Set a strong random secret (min 64 chars). Use the same value in api-gateway
 
@@ -88,9 +88,9 @@ services:
           name: buildwithus-db
           property: password
       - key: DB_NAME
-        value: templates_db
+        value: buildwithus   # Single shared Render DB — template tables live here
       - key: DB_SYNC
-        value: "false"
+        value: "true"   # Creates tables on first boot. Set to false after first deploy.
   # ── api-gateway (Public Web Service) ─────────────────────────────────────────
   - type: web
     name: api-gateway
