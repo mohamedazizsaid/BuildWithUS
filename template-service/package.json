@@ -7,10 +7,9 @@
   "license": "UNLICENSED",
   "scripts": {
     "proto:sync": "echo \"Using shared packages/proto (no sync needed)\"",
-    "prebuild": "npm run proto:clean && npm run proto:generate",
     "build": "nest build && tsc-alias",
-    "proto:generate": "mkdir -p proto/generated && cp -r ../../packages/proto/gen/ts/google ./proto/generated/ && cp ../../packages/proto/gen/ts/common.ts ../../packages/proto/gen/ts/template_commands.ts ../../packages/proto/gen/ts/template_queries.ts ./proto/generated/",
-    "proto:clean": "rm -rf proto/generated/*",
+    "proto:generate": "echo \"Protos already generated in proto/generated\"",
+    "proto:clean": "echo \"Clean skipped\"",
     "prestart": "npm run proto:sync",
     "start": "nest start",
     "prestart:dev": "npm run proto:sync",

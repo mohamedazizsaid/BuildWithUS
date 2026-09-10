@@ -36,11 +36,8 @@ COPY --from=kernel-builder /kernel/package.json /app/node_modules/@winaity/share
 # Copy source
 COPY template-service/ ./
 
-# Generate proto stubs + compile NestJS
-# proto:generate needs cp from /packages/proto
-RUN mkdir -p proto/generated && \
-    cp -r /packages/proto/. ./proto/ && \
-    npm run build
+# Compile NestJS
+RUN npm run build
 
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
 FROM node:20-bookworm-slim AS runtime
@@ -50,6 +47,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Copy proto files for runtime gRPC loader
+COPY packages/proto/ /packages/proto/
 
 COPY --from=svc-builder /app/dist ./dist
 COPY --from=svc-builder /app/proto ./proto

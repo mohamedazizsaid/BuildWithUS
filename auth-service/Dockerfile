@@ -40,4 +40,4 @@ USER appuser
 EXPOSE 50055
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]
