@@ -16,6 +16,7 @@ export function VariableNodeView({ node, editor, getPos }: NodeViewProps) {
   const handleDelete = useCallback(() => {
     if (!editor || typeof getPos !== 'function') return
     const pos = getPos()
+    if (typeof pos !== 'number') return
     editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run()
   }, [editor, getPos, node.nodeSize])
 

@@ -5,12 +5,12 @@ echo           Demarrage des microservices Winaity Template Builder
 echo ======================================================================
 echo.
 
-echo [1/5] Lancement de Auth Service (Port gRPC 50055)...
-start "Auth Service (50055)" cmd /k "cd /d "%~dp0auth-service" && npm run start:dev"
+echo [1/5] Lancement de Auth Service (Port HTTP 3003)...
+start "Auth Service (3003)" cmd /k "cd /d "%~dp0auth-service" && npm run start:dev"
 ping -n 3 127.0.0.1 >nul
 
-echo [2/5] Lancement de Template Service (Port gRPC 50054)...
-start "Template Service (50054)" cmd /k "cd /d "%~dp0template-service" && npm run start:dev"
+echo [2/5] Lancement de Template Service (Port HTTP 3002)...
+start "Template Service (3002)" cmd /k "cd /d "%~dp0template-service" && npm run start:dev"
 ping -n 3 127.0.0.1 >nul
 
 echo [3/5] Lancement de API Gateway (Port HTTP 3000)...

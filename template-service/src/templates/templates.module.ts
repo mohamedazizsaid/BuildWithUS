@@ -40,11 +40,11 @@ import {
 } from './application/events/index.js';
 import { TemplateRendererService } from './application/services/template-renderer.service.js';
 
-// gRPC Controllers
+// HTTP Controllers
 import {
-  TemplatesCommandsGrpcController,
-  TemplatesQueriesGrpcController,
-} from './infrastructure/grpc/index.js';
+  TemplatesCommandsHttpController,
+  TemplatesQueriesHttpController,
+} from './infrastructure/http/index.js';
 
 // Command Handlers array
 const CommandHandlers = [
@@ -75,10 +75,10 @@ const EventHandlers = [
   TemplateDeletedHandler,
 ];
 
-// gRPC Controllers array
-const GrpcControllers = [
-  TemplatesCommandsGrpcController,
-  TemplatesQueriesGrpcController,
+// HTTP Controllers array
+const HttpControllers = [
+  TemplatesCommandsHttpController,
+  TemplatesQueriesHttpController,
 ];
 
 @Module({
@@ -90,7 +90,7 @@ const GrpcControllers = [
       streams: [TEMPLATES_STREAM],
     }),
   ],
-  controllers: [...GrpcControllers],
+  controllers: [...HttpControllers],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,

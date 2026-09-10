@@ -3,8 +3,7 @@ import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GetPopularTemplatesQuery } from '../get-popular-templates.query.js';
-import type { GetPopularTemplatesResponse } from 'proto/generated/template_queries';
-import { TemplateGrpcMapper } from '../../../infrastructure/grpc/template.grpc-mapper.js';
+import { TemplateHttpMapper } from '../../../infrastructure/http/template.http-mapper.js';
 import { TemplateOrmEntity } from '../../../infrastructure/persistence/entities/template.orm-entity.js';
 
 /**
@@ -14,7 +13,7 @@ import { TemplateOrmEntity } from '../../../infrastructure/persistence/entities/
  * Uses ORM entities directly for query optimization (usageCount is not part of domain).
  */
 @QueryHandler(GetPopularTemplatesQuery)
-export class GetPopularTemplatesHandler implements IQueryHandler<GetPopularTemplatesQuery, GetPopularTemplatesResponse> {
+export class GetPopularTemplatesHandler implements IQueryHandler<GetPopularTemplatesQuery, any> {
   private readonly logger = new Logger(GetPopularTemplatesHandler.name);
 
   constructor(
@@ -22,7 +21,7 @@ export class GetPopularTemplatesHandler implements IQueryHandler<GetPopularTempl
     private readonly repository: Repository<TemplateOrmEntity>,
   ) {}
 
-  async execute(query: GetPopularTemplatesQuery): Promise<GetPopularTemplatesResponse> {
+  async execute(query: GetPopularTemplatesQuery): Promise<any> {
     this.logger.debug(`Getting popular templates (limit: ${query.limit}, type: ${query.type || 'all'})`);
 
     const queryBuilder = this.repository.createQueryBuilder('template')
@@ -40,7 +39,7 @@ export class GetPopularTemplatesHandler implements IQueryHandler<GetPopularTempl
     const entities = await queryBuilder.getMany();
 
     return {
-      templates: entities.map((entity) => TemplateGrpcMapper.fromOrmEntity(entity)),
+      templates: entities.map((entity) => TemplateHttpMapper.fromOrmEntity(entity)),
     };
   }
 }

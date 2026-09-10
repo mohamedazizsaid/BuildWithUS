@@ -18,7 +18,7 @@ databases:
     ipAllowList: []     # Open to all Render services (private network only)
 
 services:
-  # ── auth-service (gRPC Web Service - Free Plan Compatible) ───────────────────
+  # ── auth-service (HTTP Web Service) ─────────────────────────────────────────
   - type: web
     name: auth-service
     runtime: docker
@@ -29,10 +29,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: "50055"
-      - key: GRPC_PORT
-        value: "50055"
       - key: DB_HOST
         fromDatabase:
           name: buildwithus-db
@@ -56,7 +52,7 @@ services:
       - key: JWT_SECRET
         sync: false   # Set a strong random secret (min 64 chars). Use the same value in api-gateway
 
-  # ── template-service (gRPC Web Service - Free Plan Compatible) ────────────────
+  # ── template-service (HTTP Web Service) ──────────────────────────────────────
   - type: web
     name: template-service
     runtime: docker
@@ -67,10 +63,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: "50054"
-      - key: GRPC_PORT
-        value: "50054"
       - key: DB_HOST
         fromDatabase:
           name: buildwithus-db
@@ -91,13 +83,11 @@ services:
         value: buildwithus   # Single shared Render DB — template tables live here
       - key: DB_SYNC
         value: "false"   # Creates tables on first boot. Set to false after first deploy.
-  # ── api-gateway (Public Web Service) ─────────────────────────────────────────
-  - type: web
+
     name: api-gateway
     runtime: docker
-    rootDir: ./api-gateway      # Render treats this as the service root
-    dockerfilePath: ./Dockerfile  # Relative to rootDir
-    dockerContext: .              # Relative to rootDir = api-gateway/
+    dockerfilePath: ./api-gateway/Dockerfile
+    dockerContext: ./api-gateway
     region: frankfurt
     plan: free
     envVars:
@@ -105,53 +95,24 @@ services:
         value: production
       - key: PORT
         value: "3000"
-      - key: FRONTEND_ORIGIN
-        sync: false   # Set to your Vercel domain e.g. https://buildwithus.vercel.app
       - key: AUTH_SERVICE_URL
-        fromService:
-          name: auth-service
-          type: web
-          property: hostport
+        value: http://auth-service:10000
       - key: TEMPLATE_SERVICE_URL
-        fromService:
-          name: template-service
-          type: web
-          property: hostport
-      - key: AI_TEMPLATE_SERVICE_URL
-        sync: false   # Paste the ai-template-service URL from Render dashboard after deploy
-      - key: IMAGE_PIPELINE_URL
-        sync: false   # Paste the image-pipeline URL from Render dashboard after deploy
+        value: http://template-service:10000
+      - key: FRONTEND_ORIGIN
+        sync: false   # Set to your Vercel/production frontend domain
+      - key: JWT_SECRET
+        sync: false   # Same as auth-service JWT_SECRET
       - key: STRIPE_SECRET_KEY
-        sync: false   # Never commit — set in Render dashboard
+        sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
       - key: STRIPE_TAX_RATE_ID
-        value: txr_1UE7vQ8TxBKnCf98aX2ogENp
-      - key: STRIPE_RETURN_URL
-        sync: false   # Set to your Vercel domain e.g. https://buildwithus.vercel.app
-      # Email (Resend)
-      - key: RESEND_API_KEY
         sync: false
-      - key: EMAIL_FROM
-        value: noreply@buildwithus.app
-      # Storage Cloudinary (100% GRATUIT SANS CARTE BANCAIRE : https://cloudinary.com)
+      - key: STRIPE_RETURN_URL
+        sync: false
       - key: CLOUDINARY_URL
-        value: cloudinary://826948159658395:ugHBScB9rskNnKZnk29XC7WOxmY@dhlnfpfen
-      # Storage Fallback (MinIO/S3 - non-bloquant)
-      - key: MINIO_ENDPOINT
-        value: localhost
-      - key: MINIO_PORT
-        value: "9000"
-      - key: MINIO_ACCESS_KEY
-        value: none
-      - key: MINIO_SECRET_KEY
-        value: none
-      - key: MINIO_BUCKET
-        value: templates
-      - key: MINIO_USE_SSL
-        value: "false"
-      - key: JWT_SECRET
-        sync: false   # IMPORTANT: must match the JWT_SECRET set in auth-service
+        sync: false
 
   # ── ai-template-service (Web Service) ────────────────────────────────────────
   - type: web
@@ -179,8 +140,6 @@ services:
     dockerContext: ./image-pipeline
     region: frankfurt
     plan: free
-    # Note: chromadb vector storage — persistent disk requires a paid plan.
-    # On free tier, data resets on redeploy. Upgrade to starter if needed.
     envVars:
       - key: PORT
         value: "8002"

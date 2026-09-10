@@ -6,13 +6,10 @@ import {
   Req,
   Headers,
   HttpCode,
-  Inject,
-  OnModuleInit,
   BadRequestException,
   UseGuards,
 } from '@nestjs/common';
-import { ClientGrpc } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
+import { AuthClientService } from '../services/auth-client.service';
 // CommonJS import form: this project's tsconfig has allowSyntheticDefaultImports
 // (typecheck) but NOT esModuleInterop (runtime), so `import Stripe from 'stripe'`
 // compiles to `stripe_1.default` (undefined) and crashes. `import = require`
@@ -193,17 +190,12 @@ function invoiceTax(inv: Stripe.Invoice): number {
 }
 
 @Controller('billing')
-export class BillingController implements OnModuleInit {
-  private authService: any;
+export class BillingController {
   private stripe: Stripe;
 
-  constructor(@Inject('AUTH_SERVICE') private readonly client: ClientGrpc) {
+  constructor(private readonly authClient: AuthClientService) {
     const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
     this.stripe = new Stripe(stripeKey);
-  }
-
-  onModuleInit() {
-    this.authService = this.client.getService('AuthService');
   }
 
   // ── Create a Stripe Checkout Session and return its hosted URL ────────────
@@ -229,9 +221,7 @@ export class BillingController implements OnModuleInit {
     // place rather than opening a second one. This also clears any scheduled
     // cancellation, so a re-purchase after cancelling immediately drops the
     // "your plan ends on …" state instead of leaving it dangling.
-    const info: any = await firstValueFrom(
-      this.authService.GetTenantBilling({ tenant_id: tenantId }),
-    );
+    const info: any = await this.authClient.getTenantBilling(tenantId);
     if (info?.stripe_subscription_id) {
       try {
         const existing = await this.stripe.subscriptions.retrieve(
@@ -333,9 +323,7 @@ export class BillingController implements OnModuleInit {
   @Get()
   @UseGuards(AuthGuard)
   async getBilling(@Req() req: any) {
-    const info: any = await firstValueFrom(
-      this.authService.GetTenantBilling({ tenant_id: req.user.tenant_id }),
-    );
+    const info: any = await this.authClient.getTenantBilling(req.user.tenant_id);
 
     // Enrich with live Stripe details (card, next renewal, scheduled cancel)
     // when we have a subscription on file.
@@ -370,9 +358,7 @@ export class BillingController implements OnModuleInit {
   @Get('usage')
   @UseGuards(AuthGuard)
   async getUsage(@Req() req: any) {
-    const usage: any = await firstValueFrom(
-      this.authService.GetTenantUsage({ tenant_id: req.user.tenant_id }),
-    );
+    const usage: any = await this.authClient.getTenantUsage(req.user.tenant_id);
     const plan = usage?.plan ?? 'free';
     const limits = limitsFor(plan);
     return {
@@ -394,9 +380,7 @@ export class BillingController implements OnModuleInit {
   @Post('ai/consume')
   @UseGuards(AuthGuard)
   async consumeAi(@Req() req: any) {
-    const usage: any = await firstValueFrom(
-      this.authService.GetTenantUsage({ tenant_id: req.user.tenant_id }),
-    );
+    const usage: any = await this.authClient.getTenantUsage(req.user.tenant_id);
     const plan = usage?.plan ?? 'free';
     const limit = limitsFor(plan).aiInteractions;
     if (limit === null) {
@@ -410,12 +394,7 @@ export class BillingController implements OnModuleInit {
           "Vous avez utilisé votre interaction gratuite avec l'assistant IA. Passez à un plan payant pour un usage illimité.",
       });
     }
-    await firstValueFrom(
-      this.authService.IncrementTenantUsage({
-        tenant_id: req.user.tenant_id,
-        kind: 'ai_interaction',
-      }),
-    );
+    await this.authClient.incrementTenantUsage(req.user.tenant_id, 'ai_interaction');
     return { ok: true, remaining: Math.max(0, limit - used - 1) };
   }
 
@@ -424,9 +403,7 @@ export class BillingController implements OnModuleInit {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin')
   async cancel(@Req() req: any) {
-    const info: any = await firstValueFrom(
-      this.authService.GetTenantBilling({ tenant_id: req.user.tenant_id }),
-    );
+    const info: any = await this.authClient.getTenantBilling(req.user.tenant_id);
     if (!info?.stripe_subscription_id) {
       throw new BadRequestException('No active subscription');
     }
@@ -451,9 +428,7 @@ export class BillingController implements OnModuleInit {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin')
   async reactivate(@Req() req: any) {
-    const info: any = await firstValueFrom(
-      this.authService.GetTenantBilling({ tenant_id: req.user.tenant_id }),
-    );
+    const info: any = await this.authClient.getTenantBilling(req.user.tenant_id);
     if (!info?.stripe_subscription_id) {
       throw new BadRequestException('No active subscription');
     }
@@ -586,9 +561,7 @@ export class BillingController implements OnModuleInit {
           // Only a real change is worth a CRM subscription.updated.
           let before: any = null;
           try {
-            before = await firstValueFrom(
-              this.authService.GetTenantBilling({ tenant_id: tenantId }),
-            );
+            before = await this.authClient.getTenantBilling(tenantId);
           } catch {
             /* unreachable — skip the change detection, still apply the plan */
           }
@@ -683,16 +656,14 @@ export class BillingController implements OnModuleInit {
     customerId: string;
     subscriptionId: string;
   }) {
-    await firstValueFrom(
-      this.authService.UpdateTenantPlan({
-        tenant_id: args.tenantId,
-        plan: args.plan,
-        billing_cycle: args.cycle,
-        subscription_status: args.status,
-        stripe_customer_id: args.customerId,
-        stripe_subscription_id: args.subscriptionId,
-      }),
-    );
+    await this.authClient.updateTenantPlan({
+      tenant_id: args.tenantId,
+      plan: args.plan,
+      billing_cycle: args.cycle,
+      subscription_status: args.status,
+      stripe_customer_id: args.customerId,
+      stripe_subscription_id: args.subscriptionId,
+    });
   }
 
   // ── CRM Gestion forwarding ────────────────────────────────────────────────
@@ -707,9 +678,7 @@ export class BillingController implements OnModuleInit {
     let admin: any = null;
 
     try {
-      const info: any = await firstValueFrom(
-        this.authService.GetTenantBilling({ tenant_id: tenantId }),
-      );
+      const info: any = await this.authClient.getTenantBilling(tenantId);
       tenant = {
         id: tenantId,
         name: info?.name || '',
@@ -726,9 +695,7 @@ export class BillingController implements OnModuleInit {
     }
 
     try {
-      const a: any = await firstValueFrom(
-        this.authService.GetTenantAdmin({ tenant_id: tenantId }),
-      );
+      const a: any = await this.authClient.getTenantAdmin(tenantId);
       admin = {
         id: a?.id || '',
         first_name: a?.first_name || '',

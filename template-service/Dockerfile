@@ -71,7 +71,7 @@ COPY --from=kernel-builder /kernel/node_modules /packages/shared-kernel/node_mod
 RUN useradd -r -s /bin/false appuser && chown -R appuser /app /packages/shared-kernel
 USER appuser
 
-EXPOSE 50054
+EXPOSE 10000
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["sh", "-c", "if [ -f dist/src/main.js ]; then node dist/src/main.js; else node dist/main.js; fi"]

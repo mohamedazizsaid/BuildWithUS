@@ -3,11 +3,8 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
-  Inject,
-  OnModuleInit,
 } from "@nestjs/common";
-import { ClientGrpc } from "@nestjs/microservices";
-import { firstValueFrom } from "rxjs";
+import { AuthClientService } from "../services/auth-client.service";
 
 /**
  * AuthGuard — the BOUNCER of the API Gateway.
@@ -20,16 +17,8 @@ import { firstValueFrom } from "rxjs";
  * Usage: @UseGuards(AuthGuard) on a controller or method
  */
 @Injectable()
-export class AuthGuard implements CanActivate, OnModuleInit {
-  private authService: any;
-
-  // Inject the AUTH_SERVICE gRPC client (registered in app.module.ts)
-  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
-
-  // Called once when the module starts — gets a reference to the AuthService gRPC methods
-  onModuleInit() {
-    this.authService = this.client.getService("AuthService");
-  }
+export class AuthGuard implements CanActivate {
+  constructor(private readonly authClient: AuthClientService) {}
 
   /**
    * canActivate — called on every request to a guarded route.
@@ -50,9 +39,7 @@ export class AuthGuard implements CanActivate, OnModuleInit {
     }
 
     try {
-      const result: any = await firstValueFrom(
-        this.authService.ValidateToken({ token }),
-      );
+      const result: any = await this.authClient.validateToken(token);
 
       if (!result.valid) {
         throw new UnauthorizedException("Invalid token");

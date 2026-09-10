@@ -55,7 +55,7 @@ export class TemplateRepositoryImpl extends TemplateRepository {
     }
 
     if (options?.type) {
-      queryBuilder.andWhere('template.type = :type', { type: options.type });
+      queryBuilder.andWhere('LOWER(template.type) = :type', { type: options.type.toLowerCase() });
     }
 
     if (options?.search && options.search.trim()) {
@@ -70,7 +70,7 @@ export class TemplateRepositoryImpl extends TemplateRepository {
     }
 
     if (options?.excludePredefinedOverrides) {
-      queryBuilder.andWhere('template.isPredefinedOverride = :notOverride', { notOverride: false });
+      queryBuilder.andWhere('(template.isPredefinedOverride = :notOverride OR template.isPredefinedOverride IS NULL)', { notOverride: false });
     }
 
     if (options?.predefinedOverridesOnly) {

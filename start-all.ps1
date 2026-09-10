@@ -6,12 +6,12 @@ Write-Host "      Lancement des microservices Winaity Template Builder          
 Write-Host "======================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "[1/5] Lancement de Auth Service (Port gRPC 50055)..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\auth-service'; Write-Host '--- Auth Service (50055) ---' -ForegroundColor Cyan; npm run start:dev"
+Write-Host "[1/5] Lancement de Auth Service (Port HTTP 3003)..." -ForegroundColor Green
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\auth-service'; Write-Host '--- Auth Service (3003) ---' -ForegroundColor Cyan; npm run start:dev"
 Start-Sleep -Seconds 2
 
-Write-Host "[2/5] Lancement de Template Service (Port gRPC 50054)..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\template-service'; Write-Host '--- Template Service (50054) ---' -ForegroundColor Cyan; npm run start:dev"
+Write-Host "[2/5] Lancement de Template Service (Port HTTP 3002)..." -ForegroundColor Green
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\template-service'; Write-Host '--- Template Service (3002) ---' -ForegroundColor Cyan; npm run start:dev"
 Start-Sleep -Seconds 2
 
 Write-Host "[3/5] Lancement de API Gateway (Port HTTP 3000)..." -ForegroundColor Green

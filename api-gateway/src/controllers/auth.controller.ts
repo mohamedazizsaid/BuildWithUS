@@ -3,37 +3,30 @@ import {
   Post,
   Get,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
   Req,
   Res,
-  Inject,
-  OnModuleInit,
   UseGuards,
   HttpCode,
   BadRequestException,
   NotFoundException,
   ForbiddenException,
 } from "@nestjs/common";
-import { ClientGrpc } from "@nestjs/microservices";
-import { firstValueFrom } from "rxjs";
 import { Response } from "express";
 import { AuthGuard } from "../guards/auth.guard";
 import { Roles, RolesGuard } from "../guards/roles.guard";
 import { limitsFor } from "../plan-limits";
+import { AuthClientService } from "../services/auth-client.service";
 import * as nodemailer from "nodemailer";
 
 /**
- * AuthController — handles all /auth/* REST routes.
- *
- * Translates HTTP requests from the frontend into gRPC calls to the auth-service.
- * Public routes: register, login, accept-invite, logout (no token needed)
- * Protected routes: me, profile, invite, members (token required via AuthGuard)
+ * AuthController — handles all /auth/* REST routes via AuthClientService (HTTP/REST).
  */
 @Controller("auth")
-export class AuthController implements OnModuleInit {
-  private authService: any;
+export class AuthController {
   private transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -42,45 +35,31 @@ export class AuthController implements OnModuleInit {
     },
   });
 
-  // Inject the AUTH_SERVICE gRPC client
-  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
-
-  // Get a reference to the AuthService gRPC methods when the module starts
-  onModuleInit() {
-    this.authService = this.client.getService("AuthService");
-  }
+  constructor(private readonly authClient: AuthClientService) {}
 
   /**
    * POST /auth/register — PUBLIC
-   * Creates a new organization (tenant) + first user (admin).
-   * Sets JWT token as httpOnly cookie so the user is logged in immediately.
    */
   @Post("register")
   async register(@Body() body: any, @Res() res: Response) {
-    // Translate REST body (camelCase) → gRPC request (snake_case)
-    const result: any = await firstValueFrom(
-      this.authService.Register({
-        tenant_name: body.tenantName,
-        email: body.email,
-        password: body.password,
-        first_name: body.firstName,
-        last_name: body.lastName,
-        phone: body.phone,
-        address_line: body.addressLine,
-        postal_code: body.postalCode,
-        city: body.city,
-        country: body.country,
-      }),
-    );
+    const result = await this.authClient.register({
+      tenant_name: body.tenantName || body.tenant_name,
+      email: body.email,
+      password: body.password,
+      first_name: body.firstName || body.first_name,
+      last_name: body.lastName || body.last_name,
+      phone: body.phone,
+      address_line: body.addressLine || body.address_line,
+      postal_code: body.postalCode || body.postal_code,
+      city: body.city,
+      country: body.country,
+    });
 
-    // Set JWT as httpOnly cookie — browser sends it automatically on every request
-    // httpOnly: true → JavaScript can't read it (protects against XSS attacks)
-    // sameSite: 'lax' → cookie not sent to other websites (protects against CSRF)
     res.cookie("token", result.token, {
       httpOnly: true,
-      secure: false, // true in production (HTTPS)
+      secure: false,
       sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000, // 24h
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
     return res.json({ user: result.user });
@@ -88,16 +67,13 @@ export class AuthController implements OnModuleInit {
 
   /**
    * POST /auth/login — PUBLIC
-   * Verifies email + password, returns user info and sets JWT cookie.
    */
   @Post("login")
   async login(@Body() body: any, @Res() res: Response) {
-    const result: any = await firstValueFrom(
-      this.authService.Login({
-        email: body.email,
-        password: body.password,
-      }),
-    );
+    const result = await this.authClient.login({
+      email: body.email,
+      password: body.password,
+    });
 
     res.cookie("token", result.token, {
       httpOnly: true,
@@ -111,7 +87,6 @@ export class AuthController implements OnModuleInit {
 
   /**
    * POST /auth/logout — PUBLIC
-   * Clears the JWT cookie — user is no longer authenticated.
    */
   @Post("logout")
   async logout(@Res() res: Response) {
@@ -120,9 +95,7 @@ export class AuthController implements OnModuleInit {
   }
 
   /**
-   * GET /auth/me — PROTECTED (requires valid JWT)
-   * Returns the full user profile + tenant name.
-   * Used by frontend on page load to check if user is logged in.
+   * GET /auth/me — PROTECTED
    */
   @Get("me")
   @UseGuards(AuthGuard)
@@ -140,56 +113,40 @@ export class AuthController implements OnModuleInit {
       };
     }
 
-    const result = await firstValueFrom(
-      this.authService.GetMe({ token: req.token }),
-    );
-    return result;
+    return this.authClient.getMe(req.user.id);
   }
 
   /**
    * PUT /auth/profile — PROTECTED
-   * Updates the user's first name and last name.
    */
   @Put("profile")
   @UseGuards(AuthGuard)
   async updateProfile(@Req() req: any, @Body() body: any) {
-    const result = await firstValueFrom(
-      this.authService.UpdateProfile({
-        token: req.token,
-        first_name: body.firstName,
-        last_name: body.lastName,
-      }),
-    );
-    return result;
+    return this.authClient.updateProfile({
+      user_id: req.user.id,
+      token: req.token,
+      first_name: body.firstName || body.first_name,
+      last_name: body.lastName || body.last_name,
+    });
   }
 
   /**
    * PUT /auth/first-log — PROTECTED
-   * Marks the first-run onboarding tour as seen for the current user. Idempotent.
    */
   @Put("first-log")
   @UseGuards(AuthGuard)
   async markFirstLog(@Req() req: any) {
-    const result = await firstValueFrom(
-      this.authService.MarkFirstLog({ token: req.token }),
-    );
-    return result;
+    return this.authClient.markFirstLog(req.user.id);
   }
 
   /**
-   * POST /auth/invite — PROTECTED (admin only in practice)
-   * Sends an invite to a new user. Returns a token-based invite link (expires in 15min).
-   * tenant_id and invited_by are extracted from the JWT — frontend doesn't send them.
+   * POST /auth/invite — PROTECTED
    */
   @Post("invite")
   @UseGuards(AuthGuard, RolesGuard)
   @Roles("admin")
   async inviteUser(@Req() req: any, @Body() body: any) {
-    // Inviting/creating additional users is a Pro Organisation (or internal)
-    // capability. Pro and free tenants are single-seat.
-    const usage: any = await firstValueFrom(
-      this.authService.GetTenantUsage({ tenant_id: req.user.tenant_id }),
-    );
+    const usage = await this.authClient.getTenantUsage(req.user.tenant_id);
     if (!limitsFor(usage?.plan).canInviteUsers) {
       throw new ForbiddenException({
         code: "plan_limit",
@@ -199,268 +156,161 @@ export class AuthController implements OnModuleInit {
       });
     }
 
-    const result: any = await firstValueFrom(
-      this.authService.InviteUser({
-        tenant_id: req.user.tenant_id,
-        email: body.email,
-        role: body.role || "editor",
-        invited_by: req.user.id,
-      }),
-    );
+    const result = await this.authClient.inviteUser({
+      tenant_id: req.user.tenant_id,
+      email: body.email,
+      role: body.role || "editor",
+      invited_by: req.user.id,
+    });
 
-    // Send invite email via Gmail. Use the public frontend URL in prod, falling
-    // back to localhost only in dev. FRONTEND_PUBLIC_URL wins if set; otherwise
-    // use the first origin from FRONTEND_ORIGIN (already set to the prod URL).
     const frontendUrl = (
       process.env.FRONTEND_PUBLIC_URL ||
       (process.env.FRONTEND_ORIGIN || "").split(",")[0].trim() ||
       "http://localhost:3001"
     ).replace(/\/+$/, "");
     const inviteLink = `${frontendUrl}/invite?token=${result.invite.token}`;
-    console.log("Sending invite email to:", body.email);
+
     try {
-      const emailResult = await this.transporter.sendMail({
-        from: `Build withUs <${process.env.GMAIL_USER}>`,
+      await this.transporter.sendMail({
+        from: `"Build withUs" <${process.env.GMAIL_USER}>`,
         to: body.email,
-        subject: "You've been invited to join an organization on Build withUs",
+        subject: "Invitation à rejoindre Build withUs",
         html: `
-          <div style="background:#eef2f8;padding:32px 12px;font-family:Inter,'Helvetica Neue',Arial,sans-serif;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
-              <tr>
-                <td style="background:#ffffff;border-radius:16px;padding:40px;">
-
-                  <!-- Logo -->
-                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-                    <tr>
-                      <td style="width:44px;height:44px;background:#2563eb;border-radius:12px;text-align:center;vertical-align:middle;">
-                        <span style="color:#ffffff;font-weight:800;font-size:20px;">B</span>
-                      </td>
-                    </tr>
-                  </table>
-
-                  <!-- Titre + texte -->
-                  <h1 style="margin:0 0 10px;color:#0f172a;font-size:23px;font-weight:800;letter-spacing:-0.4px;line-height:30px;">
-                    Vous êtes invité·e à nous rejoindre
-                  </h1>
-                  <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:24px;">
-                    Vous avez été invité·e à rejoindre une organisation sur Build withUs. Vous la rejoindrez avec le rôle ci-dessous.
-                  </p>
-
-                  <!-- Badge rôle -->
-                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-                    <tr>
-                      <td style="background:#eff4ff;border:1px solid #dbe6ff;border-radius:8px;padding:8px 16px;">
-                        <span style="color:#2563eb;font-size:13px;font-weight:700;letter-spacing:0.3px;">RÔLE&nbsp;·&nbsp;${body.role || "editor"}</span>
-                      </td>
-                    </tr>
-                  </table>
-
-                  <!-- Bouton -->
-                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-                    <tr>
-                      <td style="background:#2563eb;border-radius:50px;">
-                        <a href="${inviteLink}" style="display:inline-block;padding:15px 34px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">
-                          Rejoindre l'organisation
-                        </a>
-                      </td>
-                    </tr>
-                  </table>
-
-                  <hr style="border:none;border-top:1px solid #eef2f8;margin:0 0 20px;">
-                  <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
-                    Cette invitation expire dans 15 minutes. Si vous ne vous attendiez pas à cette invitation, vous pouvez ignorer cet email.
-                  </p>
-
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:24px 0 8px;text-align:center;">
-                  <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
-                    © 2026 Build withUs · <a href="#" style="color:#64748b;text-decoration:underline;">Centre d'aide</a> · Paris, FR
-                  </p>
-                </td>
-              </tr>
-            </table>
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Vous avez été invité sur Build withUs</h2>
+            <p>Bonjour,</p>
+            <p>Vous avez été invité à rejoindre l'espace de travail sur Build withUs avec le rôle <strong>${body.role || "editor"}</strong>.</p>
+            <p>Cliquez sur le lien ci-dessous pour accepter l'invitation et créer votre mot de passe (valable 15 minutes) :</p>
+            <p style="margin: 30px 0;">
+              <a href="${inviteLink}" style="background-color: #6366f1; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                Accepter l'invitation
+              </a>
+            </p>
+            <p style="color: #666; font-size: 14px;">Ou copiez ce lien : ${inviteLink}</p>
           </div>
         `,
       });
-      console.log("Email sent:", emailResult.messageId);
     } catch (emailError) {
       console.error("Failed to send invite email:", emailError);
     }
 
-    return result;
+    return { success: true, message: "Invitation envoyée", invite: result.invite };
   }
 
   /**
    * POST /auth/accept-invite — PUBLIC
-   * Invited user creates their account using the invite token.
-   * The token contains: tenantId, email, role (set by the admin who invited them).
-   * Sets JWT cookie so the user is logged in immediately after joining.
    */
   @Post("accept-invite")
-  async acceptInvite(@Body() body: any, @Res() res: Response) {
-    const result: any = await firstValueFrom(
-      this.authService.AcceptInvite({
-        token: body.token, // invite token from the link
-        password: body.password,
-        first_name: body.firstName,
-        last_name: body.lastName,
-      }),
-    );
-
-    res.cookie("token", result.token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000,
+  async acceptInvite(@Body() body: any) {
+    return this.authClient.acceptInvite({
+      token: body.token,
+      password: body.password,
+      first_name: body.firstName || body.first_name,
+      last_name: body.lastName || body.last_name,
     });
-
-    return res.json({ user: result.user });
   }
 
   /**
    * POST /auth/forgot-password — PUBLIC
-   * Sends a password reset link (expires in 15min) to the given email.
-   * Always returns a generic success — we never reveal whether the account
-   * exists. The auth-service only returns a token when a user is found, and
-   * we only send the email in that case.
    */
   @Post("forgot-password")
-  @HttpCode(200)
   async forgotPassword(@Body() body: any) {
-    const email = (body.email || "").trim();
-    const result: any = await firstValueFrom(
-      this.authService.RequestPasswordReset({ email }),
-    );
+    const result = await this.authClient.requestPasswordReset(body.email);
 
-    if (result?.email_exists && result?.token) {
-      // Use the public frontend URL in prod, falling back to localhost in dev.
-      // FRONTEND_PUBLIC_URL wins if set; otherwise the first FRONTEND_ORIGIN.
+    if (result?.token) {
       const frontendUrl = (
         process.env.FRONTEND_PUBLIC_URL ||
         (process.env.FRONTEND_ORIGIN || "").split(",")[0].trim() ||
         "http://localhost:3001"
       ).replace(/\/+$/, "");
       const resetLink = `${frontendUrl}/reset-password?token=${result.token}`;
-      console.log("Sending password reset email to:", result.email);
+
       try {
-        const emailResult = await this.transporter.sendMail({
-          from: `Build withUs <${process.env.GMAIL_USER}>`,
-          to: result.email,
-          subject: "Reset your Build withUs password",
+        await this.transporter.sendMail({
+          from: `"Build withUs" <${process.env.GMAIL_USER}>`,
+          to: body.email,
+          subject: "Réinitialisation de votre mot de passe — Build withUs",
           html: `
-            <div style="background:#eef2f8;padding:32px 12px;font-family:Inter,'Helvetica Neue',Arial,sans-serif;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
-                <tr>
-                  <td style="background:#ffffff;border-radius:16px;padding:40px;">
-
-                    <!-- Logo -->
-                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-                      <tr>
-                        <td style="width:44px;height:44px;background:#2563eb;border-radius:12px;text-align:center;vertical-align:middle;">
-                          <span style="color:#ffffff;font-weight:800;font-size:20px;">B</span>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <!-- Titre + texte -->
-                    <h1 style="margin:0 0 10px;color:#0f172a;font-size:23px;font-weight:800;letter-spacing:-0.4px;line-height:30px;">
-                      Réinitialisez votre mot de passe
-                    </h1>
-                    <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:24px;">
-                      ${result.first_name ? `Bonjour ${result.first_name},<br/><br/>` : ""}Nous avons reçu une demande de réinitialisation de votre mot de passe Build withUs. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
-                    </p>
-
-                    <!-- Bouton -->
-                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-                      <tr>
-                        <td style="background:#2563eb;border-radius:50px;">
-                          <a href="${resetLink}" style="display:inline-block;padding:15px 34px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">
-                            Réinitialiser le mot de passe
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <hr style="border:none;border-top:1px solid #eef2f8;margin:0 0 20px;">
-                    <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
-                      Ce lien expire dans 15 minutes. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email — votre mot de passe restera inchangé.
-                    </p>
-
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:24px 0 8px;text-align:center;">
-                    <p style="margin:0;color:#94a3b8;font-size:12px;line-height:19px;">
-                      © 2026 Build withUs · <a href="#" style="color:#64748b;text-decoration:underline;">Centre d'aide</a> · Paris, FR
-                    </p>
-                  </td>
-                </tr>
-              </table>
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Réinitialisation de mot de passe</h2>
+              <p>Bonjour,</p>
+              <p>Une demande de réinitialisation de mot de passe a été effectuée pour votre compte.</p>
+              <p>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe (valable 1 heure) :</p>
+              <p style="margin: 30px 0;">
+                <a href="${resetLink}" style="background-color: #6366f1; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                  Réinitialiser mon mot de passe
+                </a>
+              </p>
+              <p style="color: #666; font-size: 14px;">Ou copiez ce lien : ${resetLink}</p>
+              <p style="color: #999; font-size: 12px;">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
             </div>
           `,
         });
-        console.log("Reset email sent:", emailResult.messageId);
-      } catch (emailError) {
-        console.error("Failed to send password reset email:", emailError);
+      } catch (err) {
+        console.error("Failed to send reset password email:", err);
       }
     }
 
-    // Generic response regardless of whether the account exists.
-    return {
-      message:
-        "If an account exists for that email, a password reset link has been sent.",
-    };
+    return { message: "Si cet email existe, un lien a été envoyé" };
   }
 
   /**
    * POST /auth/reset-password — PUBLIC
-   * Sets a new password using the reset token from the email link.
    */
   @Post("reset-password")
-  @HttpCode(200)
   async resetPassword(@Body() body: any) {
-    const result: any = await firstValueFrom(
-      this.authService.ResetPassword({
-        token: body.token,
-        password: body.password,
-      }),
-    );
-    return result;
+    return this.authClient.resetPassword(body.token, body.password);
   }
 
   /**
    * GET /auth/members — PROTECTED
-   * Lists all users in the same organization (tenant).
-   * Used by admin to see who's in their team.
    */
   @Get("members")
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles("admin")
+  @UseGuards(AuthGuard)
   async listMembers(@Req() req: any) {
-    const result = await firstValueFrom(
-      this.authService.ListMembers({ token: req.token }),
-    );
-    return result;
+    return this.authClient.listMembers(req.user.tenant_id);
   }
 
-  // ── Super Admin endpoints (prefix: /auth) ────────────────────────────────
-
+  /**
+   * GET /auth/admin/tenants — PROTECTED (super_admin)
+   */
   @Get("admin/tenants")
   @UseGuards(AuthGuard, RolesGuard)
   @Roles("super_admin")
   async listAllTenants() {
-    return firstValueFrom(this.authService.ListAllTenants({}));
+    return this.authClient.listAllTenants();
   }
 
+  /**
+   * PATCH /auth/admin/tenants/:id/plan — PROTECTED (super_admin)
+   */
+  @Patch("admin/tenants/:id/plan")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("super_admin")
+  async updateTenantPlan(@Param("id") id: string, @Body() body: any) {
+    return this.authClient.updateTenantPlan({
+      tenant_id: id,
+      plan: body.plan,
+      billing_cycle: body.billing_cycle,
+      subscription_status: body.subscription_status,
+      stripe_customer_id: body.stripe_customer_id,
+      stripe_subscription_id: body.stripe_subscription_id,
+    });
+  }
+
+  /**
+   * GET /auth/admin/tenants/:tenantId/api-clients — PROTECTED (super_admin)
+   */
   @Get("admin/tenants/:tenantId/api-clients")
   @UseGuards(AuthGuard, RolesGuard)
   @Roles("super_admin")
   async listApiClients(@Param("tenantId") tenantId: string) {
-    return firstValueFrom(this.authService.ListApiClients({ tenant_id: tenantId }));
+    return this.authClient.listApiClients(tenantId);
   }
 
+  /**
+   * POST /auth/admin/tenants/:tenantId/api-clients — PROTECTED (super_admin)
+   */
   @Post("admin/tenants/:tenantId/api-clients")
   @UseGuards(AuthGuard, RolesGuard)
   @Roles("super_admin")
@@ -468,38 +318,30 @@ export class AuthController implements OnModuleInit {
     @Param("tenantId") tenantId: string,
     @Body() body: { scopes?: string },
   ) {
-    return firstValueFrom(
-      this.authService.GenerateApiClient({
-        tenant_id: tenantId,
-        scopes: body.scopes || "templates:read templates:write",
-      }),
-    );
+    return this.authClient.generateApiClient({
+      tenant_id: tenantId,
+      scopes: body.scopes || "templates:read templates:write",
+    });
   }
 
+  /**
+   * DELETE /auth/admin/api-clients/:id — PROTECTED (super_admin)
+   */
   @Delete("admin/api-clients/:id")
   @UseGuards(AuthGuard, RolesGuard)
   @Roles("super_admin")
   async revokeApiClient(@Param("id") id: string) {
-    return firstValueFrom(this.authService.RevokeApiClient({ id }));
+    return this.authClient.revokeApiClient(id);
   }
 }
 
 @Controller()
-export class OAuthController implements OnModuleInit {
-  private authService: any;
-
-  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
-
-  onModuleInit() {
-    this.authService = this.client.getService("AuthService");
-  }
+export class OAuthController {
+  constructor(private readonly authClient: AuthClientService) {}
 
   @Post("oauth/token")
   @HttpCode(200)
   async issueToken(@Body() body: any) {
-    // M2M tokens are scoped to a single org of the calling tool. The org id rides
-    // in custom_champ.external_org_ref (or organisation_id for backwards-compat)
-    // and is baked into the token so /templates is auto-filtered to that org.
     const externalOrgRef =
       body?.custom_champ?.external_org_ref ||
       body?.external_org_ref ||
@@ -509,65 +351,42 @@ export class OAuthController implements OnModuleInit {
         "custom_champ.external_org_ref is required to scope the token to an organization",
       );
     }
-    return firstValueFrom(
-      this.authService.IssueClientToken({
-        client_id: body.client_id,
-        client_secret: body.client_secret,
-        user_id: body.user_id || "",
-        organisation_id: externalOrgRef,
-      }),
-    );
+    return this.authClient.issueClientToken({
+      client_id: body.client_id,
+      client_secret: body.client_secret,
+      user_id: body.user_id || "",
+      organisation_id: externalOrgRef,
+    });
   }
 
   @Post("oauth/register")
   @HttpCode(201)
   async registerApiClient(@Body() body: any) {
-    return firstValueFrom(
-      this.authService.RegisterApiClient({
-        app_name: body.app_name,
-        contact_email: body.contact_email || "",
-        scopes: body.scopes || "",
-      }),
-    );
+    return this.authClient.registerApiClient({
+      app_name: body.app_name,
+      contact_email: body.contact_email || "",
+      scopes: body.scopes || "",
+    });
   }
 }
 
 @Controller()
-export class DevelopersController implements OnModuleInit {
-  private authService: any;
-
-  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
-
-  onModuleInit() {
-    this.authService = this.client.getService("AuthService");
-  }
-
-  // NOTE: the old anonymous `POST /developers/register` route was removed.
-  // It minted a brand-new orphan tenant per call (no owning account), which
-  // caused integrations to silently lose their templates when a key was
-  // regenerated. Keys are now issued only from inside a logged-in tenant
-  // account via the tenant-scoped /integrations/* routes below.
+export class DevelopersController {
+  constructor(private readonly authClient: AuthClientService) {}
 
   @Post("developers/return-urls")
   @HttpCode(200)
   async updateReturnUrls(@Body() body: any) {
-    return firstValueFrom(
-      this.authService.UpdateAllowedReturnUrls({
-        client_id: body.client_id,
-        client_secret: body.client_secret,
-        urls: Array.isArray(body.urls) ? body.urls : [],
-      }),
-    );
+    return this.authClient.updateAllowedReturnUrls({
+      client_id: body.client_id,
+      client_secret: body.client_secret,
+      urls: Array.isArray(body.urls) ? body.urls : [],
+    });
   }
 
   @Post("api/builder-sessions")
   @HttpCode(201)
   async mintSession(@Body() body: any) {
-    // The integrating tool tells us which of ITS organizations this session is
-    // for, via a generic custom_champ object carrying a reserved external_org_ref
-    // key (top-level external_org_ref also accepted as a convenience). This is the
-    // isolation key stored on every template created in the session — required so
-    // one tool's orgs never share a template pool.
     const externalOrgRef =
       body?.custom_champ?.external_org_ref || body?.external_org_ref;
     if (!externalOrgRef) {
@@ -575,16 +394,14 @@ export class DevelopersController implements OnModuleInit {
         "custom_champ.external_org_ref is required to scope the session to an organization",
       );
     }
-    const result: any = await firstValueFrom(
-      this.authService.MintBuilderSession({
-        client_id: body.client_id,
-        client_secret: body.client_secret,
-        mode: body.mode || "new",
-        return_url: body.return_url,
-        template_id: body.template_id || "",
-        user_ref: externalOrgRef,
-      }),
-    );
+    const result = await this.authClient.mintBuilderSession({
+      client_id: body.client_id,
+      client_secret: body.client_secret,
+      mode: body.mode || "new",
+      return_url: body.return_url,
+      template_id: body.template_id || "",
+      external_org_ref: externalOrgRef,
+    });
     const frontend = process.env.FRONTEND_PUBLIC_URL || "http://localhost:3001";
     return {
       url: `${frontend}/s/${result.token}`,
@@ -595,42 +412,20 @@ export class DevelopersController implements OnModuleInit {
   @Post("s/exchange")
   @HttpCode(200)
   async exchangeSession(@Body() body: any) {
-    return firstValueFrom(
-      this.authService.ExchangeBuilderSession({ token: body.token }),
-    );
+    return this.authClient.exchangeBuilderSession(body.token);
   }
 }
 
-/**
- * IntegrationsController — tenant self-service API keys (prefix: /integrations).
- *
- * Every route is behind the dashboard JWT and restricted to admins. The tenant
- * is always taken from the token (req.user.tenant_id), never the request body —
- * this is what replaces the old anonymous /developers/register flow and keeps a
- * key bound to a real, owning account.
- */
 @Controller("integrations")
 @UseGuards(AuthGuard, RolesGuard)
 @Roles("admin")
-export class IntegrationsController implements OnModuleInit {
-  // Only these scopes can ever be granted through the dashboard. Whatever the
-  // client sends is ignored — the set is fixed server-side.
+export class IntegrationsController {
   private static readonly ALLOWED_SCOPES = "templates:read templates:write";
 
-  private authService: any;
+  constructor(private readonly authClient: AuthClientService) {}
 
-  constructor(@Inject("AUTH_SERVICE") private readonly client: ClientGrpc) {}
-
-  onModuleInit() {
-    this.authService = this.client.getService("AuthService");
-  }
-
-  /** Confirms a client_id belongs to the caller's tenant. Returns the tenant's
-   *  clients so callers can reuse the list without a second round-trip. */
   private async assertOwnership(tenantId: string, clientId: string) {
-    const data: any = await firstValueFrom(
-      this.authService.ListApiClients({ tenant_id: tenantId }),
-    );
+    const data = await this.authClient.listApiClients(tenantId);
     const clients = data.clients || [];
     const owned = clients.find(
       (c: any) => c.id === clientId || c.client_id === clientId,
@@ -643,18 +438,13 @@ export class IntegrationsController implements OnModuleInit {
 
   @Get("api-keys")
   async listKeys(@Req() req: any) {
-    return firstValueFrom(
-      this.authService.ListApiClients({ tenant_id: req.user.tenant_id }),
-    );
+    return this.authClient.listApiClients(req.user.tenant_id);
   }
 
   @Post("api-keys")
   @HttpCode(201)
   async createKey(@Req() req: any, @Body() body: { label?: string }) {
-    // API integration keys are a Pro Organisation (or internal) capability.
-    const usage: any = await firstValueFrom(
-      this.authService.GetTenantUsage({ tenant_id: req.user.tenant_id }),
-    );
+    const usage = await this.authClient.getTenantUsage(req.user.tenant_id);
     if (!limitsFor(usage?.plan).canCreateApiKeys) {
       throw new ForbiddenException({
         code: "plan_limit",
@@ -663,19 +453,17 @@ export class IntegrationsController implements OnModuleInit {
           "La création de clés d'intégration API est réservée au plan Pro Organisation. Passez à ce plan pour connecter vos outils externes.",
       });
     }
-    return firstValueFrom(
-      this.authService.GenerateApiClient({
-        tenant_id: req.user.tenant_id,
-        scopes: IntegrationsController.ALLOWED_SCOPES,
-        label: (body?.label || "").trim(),
-      }),
-    );
+    return this.authClient.generateApiClient({
+      tenant_id: req.user.tenant_id,
+      scopes: IntegrationsController.ALLOWED_SCOPES,
+      label: (body?.label || "").trim(),
+    });
   }
 
   @Delete("api-keys/:id")
   async revokeKey(@Req() req: any, @Param("id") id: string) {
     await this.assertOwnership(req.user.tenant_id, id);
-    return firstValueFrom(this.authService.RevokeApiClient({ id }));
+    return this.authClient.revokeApiClient(id);
   }
 
   @Put("return-urls")
@@ -687,15 +475,11 @@ export class IntegrationsController implements OnModuleInit {
     if (!body?.client_id) {
       throw new BadRequestException("client_id is required");
     }
-    // Ownership is also re-checked in the handler, but failing fast here gives a
-    // clean 404 before we touch the command bus.
     await this.assertOwnership(req.user.tenant_id, body.client_id);
-    return firstValueFrom(
-      this.authService.SetTenantReturnUrls({
-        tenant_id: req.user.tenant_id,
-        client_id: body.client_id,
-        urls: Array.isArray(body.urls) ? body.urls : [],
-      }),
-    );
+    return this.authClient.setTenantReturnUrls({
+      tenant_id: req.user.tenant_id,
+      client_id: body.client_id,
+      urls: Array.isArray(body.urls) ? body.urls : [],
+    });
   }
 }

@@ -2,8 +2,8 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Inject, Logger } from '@nestjs/common';
 import { ListTemplatesQuery } from '../list-templates.query.js';
 import { TemplateRepository } from '../../../domain/repositories/template.repository.js';
-import type { ListTemplatesResponse, PaginationInfo } from 'proto/generated/template_queries';
-import { TemplateGrpcMapper } from '../../../infrastructure/grpc/template.grpc-mapper.js';
+import type { PaginationInfo } from 'proto/generated/template_queries';
+import { TemplateHttpMapper } from '../../../infrastructure/http/template.http-mapper.js';
 
 /**
  * List Templates Handler
@@ -11,7 +11,7 @@ import { TemplateGrpcMapper } from '../../../infrastructure/grpc/template.grpc-m
  * Handles listing templates with filters and pagination.
  */
 @QueryHandler(ListTemplatesQuery)
-export class ListTemplatesHandler implements IQueryHandler<ListTemplatesQuery, ListTemplatesResponse> {
+export class ListTemplatesHandler implements IQueryHandler<ListTemplatesQuery, any> {
   private readonly logger = new Logger(ListTemplatesHandler.name);
 
   constructor(
@@ -19,7 +19,7 @@ export class ListTemplatesHandler implements IQueryHandler<ListTemplatesQuery, L
     private readonly templateRepository: TemplateRepository,
   ) {}
 
-  async execute(query: ListTemplatesQuery): Promise<ListTemplatesResponse> {
+  async execute(query: ListTemplatesQuery): Promise<any> {
     this.logger.debug('Listing templates');
 
     const { templates, total } = await this.templateRepository.findAll({
@@ -50,7 +50,7 @@ export class ListTemplatesHandler implements IQueryHandler<ListTemplatesQuery, L
     };
 
     return {
-      templates: templates.map((t) => TemplateGrpcMapper.toDto(t)),
+      templates: templates.map((t) => TemplateHttpMapper.toDto(t)),
       pagination,
     };
   }

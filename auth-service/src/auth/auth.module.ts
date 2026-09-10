@@ -10,8 +10,8 @@ import { InviteOrmEntity } from './infrastructure/persistence/entities/invite.or
 import { ApiClientOrmEntity } from './infrastructure/persistence/entities/api-client.orm-entity';
 import { BuilderSessionOrmEntity } from './infrastructure/persistence/entities/builder-session.orm-entity';
 
-// Infrastructure - gRPC controller
-import { AuthGrpcController } from './infrastructure/grpc/auth.grpc-controller';
+// Infrastructure - HTTP controller
+import { AuthHttpController } from './infrastructure/http/auth.http-controller';
 
 // Infrastructure - repository implementations
 import { TenantRepositoryImpl } from './infrastructure/persistence/repositories/tenant.repository.impl';
@@ -73,7 +73,7 @@ const CommandHandlers = [
       BuilderSessionOrmEntity,
     ]),
   ],
-  controllers: [AuthGrpcController],
+  controllers: [AuthHttpController],
   providers: [
     ...CommandHandlers,
     PasswordService,

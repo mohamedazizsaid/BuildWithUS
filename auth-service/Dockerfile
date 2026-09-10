@@ -37,7 +37,7 @@ RUN npm ci --omit=dev
 RUN useradd -r -s /bin/false appuser && chown -R appuser /app
 USER appuser
 
-EXPOSE 50055
+EXPOSE 10000
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["sh", "-c", "if [ -f dist/main.js ]; then node dist/main.js; else node dist/src/main.js; fi"]

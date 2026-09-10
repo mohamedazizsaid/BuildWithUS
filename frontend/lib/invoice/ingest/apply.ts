@@ -77,21 +77,21 @@ function assign(data: Invoice['data'], line: InvoiceLine, path: string, value: u
   // Nested client paths
   if (path.startsWith('data.client.')) {
     const field = path.slice('data.client.'.length);
-    (data.client as Record<string, unknown>)[field] = value;
+    (data.client as unknown as Record<string, unknown>)[field] = value;
     return;
   }
   // Top-level data.* paths
   if (path.startsWith('data.')) {
     const field = path.slice('data.'.length);
-    (data as Record<string, unknown>)[field] = value;
+    (data as unknown as Record<string, unknown>)[field] = value;
     return;
   }
 }
 
 function readPath(data: Invoice['data'], line: InvoiceLine, path: string): unknown {
-  if (path.startsWith('data.lines[].')) return (line as Record<string, unknown>)[path.slice('data.lines[].'.length)];
-  if (path.startsWith('data.client.'))  return (data.client as Record<string, unknown>)[path.slice('data.client.'.length)];
-  if (path.startsWith('data.'))         return (data as Record<string, unknown>)[path.slice('data.'.length)];
+  if (path.startsWith('data.lines[].')) return (line as unknown as Record<string, unknown>)[path.slice('data.lines[].'.length)];
+  if (path.startsWith('data.client.'))  return (data.client as unknown as Record<string, unknown>)[path.slice('data.client.'.length)];
+  if (path.startsWith('data.'))         return (data as unknown as Record<string, unknown>)[path.slice('data.'.length)];
   return undefined;
 }
 

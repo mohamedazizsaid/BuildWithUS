@@ -47,7 +47,13 @@ function TemplatesPageInner() {
     ? templateList.filter(t => t.is_favorite)
     : templateList;
 
-  const tabFiltered = viewFiltered.filter((t) => TAB_TYPES[activeTab].includes(t.type));
+  const matchesTab = (tmplType: string, tab: TabType) => {
+    const raw = String(tmplType ?? '').toLowerCase();
+    const accepted = TAB_TYPES[tab] || [];
+    return accepted.some((val) => val.toLowerCase() === raw || String(val) === String(tmplType));
+  };
+
+  const tabFiltered = viewFiltered.filter((t) => matchesTab(t.type, activeTab));
   const filteredTemplates = query.trim()
     ? tabFiltered.filter((t) => {
         const q = query.toLowerCase();
@@ -61,11 +67,11 @@ function TemplatesPageInner() {
     : tabFiltered;
 
   const counts: Record<TabType, number> = {
-    email:   viewFiltered.filter((t) => TAB_TYPES.email.includes(t.type)).length,
-    contrat: viewFiltered.filter((t) => TAB_TYPES.contrat.includes(t.type)).length,
-    facture: viewFiltered.filter((t) => TAB_TYPES.facture.includes(t.type)).length,
-    sms:     viewFiltered.filter((t) => TAB_TYPES.sms.includes(t.type)).length,
-    rcs:     viewFiltered.filter((t) => TAB_TYPES.rcs.includes(t.type)).length,
+    email:   viewFiltered.filter((t) => matchesTab(t.type, 'email')).length,
+    contrat: viewFiltered.filter((t) => matchesTab(t.type, 'contrat')).length,
+    facture: viewFiltered.filter((t) => matchesTab(t.type, 'facture')).length,
+    sms:     viewFiltered.filter((t) => matchesTab(t.type, 'sms')).length,
+    rcs:     viewFiltered.filter((t) => matchesTab(t.type, 'rcs')).length,
   };
 
   const handleUsePreset = (presetId: string, presetName: string) => {
@@ -81,7 +87,20 @@ function TemplatesPageInner() {
       // Predefined gallery entries (created by marketing) live in the
       // "Templates prédéfinis" view only — never mixed with "Mes modèles".
       const regular = await templates.list({ page: 1, limit: 100, excludePredefinedOverrides: true });
-      setTemplateList(regular.templates || []);
+      const rawList: Template[] = regular.templates || [];
+      const normalizedList = rawList.map((t) => {
+        let type = String(t.type ?? '').toLowerCase();
+        if (type === '1') type = 'email';
+        else if (type === '2') type = 'facture';
+        else if (type === '3') type = 'contrat';
+        else if (type === '4') type = 'sms';
+        else if (type === '5') type = 'rcs';
+        return {
+          ...t,
+          type,
+        };
+      });
+      setTemplateList(normalizedList);
     } catch {
       toast.error('Échec du chargement des modèles');
     } finally {

@@ -21,12 +21,12 @@ function templateTypeToString(type: TemplateType | string): string {
   // Handle string representation (gRPC may send enum as string)
   if (typeof type === 'string') {
     const strType = type.toUpperCase();
-    if (strType === 'EMAIL') return 'email';
-    if (strType === 'FACTURE') return 'facture';
-    if (strType === 'CONTRAT') return 'contrat';
-    if (strType === 'SMS') return 'sms';
-    if (strType === 'RCS') return 'rcs';
-    throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
+    if (strType === 'EMAIL' || strType === '1') return 'email';
+    if (strType === 'FACTURE' || strType === '2') return 'facture';
+    if (strType === 'CONTRAT' || strType === '3') return 'contrat';
+    if (strType === 'SMS' || strType === '4') return 'sms';
+    if (strType === 'RCS' || strType === '5') return 'rcs';
+    throw new Error(`Invalid template type: ${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
   }
 
   // Handle number representation (enum value)
@@ -42,7 +42,7 @@ function templateTypeToString(type: TemplateType | string): string {
     case TemplateType.RCS:
       return 'rcs';
     default:
-      throw new Error(`Invalid template type: \${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
+      throw new Error(`Invalid template type: ${type}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
   }
 }
 
@@ -81,12 +81,12 @@ export class CreateTemplateHandler implements ICommandHandler<CreateTemplateComm
     function channelEnumToString(channel: TemplateType | string): string {
       if (typeof channel === 'string') {
         const strChannel = channel.toUpperCase();
-        if (strChannel === 'EMAIL') return 'email';
-        if (strChannel === 'FACTURE') return 'facture';
-        if (strChannel === 'CONTRAT') return 'contrat';
-        if (strChannel === 'SMS') return 'sms';
-        if (strChannel === 'RCS') return 'rcs';
-        throw new Error(`Invalid channel type: \${channel}`);
+        if (strChannel === 'EMAIL' || strChannel === '1') return 'email';
+        if (strChannel === 'FACTURE' || strChannel === '2') return 'facture';
+        if (strChannel === 'CONTRAT' || strChannel === '3') return 'contrat';
+        if (strChannel === 'SMS' || strChannel === '4') return 'sms';
+        if (strChannel === 'RCS' || strChannel === '5') return 'rcs';
+        throw new Error(`Invalid channel type: ${channel}`);
       }
       const channelMap: Record<number, string> = {
         [TemplateType.EMAIL]: 'email',
@@ -97,7 +97,7 @@ export class CreateTemplateHandler implements ICommandHandler<CreateTemplateComm
       };
       const mapped = channelMap[channel];
       if (!mapped) {
-        throw new Error(`Invalid channel type: \${channel}`);
+        throw new Error(`Invalid channel type: ${channel}`);
       }
       return mapped;
     }

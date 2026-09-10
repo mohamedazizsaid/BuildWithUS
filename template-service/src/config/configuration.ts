@@ -23,7 +23,7 @@ export interface ConsulConfig {
 
 const envSchema = z.object({
   NODE_ENV: z.string().default('development'),
-  GRPC_PORT: z.coerce.number().int().default(50056),
+  PORT: z.coerce.number().int().default(3002),
   DB_HOST: z.string().default('localhost'),
   DB_PORT: z.coerce.number().int().default(5437),
   DB_USER: z.string().default('winaity'),
@@ -43,7 +43,7 @@ const env = validateEnv(envSchema);
 
 export const configuration = () => ({
   env: env.NODE_ENV,
-  grpcPort: env.GRPC_PORT,
+  port: env.PORT,
 
   database: {
     host: env.DB_HOST,

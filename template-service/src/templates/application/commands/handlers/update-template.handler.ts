@@ -63,12 +63,12 @@ export class UpdateTemplateHandler implements ICommandHandler<UpdateTemplateComm
     function channelToString(channel: TemplateType | string): string {
       if (typeof channel === 'string') {
         const strChannel = channel.toUpperCase();
-        if (strChannel === 'EMAIL') return 'email';
-        if (strChannel === 'FACTURE') return 'facture';
-        if (strChannel === 'CONTRAT') return 'contrat';
-        if (strChannel === 'SMS') return 'sms';
-        if (strChannel === 'RCS') return 'rcs';
-        throw new Error(`Invalid template type: \${channel}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
+        if (strChannel === 'EMAIL' || strChannel === '1') return 'email';
+        if (strChannel === 'FACTURE' || strChannel === '2') return 'facture';
+        if (strChannel === 'CONTRAT' || strChannel === '3') return 'contrat';
+        if (strChannel === 'SMS' || strChannel === '4') return 'sms';
+        if (strChannel === 'RCS' || strChannel === '5') return 'rcs';
+        throw new Error(`Invalid template type: ${channel}. Expected EMAIL (1), FACTURE (2), CONTRAT (3), SMS (4), or RCS (5).`);
       }
       const channelMap: Record<number, string> = {
         [TemplateType.EMAIL]: 'email',

@@ -1,117 +1,31 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { MicroserviceOptions, Transport } from '@nestjs/microservices';
-import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
-import { AllRpcExceptionsFilter } from './all-rpc-exceptions.filter';
-import * as dotenv from 'dotenv';
-import * as http from 'http';
-
-dotenv.config({ path: '.env.development' });
+import { AllHttpExceptionsFilter } from './all-http-exceptions.filter';
 
 async function bootstrap() {
-  // =========================
-  // gRPC
-  // =========================
-  const grpcPort = process.env.GRPC_PORT || '50055';
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  const app = await NestFactory.createMicroservice<MicroserviceOptions>(
-    AppModule,
-    {
-      transport: Transport.GRPC,
-      options: {
-        url: `0.0.0.0:${grpcPort}`,
-        package: 'auth',
-        protoPath: join(__dirname, '../proto/auth.proto'),
-        loader: {
-          keepCase: true,
-          longs: String,
-          enums: String,
-          defaults: true,
-          oneofs: true,
-        },
-      },
-    },
-  );
+  // Body parsers
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true }));
 
-  app.useGlobalFilters(new AllRpcExceptionsFilter());
 
-  await app.listen();
+  // Global exception filter — converts plain Error() into clean JSON HTTP responses.
+  app.useGlobalFilters(new AllHttpExceptionsFilter());
 
-  console.log(`Auth service running on gRPC port ${grpcPort}`);
+  // CORS — the only caller is the api-gateway (and health check probes).
+  // Allowing * is safe here because this service is not directly reachable
+  // from the browser — it sits behind the gateway.
+  app.enableCors({ origin: '*' });
 
-  // =========================
-  // HTTP server for Render
-  // =========================
-  const httpPort = Number(process.env.PORT) || 10000;
+  // Render provides PORT automatically. Default to 3003 for local dev.
+  const port = Number(process.env.PORT) || 3003;
+  await app.listen(port, '0.0.0.0');
 
-  const httpServer = http.createServer((req, res) => {
-    if (req.url === '/health' || req.url === '/') {
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-      });
-
-      res.end(
-        JSON.stringify({
-          status: 'ok',
-          service: 'auth-service',
-          grpc: `0.0.0.0:${grpcPort}`,
-        }),
-      );
-
-      return;
-    }
-
-    res.writeHead(404, {
-      'Content-Type': 'application/json',
-    });
-
-    res.end(
-      JSON.stringify({
-        status: 'not_found',
-      }),
-    );
-  });
-
-  httpServer.listen(httpPort, '0.0.0.0', () => {
-    console.log(`HTTP health server running on 0.0.0.0:${httpPort}`);
-  });
-
-  // =========================
-  // Consul
-  // =========================
-  const consulHost = process.env.CONSUL_HOST || 'consul';
-  const consulPort = process.env.CONSUL_PORT || '8500';
-  const serviceHost = process.env.SERVICE_HOST || 'auth-service';
-
-  try {
-    const res = await fetch(
-      `http://${consulHost}:${consulPort}/v1/agent/service/register`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ID: 'auth-service-1',
-          Name: 'auth-service',
-          Address: serviceHost,
-          Port: parseInt(grpcPort),
-          Tags: ['grpc', 'auth'],
-          Check: {
-            TCP: `${serviceHost}:${grpcPort}`,
-            Interval: '10s',
-            Timeout: '5s',
-          },
-        }),
-      },
-    );
-
-    if (res.ok) {
-      console.log('Registered with Consul');
-    }
-  } catch {
-    console.log('Consul not available, skipping registration');
-  }
+  console.log(`Auth service running on http://0.0.0.0:${port}`);
 }
 
 bootstrap();
