@@ -129,12 +129,15 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: noreply@buildwithus.app
-      # Storage S3 (100% GRATUIT SANS CARTE: Backblaze B2 ou Supabase Storage)
-      # Non-bloquant: vous pouvez deployer maintenant et remplir ces 3 cles plus tard dans Render
+      # Storage Cloudinary (100% GRATUIT SANS CARTE BANCAIRE : https://cloudinary.com)
+      # Sur votre Dashboard Cloudinary, copiez l'"API Environment variable" (CLOUDINARY_URL)
+      - key: CLOUDINARY_URL
+        sync: false
+      # Storage Fallback (MinIO/S3 - non-bloquant)
       - key: MINIO_ENDPOINT
         value: localhost
       - key: MINIO_PORT
-        value: "443"
+        value: "9000"
       - key: MINIO_ACCESS_KEY
         value: none
       - key: MINIO_SECRET_KEY
@@ -142,7 +145,7 @@ services:
       - key: MINIO_BUCKET
         value: templates
       - key: MINIO_USE_SSL
-        value: "true"
+        value: "false"
       - key: JWT_SECRET
         sync: false   # IMPORTANT: must match the JWT_SECRET set in auth-service
 

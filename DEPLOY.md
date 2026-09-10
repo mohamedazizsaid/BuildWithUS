@@ -127,52 +127,38 @@ Dans **Project Settings -> Environment Variables**, ajoutez :
 
 ---
 
-## Partie 3 : Stockage S3 100% Gratuit — Sans Carte Bancaire
+## Partie 3 : Stockage Médias 100% Gratuit — Cloudinary (Sans Carte Bancaire)
 
-Cloudflare R2 demande une carte bancaire même pour le tier gratuit.
-Voici les **2 alternatives 100% gratuites sans aucune carte bancaire** :
-
-### Option 1 (Recommandée) : Backblaze B2 (10 GB gratuits à vie, aucune CB demandée)
-
-1. Rendez-vous sur [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html) et créez un compte (gratuit, **sans carte bancaire**).
-2. Dans le menu de gauche, cliquez sur **Buckets** -> **Create a Bucket** :
-   - Bucket Unique Name : ex. `buildwithus-templates` (doit être unique mondialement)
-   - Files in Bucket are : **Public** (important pour que les images soient visibles)
-   - Default Encryption : Disable ou Enable (au choix)
-   - Cliquez **Create a Bucket**
-3. Notez le **Endpoint** affiché sur votre bucket (ex: `s3.eu-central-003.backblazeb2.com` ou `s3.us-east-005.backblazeb2.com`).
-4. Dans le menu de gauche, cliquez sur **Application Keys** -> **Add a New Application Key** :
-   - Name of Key : `render-api-gateway`
-   - Allow access to Bucket(s) : sélectionnez votre bucket
-   - Type of Access : **Read and Write**
-   - Cliquez **Create New Key**
-5. Copiez immédiatement :
-   - `keyID` -> ce sera votre `MINIO_ACCESS_KEY`
-   - `applicationKey` -> ce sera votre `MINIO_SECRET_KEY`
-6. Dans Render Dashboard -> service **api-gateway** -> **Environment** :
-   - `MINIO_ENDPOINT` = votre endpoint Backblaze (ex: `s3.eu-central-003.backblazeb2.com`)
-   - `MINIO_PORT` = `443`
-   - `MINIO_USE_SSL` = `true`
-   - `MINIO_ACCESS_KEY` = votre `keyID`
-   - `MINIO_SECRET_KEY` = votre `applicationKey`
-   - `MINIO_BUCKET` = le nom de votre bucket (ex: `buildwithus-templates`)
+Le projet utilise désormais **Cloudinary** comme solution de stockage par défaut pour les images et médias :
+- **100% Gratuit à vie** (25 crédits mensuels = jusqu'à 25 Go de stockage et bande passante)
+- **AUCUNE carte bancaire requise** à l'inscription
+- **CDN ultra-rapide mondial inclus**
+- Redimensionnement et optimisation automatique des images
 
 ---
 
-### Option 2 : Supabase Storage (1 GB gratuit, sans CB)
+### Configuration de Cloudinary en 3 étapes simples :
 
-1. Créez un projet gratuit sur [Supabase](https://supabase.com) (aucune CB requise).
-2. Allez dans **Storage** -> **New Bucket** -> nom : `templates` -> cochez **Public**.
-3. Allez dans **Project Settings** -> **Storage** -> descendez jusqu'à **S3 Access Keys** -> **New Access Key**.
-4. Remplissez dans Render `api-gateway` :
-   - `MINIO_ENDPOINT` = `<project-ref>.storage.supabase.co`
-   - `MINIO_PORT` = `443`
-   - `MINIO_USE_SSL` = `true`
-   - `MINIO_ACCESS_KEY` = votre Access Key ID
-   - `MINIO_SECRET_KEY` = votre Secret Access Key
-   - `MINIO_BUCKET` = `templates`
+1. **Créer un compte :**
+   - Rendez-vous sur [cloudinary.com](https://cloudinary.com) et créez un compte gratuit (avec votre email ou Google/GitHub).
+   - **Aucune carte bancaire n'est demandée**.
 
-> 💡 **Note :** La Blueprint Render est configurée avec des valeurs par défaut non-bloquantes (`localhost` / `none`). Vous pouvez déployer tout de suite sur Render sans attendre, et configurer Backblaze B2 tranquillement après !
+2. **Copier l'URL d'environnement :**
+   - Dès votre connexion sur le **Dashboard Cloudinary** (page d'accueil), repérez la section **"API Environment variable"**.
+   - Cliquez sur l'icône de copie pour copier la valeur qui ressemble à :
+     ```text
+     cloudinary://<api_key>:<api_secret>@<cloud_name>
+     ```
+
+3. **Coller dans Render :**
+   - Dans votre Render Dashboard -> service **api-gateway** -> onglet **Environment** :
+   - Ajoutez / mettez à jour la variable :
+     - `CLOUDINARY_URL` = `cloudinary://<api_key>:<api_secret>@<cloud_name>`
+   - Cliquez sur **Save Changes**. Le service redémarre automatiquement avec Cloudinary actif !
+
+---
+
+> 💡 **Note :** La Blueprint Render est configurée pour vous demander `CLOUDINARY_URL`. Vous pouvez simplement coller cette ligne lors du déploiement ou la laisser vide et la renseigner plus tard dans le Dashboard Render !
 
 ---
 

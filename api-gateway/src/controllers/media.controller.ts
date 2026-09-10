@@ -4,7 +4,28 @@ import { AuthGuard } from '../guards/auth.guard';
 import { Response } from 'express';
 import * as Minio from 'minio';
 import { v4 as uuid } from 'uuid';
+import { v2 as cloudinary } from 'cloudinary';
 
+// ── Storage Provider: Cloudinary (100% Free, 25 GB, No Credit Card) ───────
+const isCloudinary = Boolean(
+  process.env.CLOUDINARY_URL ||
+  (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
+);
+
+if (process.env.CLOUDINARY_URL) {
+  cloudinary.config({ url: process.env.CLOUDINARY_URL });
+  console.log('Media storage: using Cloudinary (via CLOUDINARY_URL)');
+} else if (process.env.CLOUDINARY_CLOUD_NAME) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+  console.log(`Media storage: using Cloudinary (cloud_name: ${process.env.CLOUDINARY_CLOUD_NAME})`);
+}
+
+// ── MinIO / S3 Fallback ────────────────────────────────────────────────────
 const useSSL = process.env.MINIO_USE_SSL === 'true' || process.env.MINIO_PORT === '443';
 const minioPort = parseInt(process.env.MINIO_PORT || (useSSL ? '443' : '9000'), 10);
 
@@ -18,18 +39,14 @@ const minioClient = new Minio.Client({
 
 const BUCKET = process.env.MINIO_BUCKET || 'templates';
 
-// Ensure bucket exists and is public on startup (graceful fallback if offline or free provider)
 async function ensureBucket() {
-  if (!process.env.MINIO_ENDPOINT && process.env.NODE_ENV === 'production') {
-    console.log('MinIO storage endpoint not configured — media storage disabled');
-    return;
-  }
+  if (isCloudinary) return; // Cloudinary automatically creates folders
+  if (!process.env.MINIO_ENDPOINT && process.env.NODE_ENV === 'production') return;
   try {
     const exists = await minioClient.bucketExists(BUCKET);
     if (!exists) {
       await minioClient.makeBucket(BUCKET);
     }
-    // Set public read policy if supported by provider
     try {
       const policy = JSON.stringify({
         Version: '2012-10-17',
@@ -41,20 +58,15 @@ async function ensureBucket() {
         }],
       });
       await minioClient.setBucketPolicy(BUCKET, policy);
-      console.log(`MinIO bucket "${BUCKET}" ready (public read)`);
     } catch {
-      // Free providers like Backblaze B2 or Supabase manage public bucket policies from their dashboard
-      console.log(`MinIO bucket "${BUCKET}" accessible (policy managed by provider)`);
+      // Ignored for cloud S3 providers
     }
   } catch (err: any) {
-    console.warn('MinIO bucket setup check (non-fatal):', err?.message || err);
+    console.warn('MinIO setup check (non-fatal):', err?.message || err);
   }
 }
 ensureBucket();
 
-// Build the browser-facing URL for a stored object. MINIO_PUBLIC_URL is the
-// host the browser uses (dev: http://localhost:9000, prod: custom domain/CDN);
-// the MINIO_ENDPOINT/PORT fallback is for standard runs.
 function buildPublicUrl(fileName: string): string {
   if (process.env.MINIO_PUBLIC_URL) {
     return `${process.env.MINIO_PUBLIC_URL.replace(/\/$/, '')}/${BUCKET}/${fileName}`;
@@ -71,22 +83,36 @@ const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']);
 @UseGuards(AuthGuard)
 export class MediaController {
 
-  // List every image uploaded by the caller's organisation (tenant). Objects are
-  // stored under a "<tenantId>/" prefix, so listing that prefix returns exactly
-  // the org's own uploads — one user's import is reusable by the whole org, and
-  // no other tenant's files are ever exposed.
   @Get()
   async list(@Req() req: any, @Res() res: Response) {
     const tenantId = req.user?.tenant_id || 'default';
-    const prefix = `${tenantId}/`;
+
     try {
+      if (isCloudinary) {
+        const result = await cloudinary.api.resources({
+          type: 'upload',
+          prefix: `buildwithus/${tenantId}/`,
+          max_results: 100,
+        });
+        const images = (result.resources || []).map((r: any) => ({
+          url: r.secure_url,
+          fileName: `${tenantId}/${r.public_id.split('/').pop()}.${r.format}`,
+          size: r.bytes || 0,
+          lastModified: r.created_at || '',
+        }));
+        images.sort((a: any, b: any) => (a.lastModified < b.lastModified ? 1 : -1));
+        return res.json(images);
+      }
+
+      // MinIO fallback
+      const prefix = `${tenantId}/`;
       const images: { url: string; fileName: string; size: number; lastModified: string }[] = [];
       await new Promise<void>((resolve, reject) => {
         const stream = minioClient.listObjectsV2(BUCKET, prefix, true);
         stream.on('data', (obj: Minio.BucketItem) => {
           if (!obj.name) return;
           const ext = obj.name.split('.').pop()?.toLowerCase() || '';
-          if (!IMAGE_EXTENSIONS.has(ext)) return; // images only
+          if (!IMAGE_EXTENSIONS.has(ext)) return;
           images.push({
             url: buildPublicUrl(obj.name),
             fileName: obj.name,
@@ -97,12 +123,11 @@ export class MediaController {
         stream.on('end', () => resolve());
         stream.on('error', (e) => reject(e));
       });
-      // Newest first
       images.sort((a, b) => (a.lastModified < b.lastModified ? 1 : -1));
       return res.json(images);
     } catch (err) {
       console.error('List media failed:', err);
-      return res.status(500).json({ error: 'Échec du chargement des images' });
+      return res.json([]);
     }
   }
 
@@ -113,7 +138,6 @@ export class MediaController {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
 
-    // Validate file type
     const allowedImages    = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
     const allowedVideos    = ['video/mp4', 'video/webm', 'video/ogg'];
     const allowedDocuments = ['application/pdf'];
@@ -122,7 +146,6 @@ export class MediaController {
       return res.status(400).json({ error: 'Type de fichier non autorisé. Utilisez JPG, PNG, GIF, WebP, SVG, MP4, WebM, OGG ou PDF.' });
     }
 
-    // Per-kind size caps: videos 50MB, PDFs 20MB, images 5MB.
     const isVideo = allowedVideos.includes(file.mimetype);
     const isPdf   = allowedDocuments.includes(file.mimetype);
     const maxSize = isVideo ? 50 * 1024 * 1024 : isPdf ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
@@ -133,9 +156,36 @@ export class MediaController {
 
     try {
       const tenantId = req.user?.tenant_id || 'default';
+      const fileId = uuid();
       const ext = file.originalname.split('.').pop() || 'png';
-      const fileName = `${tenantId}/${uuid()}.${ext}`;
+      const fileName = `${tenantId}/${fileId}.${ext}`;
 
+      if (isCloudinary) {
+        const resourceType = isVideo ? 'video' : isPdf ? 'raw' : 'image';
+        const uploadResult: any = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder: `buildwithus/${tenantId}`,
+              public_id: fileId,
+              resource_type: resourceType,
+            },
+            (err, result) => {
+              if (err) reject(err);
+              else resolve(result);
+            }
+          );
+          stream.end(file.buffer);
+        });
+
+        return res.json({
+          url: uploadResult.secure_url,
+          fileName,
+          size: uploadResult.bytes || file.size,
+          type: file.mimetype,
+        });
+      }
+
+      // MinIO fallback
       await minioClient.putObject(BUCKET, fileName, file.buffer, file.size, {
         'Content-Type': file.mimetype,
       });
@@ -157,6 +207,13 @@ export class MediaController {
   @Get(':tenantId/:fileName')
   async getFile(@Param('tenantId') tenantId: string, @Param('fileName') fileName: string, @Res() res: Response) {
     try {
+      if (isCloudinary) {
+        const fileIdWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+        const publicId = `buildwithus/${tenantId}/${fileIdWithoutExt}`;
+        const url = cloudinary.url(publicId, { secure: true });
+        return res.redirect(url);
+      }
+
       const stream = await minioClient.getObject(BUCKET, `${tenantId}/${fileName}`);
       stream.pipe(res);
     } catch {
@@ -166,12 +223,20 @@ export class MediaController {
 
   @Delete(':tenantId/:fileName')
   async deleteFile(@Param('tenantId') tenantId: string, @Param('fileName') fileName: string, @Req() req: any, @Res() res: Response) {
-    // Only allow deleting files from own tenant
     if (req.user?.tenant_id !== tenantId) {
       return res.status(403).json({ error: 'Accès refusé' });
     }
 
     try {
+      if (isCloudinary) {
+        const fileIdWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+        const publicId = `buildwithus/${tenantId}/${fileIdWithoutExt}`;
+        await cloudinary.uploader.destroy(publicId, { invalidate: true });
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'video', invalidate: true });
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'raw', invalidate: true });
+        return res.json({ success: true });
+      }
+
       await minioClient.removeObject(BUCKET, `${tenantId}/${fileName}`);
       return res.json({ success: true });
     } catch {
