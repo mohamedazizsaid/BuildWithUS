@@ -25,10 +25,7 @@ services:
     dockerfilePath: ./auth-service/Dockerfile
     dockerContext: ./auth-service
     region: frankfurt
-    plan: starter
-    scaling:
-      minInstances: 1
-      maxInstances: 2
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
@@ -64,10 +61,7 @@ services:
     dockerfilePath: ./template-service/Dockerfile
     dockerContext: ./           # Repo root — needs packages/shared-kernel
     region: frankfurt
-    plan: starter
-    scaling:
-      minInstances: 1
-      maxInstances: 2
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
@@ -114,10 +108,7 @@ services:
     dockerfilePath: ./api-gateway/Dockerfile
     dockerContext: ./api-gateway
     region: frankfurt
-    plan: starter
-    scaling:
-      minInstances: 1
-      maxInstances: 3
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
@@ -181,7 +172,7 @@ services:
     dockerfilePath: ./ai-template-service/Dockerfile
     dockerContext: ./ai-template-service
     region: frankfurt
-    plan: starter
+    plan: free
     envVars:
       - key: PORT
         value: "8001"
@@ -199,16 +190,11 @@ services:
     dockerfilePath: ./image-pipeline/Dockerfile
     dockerContext: ./image-pipeline
     region: frankfurt
-    plan: starter
-    # Note: chromadb requires a persistent disk for vector storage
-    disk:
-      name: chroma-data
-      mountPath: /data
-      sizeGB: 10
+    plan: free
+    # Note: chromadb vector storage — persistent disk requires a paid plan.
+    # On free tier, data resets on redeploy. Upgrade to starter if needed.
     envVars:
       - key: PORT
         value: "8002"
       - key: PEXELS_API_KEY
         sync: false   # Set in Render dashboard
-      - key: CHROMA_DB_PATH
-        value: /data/chroma
