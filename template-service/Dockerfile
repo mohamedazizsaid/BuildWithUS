@@ -60,20 +60,13 @@ COPY --from=svc-builder /app/package.json /app/package-lock.json ./
 # Docker follows the symlink when writing, creating /packages/shared-kernel/dist/... files.
 COPY --from=svc-builder /app/node_modules ./node_modules
 
-# Ensure /packages/shared-kernel exists and has the compiled kernel dist.
-# COPY above may have already created it via symlink; this is a safety overwrite.
+# Ensure /packages/shared-kernel exists and has the compiled kernel dist and its own node_modules.
+# We copy the kernel's node_modules (installed via npm ci in kernel-builder) directly so that
+# ALL kernel dependencies (including 'zod', '@nestjs/cqrs', etc.) resolve correctly without
+# relying on template-service's node_modules, which does not list them as direct dependencies.
 COPY --from=kernel-builder /kernel/dist /packages/shared-kernel/dist
 COPY --from=kernel-builder /kernel/package.json /packages/shared-kernel/package.json
-
-# CRITICAL: When Node.js loads /packages/shared-kernel/dist/domain/aggregate-root.js,
-# it resolves require('@nestjs/cqrs') by walking up the directory tree:
-#   /packages/shared-kernel/dist/domain/node_modules/  ← doesn't exist
-#   /packages/shared-kernel/dist/node_modules/         ← doesn't exist
-#   /packages/shared-kernel/node_modules/              ← CREATE this as symlink to /app/node_modules
-#   ...
-# Symlinking /packages/shared-kernel/node_modules → /app/node_modules makes
-# all @nestjs/* packages resolve correctly from there.
-RUN ln -sf /app/node_modules /packages/shared-kernel/node_modules
+COPY --from=kernel-builder /kernel/node_modules /packages/shared-kernel/node_modules
 
 RUN useradd -r -s /bin/false appuser && chown -R appuser /app /packages/shared-kernel
 USER appuser
