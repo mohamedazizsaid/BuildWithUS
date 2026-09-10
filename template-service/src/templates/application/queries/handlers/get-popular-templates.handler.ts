@@ -25,15 +25,15 @@ export class GetPopularTemplatesHandler implements IQueryHandler<GetPopularTempl
     this.logger.debug(`Getting popular templates (limit: ${query.limit}, type: ${query.type || 'all'})`);
 
     const queryBuilder = this.repository.createQueryBuilder('template')
-      .where('template.deletedAt IS NULL');
+      .where('template.deleted_at IS NULL');
 
     if (query.type) {
-      queryBuilder.andWhere('template.type = :type', { type: query.type.toLowerCase() });
+      queryBuilder.andWhere('LOWER(template.type) = :type', { type: query.type.toLowerCase() });
     }
 
     queryBuilder
-      .orderBy('template.usageCount', 'DESC')
-      .addOrderBy('template.createdAt', 'DESC') // Secondary sort for templates with same usage count
+      .orderBy('template.usage_count', 'DESC')
+      .addOrderBy('template.created_at', 'DESC') // Secondary sort for templates with same usage count
       .take(Math.min(query.limit || 3, 10)); // Max 10 templates
 
     const entities = await queryBuilder.getMany();

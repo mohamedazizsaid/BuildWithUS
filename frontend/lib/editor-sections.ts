@@ -28,9 +28,9 @@ export interface LayoutRow {
   cells: { type: CellType; w: number; src?: string }[];
 }
 
-// Pool of real HD stock images from MinIO (Pexels collection)
-const MINIO = (process.env.NEXT_PUBLIC_MINIO_URL ?? 'http://localhost:9000') + '/stock-images';
-const P = (id: number) => `${MINIO}/pexels_${id}.jpg`;
+// Real HD stock images served via Pexels CDN
+const P = (id: number) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800`;
 
 // Curated image pools per theme
 const IMG = {

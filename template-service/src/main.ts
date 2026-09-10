@@ -7,7 +7,6 @@ import { json, urlencoded } from 'express';
 import { AppModule } from './app.module.js';
 import { AllHttpExceptionsFilter } from './all-http-exceptions.filter.js';
 import {
-  RequestIdInterceptor,
   TransformInterceptor,
   AppLoggerService,
 } from '@winaity/shared-kernel';
@@ -21,10 +20,7 @@ async function bootstrap() {
 
   // Global filters & interceptors
   app.useGlobalFilters(new AllHttpExceptionsFilter());
-  app.useGlobalInterceptors(
-    new RequestIdInterceptor(),
-    new TransformInterceptor(),
-  );
+  app.useGlobalInterceptors(new TransformInterceptor());
 
   // CORS — called by api-gateway
   app.enableCors({ origin: '*' });

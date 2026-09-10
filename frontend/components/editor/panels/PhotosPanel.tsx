@@ -58,19 +58,55 @@ export function PhotosPanel() {
 }
 
 // ─── Stock images (Pexels-style search via the image service) ───
+const CURATED_FALLBACK_IMAGES: StockImage[] = [
+  { id: '23496880', url: 'https://images.pexels.com/photos/23496880/pexels-photo-23496880.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['business', 'office', 'travail'], description: 'Bureau moderne', width: 800, height: 600, score: 1 },
+  { id: '7793118', url: 'https://images.pexels.com/photos/7793118/pexels-photo-7793118.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['business', 'reunion'], description: 'Réunion d’équipe', width: 800, height: 600, score: 1 },
+  { id: '15862623', url: 'https://images.pexels.com/photos/15862623/pexels-photo-15862623.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['people', 'portrait', 'personne'], description: 'Portrait professionnel', width: 800, height: 600, score: 1 },
+  { id: '13418642', url: 'https://images.pexels.com/photos/13418642/pexels-photo-13418642.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['people', 'sourire', 'femme'], description: 'Sourire', width: 800, height: 600, score: 1 },
+  { id: '6207749', url: 'https://images.pexels.com/photos/6207749/pexels-photo-6207749.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['shopping', 'boutique', 'mode'], description: 'Shopping', width: 800, height: 600, score: 1 },
+  { id: '5466283', url: 'https://images.pexels.com/photos/5466283/pexels-photo-5466283.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['team', 'equipe', 'travail'], description: 'Collaboration équipe', width: 800, height: 600, score: 1 },
+  { id: '1181318', url: 'https://images.pexels.com/photos/1181318/pexels-photo-1181318.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['tech', 'developpeur', 'code'], description: 'Technologie & Code', width: 800, height: 600, score: 1 },
+  { id: '37048263', url: 'https://images.pexels.com/photos/37048263/pexels-photo-37048263.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['food', 'nourriture', 'restaurant'], description: 'Gastronomie', width: 800, height: 600, score: 1 },
+  { id: '34432816', url: 'https://images.pexels.com/photos/34432816/pexels-photo-34432816.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['travel', 'voyage', 'plage'], description: 'Voyage & Évasion', width: 800, height: 600, score: 1 },
+  { id: '34559690', url: 'https://images.pexels.com/photos/34559690/pexels-photo-34559690.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['nature', 'paysage', 'foret'], description: 'Nature', width: 800, height: 600, score: 1 },
+  { id: '247671', url: 'https://images.pexels.com/photos/247671/pexels-photo-247671.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['abstract', 'art', 'design'], description: 'Design abstrait', width: 800, height: 600, score: 1 },
+  { id: '34852961', url: 'https://images.pexels.com/photos/34852961/pexels-photo-34852961.jpeg?auto=compress&cs=tinysrgb&w=800', tags: ['health', 'sante', 'sport'], description: 'Santé & Bien-être', width: 800, height: 600, score: 1 },
+];
+
 function StockImages() {
   const [query, setQuery] = useState('');
-  const [stockImages, setStockImages] = useState<StockImage[]>([]);
+  const [stockImages, setStockImages] = useState<StockImage[]>(CURATED_FALLBACK_IMAGES);
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const filterCurated = useCallback((q: string) => {
+    const term = q.trim().toLowerCase();
+    if (!term) return CURATED_FALLBACK_IMAGES;
+    return CURATED_FALLBACK_IMAGES.filter(
+      (img) =>
+        img.tags.some((t) => t.toLowerCase().includes(term)) ||
+        (img.description && img.description.toLowerCase().includes(term))
+    );
+  }, []);
+
   const fetchImages = useCallback(async (q: string) => {
     setIsSearching(true);
     setSearchError(null);
     setDisplayCount(PAGE_SIZE);
+
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const isInsecureLocal = isHttps && IMAGE_SEARCH_API.startsWith('http://localhost');
+
+    // Skip network request if on HTTPS and endpoint is HTTP localhost (prevents mixed content errors)
+    if (isInsecureLocal || !IMAGE_SEARCH_API) {
+      setStockImages(filterCurated(q));
+      setIsSearching(false);
+      return;
+    }
+
     try {
       const endpoint = q.trim()
         ? `${IMAGE_SEARCH_API}/search?q=${encodeURIComponent(q)}&limit=200`
@@ -78,14 +114,14 @@ function StockImages() {
       const res = await fetch(endpoint);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data: StockImage[] = await res.json();
-      setStockImages(data);
-    } catch (err) {
-      setSearchError(err instanceof Error ? err.message : 'Erreur de connexion');
-      // Keep previous results visible on error
+      setStockImages(data.length > 0 ? data : filterCurated(q));
+    } catch {
+      // Fall back smoothly to curated images without crashing or alerting
+      setStockImages(filterCurated(q));
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  }, [filterCurated]);
 
   // Load popular images on mount
   useEffect(() => {
@@ -103,8 +139,11 @@ function StockImages() {
     await navigator.clipboard.writeText(img.url);
     setCopiedId(img.id);
     setTimeout(() => setCopiedId(null), 1500);
-    // Increment usage count in background
-    fetch(`${IMAGE_SEARCH_API}/use/${img.id}`, { method: 'POST' }).catch(() => {});
+    // Increment usage count in background if endpoint is accessible
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    if (!isHttps || !IMAGE_SEARCH_API.startsWith('http://localhost')) {
+      fetch(`${IMAGE_SEARCH_API}/use/${img.id}`, { method: 'POST' }).catch(() => {});
+    }
   };
 
   return (

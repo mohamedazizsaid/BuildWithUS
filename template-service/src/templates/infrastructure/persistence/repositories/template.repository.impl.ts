@@ -43,46 +43,55 @@ export class TemplateRepositoryImpl extends TemplateRepository {
    */
   async findAll(options?: TemplateFilterOptions): Promise<{ templates: Template[]; total: number }> {
     const queryBuilder = this.repository.createQueryBuilder('template')
-      .where('template.deletedAt IS NULL');
+      .where('template.deleted_at IS NULL');
 
     // Apply filters
-    if (options?.tenantId) {
-      queryBuilder.andWhere('template.tenantId = :tenantId', { tenantId: options.tenantId });
+    if (options?.tenantId && options.tenantId.trim()) {
+      queryBuilder.andWhere('template.tenant_id = :tenantId', { tenantId: options.tenantId.trim() });
     }
 
-    if (options?.externalOrgRef) {
-      queryBuilder.andWhere('template.externalOrgRef = :externalOrgRef', { externalOrgRef: options.externalOrgRef });
+    if (options?.externalOrgRef && options.externalOrgRef.trim()) {
+      queryBuilder.andWhere('template.external_org_ref = :externalOrgRef', { externalOrgRef: options.externalOrgRef.trim() });
     }
 
-    if (options?.type) {
-      queryBuilder.andWhere('LOWER(template.type) = :type', { type: options.type.toLowerCase() });
+    if (options?.type && options.type.trim()) {
+      queryBuilder.andWhere('LOWER(template.type) = :type', { type: options.type.toLowerCase().trim() });
     }
 
     if (options?.search && options.search.trim()) {
       queryBuilder.andWhere(
         '(template.name ILIKE :search OR template.description ILIKE :search)',
-        { search: `%${options.search}%` },
+        { search: `%${options.search.trim()}%` },
       );
     }
 
     if (options?.favoritesOnly) {
-      queryBuilder.andWhere('template.isFavorite = :isFavorite', { isFavorite: true });
+      queryBuilder.andWhere('template.is_favorite = true');
     }
 
     if (options?.excludePredefinedOverrides) {
-      queryBuilder.andWhere('(template.isPredefinedOverride = :notOverride OR template.isPredefinedOverride IS NULL)', { notOverride: false });
+      queryBuilder.andWhere('(template.is_predefined_override = false OR template.is_predefined_override IS NULL)');
     }
 
     if (options?.predefinedOverridesOnly) {
-      queryBuilder.andWhere('template.isPredefinedOverride = :isOverride', { isOverride: true });
+      queryBuilder.andWhere('template.is_predefined_override = true');
     }
 
     // Apply sorting — primary by sortBy, secondary by createdAt
-    const sortBy = options?.sortBy || 'updatedAt';
+    const sortColumnMap: Record<string, string> = {
+      updatedAt: 'template.updated_at',
+      updated_at: 'template.updated_at',
+      createdAt: 'template.created_at',
+      created_at: 'template.created_at',
+      name: 'template.name',
+      usageCount: 'template.usage_count',
+      usage_count: 'template.usage_count',
+    };
+    const sortColumn = sortColumnMap[options?.sortBy || 'updatedAt'] || 'template.updated_at';
     const sortOrder = options?.ascending ? 'ASC' : 'DESC';
     queryBuilder
-      .orderBy(`template.${sortBy}`, sortOrder)
-      .addOrderBy('template.createdAt', sortOrder);
+      .orderBy(sortColumn, sortOrder)
+      .addOrderBy('template.created_at', sortOrder);
 
     // Apply pagination
     const page = options?.page || 1;
@@ -194,15 +203,15 @@ export class TemplateRepositoryImpl extends TemplateRepository {
    */
   async findPopular(limit: number = 3, type?: string): Promise<TemplateOrmEntity[]> {
     const queryBuilder = this.repository.createQueryBuilder('template')
-      .where('template.deletedAt IS NULL');
+      .where('template.deleted_at IS NULL');
 
     if (type) {
-      queryBuilder.andWhere('template.type = :type', { type: type.toLowerCase() });
+      queryBuilder.andWhere('LOWER(template.type) = :type', { type: type.toLowerCase() });
     }
 
     queryBuilder
-      .orderBy('template.usageCount', 'DESC')
-      .addOrderBy('template.createdAt', 'DESC') // Secondary sort for templates with same usage count
+      .orderBy('template.usage_count', 'DESC')
+      .addOrderBy('template.created_at', 'DESC') // Secondary sort for templates with same usage count
       .take(Math.min(limit, 10)); // Max 10 templates
 
     return queryBuilder.getMany();
