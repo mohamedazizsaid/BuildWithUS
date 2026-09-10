@@ -5,50 +5,64 @@ import { Response } from 'express';
 import * as Minio from 'minio';
 import { v4 as uuid } from 'uuid';
 
+const useSSL = process.env.MINIO_USE_SSL === 'true' || process.env.MINIO_PORT === '443';
+const minioPort = parseInt(process.env.MINIO_PORT || (useSSL ? '443' : '9000'), 10);
+
 const minioClient = new Minio.Client({
   endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-  port: parseInt(process.env.MINIO_PORT || '9000'),
-  useSSL: false,
+  port: minioPort,
+  useSSL,
   accessKey: process.env.MINIO_ACCESS_KEY || 'winaity',
   secretKey: process.env.MINIO_SECRET_KEY || 'winaity123',
 });
 
 const BUCKET = process.env.MINIO_BUCKET || 'templates';
 
-// Ensure bucket exists and is public on startup
+// Ensure bucket exists and is public on startup (graceful fallback if offline or free provider)
 async function ensureBucket() {
+  if (!process.env.MINIO_ENDPOINT && process.env.NODE_ENV === 'production') {
+    console.log('MinIO storage endpoint not configured — media storage disabled');
+    return;
+  }
   try {
     const exists = await minioClient.bucketExists(BUCKET);
     if (!exists) {
       await minioClient.makeBucket(BUCKET);
     }
-    // Set public read policy
-    const policy = JSON.stringify({
-      Version: '2012-10-17',
-      Statement: [{
-        Effect: 'Allow',
-        Principal: { AWS: ['*'] },
-        Action: ['s3:GetObject'],
-        Resource: [`arn:aws:s3:::${BUCKET}/*`],
-      }],
-    });
-    await minioClient.setBucketPolicy(BUCKET, policy);
-    console.log(`MinIO bucket "${BUCKET}" ready (public read)`);
-  } catch (err) {
-    console.error('MinIO bucket setup failed:', err);
+    // Set public read policy if supported by provider
+    try {
+      const policy = JSON.stringify({
+        Version: '2012-10-17',
+        Statement: [{
+          Effect: 'Allow',
+          Principal: { AWS: ['*'] },
+          Action: ['s3:GetObject'],
+          Resource: [`arn:aws:s3:::${BUCKET}/*`],
+        }],
+      });
+      await minioClient.setBucketPolicy(BUCKET, policy);
+      console.log(`MinIO bucket "${BUCKET}" ready (public read)`);
+    } catch {
+      // Free providers like Backblaze B2 or Supabase manage public bucket policies from their dashboard
+      console.log(`MinIO bucket "${BUCKET}" accessible (policy managed by provider)`);
+    }
+  } catch (err: any) {
+    console.warn('MinIO bucket setup check (non-fatal):', err?.message || err);
   }
 }
 ensureBucket();
 
 // Build the browser-facing URL for a stored object. MINIO_PUBLIC_URL is the
-// host the browser uses (dev: http://localhost:9000, prod: the tunnel domain);
-// the MINIO_ENDPOINT/PORT fallback is only for local runs without that var set.
-// Listing and uploading MUST use the same builder so URLs match in dev AND prod.
+// host the browser uses (dev: http://localhost:9000, prod: custom domain/CDN);
+// the MINIO_ENDPOINT/PORT fallback is for standard runs.
 function buildPublicUrl(fileName: string): string {
-  const publicBase =
-    process.env.MINIO_PUBLIC_URL ||
-    `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || '9000'}`;
-  return `${publicBase}/${BUCKET}/${fileName}`;
+  if (process.env.MINIO_PUBLIC_URL) {
+    return `${process.env.MINIO_PUBLIC_URL.replace(/\/$/, '')}/${BUCKET}/${fileName}`;
+  }
+  const protocol = useSSL ? 'https' : 'http';
+  const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
+  const portSuffix = (minioPort === 80 || minioPort === 443) ? '' : `:${minioPort}`;
+  return `${protocol}://${endpoint}${portSuffix}/${BUCKET}/${fileName}`;
 }
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']);

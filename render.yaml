@@ -87,20 +87,6 @@ services:
         value: templates_db
       - key: DB_SYNC
         value: "false"
-      # MinIO / S3-compatible storage (fill in after setting up Cloudflare R2 or MinIO)
-      - key: MINIO_ENDPOINT
-        sync: false
-      - key: MINIO_PORT
-        value: "9000"
-      - key: MINIO_ACCESS_KEY
-        sync: false
-      - key: MINIO_SECRET_KEY
-        sync: false
-      - key: MINIO_BUCKET
-        value: templates
-      - key: MINIO_USE_SSL
-        value: "true"
-
   # ── api-gateway (Public Web Service) ─────────────────────────────────────────
   - type: web
     name: api-gateway
@@ -143,15 +129,16 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: noreply@buildwithus.app
-      # MinIO / S3 (same as template-service)
+      # Storage S3 (100% GRATUIT SANS CARTE: Backblaze B2 ou Supabase Storage)
+      # Non-bloquant: vous pouvez deployer maintenant et remplir ces 3 cles plus tard dans Render
       - key: MINIO_ENDPOINT
-        sync: false
+        value: localhost
       - key: MINIO_PORT
-        value: "9000"
+        value: "443"
       - key: MINIO_ACCESS_KEY
-        sync: false
+        value: none
       - key: MINIO_SECRET_KEY
-        sync: false
+        value: none
       - key: MINIO_BUCKET
         value: templates
       - key: MINIO_USE_SSL
