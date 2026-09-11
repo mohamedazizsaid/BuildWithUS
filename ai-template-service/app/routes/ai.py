@@ -16,6 +16,7 @@ class SuggestPalettesRequest(BaseModel):
     email_type: str
     vibe: str | None = None
 
+
 @router.post("/suggest-palettes")
 async def suggest_palettes(request: SuggestPalettesRequest):
     try:
@@ -32,6 +33,7 @@ class MapVariablesRequest(BaseModel):
     template_vars: list[str]
     file_columns: list[str]
     sample_row: dict | None = None
+
 
 @router.post("/map-variables")
 async def map_variables(request: MapVariablesRequest):
@@ -52,15 +54,21 @@ class InvoiceTargetSpec(BaseModel):
     type: str
     hint: str | None = ''
 
+
+
 class AlreadyMatchedSpec(BaseModel):
     target: str
     column: str
+
+
 
 class MapInvoiceFieldsRequest(BaseModel):
     targets: list[InvoiceTargetSpec]
     file_columns: list[str]
     already_matched: list[AlreadyMatchedSpec] | None = None
     sample_row: dict | None = None
+
+
 
 @router.post("/map-invoice-fields")
 async def map_invoice_fields(request: MapInvoiceFieldsRequest):

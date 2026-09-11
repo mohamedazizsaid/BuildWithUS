@@ -20,12 +20,12 @@ _FALLBACK_PALETTES: dict[str, list[dict]] = {
     ],
     "promo": [
         {"name": "Sunset",  "primary": "#be123c", "accent": "#fb7185", "background": "#fff1f2", "text": "#4c0519"},
-        {"name": "Electric","primary": "#7c3aed", "accent": "#a78bfa", "background": "#f5f3ff", "text": "#2e1065"},
+        {"name": "Electric", "primary": "#7c3aed", "accent": "#a78bfa", "background": "#f5f3ff", "text": "#2e1065"},
         {"name": "Citrus",  "primary": "#ea580c", "accent": "#fdba74", "background": "#fff7ed", "text": "#431407"},
         {"name": "Mint",    "primary": "#0d9488", "accent": "#5eead4", "background": "#f0fdfa", "text": "#042f2e"},
     ],
     "invoice": [
-        {"name": "Corporate","primary": "#1e3a8a", "accent": "#3b82f6", "background": "#f8fafc", "text": "#0f172a"},
+        {"name": "Corporate", "primary": "#1e3a8a", "accent": "#3b82f6", "background": "#f8fafc", "text": "#0f172a"},
         {"name": "Neutral",  "primary": "#334155", "accent": "#64748b", "background": "#ffffff", "text": "#1e293b"},
         {"name": "Forest",   "primary": "#14532d", "accent": "#22c55e", "background": "#f7fee7", "text": "#052e16"},
         {"name": "Graphite", "primary": "#111827", "accent": "#6b7280", "background": "#f9fafb", "text": "#111827"},
@@ -47,7 +47,10 @@ class AiService:
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY", "")
         if not self.api_key:
-            logger.warning("[AiService] OPENROUTER_API_KEY is not set in environment variables. Running in fallback mode.")
+            logger.warning(
+                "[AiService] OPENROUTER_API_KEY is not set in environment variables. "
+                "Running in fallback mode."
+            )
         self.url = "https://openrouter.ai/api/v1/chat/completions"
         self.model = os.getenv("AI_MODEL", "deepseek/deepseek-v3.2")
 
