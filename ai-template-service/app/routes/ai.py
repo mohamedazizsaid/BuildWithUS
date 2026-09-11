@@ -55,11 +55,9 @@ class InvoiceTargetSpec(BaseModel):
     hint: str | None = ''
 
 
-
 class AlreadyMatchedSpec(BaseModel):
     target: str
     column: str
-
 
 
 class MapInvoiceFieldsRequest(BaseModel):
@@ -67,7 +65,6 @@ class MapInvoiceFieldsRequest(BaseModel):
     file_columns: list[str]
     already_matched: list[AlreadyMatchedSpec] | None = None
     sample_row: dict | None = None
-
 
 
 @router.post("/map-invoice-fields")
