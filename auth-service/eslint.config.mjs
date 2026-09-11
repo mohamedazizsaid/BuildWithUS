@@ -28,6 +28,9 @@ export default [
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-console': 'warn',
       'preserve-caught-error': 'warn',
+      // Empty catch blocks used intentionally for JWT token-type fallthrough:
+      // try session → try M2M → try user token. Downgrading to warn.
+      'no-empty': 'warn',
     },
   },
 ];
