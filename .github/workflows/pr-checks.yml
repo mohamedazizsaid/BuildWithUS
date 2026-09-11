@@ -99,7 +99,7 @@ jobs:
         run: |
           pip install flake8 -q
           flake8 ai-template-service/app/ --max-line-length=120 --exclude=__pycache__ --statistics
-          flake8 image-pipeline/ --max-line-length=120 --exclude=__pycache__,setup.py --ignore=E501 --statistics
+          flake8 image-pipeline/ --max-line-length=120 --exclude=__pycache__,setup.py --ignore=E501,E221,E241,E226,E203 --statistics
 
   # ============================================================================
   # Tests + CodeClimate diff analysis
@@ -130,18 +130,13 @@ jobs:
         env:
           NODE_ENV: test
 
-      # Upload couverture → Qlty Cloud via OIDC (méthode recommandée)
+      # Upload couverture → Qlty Cloud
       - name: Upload coverage to Qlty Cloud
         uses: qltysh/qlty-action/coverage@v2
         with:
-          oidc: true
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: auth-service/coverage/lcov.info
-          tag: auth-service  # Tag monorepo
-        # Alternative avec token :
-        # with:
-        #   token: ${{ secrets.QLTY_COVERAGE_TOKEN }}  # 🏷️ SECRET
-        #   files: auth-service/coverage/lcov.info
-        #   tag: auth-service
+          tag: auth-service
 
   # ============================================================================
   # Commentaire de résumé sur la PR

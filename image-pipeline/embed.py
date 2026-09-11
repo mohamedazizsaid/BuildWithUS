@@ -71,6 +71,7 @@ FRENCH_TAGS = [
     "fête", "célébration", "mariage", "anniversaire", "événement",
 ]
 
+
 # French description templates based on top tags
 def build_description(top_tags: list[str]) -> str:
     if not top_tags:

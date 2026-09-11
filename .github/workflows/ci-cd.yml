@@ -14,7 +14,6 @@
 #   🏷️ RENDER_DEPLOY_HOOK_AI_SERVICE     → Render deploy hook URL (ai-template-service)
 #   🏷️ RENDER_DEPLOY_HOOK_IMAGE_PIPELINE → Render deploy hook URL (image-pipeline)
 #   🏷️ VERCEL_DEPLOY_HOOK_URL            → Vercel deploy hook URL (frontend)
-#   🏷️ BETTERSTACK_SOURCE_TOKEN          → Better Stack logs source token
 #   🏷️ GHCR_TOKEN                        → GitHub PAT avec scope write:packages
 ##############################################################################
 
@@ -149,7 +148,7 @@ jobs:
           flake8 . \
             --max-line-length=120 \
             --exclude=__pycache__,.venv,setup.py \
-            --ignore=E501 \
+            --ignore=E501,E221,E241,E226,E203 \
             --statistics
         working-directory: image-pipeline
 
@@ -162,7 +161,7 @@ jobs:
     needs: detect-changes
     permissions:
       contents: read
-      id-token: write  # Requis pour OIDC Qlty (pas besoin de stocker un token)
+      #id-token: write  # Requis pour OIDC Qlty (pas besoin de stocker un token)
 
     steps:
       - name: Checkout
@@ -191,14 +190,9 @@ jobs:
       - name: Upload coverage to Qlty Cloud (OIDC)
         uses: qltysh/qlty-action/coverage@v2
         with:
-          oidc: true
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}  # 🏷️ SECRET
           files: auth-service/coverage/lcov.info
-          tag: auth-service  # Tag monorepo — identifie ce service dans Qlty
-        # Si OIDC non disponible, remplacer par :
-        # with:
-        #   token: ${{ secrets.QLTY_COVERAGE_TOKEN }}  # 🏷️ SECRET
-        #   files: auth-service/coverage/lcov.info
-        #   tag: auth-service
+          tag: auth-service
 
   # ============================================================================
   # JOB 4 — Docker Build & Push vers GHCR

@@ -44,6 +44,7 @@ from dotenv import load_dotenv
 _translator = GoogleTranslator(source='en', target='fr')
 _tag_cache: dict[str, str] = {}
 
+
 def to_french(word: str) -> str:
     """Translate a single English word/phrase to French, with local cache."""
     key = word.lower().strip()
@@ -56,6 +57,7 @@ def to_french(word: str) -> str:
         result = key
     _tag_cache[key] = result
     return result
+
 
 load_dotenv()
 
@@ -104,6 +106,7 @@ CATEGORIES = [
     ("abstract", 150),
 ]
 
+
 # ── Clients ───────────────────────────────────────────────────────────────────
 
 def pg_conn():
@@ -112,9 +115,11 @@ def pg_conn():
         password=PG_PASS, dbname=PG_DB
     )
 
+
 def minio_client():
     return Minio(MINIO_ENDPOINT, access_key=MINIO_ACCESS,
                  secret_key=MINIO_SECRET, secure=False)
+
 
 # ── Step 0: Wipe old data ─────────────────────────────────────────────────────
 
@@ -160,6 +165,7 @@ def wipe_old_data():
 
     print("[WIPE] Done.\n")
 
+
 # ── Step 1: Fetch Pexels metadata ─────────────────────────────────────────────
 
 def fetch_pexels_photos(query: str, count: int) -> list[dict]:
@@ -200,6 +206,7 @@ def fetch_pexels_photos(query: str, count: int) -> list[dict]:
 
     return photos[:count]
 
+
 # ── Step 2: Build metadata from a Pexels photo object ─────────────────────────
 
 def photo_metadata(photo: dict, category: str) -> dict:
@@ -225,6 +232,7 @@ def photo_metadata(photo: dict, category: str) -> dict:
         "tags":        tags,
         "avg_color":   photo.get("avg_color", ""),
     }
+
 
 # ── Step 3: Download → upload → embed → record ────────────────────────────────
 
@@ -327,6 +335,7 @@ def process_batch(photos_meta: list[dict], mc: Minio, chroma_col, text_model,
     shutil.rmtree(TMP_DIR, ignore_errors=True)
     return ok
 
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -374,10 +383,10 @@ def main():
 
         # Process in batches of BATCH_SIZE
         for i in range(0, len(photos), BATCH_SIZE):
-            chunk = photos[i : i + BATCH_SIZE]
+            chunk = photos[i:i + BATCH_SIZE]
             metas = [photo_metadata(p, query) for p in chunk]
 
-            with tqdm(total=len(metas), desc=f"  Processing {query}[{i}:{i+BATCH_SIZE}]",
+            with tqdm(total=len(metas), desc=f"  Processing {query}[{i}:{i + BATCH_SIZE}]",
                       unit="img") as bar:
                 # patch tqdm to update per-image
                 processed = process_batch(metas, mc, chroma_col,
@@ -400,6 +409,7 @@ def main():
     print(f"  ✓ Pipeline complete: {total_ok} HD images indexed")
     print(f"  ChromaDB: {chroma_col.count()} vectors")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     main()
