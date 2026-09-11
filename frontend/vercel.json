@@ -4,7 +4,12 @@
   "outputDirectory": ".next",
   "installCommand": "npm ci",
   "devCommand": "npm run dev",
-  "regions": ["cdg1"],
+  "regions": [
+    "cdg1"
+  ],
+  "git": {
+    "deploymentEnabled": false
+  },
   "headers": [
     {
       "source": "/(.*)",

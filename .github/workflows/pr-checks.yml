@@ -1,0 +1,196 @@
+##############################################################################
+# .github/workflows/pr-checks.yml
+# Pipeline léger pour Pull Requests — winaity-template-builder
+#
+# TRIGGERS: pull_request uniquement (pas de deploy, pas de Docker push)
+#
+# SECRETS REQUIS:
+#   🏷️ QLTY_COVERAGE_TOKEN → Qlty Cloud coverage token (optionnel si OIDC activé)
+##############################################################################
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Détection des services touchés par la PR
+  # ============================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      auth_service: ${{ steps.filter.outputs.auth_service }}
+      api_gateway: ${{ steps.filter.outputs.api_gateway }}
+      template_service: ${{ steps.filter.outputs.template_service }}
+      ai_service: ${{ steps.filter.outputs.ai_service }}
+      image_pipeline: ${{ steps.filter.outputs.image_pipeline }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            auth_service:
+              - 'auth-service/**'
+            api_gateway:
+              - 'api-gateway/**'
+            template_service:
+              - 'template-service/**'
+              - 'packages/**'
+            ai_service:
+              - 'ai-template-service/**'
+            image_pipeline:
+              - 'image-pipeline/**'
+            frontend:
+              - 'frontend/**'
+
+  # ============================================================================
+  # Lint rapide sur tous les services
+  # ============================================================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: detect-changes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            api-gateway/package-lock.json
+            auth-service/package-lock.json
+            template-service/package-lock.json
+            frontend/package-lock.json
+
+      - name: Lint api-gateway
+        run: npm ci && npm run lint
+        working-directory: api-gateway
+
+      - name: Lint auth-service
+        run: npm ci && npm run lint
+        working-directory: auth-service
+
+      - name: Lint template-service
+        run: npm ci && npm run lint
+        working-directory: template-service
+
+      - name: Lint frontend
+        run: npm ci && npm run lint
+        working-directory: frontend
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Lint Python services
+        run: |
+          pip install flake8 -q
+          flake8 ai-template-service/app/ --max-line-length=120 --exclude=__pycache__ --statistics
+          flake8 image-pipeline/ --max-line-length=120 --exclude=__pycache__,setup.py --ignore=E501 --statistics
+
+  # ============================================================================
+  # Tests + CodeClimate diff analysis
+  # ============================================================================
+  test-and-coverage:
+    name: Tests & Qlty Cloud Analysis
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth_service == 'true'
+    permissions:
+      contents: read
+      id-token: write  # Requis pour OIDC Qlty
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: auth-service/package-lock.json
+
+      - name: Install deps & run tests
+        run: |
+          npm ci
+          npm run test:cov
+        working-directory: auth-service
+        env:
+          NODE_ENV: test
+
+      # Upload couverture → Qlty Cloud via OIDC (méthode recommandée)
+      - name: Upload coverage to Qlty Cloud
+        uses: qltysh/qlty-action/coverage@v2
+        with:
+          oidc: true
+          files: auth-service/coverage/lcov.info
+          tag: auth-service  # Tag monorepo
+        # Alternative avec token :
+        # with:
+        #   token: ${{ secrets.QLTY_COVERAGE_TOKEN }}  # 🏷️ SECRET
+        #   files: auth-service/coverage/lcov.info
+        #   tag: auth-service
+
+  # ============================================================================
+  # Commentaire de résumé sur la PR
+  # ============================================================================
+  pr-summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [lint, detect-changes]
+    if: always()
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Comment PR with CI status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lintResult = '${{ needs.lint.result }}';
+            const changedServices = {
+              'auth-service': '${{ needs.detect-changes.outputs.auth_service }}' === 'true',
+              'api-gateway': '${{ needs.detect-changes.outputs.api_gateway }}' === 'true',
+              'template-service': '${{ needs.detect-changes.outputs.template_service }}' === 'true',
+              'ai-template-service': '${{ needs.detect-changes.outputs.ai_service }}' === 'true',
+              'image-pipeline': '${{ needs.detect-changes.outputs.image_pipeline }}' === 'true',
+              'frontend': '${{ needs.detect-changes.outputs.frontend }}' === 'true',
+            };
+
+            const changed = Object.entries(changedServices)
+              .filter(([_, v]) => v)
+              .map(([k]) => `- \`${k}\``)
+              .join('\n') || '- _aucun service modifié_';
+
+            const lintIcon = lintResult === 'success' ? '✅' : lintResult === 'failure' ? '❌' : '⏭️';
+
+            const body = `## CI/CD Summary
+
+            | Check | Status |
+            |---|---|
+            | Lint & Quality | ${lintIcon} ${lintResult} |
+
+            ### Services modifiés dans cette PR
+            ${changed}
+
+            > _Le deploy sur Render et Vercel sera déclenché automatiquement après merge sur \`main\`._
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });

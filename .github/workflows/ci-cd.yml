@@ -1,0 +1,397 @@
+##############################################################################
+# .github/workflows/ci-cd.yml
+# Pipeline CI/CD complet — winaity-template-builder
+#
+# TRIGGERS:
+#   - push sur main       → lint + test + docker + deploy render + deploy vercel
+#   - pull_request        → lint + test + Qlty Cloud analysis seulement
+#
+# SECRETS REQUIS (GitHub → Settings → Secrets and variables → Actions):
+#   🏷️ QLTY_COVERAGE_TOKEN               → Qlty Cloud coverage token (si pas OIDC)
+#   🏷️ RENDER_DEPLOY_HOOK_AUTH_SERVICE   → Render deploy hook URL (auth-service)
+#   🏷️ RENDER_DEPLOY_HOOK_API_GATEWAY    → Render deploy hook URL (api-gateway)
+#   🏷️ RENDER_DEPLOY_HOOK_TEMPLATE       → Render deploy hook URL (template-service)
+#   🏷️ RENDER_DEPLOY_HOOK_AI_SERVICE     → Render deploy hook URL (ai-template-service)
+#   🏷️ RENDER_DEPLOY_HOOK_IMAGE_PIPELINE → Render deploy hook URL (image-pipeline)
+#   🏷️ VERCEL_DEPLOY_HOOK_URL            → Vercel deploy hook URL (frontend)
+#   🏷️ BETTERSTACK_SOURCE_TOKEN          → Better Stack logs source token
+#   🏷️ GHCR_TOKEN                        → GitHub PAT avec scope write:packages
+##############################################################################
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "**"
+
+# Annule les runs précédents sur la même branche pour économiser les minutes CI
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  # ============================================================================
+  # JOB 1 — Détection des changements (path filtering)
+  # Permet de ne rebuilder que les services modifiés
+  # ============================================================================
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      auth_service: ${{ steps.filter.outputs.auth_service }}
+      api_gateway: ${{ steps.filter.outputs.api_gateway }}
+      template_service: ${{ steps.filter.outputs.template_service }}
+      ai_service: ${{ steps.filter.outputs.ai_service }}
+      image_pipeline: ${{ steps.filter.outputs.image_pipeline }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      packages: ${{ steps.filter.outputs.packages }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            auth_service:
+              - 'auth-service/**'
+            api_gateway:
+              - 'api-gateway/**'
+            template_service:
+              - 'template-service/**'
+              - 'packages/**'
+            ai_service:
+              - 'ai-template-service/**'
+            image_pipeline:
+              - 'image-pipeline/**'
+            frontend:
+              - 'frontend/**'
+            packages:
+              - 'packages/**'
+
+  # ============================================================================
+  # JOB 2 — Lint + Qualité de code (TypeScript + Python)
+  # ============================================================================
+  lint-and-quality:
+    name: Lint & Code Quality
+    runs-on: ubuntu-latest
+    needs: detect-changes
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Node.js (services TS) ──────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            api-gateway/package-lock.json
+            auth-service/package-lock.json
+            template-service/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install & Lint api-gateway
+        run: |
+          npm ci
+          npm run lint
+        working-directory: api-gateway
+
+      - name: Install & Lint auth-service
+        run: |
+          npm ci
+          npm run lint
+        working-directory: auth-service
+
+      - name: Install & Lint template-service
+        run: |
+          npm ci
+          npm run lint
+        working-directory: template-service
+
+      - name: Install & Lint frontend
+        run: |
+          npm ci
+          npm run lint
+        working-directory: frontend
+
+      # ── Python (services Python) ───────────────────────────────────────────
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Lint ai-template-service
+        run: |
+          flake8 app/ \
+            --max-line-length=120 \
+            --exclude=__pycache__,.venv \
+            --statistics
+        working-directory: ai-template-service
+
+      - name: Lint image-pipeline
+        run: |
+          flake8 . \
+            --max-line-length=120 \
+            --exclude=__pycache__,.venv,setup.py \
+            --ignore=E501 \
+            --statistics
+        working-directory: image-pipeline
+
+  # ============================================================================
+  # JOB 3 — Tests Jest + Couverture → Qlty Cloud
+  # ============================================================================
+  test:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    permissions:
+      contents: read
+      id-token: write  # Requis pour OIDC Qlty (pas besoin de stocker un token)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: auth-service/package-lock.json
+
+      # ── auth-service Tests ─────────────────────────────────────────────────
+      - name: Install auth-service deps
+        run: npm ci
+        working-directory: auth-service
+
+      - name: Run auth-service tests with coverage
+        run: npm run test:cov
+        working-directory: auth-service
+        env:
+          NODE_ENV: test
+
+      # ── Upload couverture → Qlty Cloud ─────────────────────────────────────
+      # Méthode recommandée : OIDC (pas de secret à stocker)
+      - name: Upload coverage to Qlty Cloud (OIDC)
+        uses: qltysh/qlty-action/coverage@v2
+        with:
+          oidc: true
+          files: auth-service/coverage/lcov.info
+          tag: auth-service  # Tag monorepo — identifie ce service dans Qlty
+        # Si OIDC non disponible, remplacer par :
+        # with:
+        #   token: ${{ secrets.QLTY_COVERAGE_TOKEN }}  # 🏷️ SECRET
+        #   files: auth-service/coverage/lcov.info
+        #   tag: auth-service
+
+  # ============================================================================
+  # JOB 4 — Docker Build & Push vers GHCR
+  # Uniquement sur push main + seulement les services modifiés
+  # ============================================================================
+  docker-build-push:
+    name: Docker Build & Push — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [lint-and-quality, test, detect-changes]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth-service
+            dockerfile: ./auth-service/Dockerfile
+            context: ./auth-service
+            changed_output: auth_service
+
+          - service: api-gateway
+            dockerfile: ./api-gateway/Dockerfile
+            context: ./api-gateway
+            changed_output: api_gateway
+
+          - service: template-service
+            dockerfile: ./template-service/Dockerfile
+            context: .
+            changed_output: template_service
+
+          - service: ai-template-service
+            dockerfile: ./ai-template-service/Dockerfile
+            context: ./ai-template-service
+            changed_output: ai_service
+
+          - service: image-pipeline
+            dockerfile: ./image-pipeline/Dockerfile
+            context: ./image-pipeline
+            changed_output: image_pipeline
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # 🏷️ SECRET : GHCR_TOKEN (PAT write:packages) ou GITHUB_TOKEN si repo public
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=true
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Cache GHA pour accélérer les builds suivants
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # ============================================================================
+  # JOB 5 — Deploy Backend sur Render via Deploy Hooks
+  # Chaque service déclenché seulement si son code a changé
+  # ============================================================================
+  deploy-render:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: [docker-build-push, detect-changes]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy auth-service
+        if: needs.detect-changes.outputs.auth_service == 'true'
+        run: |
+          echo "Deploying auth-service to Render..."
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_AUTH_SERVICE }}" # 🏷️ SECRET
+          echo "auth-service deploy triggered"
+
+      - name: Deploy api-gateway
+        if: needs.detect-changes.outputs.api_gateway == 'true'
+        run: |
+          echo "Deploying api-gateway to Render..."
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_API_GATEWAY }}" # 🏷️ SECRET
+          echo "api-gateway deploy triggered"
+
+      - name: Deploy template-service
+        # Redéployé si template-service OU packages partagés ont changé
+        if: |
+          needs.detect-changes.outputs.template_service == 'true' ||
+          needs.detect-changes.outputs.packages == 'true'
+        run: |
+          echo "Deploying template-service to Render..."
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_TEMPLATE }}" # 🏷️ SECRET
+          echo "template-service deploy triggered"
+
+      - name: Deploy ai-template-service
+        if: needs.detect-changes.outputs.ai_service == 'true'
+        run: |
+          echo "Deploying ai-template-service to Render..."
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_AI_SERVICE }}" # 🏷️ SECRET
+          echo "ai-template-service deploy triggered"
+
+      - name: Deploy image-pipeline
+        if: needs.detect-changes.outputs.image_pipeline == 'true'
+        run: |
+          echo "Deploying image-pipeline to Render..."
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_IMAGE_PIPELINE }}" # 🏷️ SECRET
+          echo "image-pipeline deploy triggered"
+
+  # ============================================================================
+  # JOB 6 — Deploy Frontend sur Vercel via Deploy Hook
+  # Déclenché seulement si frontend modifié
+  # ============================================================================
+  deploy-vercel:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: [lint-and-quality, detect-changes]
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.detect-changes.outputs.frontend == 'true'
+
+    steps:
+      - name: Trigger Vercel Deploy Hook
+        run: |
+          echo "Deploying frontend to Vercel..."
+          curl -fsSL -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" # 🏷️ SECRET
+          echo "Vercel deploy triggered successfully"
+
+  # ============================================================================
+  # JOB 7 — Notification de déploiement → Better Stack Logs
+  # Envoie un log structuré après chaque deploy réussi ou partiel
+  # ============================================================================
+  notify-betterstack:
+    name: Notify Better Stack
+    runs-on: ubuntu-latest
+    needs: [deploy-render, deploy-vercel, detect-changes]
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      (needs.deploy-render.result == 'success' || needs.deploy-vercel.result == 'success')
+
+    steps:
+      - name: Send deployment log to Better Stack
+        run: |
+          RENDER_STATUS="${{ needs.deploy-render.result }}"
+          VERCEL_STATUS="${{ needs.deploy-vercel.result }}"
+
+          OVERALL="success"
+          if [ "$RENDER_STATUS" != "success" ] && [ "$RENDER_STATUS" != "skipped" ]; then
+            OVERALL="partial_failure"
+          fi
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${{ secrets.BETTERSTACK_SOURCE_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"dt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+              \"message\": \"[winaity] Deployment on main — ${OVERALL}\",
+              \"level\": \"info\",
+              \"environment\": \"production\",
+              \"status\": \"${OVERALL}\",
+              \"commit_sha\": \"${{ github.sha }}\",
+              \"triggered_by\": \"${{ github.actor }}\",
+              \"workflow_url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",
+              \"render_status\": \"${RENDER_STATUS}\",
+              \"vercel_status\": \"${VERCEL_STATUS}\",
+              \"changed_services\": {
+                \"auth_service\": \"${{ needs.detect-changes.outputs.auth_service }}\",
+                \"api_gateway\": \"${{ needs.detect-changes.outputs.api_gateway }}\",
+                \"template_service\": \"${{ needs.detect-changes.outputs.template_service }}\",
+                \"ai_service\": \"${{ needs.detect-changes.outputs.ai_service }}\",
+                \"image_pipeline\": \"${{ needs.detect-changes.outputs.image_pipeline }}\",
+                \"frontend\": \"${{ needs.detect-changes.outputs.frontend }}\"
+              }
+            }" \
+            "https://in.logs.betterstack.com"
+
+          echo "Better Stack notified — status: ${OVERALL}"

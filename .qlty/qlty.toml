@@ -1,0 +1,117 @@
+##############################################################################
+# .qlty/qlty.toml — Configuration Qlty Cloud
+# https://docs.qlty.sh/
+#
+# Setup:
+#   1. Connecter le repo sur https://qlty.sh
+#   2. Qlty utilise OIDC par défaut — aucun secret à stocker
+#   3. Ajouter les badges Qlty dans README.md
+#
+# Pour initialiser localement : npx qlty init
+##############################################################################
+
+[config]
+version = "0.1"
+
+##############################################################################
+# PLUGINS — Linters & Analyseurs statiques
+##############################################################################
+
+# ESLint pour TypeScript/JavaScript (api-gateway, auth-service, template-service, frontend)
+[plugin.eslint]
+enabled = true
+# Qlty lit automatiquement eslint.config.mjs de chaque service
+
+# Flake8 pour Python (ai-template-service, image-pipeline)
+[plugin.flake8]
+enabled = true
+
+# Détection de duplication de code
+[plugin.duplication]
+enabled = true
+
+# Analyse de sécurité basique
+[plugin.semgrep]
+enabled = true
+
+##############################################################################
+# CODE SMELLS — Seuils de qualité
+##############################################################################
+
+[smells.method_complexity]
+# Complexité cyclomatique max par méthode
+threshold = 10
+enabled = true
+
+[smells.method_lines]
+# Longueur max d'une méthode (lignes)
+threshold = 50
+enabled = true
+
+[smells.file_complexity]
+# Complexité max par fichier
+threshold = 55
+enabled = true
+
+[smells.argument_count]
+# Nombre max d'arguments par fonction
+threshold = 6
+enabled = true
+
+[smells.boolean_logic]
+# Expressions booléennes complexes
+threshold = 4
+enabled = true
+
+##############################################################################
+# EXCLUSIONS — Chemins ignorés par l'analyse
+##############################################################################
+
+[ignore]
+patterns = [
+  # Dépendances
+  "**/node_modules/**",
+  "**/.venv/**",
+  "**/venv/**",
+
+  # Build outputs
+  "**/dist/**",
+  "**/.next/**",
+  "**/__pycache__/**",
+  "**/*.pyc",
+
+  # Fichiers générés / lock files
+  "**/package-lock.json",
+  "**/*.tsbuildinfo",
+  "**/coverage/**",
+
+  # Fichiers de configuration (pas du code métier)
+  "**/*.config.js",
+  "**/*.config.ts",
+  "**/*.config.mjs",
+  "**/jest.config.js",
+  "**/nest-cli.json",
+  "**/tsconfig*.json",
+  "**/ormconfig.ts",
+
+  # Migrations et schémas de base de données
+  "**/migrations/**",
+  "**/db/**",
+
+  # Fichiers proto (générés)
+  "**/proto/**",
+
+  # Fichiers de test (analysés via couverture)
+  "**/*.spec.ts",
+  "**/*.test.ts",
+
+  # Scripts utilitaires one-off (image-pipeline)
+  "image-pipeline/download*.py",
+  "image-pipeline/translate_tags.py",
+  "image-pipeline/setup.py",
+  "image-pipeline/setup.bat",
+  "image-pipeline/embed.py",
+
+  # Scripts de démarrage locaux
+  "start-all.*",
+]
