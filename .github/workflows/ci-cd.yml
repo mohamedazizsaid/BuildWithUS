@@ -186,7 +186,6 @@ jobs:
           NODE_ENV: test
 
       # ── Upload couverture → Qlty Cloud ─────────────────────────────────────
-      # Méthode recommandée : OIDC (pas de secret à stocker)
       - name: Upload coverage to Qlty Cloud (OIDC)
         uses: qltysh/qlty-action/coverage@v2
         with:
@@ -325,7 +324,7 @@ jobs:
   deploy-vercel:
     name: Deploy to Vercel
     runs-on: ubuntu-latest
-    needs: [lint-and-quality, detect-changes]
+    needs: [lint-and-quality,test, detect-changes]
     if: |
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&

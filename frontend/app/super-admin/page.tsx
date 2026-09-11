@@ -45,7 +45,7 @@ export default function SuperAdminLogin() {
           <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30">
             <Shield size={28} className="text-white" />
           </div>
-          <h1 className="text-white text-xl font-bold">Super Admin</h1>
+          <h1 className="text-white text-xl font-bold">Build with us Super Admin</h1>
           <p className="text-white/40 text-sm mt-1">Accès restreint</p>
         </div>
 
