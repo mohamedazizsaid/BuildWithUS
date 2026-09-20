@@ -27,3 +27,8 @@ app.add_middleware(
 )
 
 app.include_router(ai.router)
+
+
+@app.get("/health")
+def health():
+    return {"status": "success", "service": "ai-template-service"}

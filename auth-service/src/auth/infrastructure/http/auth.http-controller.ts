@@ -103,7 +103,7 @@ export class AuthHttpController {
 
   @Get('health')
   health() {
-    return { status: 'ok', service: 'auth-service' };
+    return { status: 'success', service: 'auth-service' };
   }
 
   // ── Authentication ────────────────────────────────────────────────────────

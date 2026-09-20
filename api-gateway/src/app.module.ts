@@ -10,6 +10,7 @@ import { SuperAdminController } from './controllers/super-admin.controller';
 import { TemplateController } from './controllers/template.controller';
 import { MediaController } from './controllers/media.controller';
 import { BillingController } from './controllers/billing.controller';
+import { HealthController } from './controllers/health.controller';
 import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { ScopesGuard } from './guards/scopes.guard';
@@ -27,6 +28,7 @@ import { TemplateClientService } from './services/template-client.service';
 @Module({
   imports: [],
   controllers: [
+    HealthController,
     AuthController,
     OAuthController,
     DevelopersController,

@@ -90,8 +90,7 @@ def pexels_get(endpoint: str, params: dict) -> dict:
 
 @app.get("/health")
 def health():
-    ok = bool(PEXELS_API_KEY)
-    return {"status": "ok" if ok else "missing_api_key", "backend": "pexels"}
+    return {"status": "success", "service": "image-pipeline", "backend": "pexels"}
 
 
 @app.get("/search", response_model=list[StockImage])

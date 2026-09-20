@@ -34,7 +34,7 @@ export class TemplatesQueriesHttpController {
    */
   @Get('health')
   async healthCheck() {
-    return { status: 'ok', service: 'template-service' };
+    return { status: 'success', service: 'template-service' };
   }
 
   /**
